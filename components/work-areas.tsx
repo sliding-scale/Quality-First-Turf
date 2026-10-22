@@ -2,6 +2,7 @@
 
 import { Dispatch, SetStateAction } from "react";
 import { Id } from "@/convex/_generated/dataModel";
+import { decimalInput } from "@/lib/discovery";
 
 export type WorkAreaDraft = {
   label: string;
@@ -112,27 +113,27 @@ export function WorkAreas({
               <label htmlFor={`area-${index}-length`}>Length</label>
               <input
                 id={`area-${index}-length`}
-                type="number"
+                inputMode="decimal"
                 value={area.length}
-                onChange={(event) => update(index, { length: event.target.value })}
+                onChange={(event) => update(index, { length: decimalInput(event.target.value) })}
               />
             </div>
             <div className="form-field">
               <label htmlFor={`area-${index}-width`}>Width</label>
               <input
                 id={`area-${index}-width`}
-                type="number"
+                inputMode="decimal"
                 value={area.width}
-                onChange={(event) => update(index, { width: event.target.value })}
+                onChange={(event) => update(index, { width: decimalInput(event.target.value) })}
               />
             </div>
             <div className="form-field">
               <label htmlFor={`area-${index}-quantity`}>Quantity</label>
               <input
                 id={`area-${index}-quantity`}
-                type="number"
+                inputMode="decimal"
                 value={area.quantity}
-                onChange={(event) => update(index, { quantity: event.target.value })}
+                onChange={(event) => update(index, { quantity: decimalInput(event.target.value) })}
               />
             </div>
             <div className="form-field span-2">

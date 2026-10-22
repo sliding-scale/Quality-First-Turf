@@ -1,8 +1,12 @@
 import {
+  decimalInput,
+  emailInput,
   emptyDiscovery,
   hasFollowUp,
+  phoneInput,
   requiredContact,
   services,
+  zipInput,
   type CustomerType,
   type DiscoveryState,
 } from "@/lib/discovery";
@@ -22,6 +26,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function text(value: unknown): string {
   return typeof value === "string" ? value : "";
+}
+
+function mapValues(record: Record<string, string>, clean: (value: string) => string): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const [key, value] of Object.entries(record)) result[key] = clean(value);
+  return result;
 }
 
 function stringRecord(value: unknown): Record<string, string> {
@@ -72,13 +82,13 @@ function formFrom(value: unknown): DiscoveryState {
     ...blank,
     firstName: text(value.firstName),
     lastName: text(value.lastName),
-    phone: text(value.phone),
-    email: text(value.email),
+    phone: phoneInput(text(value.phone)),
+    email: emailInput(text(value.email)),
     street1: text(value.street1),
     street2: text(value.street2),
     city: text(value.city),
     state: text(value.state),
-    zip: text(value.zip),
+    zip: zipInput(text(value.zip)),
     customerType,
     services: savedServices,
     installTypes: stringListRecord(value.installTypes),
@@ -86,12 +96,12 @@ function formFrom(value: unknown): DiscoveryState {
     replacementInstall: stringRecord(value.replacementInstall),
     product: stringRecord(value.product),
     addOns: stringListRecord(value.addOns),
-    addOnQuantity: stringRecord(value.addOnQuantity),
+    addOnQuantity: mapValues(stringRecord(value.addOnQuantity), decimalInput),
     areaKnown: yesNoRecord(value.areaKnown),
-    length: stringRecord(value.length),
-    width: stringRecord(value.width),
+    length: mapValues(stringRecord(value.length), decimalInput),
+    width: mapValues(stringRecord(value.width), decimalInput),
     lengthKnown: yesNo(value.lengthKnown),
-    linearFeet: text(value.linearFeet),
+    linearFeet: decimalInput(text(value.linearFeet)),
     notes: stringRecord(value.notes),
   };
 }

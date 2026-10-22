@@ -1,6 +1,7 @@
 "use client";
 
 import { useAction, useMutation } from "convex/react";
+import { ArrowRight, Flag, Lightbulb, type LucideIcon, Shovel, Sprout, Waves } from "lucide-react";
 import { Dispatch, FormEvent, ReactNode, SetStateAction, useEffect, useRef, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -12,15 +13,20 @@ import {
   asksForNotes,
   buildDiscovery,
   contactProblems,
+  decimalInput,
   DiscoveryState,
+  emailInput,
   emptyDiscovery,
   hasFollowUp,
   installTypes,
+  phoneInput,
   productsFor,
   selectionKey,
   services,
   turfInstallTypes,
+  zipInput,
 } from "@/lib/discovery";
+import { IntakeFrame, PropertyStep } from "@/components/intake-property";
 import { parseWorkAreas, WorkAreaDraft, WorkAreas } from "@/components/work-areas";
 import SocialCards from "@/components/ui/card-fan-carousel";
 import {
@@ -29,6 +35,14 @@ import {
   writeDiscoveryDraft,
   type DiscoveryStep,
 } from "@/lib/discovery-draft";
+
+const serviceIcons: Record<string, LucideIcon> = {
+  Demo: Shovel,
+  "Artificial Grass Installation": Sprout,
+  "Putting Green": Flag,
+  Underground: Waves,
+  "Low Voltage Lighting": Lightbulb,
+};
 
 const servicePhotos: Record<string, string> = {
   Demo: "https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=480&q=70",
@@ -47,7 +61,7 @@ const servicePhotos: Record<string, string> = {
   "Decomposite Granite": "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=480&q=70",
   "Decorative Rock": "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=480&q=70",
   Irrigation: "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?auto=format&fit=crop&w=480&q=70",
-  Planting: "https://images.unsplash.com/photo-1466692476866-aef1dfb1e735?auto=format&fit=crop&w=480&q=70",
+  Planting: "https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?auto=format&fit=crop&w=480&q=70",
 };
 
 export function DiscoveryForm({
@@ -152,6 +166,13 @@ export function DiscoveryForm({
     }));
   }
 
+  function selectStep(next: DiscoveryStep) {
+    const order: DiscoveryStep[] = ["property", "services", "details"];
+    if (order.indexOf(next) >= order.indexOf(step)) return;
+    setError(null);
+    setStep(next);
+  }
+
   function continueFromProperty() {
     const problems = contactProblems(form);
     const message = Object.values(problems)[0] ?? null;
@@ -172,6 +193,11 @@ export function DiscoveryForm({
     field?.focus();
     field?.scrollIntoView({ block: "center" });
   }, [fieldErrors]);
+
+  useEffect(() => {
+    if (error === null) return;
+    document.querySelector(".form-alert")?.scrollIntoView({ block: "center" });
+  }, [error]);
 
   function continueFromServices() {
     if (form.services.length === 0) {
@@ -195,6 +221,14 @@ export function DiscoveryForm({
         continueFromServices();
         return;
       }
+    }
+    const problems = contactProblems(form);
+    const contactMessage = Object.values(problems)[0] ?? null;
+    if (contactMessage !== null) {
+      setFieldErrors(problems);
+      setError(contactMessage);
+      focusFirstError.current = true;
+      return;
     }
     const built = buildDiscovery(form);
     if (built.error !== null || built.payload === null) {
@@ -260,90 +294,143 @@ export function DiscoveryForm({
   }
 
   if (customer && !hydrated) {
-    return <FormShell wide>{null}</FormShell>;
+    return (
+      <IntakeFrame step="property">
+        <div className="intake-split" />
+      </IntakeFrame>
+    );
   }
 
   if (projectId !== null) {
-    return (
-      <FormShell>
-        <div className="form-intro">
-          <h1>{visit === undefined ? "Request received" : "Visit saved"}</h1>
-          <p>
-            {visit === undefined
-              ? "Thank you. We have what you sent and will follow up."
-              : `The measurements and photos are saved on this project. Your reference is ${projectId}.`}
+    const received = (
+      <div className="form-intro">
+        <h1>{visit === undefined ? "Request received" : "Visit saved"}</h1>
+        <p>
+          {visit === undefined
+            ? "Thank you. We have what you sent and will follow up."
+            : `The measurements and photos are saved on this project. Your reference is ${projectId}.`}
+        </p>
+        {draftMessage !== null ? (
+          <p className={draftReady ? undefined : "form-alert"} role={draftReady ? undefined : "alert"}>
+            {draftMessage}
           </p>
-          {draftMessage !== null ? (
-            <p className={draftReady ? undefined : "form-alert"} role={draftReady ? undefined : "alert"}>
-              {draftMessage}
-            </p>
-          ) : null}
-        </div>
-      </FormShell>
+        ) : null}
+      </div>
     );
+    if (visit === undefined) {
+      return (
+        <IntakeFrame step="details">
+          <main className="intake-flow">{received}</main>
+        </IntakeFrame>
+      );
+    }
+    return <FormShell>{received}</FormShell>;
   }
 
   if (visit === undefined) {
     const needsDetails = form.services.some((service) => hasFollowUp(service));
     return (
-      <FormShell wide={step !== "details"} fit={step !== "details"}>
-        <form className="form-stack" onSubmit={onSubmit} noValidate>
-          {step === "property" ? (
-            <ContactCard form={form} problems={fieldErrors} onPatch={patch} />
-          ) : null}
-          {step === "services" ? (
-            <section className="fan-screen">
-              <div className="fan-head">
-                <h1>Which services are you considering?</h1>
-                <p>Choose one or more.</p>
-              </div>
-              <SocialCards
-                cards={services.map((service) => ({
-                  imgUrl: servicePhotos[service],
-                  alt: service,
-                  label: service,
-                  selected: form.services.includes(service),
-                }))}
-                onToggle={(index) => toggleService(services[index])}
-              />
-              <p className="fan-picked">
-                {form.services.length === 0 ? "Nothing selected yet." : form.services.join(", ")}
+      <IntakeFrame step={step} onStep={selectStep}>
+        {step === "property" ? (
+          <PropertyStep
+            form={form}
+            problems={fieldErrors}
+            pending={pending}
+            onPatch={patch}
+            onSubmit={onSubmit}
+          />
+        ) : step === "services" ? (
+          <form className="services-page" onSubmit={onSubmit} noValidate>
+            <div className="services-copy">
+              <p className="intake-eyebrow">
+                <span />
+                Quality First Turf
               </p>
-              <div className="button-row">
-                <button
-                  type="button"
-                  className="button button--quiet"
-                  onClick={() => {
-                    setError(null);
-                    setStep("property");
-                  }}
-                >
-                  Back
-                </button>
-                <button type="submit" className="button" disabled={pending}>
-                  {pending ? "Saving" : form.services.length > 0 && !needsDetails ? "Get Estimate" : "Continue"}
-                </button>
-              </div>
-            </section>
-          ) : null}
+              <h1>
+                Which services are
+                <span className="services-copy__break">you considering?</span>
+              </h1>
+              <p className="services-copy__sub">Choose one or more.</p>
+            </div>
+            <SocialCards
+              cards={services.map((service) => ({
+                imgUrl: servicePhotos[service],
+                alt: service,
+                label: service,
+                selected: form.services.includes(service),
+              }))}
+              onToggle={(index) => toggleService(services[index])}
+            />
+            <p className="services-status" aria-live="polite">
+              {form.services.length === 0 ? "Nothing selected yet." : form.services.join(", ")}
+            </p>
+            <div className="services-actions">
+              {error !== null ? (
+                <p className="form-alert" role="alert">
+                  {error}
+                </p>
+              ) : null}
+              <button
+                type="button"
+                className="services-back"
+                onClick={() => {
+                  setError(null);
+                  setStep("property");
+                }}
+              >
+                Back
+              </button>
+              <button type="submit" className="services-continue" disabled={pending}>
+                {pending ? "Saving" : form.services.length > 0 && !needsDetails ? "Get Estimate" : "Continue"}
+                {pending || (form.services.length > 0 && !needsDetails) ? null : (
+                  <ArrowRight strokeWidth={2} aria-hidden="true" />
+                )}
+              </button>
+            </div>
+          </form>
+        ) : (
+        <form className="review-page" onSubmit={onSubmit} noValidate>
+          <div className="review-page__bg" aria-hidden="true" />
           {step === "details" ? (
-            <>
-              <div className="form-intro">
+            <div className="review-stage">
+              <div className="review-intro">
+                <p className="intake-eyebrow">
+                  <span />
+                  Quality First Turf
+                </p>
                 <h1>A few questions</h1>
                 <p>
                   {`You chose ${form.services.join(", ")}.${nothingElse(form.services)} If you do not know a measurement, you can still send this in.`}
                 </p>
               </div>
-              {form.services.filter((service) => hasFollowUp(service)).map((service) => (
-                <section key={service} className="form-panel">
-                  <h2>{service}</h2>
-                  <FollowUp service={service} form={form} setForm={setForm} />
-                </section>
-              ))}
-              <div className="button-row">
+              <div className="review-cards">
+                {form.services.filter((service) => hasFollowUp(service)).map((service) => {
+                  const Icon = serviceIcons[service] ?? Sprout;
+                  return (
+                    <section
+                      key={service}
+                      className={service === "Low Voltage Lighting" ? "review-card review-card--grid" : "review-card"}
+                    >
+                      <h2>
+                        <span className="review-card__icon">
+                          <Icon strokeWidth={1.75} aria-hidden="true" />
+                        </span>
+                        {service}
+                      </h2>
+                      <FollowUp service={service} form={form} setForm={setForm} />
+                    </section>
+                  );
+                })}
+              </div>
+              <div className="review-actions">
+                {error !== null ? (
+                  <p className="form-alert" role="alert">
+                    {error}
+                  </p>
+                ) : null}
                 <button
                   type="button"
-                  className="button button--quiet"
+                  className="review-back"
                   onClick={() => {
                     setError(null);
                     setStep("services");
@@ -351,19 +438,16 @@ export function DiscoveryForm({
                 >
                   Back
                 </button>
-                <button type="submit" className="button" disabled={pending}>
+                <button type="submit" className="review-submit" disabled={pending}>
                   {pending ? "Saving" : "Get Estimate"}
+                  {pending ? null : <ArrowRight strokeWidth={2} aria-hidden="true" />}
                 </button>
               </div>
-            </>
-          ) : null}
-          {error !== null ? (
-            <p className="form-alert" role="alert">
-              {error}
-            </p>
+            </div>
           ) : null}
         </form>
-      </FormShell>
+        )}
+      </IntakeFrame>
     );
   }
 
@@ -389,15 +473,15 @@ export function DiscoveryForm({
             }
           />
           <div className="field-grid">
-            <Field label="First name" value={form.firstName} onChange={(value) => patch({ firstName: value })} />
-            <Field label="Last name" value={form.lastName} onChange={(value) => patch({ lastName: value })} />
-            <Field label="Phone" value={form.phone} onChange={(value) => patch({ phone: value })} />
-            <Field label="Email" value={form.email} onChange={(value) => patch({ email: value })} type="email" />
-            <Field label="Street 1" value={form.street1} onChange={(value) => patch({ street1: value })} />
-            <Field label="Street 2" value={form.street2} onChange={(value) => patch({ street2: value })} />
-            <Field label="City" value={form.city} onChange={(value) => patch({ city: value })} />
-            <Field label="State" value={form.state} onChange={(value) => patch({ state: value })} />
-            <Field label="ZIP code" value={form.zip} onChange={(value) => patch({ zip: value })} />
+            <Field id="firstName" label="First name" value={form.firstName} error={fieldErrors.firstName} onChange={(value) => patch({ firstName: value })} />
+            <Field id="lastName" label="Last name" value={form.lastName} error={fieldErrors.lastName} onChange={(value) => patch({ lastName: value })} />
+            <Field id="phone" label="Phone" value={form.phone} error={fieldErrors.phone} type="tel" inputMode="numeric" maxLength={10} onChange={(value) => patch({ phone: phoneInput(value) })} />
+            <Field id="email" label="Email" value={form.email} error={fieldErrors.email} type="email" inputMode="email" maxLength={254} onChange={(value) => patch({ email: emailInput(value) })} />
+            <Field id="street1" label="Street 1" value={form.street1} error={fieldErrors.street1} onChange={(value) => patch({ street1: value })} />
+            <Field id="street2" label="Street 2" value={form.street2} onChange={(value) => patch({ street2: value })} />
+            <Field id="city" label="City" value={form.city} error={fieldErrors.city} onChange={(value) => patch({ city: value })} />
+            <Field id="state" label="State" value={form.state} error={fieldErrors.state} onChange={(value) => patch({ state: value })} />
+            <Field id="zip" label="ZIP code" value={form.zip} error={fieldErrors.zip} inputMode="numeric" maxLength={10} onChange={(value) => patch({ zip: zipInput(value) })} />
           </div>
         </section>
 
@@ -479,70 +563,6 @@ export function FormShell({
   );
 }
 
-const audiences = [
-  { value: "Homeowner", title: "A home", detail: "The person who lives here", mark: "1" },
-  { value: "Contractor", title: "A contractor", detail: "Installing for a client", mark: "2" },
-] as const;
-
-function ContactCard({
-  form,
-  problems,
-  onPatch,
-}: {
-  form: DiscoveryState;
-  problems: Record<string, string>;
-  onPatch: (partial: Partial<DiscoveryState>) => void;
-}) {
-  return (
-    <section className="contact-card">
-      <div className="contact-card__copy">
-        <h1>Start with the property</h1>
-        <p>Name, phone, and address open the project. The services come next.</p>
-        <fieldset className="audience">
-          <legend className="visually-hidden">Is this for a home or a contractor?</legend>
-          {audiences.map((audience) => (
-            <label
-              key={audience.value}
-              className={form.customerType === audience.value ? "audience-choice is-selected" : "audience-choice"}
-            >
-              <input
-                type="radio"
-                name="customer-type"
-                value={audience.value}
-                checked={form.customerType === audience.value}
-                onChange={() => onPatch({ customerType: audience.value })}
-              />
-              <span>
-                <strong>{audience.title}</strong>
-                <small>{audience.detail}</small>
-              </span>
-              <span className="audience-mark">{audience.mark}</span>
-            </label>
-          ))}
-        </fieldset>
-      </div>
-      <div className="contact-card__fields">
-        <div className="field-grid">
-          <Field id="firstName" label="First name" value={form.firstName} error={problems.firstName} autoComplete="given-name" required onChange={(value) => onPatch({ firstName: value })} />
-          <Field id="lastName" label="Last name" value={form.lastName} error={problems.lastName} autoComplete="family-name" required onChange={(value) => onPatch({ lastName: value })} />
-          <Field id="phone" label="Phone" value={form.phone} error={problems.phone} autoComplete="tel" type="tel" required onChange={(value) => onPatch({ phone: value })} />
-          <Field id="email" label="Email" value={form.email} error={problems.email} autoComplete="email" type="email" required onChange={(value) => onPatch({ email: value })} />
-          <Field id="street1" label="Street" value={form.street1} error={problems.street1} autoComplete="address-line1" required onChange={(value) => onPatch({ street1: value })} />
-          <Field label="Street 2" value={form.street2} autoComplete="address-line2" onChange={(value) => onPatch({ street2: value })} />
-        </div>
-        <div className="address-row">
-          <Field id="city" label="City" value={form.city} error={problems.city} autoComplete="address-level2" required onChange={(value) => onPatch({ city: value })} />
-          <Field id="state" label="State" value={form.state} error={problems.state} autoComplete="address-level1" required onChange={(value) => onPatch({ state: value })} />
-          <Field id="zip" label="ZIP code" value={form.zip} error={problems.zip} autoComplete="postal-code" required onChange={(value) => onPatch({ zip: value })} />
-        </div>
-        <button type="submit" className="button contact-card__go">
-          Continue
-        </button>
-      </div>
-    </section>
-  );
-}
-
 function nothingElse(services: string[]) {
   const quiet = services.filter((service) => !hasFollowUp(service));
   if (quiet.length === 0) return "";
@@ -563,6 +583,10 @@ function Field({
   error,
   required = false,
   autoComplete,
+  inputMode,
+  maxLength,
+  placeholder,
+  suffix,
 }: {
   id?: string;
   label: string;
@@ -572,25 +596,48 @@ function Field({
   error?: string;
   required?: boolean;
   autoComplete?: string;
+  inputMode?: "tel" | "email" | "numeric" | "decimal";
+  maxLength?: number;
+  placeholder?: string;
+  suffix?: string;
 }) {
   const fieldId = id ?? label.toLowerCase().replaceAll(" ", "-");
   const errorId = `${fieldId}-error`;
+  const numeric = type === "number";
+  const input = (
+    <input
+      id={fieldId}
+      type={numeric ? "text" : type}
+      value={value}
+      required={required}
+      autoComplete={autoComplete}
+      inputMode={numeric ? "decimal" : inputMode}
+      maxLength={maxLength}
+      placeholder={placeholder}
+      aria-invalid={error ? true : undefined}
+      aria-describedby={error ? errorId : undefined}
+      onChange={(event) =>
+        onChange(numeric ? decimalInput(event.target.value) : event.target.value)
+      }
+    />
+  );
   return (
     <div className={error ? "form-field is-invalid" : "form-field"}>
       <label htmlFor={fieldId}>
         {label}
+        {suffix ? <span className="visually-hidden"> in feet</span> : null}
         {required ? <span className="field-required"> Required</span> : null}
       </label>
-      <input
-        id={fieldId}
-        type={type}
-        value={value}
-        required={required}
-        autoComplete={autoComplete}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={error ? errorId : undefined}
-        onChange={(event) => onChange(event.target.value)}
-      />
+      {suffix ? (
+        <div className="field-affix">
+          {input}
+          <span className="field-affix__unit" aria-hidden="true">
+            {suffix}
+          </span>
+        </div>
+      ) : (
+        input
+      )}
       {error ? (
         <p id={errorId} className="field-error">
           {error}
@@ -695,6 +742,7 @@ function FollowUp({
                       }))
                     }
                     type="number"
+                    suffix="ft"
                   />
                   <Field
                     label={`${service} width`}
@@ -706,6 +754,7 @@ function FollowUp({
                       }))
                     }
                     type="number"
+                    suffix="ft"
                   />
                   {preview !== null ? <p className="span-2 muted">{preview}</p> : null}
                 </div>
@@ -823,9 +872,7 @@ function GrassFollowUp({
   return (
     <div className="service-list">
       <span className="expand-label">Install type</span>
-      {selected.length > 1 ? (
-        <p className="muted">Name the area for each installation type, such as front yard or back yard.</p>
-      ) : null}
+      <p className="muted">Name the area for each installation type, such as front yard or back yard.</p>
       {(installTypes[service] ?? []).map((installType) => {
         const checked = selected.includes(installType);
         const key = selectionKey(service, installType);
@@ -845,19 +892,18 @@ function GrassFollowUp({
             </label>
             {checked ? (
               <div className="service-expand">
-                {selected.length > 1 ? (
-                  <Field
-                    id={`${key}-area`}
-                    label="Which area is this?"
-                    value={form.areaNames[key] ?? ""}
-                    onChange={(value) =>
-                      setForm((current) => ({
-                        ...current,
-                        areaNames: { ...current.areaNames, [key]: value },
-                      }))
-                    }
-                  />
-                ) : null}
+                <Field
+                  id={`${key}-area`}
+                  label="Which area is this?"
+                  placeholder="e.g. Front yard, backyard, side yard"
+                  value={form.areaNames[key] ?? ""}
+                  onChange={(value) =>
+                    setForm((current) => ({
+                      ...current,
+                      areaNames: { ...current.areaNames, [key]: value },
+                    }))
+                  }
+                />
                 {installType === "Artificial Grass Repair" ? (
                   <Notes
                     id={`${key}-notes`}
@@ -963,6 +1009,8 @@ function GrassScope({
         <Field
           id={`${scopeKey}-length`}
           label="Length, if you know it"
+          placeholder="e.g. 40"
+          suffix="ft"
           value={form.length[scopeKey] ?? ""}
           onChange={(value) =>
             setForm((current) => ({
@@ -975,6 +1023,8 @@ function GrassScope({
         <Field
           id={`${scopeKey}-width`}
           label="Width, if you know it"
+          placeholder="e.g. 20"
+          suffix="ft"
           value={form.width[scopeKey] ?? ""}
           onChange={(value) =>
             setForm((current) => ({
@@ -1144,7 +1194,7 @@ function ChoiceGroup({
   });
 
   return (
-    <fieldset className="choice-list">
+    <fieldset className={look === "cards" ? "choice-list product-choices" : "choice-list"}>
       <legend>{legend}</legend>
       {look === "segment" ? <div className="segment">{choices}</div> : choices}
     </fieldset>

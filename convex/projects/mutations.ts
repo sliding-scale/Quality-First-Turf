@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { contactProblems, type ContactFields } from "../../lib/discovery";
 import { internalMutation, mutation } from "../_generated/server";
 import {
   answerValidator,
@@ -41,6 +42,11 @@ function withSquareFeet<
   };
 }
 
+function assertContact(input: ContactFields) {
+  const problem = Object.values(contactProblems(input))[0];
+  if (problem !== undefined) throw new Error(problem);
+}
+
 export const generateUploadUrl = mutation({
   args: {},
   returns: v.string(),
@@ -70,6 +76,7 @@ export const create = mutation({
   },
   returns: v.id("projects"),
   handler: async (ctx, args) => {
+    assertContact(args);
     const projectId = await ctx.db.insert("projects", {
       status: "discovery saved",
       firstName: args.firstName,
@@ -129,6 +136,18 @@ export const update = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    const project = await ctx.db.get(args.projectId);
+    if (project === null) throw new Error("Project not found");
+    assertContact({
+      firstName: args.firstName ?? project.firstName,
+      lastName: args.lastName ?? project.lastName,
+      phone: args.phone ?? project.phone,
+      email: args.email ?? project.email,
+      street1: args.street1 ?? project.street1,
+      city: args.city ?? project.city,
+      state: args.state ?? project.state,
+      zip: args.zip ?? project.zip,
+    });
     const { projectId, workAreas, measurements, ...fields } = args;
     const patch: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(fields)) {

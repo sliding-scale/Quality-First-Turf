@@ -1,3 +1,5 @@
+import { isUsState } from "./us-states";
+
 export const services = [
   "Demo",
   "Artificial Grass Installation",
@@ -458,13 +460,13 @@ export function buildDiscovery(input: DiscoveryState): {
     payload: {
       firstName: input.firstName.trim(),
       lastName: input.lastName.trim(),
-      phone: input.phone.trim(),
+      phone: phoneInput(input.phone),
       email: input.email.trim(),
       street1: input.street1.trim(),
       street2: input.street2.trim(),
       city: input.city.trim(),
       state: input.state.trim(),
-      zip: input.zip.trim(),
+      zip: zipInput(input.zip),
       services: services.filter((service) => input.services.includes(service)),
       products,
       addOns,
@@ -606,16 +608,74 @@ function collectQuantity(
   return null;
 }
 
-export function contactProblems(input: DiscoveryState): Record<string, string> {
+const emailPattern =
+  /^[A-Za-z0-9](?:[A-Za-z0-9._%+-]{0,62}[A-Za-z0-9])?@(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,}$/;
+
+export function phoneInput(value: string): string {
+  let digits = value.replace(/\D/g, "");
+  if (digits.length === 11 && digits.startsWith("1")) digits = digits.slice(1);
+  return digits.slice(0, 10);
+}
+
+export function emailInput(value: string): string {
+  return value.replace(/\s/g, "").slice(0, 254);
+}
+
+export function zipInput(value: string): string {
+  const digits = value.replace(/\D/g, "").slice(0, 9);
+  if (digits.length <= 5) return digits;
+  return `${digits.slice(0, 5)}-${digits.slice(5)}`;
+}
+
+export function decimalInput(value: string): string {
+  const cleaned = value.replace(/[^\d.]/g, "");
+  const dot = cleaned.indexOf(".");
+  if (dot === -1) return cleaned.slice(0, 8);
+  const whole = cleaned.slice(0, dot).slice(0, 8);
+  const fraction = cleaned.slice(dot + 1).replace(/\./g, "").slice(0, 2);
+  return `${whole}.${fraction}`;
+}
+
+function hasLetter(value: string): boolean {
+  return /\p{L}/u.test(value);
+}
+
+export type ContactFields = {
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email: string;
+  street1: string;
+  city: string;
+  state: string;
+  zip: string;
+};
+
+export function contactProblems(input: ContactFields): Record<string, string> {
   const problems: Record<string, string> = {};
-  if (input.firstName.trim() === "") problems.firstName = "Enter a first name.";
-  if (input.lastName.trim() === "") problems.lastName = "Enter a last name.";
-  if (input.phone.trim() === "") problems.phone = "Enter a phone number.";
-  if (!input.email.includes("@")) problems.email = "Enter an email address with an @.";
-  if (input.street1.trim() === "") problems.street1 = "Enter a street address.";
-  if (input.city.trim() === "") problems.city = "Enter a city.";
-  if (input.state.trim() === "") problems.state = "Enter a state.";
-  if (input.zip.trim() === "") problems.zip = "Enter a ZIP code.";
+  const firstName = input.firstName.trim();
+  const lastName = input.lastName.trim();
+  const phone = phoneInput(input.phone);
+  const email = input.email.trim();
+  const street1 = input.street1.trim();
+  const city = input.city.trim();
+  if (firstName === "") problems.firstName = "Enter a first name.";
+  else if (!hasLetter(firstName)) problems.firstName = "Use letters in the first name.";
+  if (lastName === "") problems.lastName = "Enter a last name.";
+  else if (!hasLetter(lastName)) problems.lastName = "Use letters in the last name.";
+  if (phone.length !== 10) problems.phone = "Enter a 10-digit phone number.";
+  else if (phone[0] === "0" || phone[0] === "1") {
+    problems.phone = "Enter a 10-digit phone number that does not start with 0 or 1.";
+  }
+  if (!emailPattern.test(email)) {
+    problems.email = "Enter an email like name@gmail.com.";
+  }
+  if (street1 === "") problems.street1 = "Enter a street address.";
+  else if (!hasLetter(street1)) problems.street1 = "Enter a street name.";
+  if (city === "") problems.city = "Enter a city.";
+  else if (!hasLetter(city)) problems.city = "Use letters in the city.";
+  if (!isUsState(input.state)) problems.state = "Choose a state.";
+  if (!/^\d{5}(?:-\d{4})?$/.test(input.zip.trim())) problems.zip = "Enter a 5-digit ZIP code.";
   return problems;
 }
 
@@ -675,13 +735,13 @@ export function projectToForm(project: SavedProject): {
   const form = emptyDiscovery();
   form.firstName = project.firstName;
   form.lastName = project.lastName;
-  form.phone = project.phone;
-  form.email = project.email;
+  form.phone = phoneInput(project.phone);
+  form.email = emailInput(project.email);
   form.street1 = project.street1;
   form.street2 = project.street2;
   form.city = project.city;
   form.state = project.state;
-  form.zip = project.zip;
+  form.zip = zipInput(project.zip);
   form.services = [...project.services];
 
   const customerType = project.answers.find((answer) => answer.question === "Customer type")?.value;
