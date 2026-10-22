@@ -1,4 +1,3 @@
-import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
 import { DM_Sans, IBM_Plex_Sans } from "next/font/google";
 import { ConvexClientProvider } from "@/components/convex-client-provider";
@@ -24,9 +23,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${plex.variable} ${dmSans.variable}`}>
       <body>
-        <ClerkProvider>
-          <ConvexClientProvider>{children}</ConvexClientProvider>
-        </ClerkProvider>
+        <ConvexClientProvider>{children}</ConvexClientProvider>
       </body>
     </html>
   );
