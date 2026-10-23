@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { planQuoteLines } from "../../lib/quote-lines";
-import { api, internal } from "../_generated/api";
+import { internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
 import type { ActionCtx } from "../_generated/server";
 import { action, env, internalAction } from "../_generated/server";
@@ -48,7 +48,7 @@ async function loadAndDraft(
   const loaded: {
     project: Doc<"projects">;
     workAreas: Doc<"workAreas">[];
-  } | null = await ctx.runQuery(api.projects.queries.get, { projectId });
+  } | null = await ctx.runQuery(internal.projects.queries.get, { projectId });
   if (loaded === null) {
     throw new Error("Project not found");
   }
@@ -81,7 +81,7 @@ export const publishVisit = action({
     const loaded: {
       project: Doc<"projects">;
       workAreas: Doc<"workAreas">[];
-    } | null = await ctx.runQuery(api.projects.queries.get, {
+    } | null = await ctx.runQuery(internal.projects.queries.get, {
       projectId: args.projectId,
     });
     if (loaded === null) throw new Error("Project not found");
@@ -101,9 +101,16 @@ export const publishVisit = action({
 });
 
 export const draftVisit = action({
-  args: { projectId: v.id("projects") },
+  args: {
+    sessionToken: v.string(),
+    projectId: v.id("projects"),
+  },
   returns: draftQuoteResult,
   handler: async (ctx, args): Promise<DraftQuoteResult> => {
+    const signedIn = await ctx.runQuery(internal.sales.queries.active, {
+      sessionToken: args.sessionToken,
+    });
+    if (!signedIn) throw new Error("Sign in again to open projects.");
     return await loadAndDraft(ctx, args.projectId);
   },
 });

@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { contactProblems, type ContactFields } from "../../lib/discovery";
 import { internalMutation, mutation } from "../_generated/server";
+import { activeSalesSession } from "../sales/session";
 import {
   answerValidator,
   measurementValidator,
@@ -29,12 +30,16 @@ function withSquareFeet<
     squareFeet: number | null;
   },
 >(measurement: T): T & { squareFeet: number | null; areaBand: string | null } {
-  const squareFeet =
-    measurement.unmeasured ||
-    measurement.length === null ||
-    measurement.width === null
-      ? null
-      : measurement.length * measurement.width;
+  const squareFeet = measurement.unmeasured
+    ? null
+    : measurement.squareFeet !== null && measurement.squareFeet > 0
+      ? measurement.squareFeet
+      : measurement.length !== null &&
+          measurement.width !== null &&
+          measurement.length > 0 &&
+          measurement.width > 0
+        ? measurement.length * measurement.width
+        : null;
   return {
     ...measurement,
     squareFeet,
@@ -48,9 +53,12 @@ function assertContact(input: ContactFields) {
 }
 
 export const generateUploadUrl = mutation({
-  args: {},
+  args: { sessionToken: v.string() },
   returns: v.string(),
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
+    if ((await activeSalesSession(ctx, args.sessionToken)) === null) {
+      throw new Error("Sign in again to open projects.");
+    }
     return await ctx.storage.generateUploadUrl();
   },
 });
@@ -111,6 +119,7 @@ export const create = mutation({
 
 export const update = mutation({
   args: {
+    sessionToken: v.string(),
     projectId: v.id("projects"),
     status: v.optional(projectStatus),
     firstName: v.optional(v.string()),
@@ -136,6 +145,9 @@ export const update = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    if ((await activeSalesSession(ctx, args.sessionToken)) === null) {
+      throw new Error("Sign in again to open projects.");
+    }
     const project = await ctx.db.get(args.projectId);
     if (project === null) throw new Error("Project not found");
     assertContact({
@@ -148,7 +160,7 @@ export const update = mutation({
       state: args.state ?? project.state,
       zip: args.zip ?? project.zip,
     });
-    const { projectId, workAreas, measurements, ...fields } = args;
+    const { projectId, workAreas, measurements, sessionToken: _sessionToken, ...fields } = args;
     const patch: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(fields)) {
       if (value !== undefined) {

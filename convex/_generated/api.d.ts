@@ -17,6 +17,10 @@ import type * as jobber_queries from "../jobber/queries.js";
 import type * as projects_actions from "../projects/actions.js";
 import type * as projects_mutations from "../projects/mutations.js";
 import type * as projects_queries from "../projects/queries.js";
+import type * as sales_login from "../sales/login.js";
+import type * as sales_mutations from "../sales/mutations.js";
+import type * as sales_queries from "../sales/queries.js";
+import type * as sales_session from "../sales/session.js";
 
 import type {
   ApiFromModules,
@@ -34,6 +38,10 @@ declare const fullApi: ApiFromModules<{
   "projects/actions": typeof projects_actions;
   "projects/mutations": typeof projects_mutations;
   "projects/queries": typeof projects_queries;
+  "sales/login": typeof sales_login;
+  "sales/mutations": typeof sales_mutations;
+  "sales/queries": typeof sales_queries;
+  "sales/session": typeof sales_session;
 }>;
 
 /**

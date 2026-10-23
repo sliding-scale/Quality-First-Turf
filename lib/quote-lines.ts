@@ -1,8 +1,12 @@
 import { findDummyItem } from "./dummy-catalogue";
 import {
   areaBandFor,
+  canonicalService,
+  grassService,
+  grassUsesLinearFeet,
   hasFollowUp,
   productsFor,
+  serviceLabel,
   services,
   turfInstallTypes,
   type CustomerType,
@@ -37,8 +41,6 @@ export type PlannedLine = {
   quantity: number;
 };
 
-const grassService = "Artificial Grass Installation";
-
 export function planQuoteLines(project: QuoteProject): {
   lines: PlannedLine[];
   missing: string | null;
@@ -53,7 +55,7 @@ export function planQuoteLines(project: QuoteProject): {
   const usedLabels = new Set<string>();
 
   for (const service of services) {
-    if (!project.services.includes(service)) continue;
+    if (!project.services.some((name) => canonicalService(name) === service)) continue;
     if (service === grassService) {
       planGrass(project, customerType, lines, gaps, usedLabels);
       continue;
@@ -64,7 +66,7 @@ export function planQuoteLines(project: QuoteProject): {
     }
     const selected = values(project.answers, `${service} install type`);
     if (selected.length === 0) {
-      gaps.push(`Choose an install type for ${service}.`);
+      gaps.push(`Choose an installation type for ${serviceLabel(service)}.`);
       continue;
     }
     if (service === "Demo" || service === "Putting Green") {
@@ -72,18 +74,24 @@ export function planQuoteLines(project: QuoteProject): {
       continue;
     }
     if (service === "Underground") {
+      const soil =
+        project.answers.find((answer) => answer.question === "Underground soil")?.value ?? "";
+      const knownSoil = soil === "Standard soil" || soil === "Rocky or clay soil";
+      if (!knownSoil) {
+        gaps.push("Soil is still missing for Underground.");
+      }
       const quantity = measure(project, "Underground", "linear feet", usedLabels);
       if (quantity === null) {
         gaps.push("Length is still missing for Underground.");
       }
       for (const installType of selected) {
-        if (quantity === null) continue;
+        if (quantity === null || !knownSoil) continue;
         addLine(
           lines,
           gaps,
-          { customerType, service, installType },
+          { customerType, service, installType, soil },
           quantity,
-          `${service} / ${installType}`,
+          `${service} / ${installType} / ${soil}`,
         );
       }
       continue;
@@ -115,9 +123,12 @@ function planGrass(
   gaps: string[],
   usedLabels: Set<string>,
 ) {
-  const selected = values(project.answers, `${grassService} install type`);
+  const selected = [
+    ...values(project.answers, `${grassService} install type`),
+    ...values(project.answers, "Artificial Grass Installation install type"),
+  ];
   if (selected.length === 0) {
-    gaps.push(`Choose an install type for ${grassService}.`);
+    gaps.push(`Choose an installation type for ${serviceLabel(grassService)}.`);
     return;
   }
   for (const installType of selected) {
@@ -147,9 +158,10 @@ function planGrass(
     }
     const product =
       project.answers.find((answer) => answer.question === `${installType} product`)?.value ?? "";
-    const areaName = areaNameFor(project.answers, installType);
+    const areaName = areaNameFor(project.answers, grassService, installType);
     const label = areaName || installType;
-    const quantity = measure(project, label, "square feet", usedLabels);
+    const linear = grassUsesLinearFeet(productInstall, product);
+    const quantity = measure(project, label, linear ? "linear feet" : "square feet", usedLabels);
     if (quantity === null) {
       gaps.push(`Size is still missing for ${label}.`);
       continue;
@@ -162,7 +174,7 @@ function planGrass(
         service: grassService,
         installType: productInstall,
         product,
-        areaBand: areaBandFor(quantity),
+        areaBand: linear ? null : areaBandFor(quantity),
       },
       quantity,
       `${installType} / ${product}`,
@@ -177,6 +189,15 @@ function planGrass(
       gaps,
     );
   }
+  planAddOns(
+    project,
+    customerType,
+    grassService,
+    `${grassService} add-on`,
+    `${grassService} add-on quantity`,
+    lines,
+    gaps,
+  );
 }
 
 function planAreaService(
@@ -188,11 +209,6 @@ function planAreaService(
   gaps: string[],
   usedLabels: Set<string>,
 ) {
-  const quantity = measure(project, service, "square feet", usedLabels);
-  if (quantity === null) {
-    gaps.push(`Size is still missing for ${service}.`);
-    return;
-  }
   const installType = selected[0] ?? "";
   const productNames = new Set(productsFor(service, installType).map((product) => product.name));
   const product =
@@ -203,7 +219,19 @@ function planAreaService(
     gaps.push("Choose a product for Putting Green.");
     return;
   }
+  const shared = project.measurements.find(
+    (item) => item.label === service && !item.unmeasured && item.squareFeet !== null && item.squareFeet > 0,
+  );
   for (const type of selected) {
+    const named = areaNameFor(project.answers, service, type);
+    const own =
+      (named === "" ? null : measure(project, named, "square feet", usedLabels)) ??
+      measure(project, type, "square feet", usedLabels);
+    const quantity = own ?? shared?.squareFeet ?? null;
+    if (quantity === null) {
+      gaps.push(`Size is still missing for ${type}.`);
+      continue;
+    }
     addLine(
       lines,
       gaps,
@@ -279,6 +307,7 @@ function addLine(
     product?: string | null;
     areaBand?: string | null;
     addOn?: string | null;
+    soil?: string | null;
   },
   quantity: number,
   label: string,
@@ -334,10 +363,12 @@ function areaQuantity(area: StoredWorkArea): number | null {
   return null;
 }
 
-function areaNameFor(answers: Answer[], installType: string): string {
+function areaNameFor(answers: Answer[], service: string, installType: string): string {
   const prefix = `${installType}: `;
+  const questions =
+    service === grassService ? [`${grassService} area`, "Artificial Grass Installation area"] : [`${service} area`];
   const answer = answers.find(
-    (item) => item.question === `${grassService} area` && item.value.startsWith(prefix),
+    (item) => questions.includes(item.question) && item.value.startsWith(prefix),
   );
   return answer === undefined ? "" : answer.value.slice(prefix.length);
 }

@@ -65,6 +65,10 @@ export default defineSchema({
     notes: v.string(),
     photoIds: v.array(v.id("_storage")),
   }).index("by_projectId", ["projectId"]),
+  salesSessions: defineTable({
+    token: v.string(),
+    expiresAt: v.number(),
+  }).index("by_token", ["token"]),
   jobberConnections: defineTable({
     singleton: v.literal("default"),
     refreshToken: v.union(v.string(), v.null()),

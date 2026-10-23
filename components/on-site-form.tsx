@@ -1,89 +1,198 @@
 "use client";
 
-import { useQuery } from "convex/react";
-import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useAction, useMutation, useQuery } from "convex/react";
+import Link from "next/link";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
-import { projectToForm } from "@/lib/discovery";
-import { DiscoveryForm, FormShell } from "@/components/discovery-form";
-import { emptyWorkArea, WorkAreaDraft } from "@/components/work-areas";
+import { OnSiteVisit, VisitPlain } from "@/components/on-site-visit";
+import { serviceLabel } from "@/lib/discovery";
+import { clearSalesSession, readSalesSession, writeSalesSession } from "@/lib/sales-session";
+
+function useSalesSession() {
+  const [token, setToken] = useState<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    setToken(readSalesSession());
+  }, []);
+
+  function signIn(next: string) {
+    writeSalesSession(next);
+    setToken(next);
+  }
+
+  const signOut = useCallback(() => {
+    clearSalesSession();
+    setToken(null);
+  }, []);
+
+  return { token, signIn, signOut };
+}
 
 export function OnSiteForm({ projectId }: { projectId: string }) {
+  const { token, signIn, signOut } = useSalesSession();
   const id = asProjectId(projectId);
-  const data = useQuery(api.projects.queries.visit, id === null ? "skip" : { projectId: id });
+  const data = useQuery(
+    api.projects.queries.visit,
+    token && id !== null ? { sessionToken: token, projectId: id } : "skip",
+  );
 
-  if (id === null) {
+  useEffect(() => {
+    if (data !== undefined && data !== null && data.access === "signed-out") signOut();
+  }, [data, signOut]);
+
+  if (token === undefined || token === null) {
+    return <SalesLogin onSignedIn={signIn} />;
+  }
+  if (id === null || data === null) {
     return (
-      <FormShell>
-        <div className="form-intro">
-          <h1>Project not found</h1>
-          <p>Check the reference and open the visit link again.</p>
-        </div>
-      </FormShell>
+      <VisitPlain title="Project not found">
+        <p>This project is no longer available.</p>
+        <p>
+          <Link href="/visit">Back to all projects</Link>
+        </p>
+      </VisitPlain>
     );
   }
-  if (data === undefined) {
+  if (data === undefined || data.access === "signed-out") {
     return (
-      <FormShell>
-        <p>Loading the project.</p>
-      </FormShell>
-    );
-  }
-  if (data === null) {
-    return (
-      <FormShell>
-        <div className="form-intro">
-          <h1>Project not found</h1>
-          <p>Check the reference and open the visit link again.</p>
-        </div>
-      </FormShell>
+      <VisitPlain title="Loading the project">
+        <p>Opening the customer&apos;s answers and any saved measurements.</p>
+      </VisitPlain>
     );
   }
 
-  const loaded = projectToForm(data.project);
   return (
-    <DiscoveryForm
+    <OnSiteVisit
       key={id}
-      visit={{
-        projectId: id,
-        initialState: loaded.form,
-        visitNote: loaded.visitNote,
-        areas: draftsFor(data.workAreas, data.project.measurements),
-      }}
+      projectId={id}
+      sessionToken={token}
+      project={data.project}
+      workAreas={data.workAreas}
     />
   );
 }
 
 export function OpenVisit() {
-  const router = useRouter();
-  const [reference, setReference] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const { token, signIn, signOut } = useSalesSession();
+  const endSession = useMutation(api.sales.mutations.end);
+  const data = useQuery(
+    api.projects.queries.listForSales,
+    token ? { sessionToken: token } : "skip",
+  );
 
-  function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const id = asProjectId(reference.trim());
-    if (id === null) {
-      setError("Enter the project reference from the customer's form.");
-      return;
+  useEffect(() => {
+    if (data?.signedIn === false) signOut();
+  }, [data, signOut]);
+
+  if (token === undefined || token === null) return <SalesLogin onSignedIn={signIn} />;
+
+  async function signOutAndClear() {
+    try {
+      if (token) await endSession({ sessionToken: token });
+    } finally {
+      signOut();
     }
-    router.push(`/visit/${id}`);
   }
 
   return (
-    <FormShell>
-      <p className="eyebrow">On site</p>
-      <div className="form-intro">
-        <h1>Open a project</h1>
-        <p>Paste the reference from the customer's form. This opens that property only.</p>
+    <VisitPlain title="Projects" wide>
+      <div className="visit-list-head">
+        <p>Every salesperson sees the same projects. Open the property you are visiting.</p>
+        <button type="button" className="visit-secondary" onClick={() => void signOutAndClear()}>
+          Sign out
+        </button>
       </div>
+      {data === undefined ? <p>Loading projects.</p> : null}
+      {data?.signedIn === true && data.projects.length === 0 ? (
+        <p>No projects yet. They show up here after a customer submits the discovery form.</p>
+      ) : null}
+      {data?.signedIn === true && data.projects.length > 0 ? (
+        <ul className="visit-projects">
+          {data.projects.map((project) => {
+            const address = [project.street1, project.city, project.state, project.zip]
+              .filter((part) => part.trim() !== "")
+              .join(", ");
+            const when = new Date(project.createdAt).toLocaleDateString(undefined, {
+              month: "short",
+              day: "numeric",
+            });
+            return (
+              <li key={project.projectId}>
+                <Link className="visit-project" href={`/visit/${project.projectId}`}>
+                  <strong>
+                    {project.firstName} {project.lastName}
+                  </strong>
+                  <span>{address}</span>
+                  <span>
+                    {project.services.length > 0
+                      ? project.services.map(serviceLabel).join(", ")
+                      : "No services yet"}
+                  </span>
+                  <span className="visit-status">
+                    {project.status} · {when}
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+    </VisitPlain>
+  );
+}
+
+function SalesLogin({ onSignedIn }: { onSignedIn: (token: string) => void }) {
+  const login = useAction(api.sales.login.login);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    setPending(true);
+    try {
+      const result = await login({ email, password });
+      if ("error" in result) {
+        setError(
+          result.error === "unconfigured"
+            ? "Sales sign-in is not set up yet."
+            : "That email or password is not recognized.",
+        );
+        return;
+      }
+      onSignedIn(result.token);
+    } catch (loginError) {
+      setError(loginError instanceof Error ? loginError.message : "Sign-in could not be completed.");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <VisitPlain title="Sales sign-in">
+      <p>Sign in to see every project. The sales team shares this login.</p>
       <form className="form-stack" onSubmit={onSubmit}>
         <div className="form-field">
-          <label htmlFor="project-reference">Project reference</label>
+          <label htmlFor="sales-email">Email</label>
           <input
-            id="project-reference"
-            value={reference}
-            onChange={(event) => setReference(event.target.value)}
+            id="sales-email"
+            type="email"
+            autoComplete="username"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+          />
+        </div>
+        <div className="form-field">
+          <label htmlFor="sales-password">Password</label>
+          <input
+            id="sales-password"
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
           />
         </div>
         {error !== null ? (
@@ -92,62 +201,16 @@ export function OpenVisit() {
           </p>
         ) : null}
         <div className="button-row">
-          <button type="submit" className="button">
-            Open project
+          <button type="submit" className="visit-primary" disabled={pending}>
+            {pending ? "Signing in" : "Sign in"}
           </button>
         </div>
       </form>
-    </FormShell>
+    </VisitPlain>
   );
 }
 
 function asProjectId(value: string): Id<"projects"> | null {
   if (!/^[a-z0-9]{20,}$/.test(value)) return null;
   return value as Id<"projects">;
-}
-
-function draftsFor(
-  workAreas: {
-    label: string;
-    length: number | null;
-    width: number | null;
-    quantity: number | null;
-    notes: string;
-    photoIds: Id<"_storage">[];
-    photoUrls: (string | null)[];
-  }[],
-  measurements: {
-    label: string;
-    length: number | null;
-    width: number | null;
-    squareFeet: number | null;
-    linearFeet: number | null;
-  }[],
-): WorkAreaDraft[] {
-  if (workAreas.length > 0) {
-    return workAreas.map((area) => ({
-      label: area.label,
-      length: area.length === null ? "" : String(area.length),
-      width: area.width === null ? "" : String(area.width),
-      quantity: area.quantity === null ? "" : String(area.quantity),
-      notes: area.notes,
-      photoIds: area.photoIds,
-      photoUrls: area.photoUrls,
-    }));
-  }
-  if (measurements.length === 0) return [emptyWorkArea("Area 1")];
-  return measurements.map((measurement) => ({
-    label: measurement.label,
-    length: measurement.length === null ? "" : String(measurement.length),
-    width: measurement.width === null ? "" : String(measurement.width),
-    quantity:
-      measurement.squareFeet !== null
-        ? String(measurement.squareFeet)
-        : measurement.linearFeet !== null
-          ? String(measurement.linearFeet)
-          : "",
-    notes: "",
-    photoIds: [],
-    photoUrls: [],
-  }));
 }

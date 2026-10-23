@@ -1,11 +1,18 @@
 import {
   decimalInput,
   emailInput,
+  canonicalService,
   emptyDiscovery,
+  grassService,
+  grassWork,
+  grassWorkFromTypes,
   hasFollowUp,
+  normalizeDemoChoices,
   phoneInput,
+  orderServices,
   requiredContact,
   services,
+  soilCondition,
   zipInput,
   type CustomerType,
   type DiscoveryState,
@@ -13,7 +20,7 @@ import {
 
 const storageKey = "qft-discovery-draft";
 
-export type DiscoveryStep = "property" | "services" | "details";
+export type DiscoveryStep = "property" | "services" | "details" | "confirmation";
 
 export type DiscoveryDraft = {
   step: DiscoveryStep;
@@ -74,11 +81,18 @@ function formFrom(value: unknown): DiscoveryState {
   const customerType: CustomerType =
     value.customerType === "Contractor" ? "Contractor" : "Homeowner";
   const savedServices = Array.isArray(value.services)
-    ? value.services.filter(
-        (item): item is string => typeof item === "string" && knownServices.has(item),
-      )
+    ? [
+        ...new Set(
+          value.services
+            .filter((item): item is string => typeof item === "string")
+            .map((item) => canonicalService(item))
+            .filter((item) => knownServices.has(item)),
+        ),
+      ]
     : [];
-  return {
+  const installTypes = remapServiceKeys(stringListRecord(value.installTypes));
+  const savedWork = grassWork(value.grassWork);
+  return normalizeDemoChoices({
     ...blank,
     firstName: text(value.firstName),
     lastName: text(value.lastName),
@@ -90,20 +104,62 @@ function formFrom(value: unknown): DiscoveryState {
     state: text(value.state),
     zip: zipInput(text(value.zip)),
     customerType,
-    services: savedServices,
-    installTypes: stringListRecord(value.installTypes),
-    areaNames: stringRecord(value.areaNames),
-    replacementInstall: stringRecord(value.replacementInstall),
-    product: stringRecord(value.product),
-    addOns: stringListRecord(value.addOns),
-    addOnQuantity: mapValues(stringRecord(value.addOnQuantity), decimalInput),
+    services: orderServices(savedServices),
+    installTypes,
+    areaNames: remapKeyed(stringRecord(value.areaNames)),
+    replacementInstall: remapKeyed(stringRecord(value.replacementInstall)),
+    product: remapKeyed(stringRecord(value.product)),
+    addOns: remapServiceKeys(stringListRecord(value.addOns)),
+    addOnQuantity: remapKeyed(mapValues(stringRecord(value.addOnQuantity), decimalInput)),
     areaKnown: yesNoRecord(value.areaKnown),
+    squareFeet: squareFeetFrom(value),
     length: mapValues(stringRecord(value.length), decimalInput),
     width: mapValues(stringRecord(value.width), decimalInput),
     lengthKnown: yesNo(value.lengthKnown),
     linearFeet: decimalInput(text(value.linearFeet)),
+    soil: soilCondition(value.soil),
     notes: stringRecord(value.notes),
-  };
+    grassWork: savedWork || grassWorkFromTypes(installTypes[grassService] ?? []),
+  });
+}
+
+function remapServiceKey(key: string): string {
+  return key.replaceAll("Artificial Grass Installation", grassService);
+}
+
+function remapKeyed(record: Record<string, string>): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const [key, value] of Object.entries(record)) result[remapServiceKey(key)] = value;
+  return result;
+}
+
+function remapServiceKeys(record: Record<string, string[]>): Record<string, string[]> {
+  const result: Record<string, string[]> = {};
+  for (const [key, value] of Object.entries(record)) {
+    const next = remapServiceKey(key);
+    result[next] = [...(result[next] ?? []), ...value];
+  }
+  return result;
+}
+
+function squareFeetFrom(value: Record<string, unknown>): Record<string, string> {
+  const squareFeet = mapValues(stringRecord(value.squareFeet), decimalInput);
+  const lengths = mapValues(stringRecord(value.length), decimalInput);
+  const widths = mapValues(stringRecord(value.width), decimalInput);
+  for (const [key, length] of Object.entries(lengths)) {
+    if ((squareFeet[key] ?? "") !== "") continue;
+    const area = Number(length) * Number(widths[key] ?? "");
+    if (Number.isFinite(area) && area > 0) squareFeet[key] = String(area);
+  }
+  const installTypes = stringListRecord(value.installTypes);
+  for (const service of ["Demo", "Putting Green"]) {
+    const legacy = squareFeet[service];
+    if (legacy === undefined || legacy === "") continue;
+    for (const type of installTypes[service] ?? []) {
+      if ((squareFeet[type] ?? "") === "") squareFeet[type] = legacy;
+    }
+  }
+  return squareFeet;
 }
 
 function stepFor(step: unknown, form: DiscoveryState): DiscoveryStep {

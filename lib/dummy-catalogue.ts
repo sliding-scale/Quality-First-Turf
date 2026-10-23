@@ -1,5 +1,7 @@
 import {
   addOnsFor,
+  grassService,
+  grassUsesLinearFeet,
   installTypes,
   productsFor,
   services,
@@ -24,6 +26,7 @@ export type CatalogueItem = {
   product: string | null;
   areaBand: string | null;
   addOn: string | null;
+  soil: string | null;
 };
 
 const customerTypes: CustomerType[] = ["Homeowner", "Contractor"];
@@ -50,10 +53,8 @@ function priceCode(customerType: CustomerType): "RP" | "CP" {
   return customerType === "Homeowner" ? "RP" : "CP";
 }
 
-function item(
-  partial: Omit<CatalogueItem, "name"> & { name: string },
-): CatalogueItem {
-  return partial;
+function item(partial: Omit<CatalogueItem, "soil"> & { soil?: string | null }): CatalogueItem {
+  return { soil: null, ...partial };
 }
 
 function buildCatalogue(): CatalogueItem[] {
@@ -63,14 +64,29 @@ function buildCatalogue(): CatalogueItem[] {
     const code = priceCode(customerType);
 
     for (const installType of turfInstallTypes) {
-      for (const product of productsFor("Artificial Grass Installation", installType)) {
+      for (const product of productsFor(grassService, installType)) {
+        if (grassUsesLinearFeet(installType, product.name)) {
+          items.push(
+            item({
+              name: `DUMMY ${code} - AG ${installType} Install - ${product.name}`,
+              measure: "linear feet",
+              customerType,
+              service: grassService,
+              installType,
+              product: product.name,
+              areaBand: null,
+              addOn: null,
+            }),
+          );
+          continue;
+        }
         for (const areaBand of areaBands) {
           items.push(
             item({
               name: `DUMMY ${code} - AG ${installType} Install - ${product.name} [${bandInName[areaBand]}]`,
               measure: "square feet",
               customerType,
-              service: "Artificial Grass Installation",
+              service: grassService,
               installType,
               product: product.name,
               areaBand,
@@ -86,7 +102,7 @@ function buildCatalogue(): CatalogueItem[] {
         name: `DUMMY ${code} - AG Replacement`,
         measure: "count",
         customerType,
-        service: "Artificial Grass Installation",
+        service: grassService,
         installType: "Artificial Grass Replacement",
         product: null,
         areaBand: null,
@@ -98,7 +114,7 @@ function buildCatalogue(): CatalogueItem[] {
         name: `DUMMY ${code} - AG Repair`,
         measure: "count",
         customerType,
-        service: "Artificial Grass Installation",
+        service: grassService,
         installType: "Artificial Grass Repair",
         product: null,
         areaBand: null,
@@ -106,13 +122,13 @@ function buildCatalogue(): CatalogueItem[] {
       }),
     );
 
-    for (const addOn of addOnsFor("Artificial Grass Installation", "Budget Friendly")) {
+    for (const addOn of addOnsFor(grassService, "Budget Friendly")) {
       items.push(
         item({
           name: `DUMMY ${code} - AG Add-on - ${addOn}`,
           measure: "count",
           customerType,
-          service: "Artificial Grass Installation",
+          service: grassService,
           installType: null,
           product: null,
           areaBand: null,
@@ -154,11 +170,30 @@ function buildCatalogue(): CatalogueItem[] {
       );
     }
 
+    const demoAddOns = new Set<string>();
+    for (const installType of installTypes.Demo ?? []) {
+      for (const addOn of addOnsFor("Demo", installType)) demoAddOns.add(addOn);
+    }
+    for (const addOn of demoAddOns) {
+      items.push(
+        item({
+          name: `DUMMY ${code} - Demolition Add-on - ${addOn}`,
+          measure: "count",
+          customerType,
+          service: "Demo",
+          installType: null,
+          product: null,
+          areaBand: null,
+          addOn,
+        }),
+      );
+    }
+
     for (const installType of installTypes.Demo ?? []) {
       for (const areaBand of areaBands) {
         items.push(
           item({
-            name: `DUMMY ${code} - Demo ${installType} [${bandInName[areaBand]}]`,
+            name: `DUMMY ${code} - Demolition ${installType} [${bandInName[areaBand]}]`,
             measure: "square feet",
             customerType,
             service: "Demo",
@@ -172,18 +207,21 @@ function buildCatalogue(): CatalogueItem[] {
     }
 
     for (const installType of installTypes.Underground ?? []) {
-      items.push(
-        item({
-          name: `DUMMY ${code} - Underground ${installType}`,
-          measure: "linear feet",
-          customerType,
-          service: "Underground",
-          installType,
-          product: null,
-          areaBand: null,
-          addOn: null,
-        }),
-      );
+      for (const soil of ["Standard soil", "Rocky or clay soil"]) {
+        items.push(
+          item({
+            name: `DUMMY ${code} - Underground ${installType} [${soil}]`,
+            measure: "linear feet",
+            customerType,
+            service: "Underground",
+            installType,
+            product: null,
+            areaBand: null,
+            addOn: null,
+            soil,
+          }),
+        );
+      }
     }
 
     for (const installType of installTypes["Low Voltage Lighting"] ?? []) {
@@ -204,7 +242,7 @@ function buildCatalogue(): CatalogueItem[] {
     for (const service of services) {
       if (
         service === "Demo" ||
-        service === "Artificial Grass Installation" ||
+        service === grassService ||
         service === "Putting Green" ||
         service === "Underground" ||
         service === "Low Voltage Lighting"
@@ -238,6 +276,7 @@ export function findDummyItem(query: {
   product?: string | null;
   areaBand?: string | null;
   addOn?: string | null;
+  soil?: string | null;
 }): CatalogueItem | null {
   return (
     dummyCatalogue.find(
@@ -247,7 +286,8 @@ export function findDummyItem(query: {
         entry.installType === (query.installType ?? null) &&
         entry.product === (query.product ?? null) &&
         entry.areaBand === (query.areaBand ?? null) &&
-        entry.addOn === (query.addOn ?? null),
+        entry.addOn === (query.addOn ?? null) &&
+        entry.soil === (query.soil ?? null),
     ) ?? null
   );
 }

@@ -1,8 +1,33 @@
 import { isUsState } from "./us-states";
 
+export const grassService = "Artificial Grass";
+
+export const grassWorks = ["Installation", "Replacement", "Repair"] as const;
+
+export type GrassWork = (typeof grassWorks)[number];
+
+export function grassWork(value: unknown): GrassWork | "" {
+  const match = grassWorks.find((item) => item === value);
+  return match ?? "";
+}
+
+export function grassWorkFromTypes(types: string[]): GrassWork | "" {
+  const hasInstall = types.some((type) => turfInstallTypes.includes(type));
+  const hasReplacement = types.includes("Artificial Grass Replacement");
+  const hasRepair = types.includes("Artificial Grass Repair");
+  if (hasInstall) return "Installation";
+  if (hasReplacement) return "Replacement";
+  if (hasRepair) return "Repair";
+  return "";
+}
+
+export function canonicalService(name: string): string {
+  return name === "Artificial Grass Installation" ? grassService : name;
+}
+
 export const services = [
   "Demo",
-  "Artificial Grass Installation",
+  grassService,
   "Putting Green",
   "Underground",
   "Low Voltage Lighting",
@@ -22,9 +47,18 @@ export const services = [
 
 export type ServiceName = (typeof services)[number];
 
+export function orderServices(selected: readonly string[]): string[] {
+  const chosen = new Set(selected);
+  return services.filter((service) => chosen.has(service));
+}
+
+export function serviceLabel(service: string): string {
+  return service === "Demo" ? "Demolition" : service;
+}
+
 const followUpServices = [
   "Demo",
-  "Artificial Grass Installation",
+  grassService,
   "Putting Green",
   "Underground",
   "Low Voltage Lighting",
@@ -32,41 +66,49 @@ const followUpServices = [
 
 type ProductOption = { name: string; mark: string | null };
 
-const budgetFriendly = [
+function marked(names: string[], mark: string | null): ProductOption[] {
+  return names.map((name) => ({ name, mark }));
+}
+
+const budgetNames = [
   "Players Choice",
   "Olive Natural",
   "Cali's Finest Light",
   "Hollywood",
   "Spring Natural",
-].map((name) => ({ name, mark: null }));
+];
 
-const standardAndDeluxe: ProductOption[] = [
-  ["La Jolla Lush", "Standard"],
-  ["Pasadena", "Standard"],
-  ["Cali's Finest", "Standard"],
-  ["Hollywood Lush", "Standard"],
-  ["Central Park", "Standard"],
-  ["Wimbledon", "Premium"],
-  ["Malibu", "Premium"],
-  ["Big Sur", "Premium"],
-  ["Monterey", "Premium"],
-  ["Sol Natural", "Premium"],
-  ["Brentwood", "Premium"],
-  ["Newport", "Premium"],
-].map(([name, mark]) => ({ name, mark }));
+const standardNames = [
+  "La Jolla Lush",
+  "Pasadena",
+  "Cali's Finest",
+  "Hollywood Lush",
+  "Central Park",
+];
 
-const petTurf = ["Pets Choice", "Kennels Best", "Fringe"].map((name) => ({
-  name,
-  mark: null,
-}));
+const premiumNames = [
+  "Wimbledon",
+  "Malibu",
+  "Big Sur",
+  "Monterey",
+  "Sol Natural",
+  "Brentwood",
+  "Newport",
+];
 
-const playgroundTurf: ProductOption[] = [{ name: "Kids Play", mark: null }];
+const petNames = ["Pets Choice", "Kennels Best", "Fringe"];
+
+const budgetFriendly = marked(budgetNames, null);
+const yardTurf = [...marked(standardNames, "Standard"), ...marked(premiumNames, "Premium")];
+const petTurf = marked(petNames, null);
+const playgroundTurf = marked(["Kids Play"], null);
 
 const everyGrassProduct = [
-  ...budgetFriendly,
-  ...standardAndDeluxe,
-  ...petTurf,
-  ...playgroundTurf,
+  ...marked(budgetNames, "Budget Friendly"),
+  ...marked(standardNames, "Standard"),
+  ...marked(premiumNames, "Premium"),
+  ...marked(petNames, "Pet"),
+  ...marked(["Kids Play"], "Playground"),
 ];
 
 const grassAddOns = [
@@ -79,7 +121,47 @@ const grassAddOns = [
   "1 x 4 Bender Board",
   "2 x 4 Pressure Treated Lumber",
   "Black Aluminum Border",
+  'Additional 2" of Base',
 ];
+
+export const concreteRockAddOn = "Concrete / Rock";
+
+const additionalDemo = 'Additional 2" of Demolition';
+const additionalDemoRegrade = 'Additional 2" of Demolition & Regrade';
+
+const demoAddOns: Record<string, string[]> = {
+  Demolition: [concreteRockAddOn, additionalDemo],
+  "Demolition & Regrade": [concreteRockAddOn, additionalDemoRegrade],
+};
+
+export const installTypeDetail: Record<string, string> = {
+  Demolition:
+    "Removal of natural elements like grass and vegetation. Includes haul and dump.",
+  "Demolition & Regrade":
+    "Removal of grass and vegetation, then reshaping and leveling the soil. Includes haul and dump.",
+  '3" Drains': "Helps manage water drainage and prevent pooling.",
+  '4" Drains': "Larger drainage capacity for heavy water flow.",
+  '1" Mainline': "Primary water line for irrigation systems.",
+  '3/4" Waterline': "Secondary waterline for irrigation.",
+  '1" Pipe Sleeve': "Protects pipes when running under hardscapes.",
+  '2" Conduit': "Electrical conduit for low voltage lighting or other utilities.",
+  '3/4" Gas Line': "Gas line for fire features or outdoor appliances.",
+  "Run Loose Lay Wire": "Low voltage wire run above or within the landscape (no conduit).",
+  "Run Wire Through Conduit": "Wire run through protective conduit for added durability.",
+  "Run Line Under Concrete": "Low voltage wire run beneath concrete surfaces.",
+  "Install Outlet": "Outdoor outlet for lighting system.",
+  "Install GFI": "Ground fault interrupter for safety.",
+  "Install Conduit with 110V Line": "Conduit run with 110V power line.",
+  "Install Controller": "Lighting controller for automated operation.",
+  "150 Watt Transformer": "Transformer for a smaller set of lights.",
+  "300 Watt Transformer": "Transformer for a mid-size lighting layout.",
+  "600 Watt Transformer": "Transformer for a larger lighting layout.",
+  "Corona Bullet Up Lights": "Up lights aimed at trees, walls, or features.",
+  "Corona Path Lights": "Lights along a walkway or path.",
+  "Step Lights, Pro-Trade LL1": "Lights set into steps.",
+  "Step Lights, Alliance SL35": "Lights set into steps.",
+  "Under Lights, Pro-Trade LL1": "Lights mounted under rails, benches, or overhangs.",
+};
 
 const puttingProducts: ProductOption[] = [
   "Champions Choice",
@@ -100,31 +182,50 @@ const puttingAddOns = [
   "Unique Cup Set / Flag Light Set",
 ];
 
+const addOnUnits: Record<string, string> = {
+  "Additional #16 / #20 Silica Sand": "bags",
+  "Additional #60 Silica Sand": "bags",
+  "Additional Pet Deodorizer": "bags",
+  "Additional Camofill": "bags",
+  "Additional Seam Tape": "rolls",
+  "Additional Weed Cloth": "rolls",
+  "Gopher Wire": "rolls",
+  "1 x 4 Bender Board": "linear ft",
+  "2 x 4 Pressure Treated Lumber": "linear ft",
+  "Black Aluminum Border": "linear ft",
+  "Aluminium Golf Cup / Flag Set": "each",
+  "Unique Cup Set / Flag Light Set": "each",
+  'Additional 2" of Base': "layers",
+  [additionalDemo]: "layers",
+  [additionalDemoRegrade]: "layers",
+  "Concrete / Rock": "sq ft",
+};
+
+export function unitForAddOn(addOn: string): string {
+  return addOnUnits[addOn] ?? "each";
+}
+
 const notesInstallTypes = new Set([
   "Artificial Grass Replacement",
   "Artificial Grass Repair",
 ]);
 
 export const installTypes: Record<string, string[]> = {
-  Demo: [
-    "Demo",
-    "Demo & Regrade",
-    "Concrete / Rock Demo",
-    "Concrete / Rock Demo & Regrade",
-  ],
-  "Artificial Grass Installation": [
+  Demo: ["Demolition", "Demolition & Regrade"],
+  [grassService]: [
     "Budget Friendly",
-    "Standard and Deluxe",
-    "Basic Pet and Premium Pet",
+    "Standard",
+    "Deluxe",
+    "Basic Pet",
+    "Premium Pet",
     "Playground",
     "Glue Down Over Concrete",
     "Turf Stip",
-    "Artificial Grass Replacement",
-    "Artificial Grass Repair",
   ],
   "Putting Green": ["Entertaintment Putting Green", "PGA Putting Green"],
   Underground: [
-    'Drains (3" or 4")',
+    '3" Drains',
+    '4" Drains',
     '1" Mainline',
     '3/4" Waterline',
     '1" Pipe Sleeve',
@@ -132,23 +233,30 @@ export const installTypes: Record<string, string[]> = {
     '3/4" Gas Line',
   ],
   "Low Voltage Lighting": [
-    "Run Wire",
+    "Run Loose Lay Wire",
+    "Run Wire Through Conduit",
+    "Run Line Under Concrete",
     "Install Outlet",
     "Install GFI",
-    "Install Conduit",
+    "Install Conduit with 110V Line",
     "Install Controller",
-    "Install Transformer",
-    "Install Bullet up Lights",
-    "Install Path Lights",
-    "Install Step Lights",
-    "Install Under Lights",
+    "150 Watt Transformer",
+    "300 Watt Transformer",
+    "600 Watt Transformer",
+    "Corona Bullet Up Lights",
+    "Corona Path Lights",
+    "Step Lights, Pro-Trade LL1",
+    "Step Lights, Alliance SL35",
+    "Under Lights, Pro-Trade LL1",
   ],
 };
 
 const grassProducts: Record<string, ProductOption[]> = {
   "Budget Friendly": budgetFriendly,
-  "Standard and Deluxe": standardAndDeluxe,
-  "Basic Pet and Premium Pet": petTurf,
+  Standard: yardTurf,
+  Deluxe: yardTurf,
+  "Basic Pet": petTurf,
+  "Premium Pet": petTurf,
   Playground: playgroundTurf,
   "Glue Down Over Concrete": everyGrassProduct,
   "Turf Stip": everyGrassProduct,
@@ -156,14 +264,35 @@ const grassProducts: Record<string, ProductOption[]> = {
 
 export type CustomerType = "Homeowner" | "Contractor";
 
+export function grassUsesLinearFeet(installType: string, product: string): boolean {
+  return installType === "Turf Stip" && product !== "Kids Play";
+}
+
 export const turfInstallTypes = [
   "Budget Friendly",
-  "Standard and Deluxe",
-  "Basic Pet and Premium Pet",
+  "Standard",
+  "Deluxe",
+  "Basic Pet",
+  "Premium Pet",
   "Playground",
   "Glue Down Over Concrete",
   "Turf Stip",
 ];
+
+export const soilConditions = ["Standard soil", "Rocky or clay soil", "Not sure"] as const;
+
+export type SoilCondition = (typeof soilConditions)[number];
+
+export const soilDetail: Record<SoilCondition, string> = {
+  "Standard soil": "Typical, easy to dig.",
+  "Rocky or clay soil": "Harder to dig, may require additional work.",
+  "Not sure": "We can assess during the site visit.",
+};
+
+export function soilCondition(value: unknown): SoilCondition | "" {
+  const match = soilConditions.find((item) => item === value);
+  return match ?? "";
+}
 
 export type DiscoveryState = {
   firstName: string;
@@ -184,11 +313,14 @@ export type DiscoveryState = {
   addOns: Record<string, string[]>;
   addOnQuantity: Record<string, string>;
   areaKnown: Record<string, "" | "yes" | "no">;
+  squareFeet: Record<string, string>;
   length: Record<string, string>;
   width: Record<string, string>;
   lengthKnown: "" | "yes" | "no";
   linearFeet: string;
+  soil: SoilCondition | "";
   notes: Record<string, string>;
+  grassWork: GrassWork | "";
 };
 
 export function emptyDiscovery(): DiscoveryState {
@@ -211,16 +343,102 @@ export function emptyDiscovery(): DiscoveryState {
     addOns: {},
     addOnQuantity: {},
     areaKnown: {},
+    squareFeet: {},
     length: {},
     width: {},
     lengthKnown: "",
     linearFeet: "",
+    soil: "",
     notes: {},
+    grassWork: "",
   };
 }
 
 export function selectionKey(service: string, installType: string): string {
   return `${service}::${installType}`;
+}
+
+export function grassJobAreaKey(installType: string): string {
+  return `${selectionKey(grassService, installType)}::job`;
+}
+
+const retiredDemoAddOns: Record<string, string> = {
+  'Additional 2" of Demo': additionalDemo,
+  'Additional 2" of Demo & Regrade': additionalDemoRegrade,
+};
+
+function demolitionAddOnName(name: string): string {
+  return retiredDemoAddOns[name] ?? name;
+}
+
+function withDemolitionAddOnNames(form: DiscoveryState): DiscoveryState {
+  let changed = false;
+  const addOns: Record<string, string[]> = {};
+  for (const [key, values] of Object.entries(form.addOns)) {
+    const next: string[] = [];
+    for (const value of values) {
+      const name = demolitionAddOnName(value);
+      if (name !== value) changed = true;
+      if (!next.includes(name)) next.push(name);
+    }
+    addOns[key] = next;
+  }
+  const addOnQuantity: Record<string, string> = {};
+  for (const [key, value] of Object.entries(form.addOnQuantity)) {
+    const split = key.indexOf("::");
+    const nextKey =
+      split < 0 ? key : `${key.slice(0, split)}::${demolitionAddOnName(key.slice(split + 2))}`;
+    if (nextKey !== key) changed = true;
+    addOnQuantity[nextKey] = value;
+  }
+  return changed ? { ...form, addOns, addOnQuantity } : form;
+}
+
+const retiredDemoTypes: Record<string, { installType: string; concrete: boolean }> = {
+  Demo: { installType: "Demolition", concrete: false },
+  "Demo & Regrade": { installType: "Demolition & Regrade", concrete: false },
+  "Concrete / Rock Demo": { installType: "Demolition", concrete: true },
+  "Concrete / Rock Demo & Regrade": { installType: "Demolition & Regrade", concrete: true },
+};
+
+export function normalizeDemoChoices(form: DiscoveryState): DiscoveryState {
+  form = withDemolitionAddOnNames(form);
+  const selected = form.installTypes.Demo;
+  if (selected === undefined) return form;
+  const allowed = new Set(installTypes.Demo ?? []);
+  const nextTypes: string[] = [];
+  let concrete = (form.addOns.Demo ?? []).includes(concreteRockAddOn);
+  let concreteFeet = "";
+  for (const type of selected) {
+    const retired = retiredDemoTypes[type];
+    const name = retired?.installType ?? type;
+    if (retired?.concrete) {
+      concrete = true;
+      if (concreteFeet === "") concreteFeet = form.squareFeet[type] ?? "";
+    }
+    if (allowed.has(name) && !nextTypes.includes(name)) nextTypes.push(name);
+  }
+  const squareFeet = { ...form.squareFeet };
+  for (const [oldName, mapped] of Object.entries(retiredDemoTypes)) {
+    const value = squareFeet[oldName];
+    if (value && (squareFeet[mapped.installType] ?? "") === "") {
+      squareFeet[mapped.installType] = value;
+    }
+  }
+  const addOns = [...(form.addOns.Demo ?? [])];
+  if (concrete && !addOns.includes(concreteRockAddOn)) addOns.push(concreteRockAddOn);
+  const quantityKey = `Demo::${concreteRockAddOn}`;
+  const addOnQuantity = { ...form.addOnQuantity };
+  if (concrete && concreteFeet !== "" && (addOnQuantity[quantityKey] ?? "") === "") {
+    addOnQuantity[quantityKey] = concreteFeet;
+  }
+  return {
+    ...form,
+    installTypes: { ...form.installTypes, Demo: nextTypes },
+    squareFeet,
+    addOns: { ...form.addOns, Demo: addOns },
+    addOnQuantity,
+  };
 }
 
 export function allowsMultipleInstallTypes(service: string): boolean {
@@ -232,7 +450,7 @@ export function hasFollowUp(service: string): boolean {
 }
 
 export function productsFor(service: string, installType: string): ProductOption[] {
-  if (service === "Artificial Grass Installation") {
+  if (service === grassService) {
     return grassProducts[installType] ?? [];
   }
   if (service === "Putting Green" && installType !== "") {
@@ -245,13 +463,59 @@ export function addOnsFor(service: string, installType: string): string[] {
   if (installType === "" || installType === "Artificial Grass Repair") {
     return [];
   }
-  if (service === "Artificial Grass Installation") {
+  if (service === grassService) {
     return grassAddOns;
   }
   if (service === "Putting Green") {
     return puttingAddOns;
   }
+  if (service === "Demo") {
+    return demoAddOns[installType] ?? [];
+  }
   return [];
+}
+
+function grassAddOnOwner(owner: string): boolean {
+  return (
+    owner === grassService ||
+    owner === "Artificial Grass Installation" ||
+    owner === "Artificial Grass Replacement" ||
+    owner === "Artificial Grass Repair" ||
+    turfInstallTypes.includes(owner)
+  );
+}
+
+export function withAddOn(
+  form: DiscoveryState,
+  service: string,
+  addOn: string,
+  on: boolean,
+): DiscoveryState {
+  const addOns: Record<string, string[]> = {};
+  for (const [key, values] of Object.entries(form.addOns)) {
+    const sameService = key === service || key.startsWith(`${service}::`);
+    addOns[key] = sameService ? values.filter((item) => item !== addOn) : values;
+  }
+  if (on) addOns[service] = [...(addOns[service] ?? []), addOn];
+  const addOnQuantity = { ...form.addOnQuantity };
+  if (!on) {
+    for (const key of Object.keys(addOnQuantity)) {
+      if (key === `${service}::${addOn}` || (key.startsWith(`${service}::`) && key.endsWith(`::${addOn}`))) {
+        delete addOnQuantity[key];
+      }
+    }
+  }
+  return { ...form, addOns, addOnQuantity };
+}
+
+export function addOnsForSelected(service: string, selected: string[]): string[] {
+  const addOns: string[] = [];
+  for (const installType of selected) {
+    for (const addOn of addOnsFor(service, installType)) {
+      if (!addOns.includes(addOn)) addOns.push(addOn);
+    }
+  }
+  return addOns;
 }
 
 export function asksForArea(service: string, installType: string): boolean {
@@ -260,7 +524,7 @@ export function asksForArea(service: string, installType: string): boolean {
   }
   return (
     service === "Demo" ||
-    service === "Artificial Grass Installation" ||
+    service === grassService ||
     service === "Putting Green"
   );
 }
@@ -269,24 +533,11 @@ export function asksForNotes(installType: string): boolean {
   return notesInstallTypes.has(installType);
 }
 
-export function areaPreview(length: string, width: string): string | null {
-  const parsedLength = Number(length);
-  const parsedWidth = Number(width);
-  if (!Number.isFinite(parsedLength) || !Number.isFinite(parsedWidth)) {
-    return null;
-  }
-  if (parsedLength <= 0 || parsedWidth <= 0) {
-    return null;
-  }
-  const squareFeet = parsedLength * parsedWidth;
-  return `${squareFeet} square feet, ${areaBandFor(squareFeet)}`;
-}
-
 type Measurement = {
   label: string;
   length: number | null;
   width: number | null;
-  squareFeet: null;
+  squareFeet: number | null;
   linearFeet: number | null;
   unmeasured: boolean;
 };
@@ -309,16 +560,34 @@ export type DiscoveryPayload = {
   measurements: Measurement[];
 };
 
-export function buildDiscovery(input: DiscoveryState): {
+export function fieldIdFor(...parts: string[]): string {
+  const id = parts
+    .join("-")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+  return id.length > 0 ? id : "field";
+}
+
+export type DiscoveryBuild = {
   error: string | null;
+  fieldId: string | null;
   payload: DiscoveryPayload | null;
-} {
-  const contactError = requiredContact(input);
-  if (contactError !== null) {
-    return { error: contactError, payload: null };
+};
+
+function invalid(error: string, fieldId: string): DiscoveryBuild {
+  return { error, fieldId, payload: null };
+}
+
+export function buildDiscovery(input: DiscoveryState): DiscoveryBuild {
+  const contact = contactProblems(input);
+  const contactId = Object.keys(contact)[0];
+  if (contactId !== undefined) {
+    return invalid(contact[contactId], contactId);
   }
   if (input.services.length === 0) {
-    return { error: "Choose at least one service.", payload: null };
+    return invalid("Choose at least one service.", "services");
   }
 
   const answers: { question: string; value: string }[] = [
@@ -333,11 +602,28 @@ export function buildDiscovery(input: DiscoveryState): {
     if (!input.services.includes(service) || !hasFollowUp(service)) {
       continue;
     }
-    const selected = input.installTypes[service] ?? [];
-    if (selected.length === 0) {
-      return { error: `Choose an install type for ${service}.`, payload: null };
+    let selected = input.installTypes[service] ?? [];
+    if (service === grassService) {
+      const work = grassWork(input.grassWork);
+      if (work === "") {
+        return invalid(
+          "Choose installation, replacement, or repair.",
+          fieldIdFor("grass-work", service),
+        );
+      }
+      answers.push({ question: `${service} work`, value: work });
+      if (work === "Replacement") selected = ["Artificial Grass Replacement"];
+      else if (work === "Repair") selected = ["Artificial Grass Repair"];
+      else selected = selected.filter((type) => turfInstallTypes.includes(type));
+      input = {
+        ...input,
+        installTypes: { ...input.installTypes, [service]: selected },
+      };
     }
-    if (service === "Artificial Grass Installation") {
+    if (selected.length === 0) {
+      return invalid(`Choose an installation type for ${serviceLabel(service)}.`, fieldIdFor("install", service));
+    }
+    if (service === grassService) {
       const grassError = collectGrass(
         input,
         selected,
@@ -348,7 +634,7 @@ export function buildDiscovery(input: DiscoveryState): {
         noteLines,
       );
       if (grassError !== null) {
-        return { error: grassError, payload: null };
+        return invalid(grassError.error, grassError.fieldId);
       }
       continue;
     }
@@ -356,13 +642,22 @@ export function buildDiscovery(input: DiscoveryState): {
     for (const installType of selected) {
       answers.push({ question: `${service} install type`, value: installType });
     }
+    const needsAreaName = selected.length > 1 || service === "Low Voltage Lighting";
+    for (const type of selected) {
+      const areaName = needsAreaName
+        ? (input.areaNames[selectionKey(service, type)] ?? "").trim()
+        : "";
+      if (areaName !== "") {
+        answers.push({ question: `${service} area`, value: `${type}: ${areaName}` });
+      }
+    }
     const installType = selected[0];
 
     const productChoices = productsFor(service, installType);
     if (productChoices.length > 0) {
       const product = input.product[service] ?? "";
       if (!productChoices.some((choice) => choice.name === product)) {
-        return { error: `Choose a product for ${service}.`, payload: null };
+        return invalid(`Choose a product for ${serviceLabel(service)}.`, fieldIdFor("product", service));
       }
       products.push(product);
     }
@@ -375,38 +670,22 @@ export function buildDiscovery(input: DiscoveryState): {
     }
 
     if (asksForArea(service, installType)) {
-      const known = input.areaKnown[service] ?? "";
-      if (known !== "yes" && known !== "no") {
-        return {
-          error: `Tell us whether you know the area for ${service}.`,
-          payload: null,
-        };
-      }
-      answers.push({ question: `${service} area known`, value: known });
-      if (known === "no") {
-        measurements.push(blankMeasurement(service));
-      } else {
-        const length = Number(input.length[service]);
-        const width = Number(input.width[service]);
-        if (!Number.isFinite(length) || !Number.isFinite(width) || length <= 0 || width <= 0) {
-          return {
-            error: `Enter a length and width for ${service}.`,
-            payload: null,
-          };
+      for (const type of selected) {
+        const areaName = (input.areaNames[selectionKey(service, type)] ?? "").trim();
+        const areaError = optionalSquareFeet(
+          areaName || type,
+          input.squareFeet[type] ?? "",
+          measurements,
+          fieldIdFor("square-feet", service, type),
+        );
+        if (areaError !== null) {
+          return invalid(areaError.error, areaError.fieldId);
         }
-        measurements.push({
-          label: service,
-          length,
-          width,
-          squareFeet: null,
-          linearFeet: null,
-          unmeasured: false,
-        });
       }
     }
 
     for (const addOn of input.addOns[service] ?? []) {
-      if (!addOnsFor(service, installType).includes(addOn)) {
+      if (!selected.some((type) => addOnsFor(service, type).includes(addOn))) {
         continue;
       }
       answers.push({ question: `${service} add-on`, value: addOn });
@@ -421,42 +700,31 @@ export function buildDiscovery(input: DiscoveryState): {
         answers,
       );
       if (quantityError !== null) {
-        return { error: quantityError, payload: null };
+        return invalid(quantityError.error, quantityError.fieldId);
       }
     }
   }
 
   if (input.services.includes("Underground")) {
-    if (input.lengthKnown !== "yes" && input.lengthKnown !== "no") {
-      return {
-        error: "Tell us whether you know the underground length.",
-        payload: null,
-      };
+    const soil = soilCondition(input.soil);
+    if (soil === "") {
+      return invalid("Tell us the soil conditions.", "underground-soil");
     }
-    answers.push({
-      question: "Underground length known",
-      value: input.lengthKnown,
-    });
-    if (input.lengthKnown === "no") {
-      measurements.push(blankMeasurement("Underground"));
-    } else {
-      const linearFeet = Number(input.linearFeet);
-      if (!Number.isFinite(linearFeet) || linearFeet <= 0) {
-        return { error: "Enter the underground length in linear feet.", payload: null };
-      }
-      measurements.push({
-        label: "Underground",
-        length: null,
-        width: null,
-        squareFeet: null,
-        linearFeet,
-        unmeasured: false,
-      });
+    answers.push({ question: "Underground soil", value: soil });
+    const lengthError = optionalLinearFeet(
+      "Underground",
+      input.linearFeet,
+      measurements,
+      "underground-feet",
+    );
+    if (lengthError !== null) {
+      return invalid(lengthError.error, lengthError.fieldId);
     }
   }
 
   return {
     error: null,
+    fieldId: null,
     payload: {
       firstName: input.firstName.trim(),
       lastName: input.lastName.trim(),
@@ -485,15 +753,12 @@ function collectGrass(
   addOns: string[],
   measurements: Measurement[],
   noteLines: string[],
-): string | null {
-  const service = "Artificial Grass Installation";
+): { error: string; fieldId: string } | null {
+  const service = grassService;
   const needsAreaName = selected.length > 1;
   for (const installType of selected) {
     const key = selectionKey(service, installType);
-    const areaName = (input.areaNames[key] ?? "").trim();
-    if (needsAreaName && areaName === "") {
-      return `Name the area for ${installType}.`;
-    }
+    const areaName = needsAreaName ? (input.areaNames[key] ?? "").trim() : "";
     answers.push({ question: `${service} install type`, value: installType });
     if (areaName !== "") {
       answers.push({
@@ -505,6 +770,20 @@ function collectGrass(
     if (note !== "" && asksForNotes(installType)) {
       noteLines.push(`${installType}: ${note}`);
     }
+    if (installType === "Artificial Grass Repair" || installType === "Artificial Grass Replacement") {
+      const jobKey = installType === "Artificial Grass Repair" ? key : grassJobAreaKey(installType);
+      const jobLabel =
+        installType === "Artificial Grass Repair" ? installType : `${installType} job`;
+      const jobError = optionalSquareFeet(
+        jobLabel,
+        input.squareFeet[jobKey] ?? "",
+        measurements,
+        fieldIdFor("square-feet", jobKey),
+      );
+      if (jobError !== null) {
+        return jobError;
+      }
+    }
     if (installType === "Artificial Grass Repair") {
       continue;
     }
@@ -515,7 +794,10 @@ function collectGrass(
         : installType;
     if (installType === "Artificial Grass Replacement") {
       if (!turfInstallTypes.includes(productInstall)) {
-        return "Choose the new turf installation for the replacement.";
+        return {
+          error: "Choose the new turf installation for the replacement.",
+          fieldId: fieldIdFor("replacement", key),
+        };
       }
       answers.push({
         question: "Artificial Grass Replacement new installation",
@@ -525,65 +807,102 @@ function collectGrass(
 
     const product = input.product[key] ?? "";
     if (!productsFor(service, productInstall).some((choice) => choice.name === product)) {
-      return `Choose a turf product for ${installType}.`;
+      return {
+        error: `Choose a turf product for ${installType}.`,
+        fieldId: fieldIdFor("product", key),
+      };
     }
     products.push(product);
     answers.push({ question: `${installType} product`, value: product });
 
-    const areaError = optionalArea(
-      areaName || installType,
-      input.length[key] ?? "",
-      input.width[key] ?? "",
-      measurements,
-    );
+    const measureText = input.squareFeet[key] ?? "";
+    const areaError = grassUsesLinearFeet(productInstall, product)
+      ? optionalLinearFeet(
+          areaName || installType,
+          measureText,
+          measurements,
+          fieldIdFor("square-feet", key),
+        )
+      : optionalSquareFeet(
+          areaName || installType,
+          measureText,
+          measurements,
+          fieldIdFor("square-feet", key),
+        );
     if (areaError !== null) {
       return areaError;
     }
+  }
 
-    for (const addOn of input.addOns[key] ?? []) {
-      if (!addOnsFor(service, productInstall).includes(addOn)) {
-        continue;
-      }
-      answers.push({ question: `${installType} add-on`, value: addOn });
-      if (!addOns.includes(addOn)) {
-        addOns.push(addOn);
-      }
-      const quantityError = collectQuantity(
-        input,
-        `${key}::${addOn}`,
-        addOn,
-        `${installType} add-on quantity`,
-        answers,
-      );
-      if (quantityError !== null) {
-        return quantityError;
-      }
-    }
+  const offered = new Set(addOnsForSelected(service, selected));
+  if (offered.size === 0) return null;
+  for (const addOn of input.addOns[service] ?? []) {
+    if (!offered.has(addOn)) continue;
+    answers.push({ question: `${service} add-on`, value: addOn });
+    if (!addOns.includes(addOn)) addOns.push(addOn);
+    const quantityError = collectQuantity(
+      input,
+      `${service}::${addOn}`,
+      addOn,
+      `${service} add-on quantity`,
+      answers,
+    );
+    if (quantityError !== null) return quantityError;
   }
   return null;
 }
 
-function optionalArea(
+function optionalSquareFeet(
   label: string,
-  lengthText: string,
-  widthText: string,
+  squareFeetText: string,
   measurements: Measurement[],
-): string | null {
-  if (lengthText.trim() === "" && widthText.trim() === "") {
+  fieldId: string,
+): { error: string; fieldId: string } | null {
+  if (squareFeetText.trim() === "") {
     measurements.push(blankMeasurement(label));
     return null;
   }
-  const length = Number(lengthText);
-  const width = Number(widthText);
-  if (!Number.isFinite(length) || !Number.isFinite(width) || length <= 0 || width <= 0) {
-    return `Enter both length and width for ${label}, or leave both blank.`;
+  const squareFeet = Number(squareFeetText);
+  if (!Number.isFinite(squareFeet) || squareFeet <= 0) {
+    return {
+      error: `Enter the square footage for ${label}, or leave it blank.`,
+      fieldId,
+    };
   }
   measurements.push({
     label,
-    length,
-    width,
-    squareFeet: null,
+    length: null,
+    width: null,
+    squareFeet,
     linearFeet: null,
+    unmeasured: false,
+  });
+  return null;
+}
+
+function optionalLinearFeet(
+  label: string,
+  linearFeetText: string,
+  measurements: Measurement[],
+  fieldId: string,
+): { error: string; fieldId: string } | null {
+  if (linearFeetText.trim() === "") {
+    measurements.push(blankMeasurement(label));
+    return null;
+  }
+  const linearFeet = Number(linearFeetText);
+  if (!Number.isFinite(linearFeet) || linearFeet <= 0) {
+    return {
+      error: `Enter the linear feet for ${label}, or leave it blank.`,
+      fieldId,
+    };
+  }
+  measurements.push({
+    label,
+    length: null,
+    width: null,
+    squareFeet: null,
+    linearFeet,
     unmeasured: false,
   });
   return null;
@@ -595,14 +914,14 @@ function collectQuantity(
   addOn: string,
   question: string,
   answers: { question: string; value: string }[],
-): string | null {
+): { error: string; fieldId: string } | null {
   const quantity = (input.addOnQuantity[key] ?? "").trim();
-  if (quantity === "") {
-    return null;
-  }
   const parsed = Number(quantity);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return `Enter a quantity for ${addOn}, or leave it blank.`;
+  if (quantity === "" || !Number.isFinite(parsed) || parsed <= 0) {
+    return {
+      error: `Enter how many ${unitForAddOn(addOn)} for ${addOn}.`,
+      fieldId: fieldIdFor("qty", key),
+    };
   }
   answers.push({ question, value: `${addOn}: ${quantity}` });
   return null;
@@ -675,13 +994,34 @@ export function contactProblems(input: ContactFields): Record<string, string> {
   if (city === "") problems.city = "Enter a city.";
   else if (!hasLetter(city)) problems.city = "Use letters in the city.";
   if (!isUsState(input.state)) problems.state = "Choose a state.";
-  if (!/^\d{5}(?:-\d{4})?$/.test(input.zip.trim())) problems.zip = "Enter a 5-digit ZIP code.";
+  if (!/^\d{5}(?:-\d{4})?$/.test(input.zip.trim())) {
+    problems.zip = "Enter a 5-digit ZIP, or a ZIP+4.";
+  }
   return problems;
 }
 
 export function requiredContact(input: DiscoveryState): string | null {
   const first = Object.values(contactProblems(input))[0];
   return first ?? null;
+}
+
+function storedSquareFeet(measurement: {
+  length: number | null;
+  width: number | null;
+  squareFeet: number | null;
+  unmeasured: boolean;
+}): number | null {
+  if (measurement.unmeasured) return null;
+  if (measurement.squareFeet !== null && measurement.squareFeet > 0) return measurement.squareFeet;
+  if (
+    measurement.length !== null &&
+    measurement.width !== null &&
+    measurement.length > 0 &&
+    measurement.width > 0
+  ) {
+    return measurement.length * measurement.width;
+  }
+  return null;
 }
 
 function blankMeasurement(label: string): Measurement {
@@ -742,17 +1082,27 @@ export function projectToForm(project: SavedProject): {
   form.city = project.city;
   form.state = project.state;
   form.zip = zipInput(project.zip);
-  form.services = [...project.services];
+  form.services = orderServices([
+    ...new Set(
+      project.services
+        .map((name) => canonicalService(name))
+        .filter((name) => (services as readonly string[]).includes(name)),
+    ),
+  ]);
 
   const customerType = project.answers.find((answer) => answer.question === "Customer type")?.value;
   if (customerType === "Homeowner" || customerType === "Contractor") {
     form.customerType = customerType;
   }
 
-  const grassTypes = installTypes["Artificial Grass Installation"] ?? [];
+  const grassTypes = installTypes[grassService] ?? [];
   for (const service of services) {
+    const questions =
+      service === grassService
+        ? [`${grassService} install type`, "Artificial Grass Installation install type"]
+        : [`${service} install type`];
     const selected = project.answers
-      .filter((answer) => answer.question === `${service} install type`)
+      .filter((answer) => questions.includes(answer.question))
       .map((answer) => answer.value);
     if (selected.length > 0) {
       form.installTypes[service] = selected;
@@ -760,40 +1110,40 @@ export function projectToForm(project: SavedProject): {
   }
 
   for (const answer of project.answers) {
-    if (answer.question === "Artificial Grass Installation area") {
+    if (answer.question.endsWith(" area")) {
+      const service = canonicalService(answer.question.slice(0, -" area".length));
       const separator = answer.value.indexOf(": ");
-      if (separator > 0) {
+      if (separator > 0 && (services as readonly string[]).includes(service)) {
         const installType = answer.value.slice(0, separator);
-        form.areaNames[selectionKey("Artificial Grass Installation", installType)] =
-          answer.value.slice(separator + 2);
+        form.areaNames[selectionKey(service, installType)] = answer.value.slice(separator + 2);
       }
+    }
+    if (answer.question === `${grassService} work` || answer.question === "Artificial Grass Installation work") {
+      form.grassWork = grassWork(answer.value);
     }
     if (answer.question === "Artificial Grass Replacement new installation") {
       form.replacementInstall[
-        selectionKey("Artificial Grass Installation", "Artificial Grass Replacement")
+        selectionKey(grassService, "Artificial Grass Replacement")
       ] = answer.value;
     }
     if (answer.question.endsWith(" product")) {
       const installType = answer.question.slice(0, -" product".length);
       if (grassTypes.includes(installType)) {
-        form.product[selectionKey("Artificial Grass Installation", installType)] = answer.value;
+        form.product[selectionKey(grassService, installType)] = answer.value;
       }
     }
     if (answer.question.endsWith(" add-on")) {
       const owner = answer.question.slice(0, -" add-on".length);
-      const key = grassTypes.includes(owner)
-        ? selectionKey("Artificial Grass Installation", owner)
-        : owner;
-      form.addOns[key] = [...(form.addOns[key] ?? []), answer.value];
+      const key = grassAddOnOwner(owner) ? grassService : owner;
+      const chosen = form.addOns[key] ?? [];
+      if (!chosen.includes(answer.value)) form.addOns[key] = [...chosen, answer.value];
     }
     if (answer.question.endsWith(" add-on quantity")) {
       const owner = answer.question.slice(0, -" add-on quantity".length);
       const separator = answer.value.indexOf(": ");
       if (separator > 0) {
         const addOn = answer.value.slice(0, separator);
-        const key = grassTypes.includes(owner)
-          ? `${selectionKey("Artificial Grass Installation", owner)}::${addOn}`
-          : `${owner}::${addOn}`;
+        const key = grassAddOnOwner(owner) ? `${grassService}::${addOn}` : `${owner}::${addOn}`;
         form.addOnQuantity[key] = answer.value.slice(separator + 2);
       }
     }
@@ -809,6 +1159,9 @@ export function projectToForm(project: SavedProject): {
     ) {
       form.lengthKnown = answer.value;
     }
+    if (answer.question === "Underground soil") {
+      form.soil = soilCondition(answer.value);
+    }
   }
 
   const puttingNames = new Set(
@@ -823,29 +1176,46 @@ export function projectToForm(project: SavedProject): {
     if (measurement.label === "Underground" && measurement.linearFeet !== null) {
       form.linearFeet = String(measurement.linearFeet);
     }
-    if (
-      form.services.includes(measurement.label) &&
-      measurement.length !== null &&
-      measurement.width !== null &&
-      !measurement.unmeasured
-    ) {
-      form.length[measurement.label] = String(measurement.length);
-      form.width[measurement.label] = String(measurement.width);
+    const feet = storedSquareFeet(measurement);
+    if (feet !== null) {
+      form.squareFeet[measurement.label] = String(feet);
+      if (measurement.label === "Demo" || measurement.label === "Putting Green") {
+        for (const type of form.installTypes[measurement.label] ?? []) {
+          form.squareFeet[type] ??= String(feet);
+        }
+      }
+      for (const service of ["Demo", "Putting Green"] as const) {
+        for (const type of form.installTypes[service] ?? []) {
+          const areaName = form.areaNames[selectionKey(service, type)] ?? "";
+          if (measurement.label === type || (areaName !== "" && measurement.label === areaName)) {
+            form.squareFeet[type] = String(feet);
+          }
+        }
+      }
     }
     for (const installType of grassTypes) {
-      const key = selectionKey("Artificial Grass Installation", installType);
+      const key = selectionKey(grassService, installType);
       const areaName = form.areaNames[key] ?? "";
       const matches =
         measurement.label === installType || (areaName !== "" && measurement.label === areaName);
+      if (matches && feet !== null) form.squareFeet[key] = String(feet);
       if (
         matches &&
-        measurement.length !== null &&
-        measurement.width !== null &&
-        !measurement.unmeasured
+        feet === null &&
+        measurement.linearFeet !== null &&
+        measurement.linearFeet > 0
       ) {
-        form.length[key] = String(measurement.length);
-        form.width[key] = String(measurement.width);
+        form.squareFeet[key] = String(measurement.linearFeet);
       }
+    }
+    if (measurement.label === "Artificial Grass Repair" && feet !== null) {
+      form.squareFeet[selectionKey(grassService, "Artificial Grass Repair")] = String(feet);
+    }
+    if (measurement.label === "Artificial Grass Replacement" && feet !== null) {
+      form.squareFeet[selectionKey(grassService, "Artificial Grass Replacement")] = String(feet);
+    }
+    if (measurement.label === "Artificial Grass Replacement job" && feet !== null) {
+      form.squareFeet[grassJobAreaKey("Artificial Grass Replacement")] = String(feet);
     }
   }
 
@@ -860,5 +1230,8 @@ export function projectToForm(project: SavedProject): {
     }
   }
 
-  return { form, visitNote: visitLines.join("\n") };
+  if (form.grassWork === "") {
+    form.grassWork = grassWorkFromTypes(form.installTypes[grassService] ?? []);
+  }
+  return { form: normalizeDemoChoices(form), visitNote: visitLines.join("\n") };
 }

@@ -1,10 +1,11 @@
 import { v } from "convex/values";
-import { query } from "../_generated/server";
-import schema from "../schema";
+import { internalQuery, query } from "../_generated/server";
+import { activeSalesSession } from "../sales/session";
+import schema, { projectStatus } from "../schema";
 
 const workAreaLimit = 100;
 
-export const get = query({
+export const get = internalQuery({
   args: { projectId: v.id("projects") },
   returns: v.union(
     v.null(),
@@ -26,11 +27,60 @@ export const get = query({
   },
 });
 
+const salesProject = v.object({
+  projectId: v.id("projects"),
+  firstName: v.string(),
+  lastName: v.string(),
+  street1: v.string(),
+  city: v.string(),
+  state: v.string(),
+  zip: v.string(),
+  phone: v.string(),
+  services: v.array(v.string()),
+  status: projectStatus,
+  createdAt: v.number(),
+});
+
+export const listForSales = query({
+  args: { sessionToken: v.string() },
+  returns: v.object({
+    signedIn: v.boolean(),
+    projects: v.array(salesProject),
+  }),
+  handler: async (ctx, args) => {
+    if ((await activeSalesSession(ctx, args.sessionToken)) === null) {
+      return { signedIn: false, projects: [] };
+    }
+    const projects = await ctx.db.query("projects").order("desc").take(200);
+    return {
+      signedIn: true,
+      projects: projects.map((project) => ({
+        projectId: project._id,
+        firstName: project.firstName,
+        lastName: project.lastName,
+        street1: project.street1,
+        city: project.city,
+        state: project.state,
+        zip: project.zip,
+        phone: project.phone,
+        services: project.services,
+        status: project.status,
+        createdAt: project._creationTime,
+      })),
+    };
+  },
+});
+
 export const visit = query({
-  args: { projectId: v.id("projects") },
+  args: {
+    sessionToken: v.string(),
+    projectId: v.id("projects"),
+  },
   returns: v.union(
+    v.object({ access: v.literal("signed-out") }),
     v.null(),
     v.object({
+      access: v.literal("ok"),
       project: schema.doc("projects"),
       workAreas: v.array(
         v.object({
@@ -46,6 +96,9 @@ export const visit = query({
     }),
   ),
   handler: async (ctx, args) => {
+    if ((await activeSalesSession(ctx, args.sessionToken)) === null) {
+      return { access: "signed-out" as const };
+    }
     const project = await ctx.db.get("projects", args.projectId);
     if (project === null) {
       return null;
@@ -70,6 +123,6 @@ export const visit = query({
         photoUrls,
       });
     }
-    return { project, workAreas };
+    return { access: "ok" as const, project, workAreas };
   },
 });

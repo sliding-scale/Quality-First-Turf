@@ -28,6 +28,7 @@ export function emptyWorkArea(label = ""): WorkAreaDraft {
 
 export function parseWorkAreas(areas: WorkAreaDraft[]): {
   error: string | null;
+  fieldId: string | null;
   workAreas: {
     label: string;
     length: number | null;
@@ -41,33 +42,30 @@ export function parseWorkAreas(areas: WorkAreaDraft[]): {
   for (const [index, area] of areas.entries()) {
     const label = area.label.trim();
     if (label === "") {
-      return { error: `Name work area ${index + 1}.`, workAreas: null };
-    }
-    const length = optionalNumber(area.length);
-    const width = optionalNumber(area.width);
-    if (length === "invalid" || width === "invalid") {
       return {
-        error: `Enter a length and width for ${label}, or leave both blank.`,
+        error: `Name work area ${index + 1}.`,
+        fieldId: `area-${index}-label`,
         workAreas: null,
       };
     }
-    const typedQuantity = optionalNumber(area.quantity);
-    if (typedQuantity === "invalid") {
-      return { error: `Enter a quantity for ${label}, or leave it blank.`, workAreas: null };
+    const quantity = optionalNumber(area.quantity);
+    if (quantity === "invalid") {
+      return {
+        error: `Enter the square feet for ${label}, or leave it blank.`,
+        fieldId: `area-${index}-quantity`,
+        workAreas: null,
+      };
     }
-    const quantity =
-      typedQuantity ??
-      (length !== null && width !== null ? length * width : null);
     workAreas.push({
       label,
-      length,
-      width,
+      length: null,
+      width: null,
       quantity,
       notes: area.notes.trim(),
       photoIds: area.photoIds,
     });
   }
-  return { error: null, workAreas };
+  return { error: null, fieldId: null, workAreas };
 }
 
 function optionalNumber(value: string): number | null | "invalid" {
@@ -79,63 +77,50 @@ function optionalNumber(value: string): number | null | "invalid" {
 
 export function WorkAreas({
   areas,
+  problems,
   onChange,
   onPhoto,
+  onClear,
 }: {
   areas: WorkAreaDraft[];
+  problems: Record<string, string>;
   onChange: Dispatch<SetStateAction<WorkAreaDraft[]>>;
   onPhoto: (index: number, file: File) => void;
+  onClear: (id: string) => void;
 }) {
   function update(index: number, partial: Partial<WorkAreaDraft>) {
     onChange((current) =>
       current.map((area, areaIndex) => (areaIndex === index ? { ...area, ...partial } : area)),
     );
+    if (partial.label !== undefined) onClear(`area-${index}-label`);
+    if (partial.quantity !== undefined) onClear(`area-${index}-quantity`);
   }
 
   return (
     <section className="form-panel">
       <h2>Work areas</h2>
       <p className="muted">
-        Add each area you measured. Length and width are optional. A quantity can be a count or the square feet.
+        Add each area you measured. Square feet are optional.
       </p>
       {areas.map((area, index) => (
         <div key={index} className="follow-block">
           <div className="field-grid">
-            <div className="form-field span-2">
-              <label htmlFor={`area-${index}-label`}>Area name</label>
-              <input
-                id={`area-${index}-label`}
-                value={area.label}
-                onChange={(event) => update(index, { label: event.target.value })}
-              />
-            </div>
-            <div className="form-field">
-              <label htmlFor={`area-${index}-length`}>Length</label>
-              <input
-                id={`area-${index}-length`}
-                inputMode="decimal"
-                value={area.length}
-                onChange={(event) => update(index, { length: decimalInput(event.target.value) })}
-              />
-            </div>
-            <div className="form-field">
-              <label htmlFor={`area-${index}-width`}>Width</label>
-              <input
-                id={`area-${index}-width`}
-                inputMode="decimal"
-                value={area.width}
-                onChange={(event) => update(index, { width: decimalInput(event.target.value) })}
-              />
-            </div>
-            <div className="form-field">
-              <label htmlFor={`area-${index}-quantity`}>Quantity</label>
-              <input
-                id={`area-${index}-quantity`}
-                inputMode="decimal"
-                value={area.quantity}
-                onChange={(event) => update(index, { quantity: decimalInput(event.target.value) })}
-              />
-            </div>
+            <AreaField
+              id={`area-${index}-label`}
+              label="Area name"
+              value={area.label}
+              error={problems[`area-${index}-label`]}
+              className="span-2"
+              onChange={(value) => update(index, { label: value })}
+            />
+            <AreaField
+              id={`area-${index}-quantity`}
+              label="Square feet"
+              value={area.quantity}
+              error={problems[`area-${index}-quantity`]}
+              numeric
+              onChange={(value) => update(index, { quantity: value })}
+            />
             <div className="form-field span-2">
               <label htmlFor={`area-${index}-notes`}>Area notes</label>
               <textarea
@@ -192,5 +177,43 @@ export function WorkAreas({
         </button>
       </div>
     </section>
+  );
+}
+
+function AreaField({
+  id,
+  label,
+  value,
+  error,
+  numeric = false,
+  className,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  error?: string;
+  numeric?: boolean;
+  className?: string;
+  onChange: (value: string) => void;
+}) {
+  const errorId = `${id}-error`;
+  return (
+    <div className={error ? `form-field is-invalid ${className ?? ""}` : `form-field ${className ?? ""}`}>
+      <label htmlFor={id}>{label}</label>
+      <input
+        id={id}
+        inputMode={numeric ? "decimal" : undefined}
+        value={value}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? errorId : undefined}
+        onChange={(event) => onChange(numeric ? decimalInput(event.target.value) : event.target.value)}
+      />
+      {error ? (
+        <p id={errorId} className="field-error">
+          {error}
+        </p>
+      ) : null}
+    </div>
   );
 }

@@ -3,14 +3,16 @@
 import { ArrowRight, Check, Handshake, HardHat, House, Leaf, Lock, Shield } from "lucide-react";
 import Image from "next/image";
 import { FormEvent, ReactNode } from "react";
+import { ConfirmationFit, ViewportFit } from "@/components/confirmation-fit";
 import { DiscoveryState, emailInput, phoneInput, zipInput } from "@/lib/discovery";
 import { DiscoveryStep } from "@/lib/discovery-draft";
 import { US_STATES, canonicalState } from "@/lib/us-states";
 
 const quoteSteps: { id: DiscoveryStep; num: string; label: string }[] = [
-  { id: "property", num: "01", label: "Property details" },
+  { id: "property", num: "01", label: "Your details" },
   { id: "services", num: "02", label: "Services" },
-  { id: "details", num: "03", label: "Review" },
+  { id: "details", num: "03", label: "Questions" },
+  { id: "confirmation", num: "04", label: "Confirmation" },
 ];
 
 const audiences = [
@@ -31,11 +33,14 @@ const audiences = [
 export function BrandMark() {
   return (
     <span className="brand-mark">
-      <span className="brand-mark__leaf" aria-hidden="true">
-        <Leaf className="brand-mark__leaf-back" strokeWidth={1.75} />
-        <Leaf className="brand-mark__leaf-front" strokeWidth={1.75} />
-      </span>
-      <span className="brand-mark__name">Quality First Turf</span>
+      <Image
+        className="brand-mark__logo"
+        src="/brand/logo-mark.png"
+        alt="Quality First Turf"
+        width={771}
+        height={605}
+        priority
+      />
     </span>
   );
 }
@@ -49,6 +54,28 @@ export function IntakeFrame({
   onStep?: (step: DiscoveryStep) => void;
   children: ReactNode;
 }) {
+  if (step === "confirmation") {
+    return (
+      <div className="intake intake--confirmation">
+        <ConfirmationFit>
+          <IntakeHeader step={step} onStep={onStep} />
+          {children}
+        </ConfirmationFit>
+      </div>
+    );
+  }
+
+  if (step === "property") {
+    return (
+      <div className="intake intake--property">
+        <ViewportFit className="intake-fit" minLayoutWidth={1440}>
+          <IntakeHeader step={step} onStep={onStep} />
+          {children}
+        </ViewportFit>
+      </div>
+    );
+  }
+
   return (
     <div className="intake">
       <IntakeHeader step={step} onStep={onStep} />
@@ -116,6 +143,49 @@ export function PropertyStep({
 }) {
   return (
     <div className="intake-split">
+      <form className="intake-pane" onSubmit={onSubmit} noValidate>
+        <div className="intake-card">
+          <h2>Your details</h2>
+          <p className="intake-card__lead">
+            Who we should contact, and the address of the property.
+            <br />
+            The services come next.
+          </p>
+          <div className="intake-fields">
+            <fieldset className="intake-group">
+              <legend>Contact</legend>
+              <div className="intake-grid">
+                <IntakeField id="firstName" label="First name" value={form.firstName} hint="Required" autoComplete="given-name" error={problems.firstName} onChange={(value) => onPatch({ firstName: value })} />
+                <IntakeField id="lastName" label="Last name" value={form.lastName} hint="Required" autoComplete="family-name" error={problems.lastName} onChange={(value) => onPatch({ lastName: value })} />
+              </div>
+              <div className="intake-grid">
+                <IntakeField id="phone" label="Phone" value={form.phone} hint="Required" autoComplete="tel" type="tel" inputMode="numeric" maxLength={10} error={problems.phone} onChange={(value) => onPatch({ phone: phoneInput(value) })} />
+                <IntakeField id="email" label="Email" value={form.email} hint="Required" autoComplete="email" type="email" inputMode="email" maxLength={254} error={problems.email} onChange={(value) => onPatch({ email: emailInput(value) })} />
+              </div>
+            </fieldset>
+            <fieldset className="intake-group">
+              <legend>Property address</legend>
+              <div className="intake-grid">
+                <IntakeField id="street1" label="Street address" value={form.street1} hint="Required" autoComplete="address-line1" error={problems.street1} onChange={(value) => onPatch({ street1: value })} />
+                <IntakeField id="street2" label="Address line 2" value={form.street2} hint="Optional" autoComplete="address-line2" onChange={(value) => onPatch({ street2: value })} />
+              </div>
+              <div className="intake-grid intake-grid--address">
+                <IntakeField id="city" label="City" value={form.city} hint="Required" autoComplete="address-level2" error={problems.city} onChange={(value) => onPatch({ city: value })} />
+                <StateField value={form.state} error={problems.state} onChange={(value) => onPatch({ state: value })} />
+                <IntakeField id="zip" label="ZIP code" value={form.zip} hint="Required" autoComplete="postal-code" inputMode="numeric" maxLength={10} error={problems.zip} onChange={(value) => onPatch({ zip: zipInput(value) })} />
+              </div>
+            </fieldset>
+          </div>
+          <button className="intake-continue" type="submit" disabled={pending}>
+            {pending ? "Saving" : "Continue"}
+            {pending ? null : <ArrowRight strokeWidth={2} aria-hidden="true" />}
+          </button>
+          <p className="intake-secure">
+            <Lock strokeWidth={1.75} aria-hidden="true" />
+            Your information is kept secure and used only to provide a quote.
+          </p>
+        </div>
+      </form>
       <section className="intake-hero">
         <div className="intake-hero__media" aria-hidden="true">
           <Image
@@ -129,14 +199,10 @@ export function PropertyStep({
           <div className="intake-hero__wash" />
         </div>
         <div className="intake-hero__copy">
-          <p className="intake-eyebrow">
-            <span />
-            Quality First Turf
-          </p>
           <h1>
             Let&apos;s bring your <span className="intake-hero__break">outdoor vision to life.</span>
           </h1>
-          <p className="intake-hero__sub">Tell us a little about your property to get started.</p>
+          <p className="intake-hero__sub">Tell us who you are, and where the work is.</p>
           <fieldset className="intake-audiences">
             <legend className="visually-hidden">Are you a homeowner or a contractor?</legend>
             {audiences.map((audience) => {
@@ -182,44 +248,6 @@ export function PropertyStep({
           </li>
         </ul>
       </section>
-
-      <form className="intake-pane" onSubmit={onSubmit} noValidate>
-        <div className="intake-card">
-          <h1>Property details</h1>
-          <p className="intake-card__lead">
-            Name, phone, and address help us understand your property.
-            <br />
-            The services come next.
-          </p>
-          <div className="intake-fields">
-            <div className="intake-grid">
-              <IntakeField id="firstName" label="First name" value={form.firstName} hint="Required" autoComplete="given-name" error={problems.firstName} onChange={(value) => onPatch({ firstName: value })} />
-              <IntakeField id="lastName" label="Last name" value={form.lastName} hint="Required" autoComplete="family-name" error={problems.lastName} onChange={(value) => onPatch({ lastName: value })} />
-            </div>
-            <div className="intake-grid">
-              <IntakeField id="phone" label="Phone" value={form.phone} hint="Required" autoComplete="tel" type="tel" inputMode="numeric" maxLength={10} error={problems.phone} onChange={(value) => onPatch({ phone: phoneInput(value) })} />
-              <IntakeField id="email" label="Email" value={form.email} hint="Required" autoComplete="email" type="email" inputMode="email" maxLength={254} error={problems.email} onChange={(value) => onPatch({ email: emailInput(value) })} />
-            </div>
-            <div className="intake-grid">
-              <IntakeField id="street1" label="Street address" value={form.street1} hint="Required" autoComplete="address-line1" error={problems.street1} onChange={(value) => onPatch({ street1: value })} />
-              <IntakeField id="street2" label="Address line 2" value={form.street2} hint="Optional" autoComplete="address-line2" onChange={(value) => onPatch({ street2: value })} />
-            </div>
-            <div className="intake-grid intake-grid--address">
-              <IntakeField id="city" label="City" value={form.city} hint="Required" autoComplete="address-level2" error={problems.city} onChange={(value) => onPatch({ city: value })} />
-              <StateField value={form.state} error={problems.state} onChange={(value) => onPatch({ state: value })} />
-              <IntakeField id="zip" label="ZIP code" value={form.zip} hint="Required" autoComplete="postal-code" inputMode="numeric" maxLength={10} error={problems.zip} onChange={(value) => onPatch({ zip: zipInput(value) })} />
-            </div>
-          </div>
-          <button className="intake-continue" type="submit" disabled={pending}>
-            {pending ? "Saving" : "Continue"}
-            {pending ? null : <ArrowRight strokeWidth={2} aria-hidden="true" />}
-          </button>
-          <p className="intake-secure">
-            <Lock strokeWidth={1.75} aria-hidden="true" />
-            Your information is kept secure and used only to provide a quote.
-          </p>
-        </div>
-      </form>
     </div>
   );
 }
@@ -266,7 +294,7 @@ function IntakeField({
         onChange={(event) => onChange(event.target.value)}
       />
       {error ? (
-        <p id={errorId} className="intake-field__error">
+        <p id={errorId} className="intake-field__error" role="alert">
           {error}
         </p>
       ) : null}
@@ -299,7 +327,7 @@ function StateField({
         aria-describedby={error ? errorId : undefined}
         onChange={(event) => onChange(event.target.value)}
       >
-        <option value=""> </option>
+        <option value="">Choose a state</option>
         {US_STATES.map((state) => (
           <option key={state.abbr} value={state.name}>
             {state.name}
@@ -307,7 +335,7 @@ function StateField({
         ))}
       </select>
       {error ? (
-        <p id={errorId} className="intake-field__error">
+        <p id={errorId} className="intake-field__error" role="alert">
           {error}
         </p>
       ) : null}
