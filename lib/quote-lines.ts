@@ -96,6 +96,25 @@ export function planQuoteLines(project: QuoteProject): {
       }
       continue;
     }
+    if (service === "Low Voltage Lighting") {
+      for (const installType of selected) {
+        const prefix = `${installType}: `;
+        const stated = project.answers.find(
+          (answer) =>
+            answer.question === "Low Voltage Lighting quantity" && answer.value.startsWith(prefix),
+        );
+        const parsed = stated === undefined ? NaN : Number(stated.value.slice(prefix.length));
+        const quantity = Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+        addLine(
+          lines,
+          gaps,
+          { customerType, service, installType },
+          quantity,
+          `${service} / ${installType}`,
+        );
+      }
+      continue;
+    }
     for (const installType of selected) {
       planCount(customerType, service, installType, installType, project, lines, gaps, usedLabels);
     }

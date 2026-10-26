@@ -163,6 +163,17 @@ export const installTypeDetail: Record<string, string> = {
   "Under Lights, Pro-Trade LL1": "Lights mounted under rails, benches, or overhangs.",
 };
 
+const lightingByLength = new Set([
+  "Run Loose Lay Wire",
+  "Run Wire Through Conduit",
+  "Run Line Under Concrete",
+  "Install Conduit with 110V Line",
+]);
+
+export function lightingUnit(installType: string): "lin ft" | "each" {
+  return lightingByLength.has(installType) ? "lin ft" : "each";
+}
+
 const puttingProducts: ProductOption[] = [
   "Champions Choice",
   "Pro Putter",
@@ -304,7 +315,7 @@ export type DiscoveryState = {
   city: string;
   state: string;
   zip: string;
-  customerType: CustomerType;
+  customerType: CustomerType | "";
   services: string[];
   installTypes: Record<string, string[]>;
   areaNames: Record<string, string>;
@@ -312,6 +323,7 @@ export type DiscoveryState = {
   product: Record<string, string>;
   addOns: Record<string, string[]>;
   addOnQuantity: Record<string, string>;
+  lightingQuantity: Record<string, string>;
   areaKnown: Record<string, "" | "yes" | "no">;
   squareFeet: Record<string, string>;
   length: Record<string, string>;
@@ -342,6 +354,7 @@ export function emptyDiscovery(): DiscoveryState {
     product: {},
     addOns: {},
     addOnQuantity: {},
+    lightingQuantity: {},
     areaKnown: {},
     squareFeet: {},
     length: {},
@@ -649,6 +662,34 @@ export function buildDiscovery(input: DiscoveryState): DiscoveryBuild {
         : "";
       if (areaName !== "") {
         answers.push({ question: `${service} area`, value: `${type}: ${areaName}` });
+      }
+    }
+    if (service === "Low Voltage Lighting") {
+      for (const type of selected) {
+        const key = selectionKey(service, type);
+        const text = (input.lightingQuantity[key] ?? "").trim();
+        if (text === "") continue;
+        const quantity = Number(text);
+        const fieldId = fieldIdFor("qty", key);
+        if (!Number.isFinite(quantity) || quantity <= 0) {
+          return invalid(
+            lightingUnit(type) === "lin ft"
+              ? `Enter the linear feet for ${type}, or leave it blank.`
+              : `Enter how many for ${type}, or leave it blank.`,
+            fieldId,
+          );
+        }
+        answers.push({ question: `${service} quantity`, value: `${type}: ${text}` });
+        if (lightingUnit(type) === "lin ft") {
+          measurements.push({
+            label: type,
+            length: null,
+            width: null,
+            squareFeet: null,
+            linearFeet: quantity,
+            unmeasured: false,
+          });
+        }
       }
     }
     const installType = selected[0];
@@ -1138,6 +1179,14 @@ export function projectToForm(project: SavedProject): {
       const chosen = form.addOns[key] ?? [];
       if (!chosen.includes(answer.value)) form.addOns[key] = [...chosen, answer.value];
     }
+    if (answer.question === "Low Voltage Lighting quantity") {
+      const separator = answer.value.indexOf(": ");
+      if (separator > 0) {
+        const installType = answer.value.slice(0, separator);
+        form.lightingQuantity[selectionKey("Low Voltage Lighting", installType)] =
+          answer.value.slice(separator + 2);
+      }
+    }
     if (answer.question.endsWith(" add-on quantity")) {
       const owner = answer.question.slice(0, -" add-on quantity".length);
       const separator = answer.value.indexOf(": ");
@@ -1175,6 +1224,16 @@ export function projectToForm(project: SavedProject): {
   for (const measurement of project.measurements) {
     if (measurement.label === "Underground" && measurement.linearFeet !== null) {
       form.linearFeet = String(measurement.linearFeet);
+    }
+    if (
+      (installTypes["Low Voltage Lighting"] ?? []).includes(measurement.label) &&
+      measurement.linearFeet !== null &&
+      measurement.linearFeet > 0
+    ) {
+      const key = selectionKey("Low Voltage Lighting", measurement.label);
+      if ((form.lightingQuantity[key] ?? "") === "") {
+        form.lightingQuantity[key] = String(measurement.linearFeet);
+      }
     }
     const feet = storedSquareFeet(measurement);
     if (feet !== null) {

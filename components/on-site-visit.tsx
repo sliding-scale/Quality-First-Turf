@@ -19,7 +19,7 @@ import {
   Waves,
   type LucideIcon,
 } from "lucide-react";
-import Image from "next/image";
+import RetryImage, { RetryNextImage } from "@/components/ui/retry-image";
 import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -38,6 +38,7 @@ import {
   hasFollowUp,
   installTypeDetail,
   installTypes,
+  lightingUnit,
   orderServices,
   phoneInput,
   productsFor,
@@ -51,6 +52,7 @@ import {
   zipInput,
   type DiscoveryState,
 } from "@/lib/discovery";
+import { scrollToStart, transitionStep } from "@/lib/step-transition";
 import { canonicalState, US_STATES } from "@/lib/us-states";
 import { parseWorkAreas } from "@/components/work-areas";
 import {
@@ -88,6 +90,8 @@ const steps = [
 ] as const;
 
 type VisitStep = (typeof steps)[number]["id"];
+
+const visitOrder = [...steps.map((item) => item.id), "done"] as const;
 
 function choiceLabel(value: string) {
   return value === "Entertaintment Putting Green" ? "Entertainment Putting Green" : value;
@@ -165,23 +169,6 @@ export function OnSiteVisit({
   }
 
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((left, right) => right.intersectionRatio - left.intersectionRatio)[0];
-        if (visible?.target.id) setSection(visible.target.id as VisitStep);
-      },
-      { rootMargin: "-20% 0px -55% 0px", threshold: [0.15, 0.4] },
-    );
-    for (const item of steps) {
-      const node = document.getElementById(item.id);
-      if (node) observer.observe(node);
-    }
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
     if (!focusFirstError.current) return;
     focusFirstError.current = false;
     const firstId = Object.keys(fieldErrors)[0];
@@ -199,8 +186,15 @@ export function OnSiteVisit({
   }, [error, fieldErrors]);
 
   function goTo(next: VisitStep) {
-    setSection(next);
-    document.getElementById(next)?.scrollIntoView({ block: "start" });
+    transitionStep(
+      section,
+      next,
+      () => {
+        setSection(next);
+        if (!focusFirstError.current) scrollToStart();
+      },
+      visitOrder,
+    );
   }
 
   function updateArea(index: number, partial: Partial<VisitArea>) {
@@ -286,7 +280,7 @@ export function OnSiteVisit({
     clearProblem("services");
   }
 
-  function chooseGrassWork(nextWork: DiscoveryState["grassWork"]) {
+  function chooseGrassWork(nextWork: DiscoveryState["grassWork"] | "") {
     clearProblem(fieldIdFor("grass-work", grassService));
     setForm((current) => {
       const packages = (current.installTypes[grassService] ?? []).filter((type) =>
@@ -297,7 +291,9 @@ export function OnSiteVisit({
           ? ["Artificial Grass Replacement"]
           : nextWork === "Repair"
             ? ["Artificial Grass Repair"]
-            : packages;
+            : nextWork === ""
+              ? []
+              : packages;
       return {
         ...current,
         grassWork: nextWork,
@@ -307,6 +303,7 @@ export function OnSiteVisit({
     setAreas((current) =>
       current.map((area) => {
         if (area.service !== grassService) return area;
+        if (nextWork === "") return { ...area, installType: "" };
         if (nextWork === "Replacement") return { ...area, installType: "Artificial Grass Replacement" };
         if (nextWork === "Repair") return { ...area, installType: "Artificial Grass Repair" };
         return turfInstallTypes.includes(area.installType) ? area : { ...area, installType: "" };
@@ -372,28 +369,28 @@ export function OnSiteVisit({
     const contactMessage = Object.values(problems)[0] ?? null;
     if (contactMessage !== null) {
       setEditingProperty(true);
-      goTo("property");
       showProblems(problems, contactMessage);
+      goTo("property");
       return false;
     }
     const built = buildDiscovery(form);
     if (built.error !== null || built.payload === null) {
-      goTo("services");
       showProblems(
         built.fieldId !== null && built.error !== null ? { [built.fieldId]: built.error } : {},
         built.error,
       );
+      goTo("services");
       return false;
     }
     const parsedAreas = parseWorkAreas(asWorkAreaDrafts(areas));
     if (parsedAreas.error !== null || parsedAreas.workAreas === null) {
-      goTo("services");
       showProblems(
         parsedAreas.fieldId !== null && parsedAreas.error !== null
           ? { [parsedAreas.fieldId]: parsedAreas.error }
           : {},
         parsedAreas.error,
       );
+      goTo("services");
       return false;
     }
     setError(null);
@@ -412,15 +409,23 @@ export function OnSiteVisit({
       });
       if (mode === "quote") {
         const drafted = await draftVisit({ sessionToken, projectId });
-        setDone({
-          ready: drafted.status === "quote drafted",
-          message:
-            drafted.status === "quote drafted"
-              ? "A draft quote is in Jobber for the office to review. It has not been sent."
-              : drafted.missingMapping ??
-                drafted.integrationError ??
-                "The visit is saved. The quote needs attention.",
-        });
+        transitionStep(
+          section,
+          "done",
+          () => {
+            setDone({
+              ready: drafted.status === "quote drafted",
+              message:
+                drafted.status === "quote drafted"
+                  ? "A draft quote is in Jobber for the office to review. It has not been sent."
+                  : drafted.missingMapping ??
+                    drafted.integrationError ??
+                    "The visit is saved. The quote needs attention.",
+            });
+            scrollToStart();
+          },
+          visitOrder,
+        );
       } else {
         setSavedAt(new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }));
       }
@@ -502,11 +507,19 @@ export function OnSiteVisit({
 
   return (
     <VisitFrame>
-      <aside className="visit-nav" aria-label="Visit steps">
+      <header className="visit-banner">
         <a className="visit-brand" href="/visit">
-          <Image src="/brand/logo-mark.png" alt="Quality First Turf" width={44} height={44} />
-          <span>Quality First Turf</span>
+          <RetryNextImage
+            src="/brand/logo-mark.png"
+            alt="Quality First Turf"
+            width={771}
+            height={605}
+            priority
+          />
         </a>
+        <h1>Verify &amp; confirm details</h1>
+      </header>
+      <aside className="visit-nav" aria-label="Visit steps">
         <ol className="visit-steps">
           {steps.map((item, index) => (
             <li key={item.id}>
@@ -526,26 +539,14 @@ export function OnSiteVisit({
         </ol>
       </aside>
 
-      <div className="visit-main">
-        <header className="visit-hero">
-          <Image
-            src="/images/turf-landscape.png"
-            alt=""
-            fill
-            priority
-            sizes="(max-width: 960px) 100vw, 80vw"
-          />
-          <div className="visit-hero__copy">
-            <h1>Verify & confirm details</h1>
-            <p>
+      <div className={section === "photos" ? "visit-main is-photos" : "visit-main"}>
+        <form className="visit-body" onSubmit={onSubmit} noValidate>
+          <div className="visit-column">
+            <p className="visit-lede">
               Review the customer&apos;s request and confirm each area, measurement, and option on
               site. Measured sizes stay separate from the original estimate.
             </p>
-          </div>
-        </header>
-
-        <form className="visit-body" onSubmit={onSubmit} noValidate>
-          <div className="visit-column">
+            {section === "property" ? (
             <section id="property" className="visit-card">
               <div className="visit-card__head">
                 <div>
@@ -652,6 +653,14 @@ export function OnSiteVisit({
                           name="customer-type"
                           checked={form.customerType === type}
                           onChange={() => patch({ customerType: type })}
+                          onClick={() => {
+                            if (form.customerType === type) patch({ customerType: "" });
+                          }}
+                          onKeyDown={(event) => {
+                            if (event.key !== " " || form.customerType !== type) return;
+                            event.preventDefault();
+                            patch({ customerType: "" });
+                          }}
                         />
                         {type}
                       </label>
@@ -695,7 +704,9 @@ export function OnSiteVisit({
                 </dl>
               )}
             </section>
+            ) : null}
 
+            {section === "services" ? (
             <section id="services" className="visit-stack">
               <div className="visit-section-head">
                 <div>
@@ -762,6 +773,14 @@ export function OnSiteVisit({
                             form={form}
                             problems={fieldErrors}
                             onToggle={(value) => toggleInstall(service, value)}
+                            onQuantity={(type, value) => {
+                              const key = selectionKey(service, type);
+                              clearProblem(fieldIdFor("qty", key));
+                              setForm((current) => ({
+                                ...current,
+                                lightingQuantity: { ...current.lightingQuantity, [key]: value },
+                              }));
+                            }}
                             onAreaName={(type, value) => {
                               const key = selectionKey(service, type);
                               clearProblem(fieldIdFor("area", key));
@@ -799,6 +818,15 @@ export function OnSiteVisit({
                                     onChange={() =>
                                       setForm((current) => ({ ...current, soil }))
                                     }
+                                    onClick={() => {
+                                      if (form.soil !== soil) return;
+                                      setForm((current) => ({ ...current, soil: "" }));
+                                    }}
+                                    onKeyDown={(event) => {
+                                      if (event.key !== " " || form.soil !== soil) return;
+                                      event.preventDefault();
+                                      setForm((current) => ({ ...current, soil: "" }));
+                                    }}
                                   />
                                   <span>{soil}</span>
                                 </label>
@@ -828,6 +856,14 @@ export function OnSiteVisit({
                                     name="visit-grass-work"
                                     checked={form.grassWork === option}
                                     onChange={() => chooseGrassWork(option)}
+                                    onClick={() => {
+                                      if (form.grassWork === option) chooseGrassWork("");
+                                    }}
+                                    onKeyDown={(event) => {
+                                      if (event.key !== " " || form.grassWork !== option) return;
+                                      event.preventDefault();
+                                      chooseGrassWork("");
+                                    }}
                                   />
                                   <span>{option}</span>
                                   {form.grassWork === option ? <Check size={14} aria-hidden="true" /> : null}
@@ -942,15 +978,19 @@ export function OnSiteVisit({
                 </div>
               ) : null}
             </section>
+            ) : null}
 
-            <section id="photos" className="visit-card visit-card--mobile">
+            {section === "photos" ? (
+            <section id="photos" className="visit-card">
               <PhotosPanel
                 areas={areas}
                 siteIndex={siteIndex}
                 onPhoto={addPhoto}
               />
             </section>
+            ) : null}
 
+            {section === "review" ? (
             <section id="review" className="visit-card">
               <div className="visit-card__head">
                 <div>
@@ -975,10 +1015,11 @@ export function OnSiteVisit({
                 </li>
               </ul>
             </section>
+            ) : null}
           </div>
 
           <aside className="visit-rail">
-            <section className="visit-card">
+            <section className="visit-card visit-photos-card">
               <div className="visit-card__head">
                 <div>
                   <h2>
@@ -1010,7 +1051,7 @@ export function OnSiteVisit({
                       Photo saved
                     </span>
                   ) : (
-                    <img key={site?.photoIds[photoIndex]} src={url} alt="" />
+                    <RetryImage key={site?.photoIds[photoIndex]} src={url} alt="" />
                   ),
                 )}
                 {siteIndex >= 0 ? (
@@ -1129,7 +1170,7 @@ export function VisitPlain({
   return (
     <div className="visit-app visit-app--plain">
       <header className="visit-plain-bar">
-        <Image src="/brand/logo.jpeg" alt="Quality First Turf" width={1599} height={458} priority />
+        <RetryNextImage src="/brand/logo-mark.png" alt="Quality First Turf" width={771} height={605} priority />
       </header>
       <main className={wide ? "visit-plain-main visit-plain-main--list" : "visit-plain-main"}>
         <h1>{title}</h1>
@@ -1166,8 +1207,12 @@ function syncServiceFromAreas(
 function statusCopy(service: string, form: DiscoveryState, areas: VisitArea[]): string {
   const status = serviceStatus(service, form, areas);
   if (service === "Low Voltage Lighting") {
-    const count = (form.installTypes[service] ?? []).length;
-    return `${count} item${count === 1 ? "" : "s"} selected`;
+    const selected = form.installTypes[service] ?? [];
+    const measured = selected.filter(
+      (type) => (form.lightingQuantity[selectionKey(service, type)] ?? "").trim() !== "",
+    ).length;
+    if (selected.length === 0) return "No items selected";
+    return `${measured} of ${selected.length} quantities entered`;
   }
   const owned = areasForService(areas, service);
   if (serviceNeedsAreas(service) && service !== "Underground") {
@@ -1268,6 +1313,7 @@ function InstallGrid({
   form,
   problems,
   onToggle,
+  onQuantity,
   onAreaName,
 }: {
   service: string;
@@ -1276,6 +1322,7 @@ function InstallGrid({
   form: DiscoveryState;
   problems: Record<string, string>;
   onToggle: (value: string) => void;
+  onQuantity: (type: string, value: string) => void;
   onAreaName: (type: string, value: string) => void;
 }) {
   const id = fieldIdFor("install", service);
@@ -1305,6 +1352,26 @@ function InstallGrid({
           </label>
         ))}
       </div>
+      {service === "Low Voltage Lighting" && selected.length > 0 ? (
+        <div className="visit-area-names">
+          {selected.map((type) => {
+            const key = selectionKey(service, type);
+            const id = fieldIdFor("qty", key);
+            const linear = lightingUnit(type) === "lin ft";
+            return (
+              <VisitField
+                key={type}
+                id={id}
+                label={linear ? `${choiceLabel(type)} linear feet` : `${choiceLabel(type)} quantity`}
+                value={form.lightingQuantity[key] ?? ""}
+                error={problems[id]}
+                inputMode="decimal"
+                onChange={(value) => onQuantity(type, decimalInput(value))}
+              />
+            );
+          })}
+        </div>
+      ) : null}
       <AreaNames service={service} form={form} problems={problems} onChange={onAreaName} />
     </fieldset>
   );
@@ -1604,7 +1671,7 @@ function PhotosPanel({
             </span>
           ) : (
             <figure key={photo.id}>
-              <img src={photo.url} alt="" />
+              <RetryImage src={photo.url} alt="" />
               <figcaption>{photo.label}</figcaption>
             </figure>
           ),

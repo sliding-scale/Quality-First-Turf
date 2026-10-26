@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import gsap from "gsap";
+import RetryImage from "@/components/ui/retry-image";
 import "./card-fan-carousel.css";
 
 export interface CardItem {
@@ -344,16 +345,13 @@ export default function SocialCards({ cards, onToggle }: SocialCardsProps) {
             const image = (
               <div className="fan-card__media relative w-full h-full overflow-hidden">
                 {card.imgUrl && loadImage(index) ? (
-                  <img
+                  <RetryImage
                     src={card.imgUrl}
                     width={480}
                     height={840}
                     loading="lazy"
                     alt=""
                     className="absolute inset-0 w-full h-full object-cover z-10"
-                    onError={(event) => {
-                      event.currentTarget.style.display = "none";
-                    }}
                   />
                 ) : null}
                 {card.label ? <span className={card.imgUrl ? "fan-card__name" : "fan-card__name fan-card__name--plain"}>{card.label}</span> : null}

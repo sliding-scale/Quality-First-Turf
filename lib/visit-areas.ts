@@ -225,7 +225,12 @@ export type ServiceStatus = "needs" | "partial" | "verified";
 
 export function serviceStatus(service: string, form: DiscoveryState, areas: VisitArea[]): ServiceStatus {
   if (service === "Low Voltage Lighting") {
-    return (form.installTypes[service] ?? []).length > 0 ? "verified" : "needs";
+    const selected = form.installTypes[service] ?? [];
+    if (selected.length === 0) return "needs";
+    const measured = selected.filter(
+      (type) => (form.lightingQuantity[selectionKey(service, type)] ?? "").trim() !== "",
+    ).length;
+    return measured === selected.length ? "verified" : "partial";
   }
   if (!hasFollowUp(service)) return "verified";
 

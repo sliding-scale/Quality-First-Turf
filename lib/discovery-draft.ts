@@ -78,8 +78,14 @@ const knownServices = new Set<string>(services);
 function formFrom(value: unknown): DiscoveryState {
   const blank = emptyDiscovery();
   if (!isRecord(value)) return blank;
-  const customerType: CustomerType =
-    value.customerType === "Contractor" ? "Contractor" : "Homeowner";
+  const customerType: CustomerType | "" =
+    value.customerType === "Contractor"
+      ? "Contractor"
+      : value.customerType === "Homeowner"
+        ? "Homeowner"
+        : value.customerType === ""
+          ? ""
+          : "Homeowner";
   const savedServices = Array.isArray(value.services)
     ? [
         ...new Set(
@@ -111,6 +117,7 @@ function formFrom(value: unknown): DiscoveryState {
     product: remapKeyed(stringRecord(value.product)),
     addOns: remapServiceKeys(stringListRecord(value.addOns)),
     addOnQuantity: remapKeyed(mapValues(stringRecord(value.addOnQuantity), decimalInput)),
+    lightingQuantity: remapKeyed(mapValues(stringRecord(value.lightingQuantity), decimalInput)),
     areaKnown: yesNoRecord(value.areaKnown),
     squareFeet: squareFeetFrom(value),
     length: mapValues(stringRecord(value.length), decimalInput),

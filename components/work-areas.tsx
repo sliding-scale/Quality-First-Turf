@@ -2,6 +2,7 @@
 
 import { Dispatch, SetStateAction } from "react";
 import { Id } from "@/convex/_generated/dataModel";
+import RetryImage from "@/components/ui/retry-image";
 import { decimalInput } from "@/lib/discovery";
 
 export type WorkAreaDraft = {
@@ -137,7 +138,7 @@ export function WorkAreas({
                   Photo saved
                 </span>
               ) : (
-                <img key={area.photoIds[photoIndex]} src={url} alt="" />
+                <RetryImage key={area.photoIds[photoIndex]} src={url} alt="" />
               ),
             )}
           </div>

@@ -2,7 +2,7 @@
 
 import { useAction, useMutation } from "convex/react";
 import { ArrowRight, Box, Check, ChevronDown, ChevronUp, Flag, Gem, Layers, Leaf, Lightbulb, type LucideIcon, PawPrint, RefreshCw, Ruler, Shovel, Sprout, Star, Waves, Wrench } from "lucide-react";
-import Image from "next/image";
+import RetryImage, { RetryNextImage } from "@/components/ui/retry-image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Dispatch, FormEvent, ReactNode, SetStateAction, useEffect, useRef, useState } from "react";
 import { api } from "@/convex/_generated/api";
@@ -28,6 +28,7 @@ import {
   grassWorks,
   hasFollowUp,
   installTypeDetail,
+  lightingUnit,
   orderServices,
   installTypes,
   phoneInput,
@@ -52,6 +53,7 @@ import {
   writeDiscoveryDraft,
   type DiscoveryStep,
 } from "@/lib/discovery-draft";
+import { scrollToStart, transitionStep } from "@/lib/step-transition";
 
 const customerSteps: DiscoveryStep[] = ["property", "services", "details"];
 
@@ -97,52 +99,56 @@ const turfPackageMeta: Record<string, { detail: string; icon: LucideIcon }> = {
   "Turf Stip": { detail: "A strip of turf along an edge.", icon: Ruler },
 };
 
+function productSrc(file: string) {
+  return `/images/products/${encodeURIComponent(file)}`;
+}
+
 const productPhotos: Record<string, string> = {
-  "Players Choice": "https://qualityfirstturf.com/wp-content/uploads/2023/09/emerald-shot-1-1-300x300.jpg",
-  "Olive Natural": "https://qualityfirstturf.com/wp-content/uploads/2023/09/sequoia-ultra-light-shot-1-300x300.jpg",
-  "Cali's Finest Light": "https://qualityfirstturf.com/wp-content/uploads/2023/10/venice-fescue-light-shot-1-300x300.jpg",
-  Hollywood: "https://qualityfirstturf.com/wp-content/uploads/2023/10/cascade-spring-shot-1-300x300.jpg",
-  "Spring Natural": "https://qualityfirstturf.com/wp-content/uploads/2023/10/diamond-light-spring-shot-1-300x300.jpg",
-  "La Jolla Lush": "https://qualityfirstturf.com/wp-content/uploads/2023/09/sequoia-light-shot-2-300x300.jpg",
-  Pasadena: "https://qualityfirstturf.com/wp-content/uploads/2023/10/natures-best-shot-1-300x300.jpg",
-  "Cali's Finest": "https://qualityfirstturf.com/wp-content/uploads/2023/09/cascade-fescue-light-shot-2-1-300x300.jpg",
-  "Hollywood Lush": "https://qualityfirstturf.com/wp-content/uploads/2023/09/riviera-pro-shot-1-300x300.jpg",
-  "Central Park": "https://qualityfirstturf.com/wp-content/uploads/2023/10/everglade-fescue-pro-shot-1-300x300.jpg",
-  Wimbledon: "https://qualityfirstturf.com/wp-content/uploads/2023/10/Playscape-Pro-Corner_2-300x300.png",
-  Malibu: "https://qualityfirstturf.com/wp-content/uploads/2023/10/malibu-fescue-light-shot-1-300x300.jpg",
-  "Big Sur": "https://qualityfirstturf.com/wp-content/uploads/2023/10/venice-fescue-pro-shot-1-300x300.jpg",
-  Monterey: "https://qualityfirstturf.com/wp-content/uploads/2023/10/everglade-fescue-pro-shot-1-1-300x300.jpg",
-  "Sol Natural": "https://qualityfirstturf.com/wp-content/uploads/2023/10/Playscape-Corner-300x300.png",
-  Brentwood: "https://qualityfirstturf.com/wp-content/uploads/2023/09/38315-default_2-1-300x300.jpg",
-  Newport: "https://qualityfirstturf.com/wp-content/uploads/2023/09/Poa-Annua-Pro-corner-1030x687-1-300x200.png",
-  "Pets Choice": "https://qualityfirstturf.com/wp-content/uploads/2023/10/PET-PRIDE-BASIC-300x169.jpg",
-  "Kennels Best": "https://qualityfirstturf.com/wp-content/uploads/2023/10/tiger-pet-shot-1-300x300.jpg",
-  Fringe: "https://qualityfirstturf.com/wp-content/uploads/2023/10/everlast-pet-shot-1-300x300.jpg",
-  "Kids Play": "https://qualityfirstturf.com/wp-content/uploads/2023/10/playground-fescue-shot-1-300x300.jpg",
-  "Champions Choice": "https://qualityfirstturf.com/wp-content/uploads/2023/10/Playscape-Corner-300x300.png",
-  "Pro Putter": "https://qualityfirstturf.com/wp-content/uploads/2023/09/riviera-pro-shot-1-300x300.jpg",
-  "Poa Annua Natural": "https://qualityfirstturf.com/wp-content/uploads/2023/09/38315-default_2-1-300x300.jpg",
-  "Poa Annua Max": "https://qualityfirstturf.com/wp-content/uploads/2023/09/Poa-Annua-Pro-corner-1030x687-1-300x200.png",
+  "Players Choice": productSrc("Players Choice.webp"),
+  "Olive Natural": productSrc("Olive Natural.webp"),
+  "Cali's Finest Light": productSrc("Cali_s Finest Light.webp"),
+  Hollywood: productSrc("Hollywood.webp"),
+  "Spring Natural": productSrc("Spring Natural.webp"),
+  "La Jolla Lush": productSrc("La Jolla Lush.webp"),
+  Pasadena: productSrc("Pasadena.webp"),
+  "Cali's Finest": productSrc("Calis Finest.webp"),
+  "Hollywood Lush": productSrc("Hollywood Lush.webp"),
+  "Central Park": productSrc("Central Park.webp"),
+  Wimbledon: productSrc("Wimbledon.webp"),
+  Malibu: productSrc("Malibu.webp"),
+  "Big Sur": productSrc("Big Sur.webp"),
+  Monterey: productSrc("Monterey.webp"),
+  "Sol Natural": productSrc("Sol Natural.webp"),
+  Brentwood: productSrc("Brentwood.webp"),
+  Newport: productSrc("Newport.webp"),
+  "Pets Choice": productSrc("Pets Choice.webp"),
+  "Kennels Best": productSrc("Kennels Best.webp"),
+  Fringe: productSrc("Fringe.webp"),
+  "Kids Play": productSrc("Kids Play.webp"),
+  "Champions Choice": productSrc("Champions Choice.webp"),
+  "Pro Putter": productSrc("Pro Putter.webp"),
+  "Poa Annua Natural": productSrc("POA Annua Natural.webp"),
+  "Poa Annua Max": productSrc("POA Annua Max.webp"),
 };
 
 const servicePhotos: Record<string, string> = {
-  Demo: "/images/services/demo.jpg",
-  [grassService]: "/images/services/grass.jpg",
-  "Putting Green": "/images/services/putting.jpg",
-  Underground: "/images/services/underground.jpg",
-  "Low Voltage Lighting": "/images/services/lighting.jpg",
-  SOD: "/images/services/sod.jpg",
-  "Patio Covers": "/images/services/patio.jpg",
-  Concrete: "/images/services/concrete.jpg",
-  "Retaining Walls": "/images/services/retaining.jpg",
-  "Planter Walls": "/images/services/planter.jpg",
-  Pavers: "/images/services/pavers.jpg",
-  "Bar & Bbq": "/images/services/bbq.jpg",
-  "Fire Pits": "/images/services/fire.jpg",
-  "Decomposite Granite": "/images/services/granite.jpg",
-  "Decorative Rock": "/images/services/rock.jpg",
-  Irrigation: "/images/services/irrigation.jpg",
-  Planting: "/images/services/planting.jpg",
+  Demo: "/images/services/demo.webp",
+  [grassService]: "/images/services/grass.webp",
+  "Putting Green": "/images/services/putting.webp",
+  Underground: "/images/services/underground.webp",
+  "Low Voltage Lighting": "/images/services/lighting.webp",
+  SOD: "/images/services/sod.webp",
+  "Patio Covers": "/images/services/patio.webp",
+  Concrete: "/images/services/concrete.webp",
+  "Retaining Walls": "/images/services/retaining.webp",
+  "Planter Walls": "/images/services/planter.webp",
+  Pavers: "/images/services/pavers.webp",
+  "Bar & Bbq": "/images/services/bbq.webp",
+  "Fire Pits": "/images/services/fire.webp",
+  "Decomposite Granite": "/images/services/granite.webp",
+  "Decorative Rock": "/images/services/rock.webp",
+  Irrigation: "/images/services/irrigation.webp",
+  Planting: "/images/services/planting.webp",
 };
 
 export function DiscoveryForm({
@@ -219,9 +225,11 @@ export function DiscoveryForm({
       const found = trailNow.lastIndexOf(urlStep);
       trail.current = found >= 0 ? trailNow.slice(0, found + 1) : [...trailNow, urlStep];
     }
-    setError(null);
-    setStep(urlStep);
-    if (!focusFirstError.current) window.scrollTo(0, 0);
+    transitionStep(stepRef.current, urlStep, () => {
+      setError(null);
+      setStep(urlStep);
+      if (!focusFirstError.current) scrollToStart();
+    });
   }, [customer, hydrated, urlStep]);
 
   useEffect(() => {
@@ -312,11 +320,13 @@ export function DiscoveryForm({
     if (trail.current[trail.current.length - 1] !== next) {
       pendingStep.current = next;
       trail.current = [...trail.current, next];
-      router.push(stepHref(next), { scroll: true });
+      router.push(stepHref(next), { scroll: false });
     }
-    setError(null);
-    setStep(next);
-    window.scrollTo(0, 0);
+    transitionStep(step, next, () => {
+      setError(null);
+      setStep(next);
+      scrollToStart();
+    });
   }
 
   function retreatTo(next: DiscoveryStep) {
@@ -329,19 +339,20 @@ export function DiscoveryForm({
         break;
       }
     }
-    setError(null);
     if (found >= 0) {
       pendingStep.current = next;
       trail.current = trailNow.slice(0, found + 1);
-      setStep(next);
       window.history.go(-(trailNow.length - 1 - found));
     } else {
       pendingStep.current = next;
       trail.current = [...trailNow, next];
-      setStep(next);
-      router.push(stepHref(next), { scroll: true });
+      router.push(stepHref(next), { scroll: false });
     }
-    if (!focusFirstError.current) window.scrollTo(0, 0);
+    transitionStep(step, next, () => {
+      setError(null);
+      setStep(next);
+      if (!focusFirstError.current) scrollToStart();
+    });
   }
 
   function selectStep(next: DiscoveryStep) {
@@ -472,7 +483,10 @@ export function DiscoveryForm({
           setDraftReady(false);
           setDraftMessage("Your request is saved. The quote could not be created in Jobber yet.");
         }
-        setProjectId(id);
+        transitionStep(stepRef.current, "confirmation", () => {
+          setProjectId(id);
+          scrollToStart();
+        });
       }
     } catch (submitError) {
       setError(
@@ -554,6 +568,7 @@ export function DiscoveryForm({
                 onToggle={(index) => toggleService(services[index])}
               />
             </div>
+            <div className="services-dock">
             <p className="services-status" aria-live="polite">
               {form.services.length === 0
                 ? "Nothing selected yet."
@@ -574,6 +589,7 @@ export function DiscoveryForm({
                   <ArrowRight strokeWidth={2} aria-hidden="true" />
                 )}
               </button>
+            </div>
             </div>
           </form>
         ) : (
@@ -811,7 +827,7 @@ export function FormShell({
       <header className="site-header">
         <div className="container site-header__inner">
           <span className="site-logo">
-            <Image
+            <RetryNextImage
               src="/brand/logo-mark.png"
               alt="Quality First Turf"
               width={771}
@@ -1146,6 +1162,13 @@ function PuttingGreenSection({
 
   function chooseType(value: string) {
     clearProblem(installId);
+    if (value === "") {
+      setForm((current) => ({
+        ...current,
+        installTypes: { ...current.installTypes, [service]: [] },
+      }));
+      return;
+    }
     setForm((current) => {
       const previous = (current.installTypes[service] ?? [])[0] ?? "";
       const carried =
@@ -1206,6 +1229,14 @@ function PuttingGreenSection({
                 name="putting-green-install"
                 checked={checked}
                 onChange={() => chooseType(option.value)}
+                onClick={() => {
+                  if (checked) chooseType("");
+                }}
+                onKeyDown={(event) => {
+                  if (event.key !== " " || !checked) return;
+                  event.preventDefault();
+                  chooseType("");
+                }}
               />
               <span className="putting-option__mark" aria-hidden="true" />
               <span className="putting-option__icon" aria-hidden="true">
@@ -1411,6 +1442,17 @@ function UndergroundSection({
                                   clearProblem("underground-soil");
                                   setForm((current) => ({ ...current, soil }));
                                 }}
+                                onClick={() => {
+                                  if (form.soil !== soil) return;
+                                  clearProblem("underground-soil");
+                                  setForm((current) => ({ ...current, soil: "" }));
+                                }}
+                                onKeyDown={(event) => {
+                                  if (event.key !== " " || form.soil !== soil) return;
+                                  event.preventDefault();
+                                  clearProblem("underground-soil");
+                                  setForm((current) => ({ ...current, soil: "" }));
+                                }}
                               />
                               <span className="ug-soil__mark" aria-hidden="true" />
                               <span className="ug-soil__name">{soil}</span>
@@ -1485,7 +1527,7 @@ function LightingSection({
       </h2>
       <div className="demo-types" id={installId}>
         <p className="lighting-lead">
-          Name the area for each installation type, such as front yard or back yard.
+          Name the area for each installation type, and enter a quantity if you know it.
         </p>
         {problems[installId] ? (
           <p className="field-error" role="alert">
@@ -1539,20 +1581,35 @@ function LightingSection({
               </div>
               {expanded ? (
                 <div className="demo-type__body" id={panelId}>
-                  <Field
-                    id={fieldIdFor("area", areaKey)}
-                    label="Which area is this?"
-                    placeholder="front yard"
-                    value={form.areaNames[areaKey] ?? ""}
-                    error={problems[fieldIdFor("area", areaKey)]}
-                    onChange={(value) => {
-                      clearProblem(fieldIdFor("area", areaKey));
-                      setForm((current) => ({
-                        ...current,
-                        areaNames: { ...current.areaNames, [areaKey]: value },
-                      }));
-                    }}
-                  />
+                  <div className="demo-type__fields">
+                    <Field
+                      id={fieldIdFor("area", areaKey)}
+                      label="Which area is this?"
+                      placeholder="front yard"
+                      value={form.areaNames[areaKey] ?? ""}
+                      error={problems[fieldIdFor("area", areaKey)]}
+                      onChange={(value) => {
+                        clearProblem(fieldIdFor("area", areaKey));
+                        setForm((current) => ({
+                          ...current,
+                          areaNames: { ...current.areaNames, [areaKey]: value },
+                        }));
+                      }}
+                    />
+                    <SquareFeetField
+                      id={fieldIdFor("qty", areaKey)}
+                      unit={lightingUnit(type)}
+                      value={form.lightingQuantity[areaKey] ?? ""}
+                      error={problems[fieldIdFor("qty", areaKey)]}
+                      onChange={(value) => {
+                        clearProblem(fieldIdFor("qty", areaKey));
+                        setForm((current) => ({
+                          ...current,
+                          lightingQuantity: { ...current.lightingQuantity, [areaKey]: value },
+                        }));
+                      }}
+                    />
+                  </div>
                 </div>
               ) : null}
             </div>
@@ -1790,6 +1847,14 @@ function GrassOption({
         name={multiple ? undefined : name}
         checked={checked}
         onChange={onChange}
+        onClick={() => {
+          if (!multiple && checked) onChange();
+        }}
+        onKeyDown={(event) => {
+          if (multiple || event.key !== " " || !checked) return;
+          event.preventDefault();
+          onChange();
+        }}
       />
       <span
         className={multiple ? "grass-option__mark grass-option__mark--check" : "grass-option__mark"}
@@ -1823,7 +1888,7 @@ function GrassFollowUp({
   const workId = fieldIdFor("grass-work", service);
   const work = form.grassWork;
 
-  function chooseWork(nextWork: DiscoveryState["grassWork"]) {
+  function chooseWork(nextWork: DiscoveryState["grassWork"] | "") {
     clearProblem(workId);
     clearProblem(installId);
     setForm((current) => {
@@ -1835,7 +1900,9 @@ function GrassFollowUp({
           ? ["Artificial Grass Replacement"]
           : nextWork === "Repair"
             ? ["Artificial Grass Repair"]
-            : packages;
+            : nextWork === ""
+              ? []
+              : packages;
       return {
         ...current,
         grassWork: nextWork,
@@ -1909,7 +1976,7 @@ function GrassFollowUp({
               title={option}
               detail={meta.detail}
               icon={meta.icon}
-              onChange={() => chooseWork(option)}
+              onChange={() => chooseWork(work === option ? "" : option)}
             />
           );
         })}
@@ -1955,7 +2022,7 @@ function GrassFollowUp({
                       ...current,
                       replacementInstall: {
                         ...current.replacementInstall,
-                        [replacementKey]: type,
+                        [replacementKey]: replacementInstall === type ? "" : type,
                       },
                     }));
                   }}
@@ -2132,12 +2199,29 @@ function GrassScope({
                       clearProblem(productId);
                       setForm((current) => ({
                         ...current,
-                        product: { ...current.product, [scopeKey]: product.name },
+                        product: { ...current.product, [scopeKey]: checked ? "" : product.name },
+                      }));
+                    }}
+                    onClick={() => {
+                      if (!checked) return;
+                      clearProblem(productId);
+                      setForm((current) => ({
+                        ...current,
+                        product: { ...current.product, [scopeKey]: "" },
+                      }));
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key !== " " || !checked) return;
+                      event.preventDefault();
+                      clearProblem(productId);
+                      setForm((current) => ({
+                        ...current,
+                        product: { ...current.product, [scopeKey]: "" },
                       }));
                     }}
                   />
                   {productPhotos[product.name] ? (
-                    <img src={productPhotos[product.name]} alt="" width={300} height={180} />
+                    <RetryImage src={productPhotos[product.name]} alt="" width={300} height={180} />
                   ) : (
                     <span className="grass-tile__fallback" aria-hidden="true" />
                   )}
@@ -2174,9 +2258,52 @@ function AddOnAside({
   problems: Record<string, string>;
   clearProblem: (id: string) => void;
 }) {
-  if (addOns.length === 0) return null;
+  const [shown, setShown] = useState(addOns);
+  const [closing, setClosing] = useState(false);
+  const [open, setOpen] = useState(false);
+  const shownRef = useRef(shown);
+  const addOnsRef = useRef(addOns);
+  const addOnKey = addOns.join("\n");
+  shownRef.current = shown;
+  addOnsRef.current = addOns;
+
+  useEffect(() => {
+    const next = addOnsRef.current;
+    if (next.length > 0) {
+      setShown(next);
+      setClosing(false);
+      return;
+    }
+    if (shownRef.current.length === 0) return;
+    setOpen(false);
+    setClosing(true);
+    const duration = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 160 : 480;
+    const timeout = window.setTimeout(() => {
+      setShown([]);
+      setClosing(false);
+    }, duration);
+    return () => window.clearTimeout(timeout);
+  }, [addOnKey]);
+
+  useEffect(() => {
+    if (closing || shown.length === 0) return;
+    let second = 0;
+    const first = requestAnimationFrame(() => {
+      second = requestAnimationFrame(() => setOpen(true));
+    });
+    return () => {
+      cancelAnimationFrame(first);
+      cancelAnimationFrame(second);
+    };
+  }, [addOnKey, closing, shown.length]);
+
+  if (shown.length === 0) return null;
+  const asideClass = ["demo-addons", open && !closing ? "is-open" : "", closing ? "is-closing" : ""]
+    .filter(Boolean)
+    .join(" ");
   return (
-    <aside className="demo-addons" aria-label="Add-on">
+    <aside className={asideClass} aria-label="Add-on" aria-hidden={closing || undefined}>
+      <div className="demo-addons__drawer">
       <div className="demo-addons__head">
         <span className="review-card__icon demo-addons__icon">
           <Box strokeWidth={1.75} aria-hidden="true" />
@@ -2189,7 +2316,7 @@ function AddOnAside({
       <AddOnList
         legend="Add-on"
         look="cards"
-        addOns={addOns}
+        addOns={shown}
         selected={chosenAddOns(form, service)}
         quantities={form.addOnQuantity}
         problems={problems}
@@ -2209,6 +2336,7 @@ function AddOnAside({
           }));
         }}
       />
+      </div>
     </aside>
   );
 }
@@ -2238,16 +2366,18 @@ function SquareFeetField({
   value: string;
   error?: string;
   onChange: (value: string) => void;
-  unit?: "sq ft" | "lin ft";
+  unit?: "sq ft" | "lin ft" | "each";
   stepped?: boolean;
   unitChoice?: boolean;
 }) {
   const linear = unit === "lin ft";
-  const spoken = linear ? "linear feet" : "square feet";
+  const each = unit === "each";
+  const spoken = linear ? "linear feet" : each ? "each" : "square feet";
+  const stepAmount = each ? 1 : 50;
   function step(direction: 1 | -1) {
     const parsed = Number(value);
     const base = Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
-    const next = base + direction * 50;
+    const next = base + direction * stepAmount;
     onChange(next < 1 ? "" : String(next));
   }
 
@@ -2261,7 +2391,7 @@ function SquareFeetField({
       }
     >
       <label htmlFor={id}>
-        {linear ? "Linear feet, if you know it" : "Square footage, if you know it"}
+        {each ? "Quantity, if you know it" : linear ? "Linear feet, if you know it" : "Square footage, if you know it"}
         <span className="visually-hidden"> in {spoken}</span>
       </label>
       <div className="sqft-field__row">
@@ -2276,10 +2406,10 @@ function SquareFeetField({
             onChange={(event) => onChange(event.target.value.replace(/\D/g, "").slice(0, 8))}
           />
           <span className="sqft-field__spin">
-            <button type="button" aria-label={`Add 50 ${spoken}`} onClick={() => step(1)}>
+            <button type="button" aria-label={`Add ${stepAmount} ${spoken}`} onClick={() => step(1)}>
               <ChevronUp strokeWidth={2.25} aria-hidden="true" />
             </button>
-            <button type="button" aria-label={`Subtract 50 ${spoken}`} onClick={() => step(-1)}>
+            <button type="button" aria-label={`Subtract ${stepAmount} ${spoken}`} onClick={() => step(-1)}>
               <ChevronDown strokeWidth={2.25} aria-hidden="true" />
             </button>
           </span>
@@ -2521,8 +2651,20 @@ function ChoiceGroup({
             name={multiple ? undefined : name}
             checked={checked}
             onChange={() => onChange(stored)}
+            onClick={() => {
+              if (!multiple && checked) onChange("");
+            }}
+            onKeyDown={(event) => {
+              if (multiple || event.key !== " " || !checked) return;
+              event.preventDefault();
+              onChange("");
+            }}
           />
-          {images?.[stored] ? <img src={images[stored]} alt="" width={300} height={300} /> : null}
+          {images?.[stored] ? (
+            <RetryImage src={images[stored]} alt="" width={300} height={300} />
+          ) : (
+            <span className="product-photo__fallback" aria-hidden="true" />
+          )}
           <span>{option}</span>
         </label>
       );
@@ -2535,6 +2677,14 @@ function ChoiceGroup({
           name={multiple ? undefined : name}
           checked={checked}
           onChange={() => onChange(stored)}
+          onClick={() => {
+            if (!multiple && checked) onChange("");
+          }}
+          onKeyDown={(event) => {
+            if (multiple || event.key !== " " || !checked) return;
+            event.preventDefault();
+            onChange("");
+          }}
         />
         <span>{option}</span>
       </label>

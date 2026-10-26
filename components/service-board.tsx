@@ -1,6 +1,7 @@
 "use client";
 
 import { Check } from "lucide-react";
+import RetryImage from "@/components/ui/retry-image";
 
 export type ServiceCard = {
   label: string;
@@ -36,7 +37,7 @@ export default function ServiceBoard({
           onClick={() => onToggle(index)}
         >
           {card.imgUrl ? (
-            <img
+            <RetryImage
               src={card.imgUrl}
               alt=""
               width={480}

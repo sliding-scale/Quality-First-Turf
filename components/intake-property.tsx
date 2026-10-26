@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowRight, Check, Handshake, HardHat, House, Leaf, Lock, Shield } from "lucide-react";
-import Image from "next/image";
+import { RetryNextImage } from "@/components/ui/retry-image";
 import { FormEvent, ReactNode } from "react";
 import { ConfirmationFit, ViewportFit } from "@/components/confirmation-fit";
 import { DiscoveryState, emailInput, phoneInput, zipInput } from "@/lib/discovery";
@@ -33,7 +33,7 @@ const audiences = [
 export function BrandMark() {
   return (
     <span className="brand-mark">
-      <Image
+      <RetryNextImage
         className="brand-mark__logo"
         src="/brand/logo-mark.png"
         alt="Quality First Turf"
@@ -188,8 +188,8 @@ export function PropertyStep({
       </form>
       <section className="intake-hero">
         <div className="intake-hero__media" aria-hidden="true">
-          <Image
-            src="/images/turf-landscape.png"
+          <RetryNextImage
+            src="/images/turf-landscape.webp"
             alt=""
             fill
             priority
@@ -217,6 +217,14 @@ export function PropertyStep({
                     value={audience.value}
                     checked={selected}
                     onChange={() => onPatch({ customerType: audience.value })}
+                    onClick={() => {
+                      if (selected) onPatch({ customerType: "" });
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key !== " " || !selected) return;
+                      event.preventDefault();
+                      onPatch({ customerType: "" });
+                    }}
                   />
                   <span className="intake-audience__icon">
                     <Icon strokeWidth={1.75} aria-hidden="true" />

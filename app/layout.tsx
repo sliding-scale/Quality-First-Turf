@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { DM_Sans, IBM_Plex_Sans } from "next/font/google";
+import Script from "next/script";
 import { ConvexClientProvider } from "@/components/convex-client-provider";
+import { PhotoRetries } from "@/components/ui/retry-image";
 import "./globals.css";
 
 const plex = IBM_Plex_Sans({
@@ -27,6 +29,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${plex.variable} ${dmSans.variable}`}>
       <body>
+        <Script id="no-scroll-restore" strategy="beforeInteractive">
+          {`history.scrollRestoration="manual"`}
+        </Script>
+        <PhotoRetries />
         <ConvexClientProvider>{children}</ConvexClientProvider>
       </body>
     </html>
