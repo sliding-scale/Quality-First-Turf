@@ -1,5 +1,11 @@
 import { formatPhone, orderServices, serviceLabel, type DiscoveryState } from "@/lib/discovery";
-import type { VisitArea } from "@/lib/visit-areas";
+import {
+  areaDisplayName,
+  isDefaultAreaName,
+  matchOriginalArea,
+  SITE_PHOTOS_LABEL,
+  type VisitArea,
+} from "@/lib/visit-areas";
 
 /** One difference between two versions of a project, in words a person can read. */
 export type Change = {
@@ -84,30 +90,61 @@ function formRows(form: DiscoveryState): Rows {
   return rows;
 }
 
-function areaRows(areas: VisitArea[]): Rows {
-  const rows: Rows = new Map();
-  for (const area of areas) {
-    if (area.label.trim() === "") continue;
-    rows.set(`area:${area.label}`, {
-      label: `${area.label} · Size`,
-      value: area.quantity.trim() === "" ? "Not given" : area.quantity.trim(),
-      group: area.service,
-    });
-    if (area.notes.trim() !== "") {
-      rows.set(`areaNote:${area.label}`, {
-        label: `${area.label} · Notes`,
-        value: area.notes.trim(),
-        group: area.service,
+/** Services whose answers live on area cards, so they are compared per area instead. */
+function servicesWithAreas(areas: VisitArea[]): Set<string> {
+  return new Set(areas.filter((area) => area.service !== SITE_PHOTOS_LABEL).map((area) => area.service));
+}
+
+function areaChanges(before: VisitArea[], after: VisitArea[]): Change[] {
+  const changes: Change[] = [];
+  const matched = new Set<VisitArea>();
+  const sizeText = (area: VisitArea) => (area.quantity.trim() === "" ? "Not given" : area.quantity.trim());
+  const nameText = (area: VisitArea) => (isDefaultAreaName(area) ? "Not set" : area.label);
+  const typeText = (area: VisitArea) => (area.installType === "" ? "Not set" : area.installType);
+
+  for (const service of servicesWithAreas(after)) {
+    after
+      .filter((area) => area.service === service)
+      .forEach((area, order) => {
+        const name = areaDisplayName(area, order);
+        const was = matchOriginalArea(area, order, before);
+        if (was === undefined) {
+          changes.push({ label: name, before: "Not on the customer's form", after: `Added on site (${sizeText(area)})`, group: service });
+          return;
+        }
+        matched.add(was);
+        const compare = (label: string, left: string, right: string) => {
+          if (left !== right) changes.push({ label: `${name} · ${label}`, before: left, after: right, group: service });
+        };
+        compare("Name", nameText(was), nameText(area));
+        compare("Size", sizeText(was), sizeText(area));
+        compare("Installation type", typeText(was), typeText(area));
+        compare("Notes", was.notes.trim() || "None", area.notes.trim() || "None");
       });
-    }
   }
-  return rows;
+  for (const service of servicesWithAreas(before)) {
+    before
+      .filter((area) => area.service === service && !matched.has(area))
+      .forEach((area, order) => {
+        changes.push({ label: areaDisplayName(area, order), before: sizeText(area), after: "Removed on site", group: service });
+      });
+  }
+  return changes;
 }
 
 /** Everything that differs between two versions, with an empty value shown as a word, not blank. */
 export function compareSnapshots(before: Snapshot, after: Snapshot): Change[] {
-  const left: Rows = new Map([...formRows(before.form), ...areaRows(before.areas)]);
-  const right: Rows = new Map([...formRows(after.form), ...areaRows(after.areas)]);
+  const covered = new Set([...servicesWithAreas(before.areas), ...servicesWithAreas(after.areas)]);
+  // Area names, sizes and installation types are compared on the area cards, so skip them here.
+  const keep = (rows: Rows): Rows =>
+    new Map(
+      [...rows].filter(([key, row]) => {
+        const overlapping = key.startsWith("areaNames:") || key.startsWith("installTypes:") || key.startsWith("squareFeet:");
+        return !(overlapping && covered.has(row.group));
+      }),
+    );
+  const left: Rows = keep(formRows(before.form));
+  const right: Rows = keep(formRows(after.form));
   if ((before.visitNote ?? "").trim() !== "") {
     left.set("visitNote", { label: "Visit notes", value: before.visitNote!.trim(), group: contactGroup });
   }
@@ -115,19 +152,18 @@ export function compareSnapshots(before: Snapshot, after: Snapshot): Change[] {
     right.set("visitNote", { label: "Visit notes", value: after.visitNote!.trim(), group: contactGroup });
   }
 
-  const changes: Change[] = [];
+  const changes: Change[] = areaChanges(before.areas, after.areas);
   for (const key of new Set([...left.keys(), ...right.keys()])) {
     const was = left.get(key);
     const now = right.get(key);
     if (was?.value === now?.value) continue;
-    const isArea = key.startsWith("area:") || key.startsWith("areaNote:");
     const wasItems = was?.items ?? [];
     const nowItems = now?.items ?? [];
     const isList = was?.items !== undefined || now?.items !== undefined;
     changes.push({
       label: (now ?? was)!.label,
-      before: was?.value ?? (isArea ? "Not on the customer's form" : "Not set"),
-      after: now?.value ?? (isArea ? "Removed on site" : "Cleared"),
+      before: was?.value ?? "Not set",
+      after: now?.value ?? "Cleared",
       group: (now ?? was)!.group,
       ...(isList
         ? {

@@ -60,7 +60,10 @@ import {
   emptyServiceArea,
   estimateFor,
   formatEstimate,
+  areaDisplayName,
+  isDefaultAreaName,
   labelsForService,
+  matchOriginalArea,
   measuredSquareFeet,
   seedVisitAreas,
   serviceNeedsAreas,
@@ -73,6 +76,7 @@ import {
 } from "@/lib/visit-areas";
 import { PhotoPicker, toggleRadio } from "@/components/ui/inputs";
 import { compareSnapshots, storedChanges, type Snapshot } from "@/lib/project-changes";
+import { checkVisit } from "@/lib/visit-check";
 
 const serviceIcons: Record<string, LucideIcon> = {
   Demo: Shovel,
@@ -87,11 +91,6 @@ function defaultAreaName(area: VisitArea, service: string) {
   return area.installType !== "" ? area.installType : `${serviceLabel(service)} area`;
 }
 
-/** True while an area still carries that fallback name, so the field can stay empty with its hint showing. */
-function isDefaultAreaName(area: VisitArea) {
-  return area.label === area.installType || area.label.endsWith(" area") || area.label === area.service;
-}
-
 /** The customer's submission, available to every field so it can show what they originally said. */
 type OriginalState = { form: DiscoveryState; areas: VisitArea[] };
 const OriginalContext = createContext<OriginalState | null>(null);
@@ -99,11 +98,8 @@ function useOriginal() {
   return useContext(OriginalContext);
 }
 
-/** The customer's version of an area: same name first, otherwise the same position within its service. */
 function originalAreaFor(area: VisitArea, order: number, original: OriginalState | null): VisitArea | undefined {
-  if (original === null) return undefined;
-  const same = original.areas.filter((item) => item.service === area.service);
-  return same.find((item) => item.label === area.label) ?? same[order];
+  return original === null ? undefined : matchOriginalArea(area, order, original.areas);
 }
 
 function choiceLabel(value: string) {
@@ -278,7 +274,7 @@ export function OnSiteVisit({
   }
 
   function addArea(service: string) {
-    setAreas((current) => [...current, emptyServiceArea(service, form)]);
+    setAreas((current) => [...current, emptyServiceArea(service, current)]);
     setOpenServices((current) => (current.includes(service) ? current : [...current, service]));
   }
 
@@ -309,7 +305,7 @@ export function OnSiteVisit({
       }
       if (!serviceNeedsAreas(service)) return current;
       if (current.some((area) => area.service === service)) return current;
-      return [...current, emptyServiceArea(service, form)];
+      return [...current, emptyServiceArea(service, current)];
     });
     setOpenServices((current) =>
       current.includes(service) ? current.filter((item) => item !== service) : [...current, service],
@@ -411,7 +407,12 @@ export function OnSiteVisit({
       showProblems(problems, contactMessage);
       return false;
     }
-    const built = buildDiscovery(form);
+    // Area names and types live on the area cards; copy them into the answers before checking.
+    const synced = [...new Set(areas.filter((area) => area.installType !== "").map((area) => area.service))].reduce(
+      (state, service) => syncServiceFromAreas(state, service, areas),
+      form,
+    );
+    const built = buildDiscovery(synced);
     if (built.error !== null || built.payload === null) {
       showProblems(
         built.fieldId !== null && built.error !== null ? { [built.fieldId]: built.error } : {},
@@ -429,6 +430,21 @@ export function OnSiteVisit({
       );
       return false;
     }
+    // Stop here, with the problems marked on their fields, rather than saving an incomplete draft.
+    const check = checkVisit({
+      services: built.payload.services,
+      products: built.payload.products,
+      answers: built.payload.answers,
+      measurements: project.measurements,
+      workAreas: parsedAreas.workAreas,
+      areas,
+    });
+    if (Object.keys(check.problems).length > 0 || check.general !== null) {
+      if (check.problems.customerType !== undefined) setEditingProperty(true);
+      showProblems(check.problems, check.general ?? "Fix the highlighted fields, then save again.");
+      return false;
+    }
+    setForm(synced);
     setError(null);
     setFieldErrors({});
     setPending(true);
@@ -565,7 +581,7 @@ export function OnSiteVisit({
                   {fields.city}
                   {fields.state}
                   {fields.zip}
-                  <fieldset className="visit-choice">
+                  <fieldset className="visit-choice" id="customerType">
                     <legend>Customer type</legend>
                     {(["Homeowner", "Contractor"] as const).map((type) => (
                       <label key={type}>
@@ -581,6 +597,7 @@ export function OnSiteVisit({
                         {type}
                       </label>
                     ))}
+                    {fieldErrors.customerType ? <p className="field-error">{fieldErrors.customerType}</p> : null}
                     {original !== null && original.form.customerType !== form.customerType ? (
                       <CustomerSaid
                         value={original.form.customerType}
@@ -763,7 +780,7 @@ export function OnSiteVisit({
                                 }));
                               }}
                             />
-                            <fieldset className="visit-soil">
+                            <fieldset className="visit-soil" id="underground-soil">
                               <legend>Soil</legend>
                               {soilConditions.filter((soil) => soil !== "Not sure").map((soil) => (
                                 <label key={soil} className="choice-card">
@@ -779,6 +796,9 @@ export function OnSiteVisit({
                                   <span>{soil}</span>
                                 </label>
                               ))}
+                              {fieldErrors["underground-soil"] ? (
+                                <p className="field-error">{fieldErrors["underground-soil"]}</p>
+                              ) : null}
                               {original !== null && original.form.soil !== form.soil ? (
                                 <CustomerSaid
                                   value={original.form.soil}
@@ -987,8 +1007,17 @@ export function OnSiteVisit({
                     <p className="visit-quiet">Nothing changed. Everything matches what the customer submitted.</p>
                   ) : (
                     [...new Set(changes.map((change) => change.group))].map((group) => (
-                      <section key={group}>
-                        <h4>{group === "Contact" ? "Customer & property" : serviceLabel(group)}</h4>
+                      <section key={group} className="visit-changes__group">
+                        <h4>
+                          {(() => {
+                            const GroupIcon = group === "Contact" ? UserRound : (serviceIcons[group] ?? Home);
+                            return <GroupIcon size={16} aria-hidden="true" />;
+                          })()}
+                          {group === "Contact" ? "Customer & property" : serviceLabel(group)}
+                          <span className="visit-service__changes">
+                            {changes.filter((change) => change.group === group).length}
+                          </span>
+                        </h4>
                         <ul>
                           {changes
                             .filter((change) => change.group === group)
@@ -1402,7 +1431,7 @@ function AreaList({
           <div key={index} className="visit-area">
             <div className="visit-area__head">
               <span>{order + 1}</span>
-              <strong>{area.label || `Area ${order + 1}`}</strong>
+              <strong>{areaDisplayName(area, order)}</strong>
               <em>{original !== null && before === undefined ? "Added on site" : "Measured on site"}</em>
               <button type="button" className="visit-icon-btn" onClick={() => onRemove(index)}>
                 <Trash2 size={15} aria-hidden="true" />
@@ -1438,6 +1467,7 @@ function AreaList({
                 inputMode="decimal"
                 onChange={(value) => onArea(index, { quantity: decimalInput(value) })}
               />
+              <div className="visit-area__pair">
               {types.length > 0 ? (
                 <div
                   className={problems[`area-${index}-install`] ? "visit-field is-invalid" : "visit-field"}
@@ -1473,7 +1503,6 @@ function AreaList({
                   ) : null}
                 </div>
               ) : null}
-              <div className="visit-area__pair">
                 {area.installType === "Artificial Grass Replacement" ? (
                   <div
                     className={

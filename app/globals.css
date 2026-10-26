@@ -6903,3 +6903,36 @@ video {
   background: #f6e1dc;
   color: #8f2a1a;
 }
+
+/* Each service in the changes summary is its own block. */
+.visit-changes {
+  gap: 1rem;
+}
+
+.visit-changes__group {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.85rem 1rem 0.5rem;
+  border: 1px solid var(--visit-line);
+  border-left: 4px solid var(--visit-forest);
+  border-radius: 0.85rem;
+  background: #fbfaf5;
+}
+
+.visit-changes h4 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.25rem;
+  padding: 0;
+  border: 0;
+  color: #123526;
+  font-family: var(--font-heading);
+  font-size: 1rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.visit-changes__group li + li {
+  border-top: 1px solid #eceee6;
+}

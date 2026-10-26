@@ -1,6 +1,6 @@
 import { emptyWorkArea, type WorkAreaDraft } from "@/components/work-areas";
 import {
-  asksForArea,
+
   grassService,
   hasFollowUp,
   selectionKey,
@@ -243,6 +243,26 @@ export function seedVisitAreas(
   return seeded;
 }
 
+/** True while an area still carries its fallback name (its type, or "<Service> area 2"). */
+export function isDefaultAreaName(area: VisitArea): boolean {
+  return area.label === area.installType || / area( \d+)?$/.test(area.label) || area.label === area.service;
+}
+
+/** The name to show for an area: what was typed, or "Area N" by position within its service. */
+export function areaDisplayName(area: VisitArea, order: number): string {
+  return isDefaultAreaName(area) ? `Area ${order + 1}` : area.label;
+}
+
+/** The customer's version of an area: same name first, otherwise the same position within its service. */
+export function matchOriginalArea(
+  area: VisitArea,
+  order: number,
+  originalAreas: VisitArea[],
+): VisitArea | undefined {
+  const same = originalAreas.filter((item) => item.service === area.service);
+  return same.find((item) => item.label === area.label) ?? same[order];
+}
+
 export function areasForService(areas: VisitArea[], service: string): VisitArea[] {
   return areas.filter((area) => area.service === service);
 }
@@ -328,15 +348,10 @@ export function nextAreaLabel(service: string, areas: VisitArea[]): string {
   return `${serviceLabel(service)} area ${count}`;
 }
 
-export function emptyServiceArea(service: string, form: DiscoveryState): VisitArea {
-  const types = form.installTypes[service] ?? [];
-  const type = types[0] ?? "";
-  if (asksForArea(service, type) && type !== "") {
-    const named = form.areaNames[selectionKey(service, type)] ?? "";
-    return { ...emptyWorkArea(named || type), service, installType: type };
-  }
+/** A blank area added by the salesperson: nothing is chosen for them. */
+export function emptyServiceArea(service: string, existing: VisitArea[] = []): VisitArea {
   if (service === "Underground") {
     return { ...emptyWorkArea("Underground"), service, installType: "" };
   }
-  return { ...emptyWorkArea(nextAreaLabel(service, [])), service, installType: type };
+  return { ...emptyWorkArea(nextAreaLabel(service, existing)), service, installType: "" };
 }
