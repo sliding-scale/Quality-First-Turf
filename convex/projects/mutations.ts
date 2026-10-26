@@ -1,5 +1,6 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { contactProblems, type ContactFields } from "../../lib/discovery";
+import { planQuoteLines } from "../../lib/quote-lines";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { internalMutation, mutation, type MutationCtx } from "../_generated/server";
@@ -193,6 +194,8 @@ export const update = mutation({
     workAreas: v.optional(v.array(workAreaInput)),
     /** Differences from the previous record, worked out by the visit screen. */
     changes: v.optional(v.array(changeValidator)),
+    /** The on-site visit sets this: the server then refuses to save anything the quote cannot be built from. */
+    requireComplete: v.optional(v.boolean()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -215,7 +218,24 @@ export const update = mutation({
       state: args.state ?? project.state,
       zip: args.zip ?? project.zip,
     });
-    const { projectId, workAreas, measurements, changes, sessionToken: _sessionToken, ...fields } = args;
+    const { projectId, workAreas, measurements, changes, requireComplete, sessionToken: _sessionToken, ...fields } = args;
+    if (requireComplete === true) {
+      if (workAreas === undefined) throw new ConvexError("The measured areas are missing.");
+      const planned = planQuoteLines({
+        services: args.services ?? project.services,
+        products: args.products ?? project.products,
+        answers: args.answers ?? project.answers,
+        measurements: project.measurements,
+        workAreas,
+      });
+      // Missing items in the Jobber price list are the office's to fix; they never block a visit.
+      const gaps = (planned.missing?.match(/[^.]+\./g) ?? [])
+        .map((gap) => gap.trim())
+        .filter((gap) => !gap.startsWith("No catalogue item for"));
+      if (gaps.length > 0) {
+        throw new ConvexError(`This visit is not complete yet. ${gaps.join(" ")}`);
+      }
+    }
     const patch: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(fields)) {
       if (value !== undefined) {

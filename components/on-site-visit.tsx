@@ -462,6 +462,7 @@ export function OnSiteVisit({
         status: "on-site saved",
         workAreas: parsedAreas.workAreas,
         changes: storedChanges(sinceLastSave),
+        requireComplete: true,
       });
       baseline.current = { form, areas, visitNote };
       setDirty(false);
