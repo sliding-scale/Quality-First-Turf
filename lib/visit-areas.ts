@@ -34,6 +34,8 @@ export type VisitWorkArea = {
   notes: string;
   photoIds: Id<"_storage">[];
   photoUrls: (string | null)[];
+  service?: string;
+  installType?: string;
 };
 
 export function formatEstimate(measurement: CustomerMeasurement | undefined): string {
@@ -116,7 +118,8 @@ function squareFeetValue(
   return "";
 }
 
-function draftFromStored(area: VisitWorkArea, service: string, form: DiscoveryState): VisitArea {
+function draftFromStored(area: VisitWorkArea, guessedService: string, form: DiscoveryState): VisitArea {
+  const service = area.service ?? guessedService;
   return {
     label: area.label,
     length: "",
@@ -126,7 +129,7 @@ function draftFromStored(area: VisitWorkArea, service: string, form: DiscoverySt
     photoIds: area.photoIds,
     photoUrls: area.photoUrls,
     service,
-    installType: installTypeForLabel(area.label, service, form),
+    installType: area.installType ?? installTypeForLabel(area.label, service, form),
   };
 }
 
@@ -272,7 +275,7 @@ export function sitePhotosArea(areas: VisitArea[]): VisitArea | undefined {
 }
 
 export function asWorkAreaDrafts(areas: VisitArea[]): WorkAreaDraft[] {
-  return areas.map(({ service: _service, installType: _installType, ...area }) => area);
+  return areas.map((area) => ({ ...area }));
 }
 
 export function measuredSquareFeet(area: VisitArea): string {

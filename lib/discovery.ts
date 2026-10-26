@@ -1178,7 +1178,7 @@ export function projectToForm(project: SavedProject): {
     }
     if (answer.question.endsWith(" product")) {
       const installType = answer.question.slice(0, -" product".length);
-      if (grassTypes.includes(installType)) {
+      if (grassTypes.includes(installType) || installType === "Artificial Grass Replacement") {
         form.product[selectionKey(grassService, installType)] = answer.value;
       }
     }

@@ -9,7 +9,14 @@ type CheckInput = {
   /** The customer's own estimates; quoting falls back to them when no area was measured. */
   measurements: { label: string; squareFeet: number | null; linearFeet: number | null; unmeasured: boolean }[];
   /** The areas as they will be saved, in the same order as `areas`. */
-  workAreas: { label: string; length: number | null; width: number | null; quantity: number | null }[];
+  workAreas: {
+    label: string;
+    length: number | null;
+    width: number | null;
+    quantity: number | null;
+    service?: string;
+    installType?: string;
+  }[];
   areas: VisitArea[];
 };
 

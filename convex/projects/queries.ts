@@ -134,6 +134,8 @@ export const visit = query({
           notes: v.string(),
           photoIds: v.array(v.id("_storage")),
           photoUrls: v.array(v.union(v.string(), v.null())),
+          service: v.optional(v.string()),
+          installType: v.optional(v.string()),
         }),
       ),
     }),
@@ -164,6 +166,8 @@ export const visit = query({
         notes: area.notes,
         photoIds: area.photoIds,
         photoUrls,
+        service: area.service,
+        installType: area.installType,
       });
     }
     const {

@@ -6936,3 +6936,12 @@ video {
 .visit-changes__group li + li {
   border-top: 1px solid #eceee6;
 }
+
+/* A field's own height decides its row: a note under one field never pushes its neighbour's input down. */
+.visit-area__pair {
+  align-items: start;
+}
+
+.visit-field {
+  align-content: start;
+}

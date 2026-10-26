@@ -30,6 +30,9 @@ export const workAreaInput = v.object({
   quantity: v.union(v.number(), v.null()),
   notes: v.string(),
   photoIds: v.array(v.id("_storage")),
+  /** Which service card and installation type the area belongs to; quoting uses these, not the name. */
+  service: v.optional(v.string()),
+  installType: v.optional(v.string()),
 });
 
 /** What the customer submitted, frozen when the project is created and never edited afterwards. */
@@ -97,6 +100,8 @@ export default defineSchema({
     quantity: v.union(v.number(), v.null()),
     notes: v.string(),
     photoIds: v.array(v.id("_storage")),
+    service: v.optional(v.string()),
+    installType: v.optional(v.string()),
   }).index("by_projectId", ["projectId"]),
   salesSessions: defineTable({
     token: v.string(),

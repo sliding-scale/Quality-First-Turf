@@ -14,6 +14,8 @@ export type WorkAreaDraft = {
   notes: string;
   photoIds: Id<"_storage">[];
   photoUrls: (string | null)[];
+  service?: string;
+  installType?: string;
 };
 
 export function emptyWorkArea(label = ""): WorkAreaDraft {
@@ -38,6 +40,8 @@ export function parseWorkAreas(areas: WorkAreaDraft[]): {
     quantity: number | null;
     notes: string;
     photoIds: Id<"_storage">[];
+    service?: string;
+    installType?: string;
   }[] | null;
 } {
   const workAreas = [];
@@ -65,6 +69,8 @@ export function parseWorkAreas(areas: WorkAreaDraft[]): {
       quantity,
       notes: area.notes.trim(),
       photoIds: area.photoIds,
+      ...(area.service === undefined ? {} : { service: area.service }),
+      ...(area.installType === undefined ? {} : { installType: area.installType }),
     });
   }
   return { error: null, fieldId: null, workAreas };

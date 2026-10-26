@@ -26,6 +26,8 @@ type StoredWorkArea = {
   length: number | null;
   width: number | null;
   quantity: number | null;
+  service?: string;
+  installType?: string;
 };
 
 export type QuoteProject = {
@@ -180,7 +182,10 @@ function planGrass(
     const areaName = areaNameFor(project.answers, grassService, installType);
     const label = areaName || installType;
     const linear = grassUsesLinearFeet(productInstall, product);
-    const quantity = measure(project, label, linear ? "linear feet" : "square feet", usedLabels);
+    const quantity = measure(project, label, linear ? "linear feet" : "square feet", usedLabels, {
+      service: grassService,
+      installType,
+    });
     if (quantity === null) {
       gaps.push(`Size is still missing for ${label}.`);
       continue;
@@ -244,8 +249,8 @@ function planAreaService(
   for (const type of selected) {
     const named = areaNameFor(project.answers, service, type);
     const own =
-      (named === "" ? null : measure(project, named, "square feet", usedLabels)) ??
-      measure(project, type, "square feet", usedLabels);
+      (named === "" ? null : measure(project, named, "square feet", usedLabels, { service, installType: type })) ??
+      measure(project, type, "square feet", usedLabels, { service, installType: type });
     const quantity = own ?? shared?.squareFeet ?? null;
     if (quantity === null) {
       gaps.push(`Size is still missing for ${type}.`);
@@ -344,8 +349,17 @@ function measure(
   label: string,
   kind: "square feet" | "linear feet" | "count",
   usedLabels: Set<string>,
+  owner?: { service: string; installType: string },
 ): number | null {
-  const areas = project.workAreas.filter((area) => area.label === label);
+  // An area belongs to a service and installation type whatever it is named.
+  const areas = project.workAreas.filter(
+    (area) =>
+      area.label === label ||
+      (owner !== undefined &&
+        owner.installType !== "" &&
+        area.service === owner.service &&
+        area.installType === owner.installType),
+  );
   if (areas.length > 0) {
     let total = 0;
     let found = false;
@@ -357,6 +371,7 @@ function measure(
     }
     if (found) {
       usedLabels.add(label);
+      for (const area of areas) usedLabels.add(area.label);
       return total;
     }
   }
