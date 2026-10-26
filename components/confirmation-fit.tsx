@@ -13,7 +13,7 @@ export function ViewportFit({
   children,
   className,
   minLayoutWidth,
-  minViewportWidth = 0,
+  minViewportWidth = 640,
 }: {
   children: ReactNode;
   className: string;
@@ -96,7 +96,7 @@ export function ViewportFit({
 
 export function ConfirmationFit({ children }: { children: ReactNode }) {
   return (
-    <ViewportFit className="confirmation-fit" minLayoutWidth={1280} minViewportWidth={861}>
+    <ViewportFit className="confirmation-fit" minLayoutWidth={1280} minViewportWidth={640}>
       {children}
     </ViewportFit>
   );

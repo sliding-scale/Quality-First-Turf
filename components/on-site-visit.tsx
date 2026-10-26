@@ -2,14 +2,13 @@
 
 import { useAction, useMutation } from "convex/react";
 import {
-  Camera,
+  ArrowRight,
   Check,
   ChevronDown,
+  ChevronLeft,
   Flag,
   Home,
   Lightbulb,
-  MapPin,
-  NotebookPen,
   Pencil,
   Plus,
   Shovel,
@@ -19,8 +18,9 @@ import {
   Waves,
   type LucideIcon,
 } from "lucide-react";
-import RetryImage, { RetryNextImage } from "@/components/ui/retry-image";
-import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import RetryImage from "@/components/ui/retry-image";
+import { createContext, FormEvent, ReactNode, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import {
@@ -29,8 +29,8 @@ import {
   asksForNotes,
   buildDiscovery,
   contactProblems,
+  type SavedProject,
   decimalInput,
-  emailInput,
   fieldIdFor,
   grassService,
   grassWorks,
@@ -40,7 +40,6 @@ import {
   installTypes,
   lightingUnit,
   orderServices,
-  phoneInput,
   productsFor,
   projectToForm,
   selectionKey,
@@ -49,11 +48,11 @@ import {
   soilConditions,
   turfInstallTypes,
   withAddOn,
-  zipInput,
   type DiscoveryState,
 } from "@/lib/discovery";
-import { scrollToStart, transitionStep } from "@/lib/step-transition";
-import { canonicalState, US_STATES } from "@/lib/us-states";
+import { contactFields, CustomerSaid, TextField, type TextFieldProps } from "@/components/ui/fields";
+import { formatShortCode, friendlyError } from "@/lib/errors";
+import { scrollToStart } from "@/lib/step-transition";
 import { parseWorkAreas } from "@/components/work-areas";
 import {
   areasForService,
@@ -66,13 +65,14 @@ import {
   seedVisitAreas,
   serviceNeedsAreas,
   serviceStatus,
-  SITE_PHOTOS_LABEL,
   sitePhotosArea,
   type CustomerMeasurement,
   type ServiceStatus,
   type VisitArea,
   type VisitWorkArea,
 } from "@/lib/visit-areas";
+import { PhotoPicker, toggleRadio } from "@/components/ui/inputs";
+import { compareSnapshots, storedChanges, type Snapshot } from "@/lib/project-changes";
 
 const serviceIcons: Record<string, LucideIcon> = {
   Demo: Shovel,
@@ -82,19 +82,32 @@ const serviceIcons: Record<string, LucideIcon> = {
   "Low Voltage Lighting": Lightbulb,
 };
 
-const steps = [
-  { id: "property", title: "Property overview", detail: "Customer information" },
-  { id: "services", title: "Services & areas", detail: "Verify and update" },
-  { id: "photos", title: "Photos & notes", detail: "Document the site" },
-  { id: "review", title: "Review & submit", detail: "Finalize and save" },
-] as const;
+/** The name an area gets when nobody typed one: its installation type, so saved areas still match their service. */
+function defaultAreaName(area: VisitArea, service: string) {
+  return area.installType !== "" ? area.installType : `${serviceLabel(service)} area`;
+}
 
-type VisitStep = (typeof steps)[number]["id"];
+/** True while an area still carries that fallback name, so the field can stay empty with its hint showing. */
+function isDefaultAreaName(area: VisitArea) {
+  return area.label === area.installType || area.label.endsWith(" area") || area.label === area.service;
+}
 
-const visitOrder = [...steps.map((item) => item.id), "done"] as const;
+/** The customer's submission, available to every field so it can show what they originally said. */
+type OriginalState = { form: DiscoveryState; areas: VisitArea[] };
+const OriginalContext = createContext<OriginalState | null>(null);
+function useOriginal() {
+  return useContext(OriginalContext);
+}
+
+/** The customer's version of an area: same name first, otherwise the same position within its service. */
+function originalAreaFor(area: VisitArea, order: number, original: OriginalState | null): VisitArea | undefined {
+  if (original === null) return undefined;
+  const same = original.areas.filter((item) => item.service === area.service);
+  return same.find((item) => item.label === area.label) ?? same[order];
+}
 
 function choiceLabel(value: string) {
-  return value === "Entertaintment Putting Green" ? "Entertainment Putting Green" : value;
+  return value;
 }
 
 export function OnSiteVisit({
@@ -102,6 +115,7 @@ export function OnSiteVisit({
   sessionToken,
   project,
   workAreas,
+  revisions,
 }: {
   projectId: Id<"projects">;
   sessionToken: string;
@@ -120,31 +134,64 @@ export function OnSiteVisit({
     answers: { question: string; value: string }[];
     notes: string;
     measurements: CustomerMeasurement[];
+    shortCode?: string;
+    submitted?: SavedProject;
   };
   workAreas: VisitWorkArea[];
+  revisions: { savedAt: number; changes: { label: string; before: string; after: string }[] }[];
 }) {
   const updateProject = useMutation(api.projects.mutations.update);
   const generateUploadUrl = useMutation(api.projects.mutations.generateUploadUrl);
   const draftVisit = useAction(api.projects.actions.draftVisit);
   const loaded = useMemo(() => projectToForm(project), [project]);
-  const [form, setForm] = useState<DiscoveryState>(loaded.form);
-  const [areas, setAreas] = useState<VisitArea[]>(() =>
-    seedVisitAreas(workAreas, project.measurements, loaded.form),
-  );
+  // The customer's own submission, rebuilt in the same shape as the form so the two can be compared.
+  const original = useMemo(() => {
+    if (project.submitted === undefined) return null;
+    const originalForm = projectToForm(project.submitted).form;
+    return {
+      form: originalForm,
+      areas: seedVisitAreas([], project.submitted.measurements, originalForm),
+    };
+  }, [project.submitted]);
+  // "Not sure" is only for customers; on site the salesperson has to look and choose.
+  const [form, setForm] = useState<DiscoveryState>(() => ({
+    ...loaded.form,
+    soil: loaded.form.soil === "Not sure" ? "" : loaded.form.soil,
+  }));
+  const [initialAreas] = useState<VisitArea[]>(() => seedVisitAreas(workAreas, project.measurements, loaded.form));
+  const [areas, setAreas] = useState<VisitArea[]>(initialAreas);
   const [visitNote, setVisitNote] = useState(loaded.visitNote);
+  const baseline = useRef<Snapshot | null>(null);
   const [editingProperty, setEditingProperty] = useState(false);
-  const [openServices, setOpenServices] = useState<string[]>(() => [...loaded.form.services]);
+  const [openServices, setOpenServices] = useState<string[]>([]);
   const [addingService, setAddingService] = useState(false);
-  const [section, setSection] = useState<VisitStep>("property");
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [pending, setPending] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [dirty, setDirty] = useState(false);
+  const changes = useMemo(
+    () => (original === null ? [] : compareSnapshots(original, { form, areas, visitNote })),
+    [original, form, areas, visitNote],
+  );
+  const changeCount = (group: string) => changes.filter((change) => change.group === group).length;
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
+  const previews = useRef<string[]>([]);
+  useEffect(() => {
+    const urls = previews.current;
+    return () => urls.forEach((url) => URL.revokeObjectURL(url));
+  }, []);
   const [done, setDone] = useState<{ message: string; ready: boolean } | null>(null);
   const focusFirstError = useRef(false);
   const estimates = project.measurements;
 
   function patch(partial: Partial<DiscoveryState>) {
+    setDirty(true);
     setForm((current) => ({ ...current, ...partial }));
     setFieldErrors((current) => {
       const next = { ...current };
@@ -166,36 +213,27 @@ export function OnSiteVisit({
     setFieldErrors(problems);
     setError(message);
     if (message !== null) focusFirstError.current = true;
+    // An error inside a collapsed service would be invisible, so open them all.
+    if (Object.keys(problems).length > 0) setOpenServices([...form.services]);
   }
 
   useEffect(() => {
     if (!focusFirstError.current) return;
     focusFirstError.current = false;
     const firstId = Object.keys(fieldErrors)[0];
-    const field = firstId ? document.getElementById(firstId) : null;
+    const field = firstId
+      ? (document.getElementById(firstId) ?? document.querySelector<HTMLElement>(`[data-field="${firstId}"]`))
+      : null;
     if (field) {
-      const focusable =
-        field instanceof HTMLInputElement ||
-        field instanceof HTMLSelectElement ||
-        field instanceof HTMLTextAreaElement;
-      field.scrollIntoView({ block: "center" });
-      if (focusable) field.focus({ preventScroll: true });
+      const control = field.matches("input, select, textarea, button")
+        ? field
+        : field.querySelector<HTMLElement>("input, select, textarea, button");
+      field.scrollIntoView({ block: "center", behavior: "smooth" });
+      control?.focus({ preventScroll: true });
       return;
     }
     document.querySelector(".visit-alert")?.scrollIntoView({ block: "center" });
   }, [error, fieldErrors]);
-
-  function goTo(next: VisitStep) {
-    transitionStep(
-      section,
-      next,
-      () => {
-        setSection(next);
-        if (!focusFirstError.current) scrollToStart();
-      },
-      visitOrder,
-    );
-  }
 
   function updateArea(index: number, partial: Partial<VisitArea>) {
     setAreas((current) =>
@@ -348,6 +386,7 @@ export function OnSiteVisit({
         return;
       }
       const preview = URL.createObjectURL(file);
+      previews.current.push(preview);
       setAreas((current) =>
         current.map((area, areaIndex) =>
           areaIndex === index
@@ -370,7 +409,6 @@ export function OnSiteVisit({
     if (contactMessage !== null) {
       setEditingProperty(true);
       showProblems(problems, contactMessage);
-      goTo("property");
       return false;
     }
     const built = buildDiscovery(form);
@@ -379,7 +417,6 @@ export function OnSiteVisit({
         built.fieldId !== null && built.error !== null ? { [built.fieldId]: built.error } : {},
         built.error,
       );
-      goTo("services");
       return false;
     }
     const parsedAreas = parseWorkAreas(asWorkAreaDrafts(areas));
@@ -390,7 +427,6 @@ export function OnSiteVisit({
           : {},
         parsedAreas.error,
       );
-      goTo("services");
       return false;
     }
     setError(null);
@@ -399,6 +435,9 @@ export function OnSiteVisit({
     try {
       const { measurements: _customerArea, ...scope } = built.payload;
       const note = [scope.notes, visitNote.trim()].filter((line) => line !== "").join("\n");
+      // Record only what changed since the last save, so the history reads as a timeline.
+      const previous = baseline.current ?? { form: loaded.form, areas: initialAreas, visitNote: loaded.visitNote };
+      const sinceLastSave = compareSnapshots(previous, { form, areas, visitNote });
       await updateProject({
         sessionToken,
         projectId,
@@ -406,33 +445,29 @@ export function OnSiteVisit({
         notes: note,
         status: "on-site saved",
         workAreas: parsedAreas.workAreas,
+        changes: storedChanges(sinceLastSave),
       });
+      baseline.current = { form, areas, visitNote };
+      setDirty(false);
       if (mode === "quote") {
         const drafted = await draftVisit({ sessionToken, projectId });
-        transitionStep(
-          section,
-          "done",
-          () => {
-            setDone({
-              ready: drafted.status === "quote drafted",
-              message:
-                drafted.status === "quote drafted"
-                  ? "A draft quote is in Jobber for the office to review. It has not been sent."
-                  : drafted.missingMapping ??
-                    drafted.integrationError ??
-                    "The visit is saved. The quote needs attention.",
-            });
-            scrollToStart();
-          },
-          visitOrder,
-        );
+        setDone({
+          ready: drafted.status === "quote drafted",
+          message:
+            drafted.status === "quote drafted"
+              ? "A draft quote is in Jobber for the office to review. It has not been sent."
+              : drafted.missingMapping ??
+                drafted.integrationError ??
+                "The visit is saved. The quote needs attention.",
+        });
+        scrollToStart();
       } else {
         setSavedAt(new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }));
       }
       return true;
     } catch (submitError) {
       setError(
-        submitError instanceof Error ? submitError.message : "The visit could not be saved.",
+        friendlyError(submitError, "The visit could not be saved. Check your connection and try again."),
       );
       return false;
     } finally {
@@ -442,44 +477,6 @@ export function OnSiteVisit({
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const order = steps.map((item) => item.id);
-    if (section === "property") {
-      const problems = contactProblems(form);
-      const contactMessage = Object.values(problems)[0] ?? null;
-      if (contactMessage !== null) {
-        setEditingProperty(true);
-        showProblems(problems, contactMessage);
-        return;
-      }
-      setPending(true);
-      try {
-        await updateProject({
-          sessionToken,
-          projectId,
-          firstName: form.firstName.trim(),
-          lastName: form.lastName.trim(),
-          phone: form.phone,
-          email: form.email.trim(),
-          street1: form.street1.trim(),
-          street2: form.street2.trim(),
-          city: form.city.trim(),
-          state: form.state.trim(),
-          zip: form.zip,
-        });
-        setSavedAt(new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }));
-        goTo("services");
-      } catch (submitError) {
-        setError(submitError instanceof Error ? submitError.message : "The visit could not be saved.");
-      } finally {
-        setPending(false);
-      }
-      return;
-    }
-    if (section !== "review") {
-      const saved = await persist("draft");
-      if (saved) goTo(order[order.indexOf(section) + 1] ?? "review");
-      return;
-    }
     await persist("quote");
   }
 
@@ -492,11 +489,26 @@ export function OnSiteVisit({
           <p className={done.ready ? "visit-done__ok" : "visit-alert"} role={done.ready ? undefined : "alert"}>
             {done.message}
           </p>
+          <div className="visit-done__actions">
+            <Link className="visit-primary" href="/visit">
+              Back to projects
+            </Link>
+            <button type="button" className="visit-secondary" onClick={() => setDone(null)}>
+              {done.ready ? "Edit this visit" : "Fix and try again"}
+            </button>
+          </div>
         </div>
       </VisitFrame>
     );
   }
 
+  const fields = contactFields({
+    variant: "visit",
+    form,
+    problems: fieldErrors,
+    onPatch: patch,
+    original: original?.form,
+  });
   const unusedServices = services.filter((service) => !form.services.includes(service));
   const address = [form.street1, form.street2, form.city, form.state, form.zip]
     .filter((part) => part.trim() !== "")
@@ -506,47 +518,24 @@ export function OnSiteVisit({
   const allOpen = form.services.every((service) => openServices.includes(service));
 
   return (
+    <OriginalContext.Provider value={original}>
     <VisitFrame>
       <header className="visit-banner">
-        <a className="visit-brand" href="/visit">
-          <RetryNextImage
-            src="/brand/logo-mark.png"
-            alt="Quality First Turf"
-            width={771}
-            height={605}
-            priority
-          />
-        </a>
-        <h1>Verify &amp; confirm details</h1>
+        <Link className="visit-back" href="/visit">
+          <ChevronLeft size={18} aria-hidden="true" />
+          Projects
+        </Link>
+        <h1>
+          {`${form.firstName} ${form.lastName}`.trim() || "Verify & confirm details"}
+          {project.shortCode ? (
+            <small className="visit-banner__code">Project {formatShortCode(project.shortCode)}</small>
+          ) : null}
+        </h1>
       </header>
-      <aside className="visit-nav" aria-label="Visit steps">
-        <ol className="visit-steps">
-          {steps.map((item, index) => (
-            <li key={item.id}>
-              <button
-                type="button"
-                className={section === item.id ? "is-current" : undefined}
-                onClick={() => goTo(item.id)}
-              >
-                <span className="visit-steps__num">{index + 1}</span>
-                <span>
-                  <strong>{item.title}</strong>
-                  <small>{item.detail}</small>
-                </span>
-              </button>
-            </li>
-          ))}
-        </ol>
-      </aside>
 
-      <div className={section === "photos" ? "visit-main is-photos" : "visit-main"}>
+      <div className="visit-main">
         <form className="visit-body" onSubmit={onSubmit} noValidate>
           <div className="visit-column">
-            <p className="visit-lede">
-              Review the customer&apos;s request and confirm each area, measurement, and option on
-              site. Measured sizes stay separate from the original estimate.
-            </p>
-            {section === "property" ? (
             <section id="property" className="visit-card">
               <div className="visit-card__head">
                 <div>
@@ -567,83 +556,15 @@ export function OnSiteVisit({
               </div>
               {editingProperty ? (
                 <div className="visit-grid">
-                  <VisitField
-                    id="firstName"
-                    label="First name"
-                    value={form.firstName}
-                    error={fieldErrors.firstName}
-                    onChange={(value) => patch({ firstName: value })}
-                  />
-                  <VisitField
-                    id="lastName"
-                    label="Last name"
-                    value={form.lastName}
-                    error={fieldErrors.lastName}
-                    onChange={(value) => patch({ lastName: value })}
-                  />
-                  <VisitField
-                    id="phone"
-                    label="Phone"
-                    value={form.phone}
-                    error={fieldErrors.phone}
-                    inputMode="numeric"
-                    maxLength={10}
-                    onChange={(value) => patch({ phone: phoneInput(value) })}
-                  />
-                  <VisitField
-                    id="email"
-                    label="Email"
-                    value={form.email}
-                    error={fieldErrors.email}
-                    type="email"
-                    onChange={(value) => patch({ email: emailInput(value) })}
-                  />
-                  <VisitField
-                    id="street1"
-                    label="Street"
-                    value={form.street1}
-                    error={fieldErrors.street1}
-                    onChange={(value) => patch({ street1: value })}
-                  />
-                  <VisitField
-                    id="street2"
-                    label="Street 2"
-                    value={form.street2}
-                    onChange={(value) => patch({ street2: value })}
-                  />
-                  <VisitField
-                    id="city"
-                    label="City"
-                    value={form.city}
-                    error={fieldErrors.city}
-                    onChange={(value) => patch({ city: value })}
-                  />
-                  <div className={fieldErrors.state ? "visit-field is-invalid" : "visit-field"}>
-                    <label htmlFor="state">State</label>
-                    <select
-                      id="state"
-                      value={canonicalState(form.state)}
-                      aria-invalid={fieldErrors.state ? true : undefined}
-                      onChange={(event) => patch({ state: event.target.value })}
-                    >
-                      <option value="">Select</option>
-                      {US_STATES.map((state) => (
-                        <option key={state.abbr} value={state.name}>
-                          {state.name}
-                        </option>
-                      ))}
-                    </select>
-                    {fieldErrors.state ? <p className="field-error">{fieldErrors.state}</p> : null}
-                  </div>
-                  <VisitField
-                    id="zip"
-                    label="ZIP code"
-                    value={form.zip}
-                    error={fieldErrors.zip}
-                    inputMode="numeric"
-                    maxLength={10}
-                    onChange={(value) => patch({ zip: zipInput(value) })}
-                  />
+                  {fields.firstName}
+                  {fields.lastName}
+                  {fields.phone}
+                  {fields.email}
+                  {fields.street1}
+                  {fields.street2}
+                  {fields.city}
+                  {fields.state}
+                  {fields.zip}
                   <fieldset className="visit-choice">
                     <legend>Customer type</legend>
                     {(["Homeowner", "Contractor"] as const).map((type) => (
@@ -651,20 +572,21 @@ export function OnSiteVisit({
                         <input
                           type="radio"
                           name="customer-type"
-                          checked={form.customerType === type}
-                          onChange={() => patch({ customerType: type })}
-                          onClick={() => {
-                            if (form.customerType === type) patch({ customerType: "" });
-                          }}
-                          onKeyDown={(event) => {
-                            if (event.key !== " " || form.customerType !== type) return;
-                            event.preventDefault();
-                            patch({ customerType: "" });
-                          }}
+                          {...toggleRadio(
+                            form.customerType === type,
+                            () => patch({ customerType: type }),
+                            () => patch({ customerType: "" }),
+                          )}
                         />
                         {type}
                       </label>
                     ))}
+                    {original !== null && original.form.customerType !== form.customerType ? (
+                      <CustomerSaid
+                        value={original.form.customerType}
+                        onRevert={() => patch({ customerType: original.form.customerType })}
+                      />
+                    ) : null}
                   </fieldset>
                 </div>
               ) : (
@@ -703,10 +625,37 @@ export function OnSiteVisit({
                   </div>
                 </dl>
               )}
+              {address !== "" ? (
+                <div className="visit-property-map">
+                <>
+                  <p className="visit-map-links">
+                    <span>Open in Maps</span>
+                    <a
+                      href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Google
+                    </a>
+                    <a
+                      href={`https://maps.apple.com/?daddr=${encodeURIComponent(address)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Apple
+                    </a>
+                  </p>
+                  <iframe
+                    className="visit-map"
+                    title="Property map"
+                    src={`https://maps.google.com/maps?q=${encodeURIComponent(address)}&z=16&output=embed`}
+                    loading="lazy"
+                  />
+                </>
+                </div>
+              ) : null}
             </section>
-            ) : null}
 
-            {section === "services" ? (
             <section id="services" className="visit-stack">
               <div className="visit-section-head">
                 <div>
@@ -754,6 +703,13 @@ export function OnSiteVisit({
                         <strong>{serviceLabel(service)}</strong>
                         <small>{statusCopy(service, form, areas)}</small>
                       </span>
+                      {original !== null && !original.form.services.includes(service) ? (
+                        <span className="visit-service__changes">Added on site</span>
+                      ) : changeCount(service) > 0 ? (
+                        <span className="visit-service__changes">
+                          {changeCount(service)} {changeCount(service) === 1 ? "change" : "changes"}
+                        </span>
+                      ) : null}
                       <StatusPill status={status} />
                       <ChevronDown size={18} aria-hidden="true" />
                     </button>
@@ -809,28 +765,26 @@ export function OnSiteVisit({
                             />
                             <fieldset className="visit-soil">
                               <legend>Soil</legend>
-                              {soilConditions.map((soil) => (
+                              {soilConditions.filter((soil) => soil !== "Not sure").map((soil) => (
                                 <label key={soil} className="choice-card">
                                   <input
                                     type="radio"
                                     name="visit-underground-soil"
-                                    checked={form.soil === soil}
-                                    onChange={() =>
-                                      setForm((current) => ({ ...current, soil }))
-                                    }
-                                    onClick={() => {
-                                      if (form.soil !== soil) return;
-                                      setForm((current) => ({ ...current, soil: "" }));
-                                    }}
-                                    onKeyDown={(event) => {
-                                      if (event.key !== " " || form.soil !== soil) return;
-                                      event.preventDefault();
-                                      setForm((current) => ({ ...current, soil: "" }));
-                                    }}
+                                    {...toggleRadio(
+                                      form.soil === soil,
+                                      () => setForm((current) => ({ ...current, soil })),
+                                      () => setForm((current) => ({ ...current, soil: "" })),
+                                    )}
                                   />
                                   <span>{soil}</span>
                                 </label>
                               ))}
+                              {original !== null && original.form.soil !== form.soil ? (
+                                <CustomerSaid
+                                  value={original.form.soil}
+                                  onRevert={() => setForm((current) => ({ ...current, soil: original.form.soil }))}
+                                />
+                              ) : null}
                             </fieldset>
                             <UndergroundMeasure
                               areas={areas}
@@ -854,22 +808,22 @@ export function OnSiteVisit({
                                   <input
                                     type="radio"
                                     name="visit-grass-work"
-                                    checked={form.grassWork === option}
-                                    onChange={() => chooseGrassWork(option)}
-                                    onClick={() => {
-                                      if (form.grassWork === option) chooseGrassWork("");
-                                    }}
-                                    onKeyDown={(event) => {
-                                      if (event.key !== " " || form.grassWork !== option) return;
-                                      event.preventDefault();
-                                      chooseGrassWork("");
-                                    }}
+                                    {...toggleRadio(
+                                      form.grassWork === option,
+                                      () => chooseGrassWork(option),
+                                      () => chooseGrassWork(""),
+                                    )}
                                   />
                                   <span>{option}</span>
-                                  {form.grassWork === option ? <Check size={14} aria-hidden="true" /> : null}
                                 </label>
                               ))}
                             </div>
+                            {original !== null && original.form.grassWork !== form.grassWork ? (
+                              <CustomerSaid
+                                value={original.form.grassWork}
+                                onRevert={() => chooseGrassWork(original.form.grassWork)}
+                              />
+                            ) : null}
                           </fieldset>
                         ) : null}
 
@@ -959,6 +913,16 @@ export function OnSiteVisit({
                 );
               })}
 
+              {original !== null
+                ? original.form.services
+                    .filter((service) => !form.services.includes(service))
+                    .map((service) => (
+                      <p key={service} className="field-original visit-removed">
+                        Customer picked <strong>{serviceLabel(service)}</strong>. Not part of this visit.
+                      </p>
+                    ))
+                : null}
+
               {unusedServices.length > 0 ? (
                 <div className="visit-add">
                   {addingService ? (
@@ -978,19 +942,17 @@ export function OnSiteVisit({
                 </div>
               ) : null}
             </section>
-            ) : null}
 
-            {section === "photos" ? (
             <section id="photos" className="visit-card">
               <PhotosPanel
                 areas={areas}
                 siteIndex={siteIndex}
                 onPhoto={addPhoto}
+                note={visitNote}
+                onNote={setVisitNote}
               />
             </section>
-            ) : null}
 
-            {section === "review" ? (
             <section id="review" className="visit-card">
               <div className="visit-card__head">
                 <div>
@@ -1014,116 +976,79 @@ export function OnSiteVisit({
                   <span>{areas.reduce((sum, area) => sum + area.photoIds.length, 0)} uploaded</span>
                 </li>
               </ul>
-            </section>
-            ) : null}
-          </div>
 
-          <aside className="visit-rail">
-            <section className="visit-card visit-photos-card">
-              <div className="visit-card__head">
-                <div>
-                  <h2>
-                    <Camera size={18} aria-hidden="true" />
-                    Site photos
-                  </h2>
-                </div>
-                {siteIndex >= 0 ? (
-                  <label className="visit-icon-btn">
-                    <Plus size={16} aria-hidden="true" />
-                    Add photos
-                    <input
-                      className="visually-hidden"
-                      type="file"
-                      accept="image/*"
-                      onChange={(event) => {
-                        const file = event.target.files?.[0];
-                        event.target.value = "";
-                        if (file !== undefined) void addPhoto(siteIndex, file);
-                      }}
-                    />
-                  </label>
-                ) : null}
-              </div>
-              <div className="visit-photos">
-                {(site?.photoUrls ?? []).map((url, photoIndex) =>
-                  url === null ? (
-                    <span key={site?.photoIds[photoIndex]} className="visit-photo-fallback">
-                      Photo saved
-                    </span>
+              {original !== null ? (
+                <div className="visit-changes" aria-labelledby="visit-changes-title">
+                  <h3 id="visit-changes-title">
+                    Changes from the customer&apos;s form
+                    <span className="visit-service__changes">{changes.length}</span>
+                  </h3>
+                  {changes.length === 0 ? (
+                    <p className="visit-quiet">Nothing changed. Everything matches what the customer submitted.</p>
                   ) : (
-                    <RetryImage key={site?.photoIds[photoIndex]} src={url} alt="" />
-                  ),
-                )}
-                {siteIndex >= 0 ? (
-                  <label className="visit-photo-add">
-                    <Plus size={20} aria-hidden="true" />
-                    <span>Add photo</span>
-                    <input
-                      className="visually-hidden"
-                      type="file"
-                      accept="image/*"
-                      onChange={(event) => {
-                        const file = event.target.files?.[0];
-                        event.target.value = "";
-                        if (file !== undefined) void addPhoto(siteIndex, file);
-                      }}
-                    />
-                  </label>
-                ) : null}
-              </div>
-            </section>
-
-            <section className="visit-card">
-              <h2>
-                <NotebookPen size={18} aria-hidden="true" />
-                Quick notes
-              </h2>
-              <textarea
-                id="visit-note"
-                value={visitNote}
-                placeholder="Add notes about the property, access, layout, or special considerations."
-                onChange={(event) => setVisitNote(event.target.value)}
-              />
-            </section>
-
-            <section className="visit-card">
-              <div className="visit-card__head">
-                <div>
-                  <h2>
-                    <MapPin size={18} aria-hidden="true" />
-                    Property details
-                  </h2>
+                    [...new Set(changes.map((change) => change.group))].map((group) => (
+                      <section key={group}>
+                        <h4>{group === "Contact" ? "Customer & property" : serviceLabel(group)}</h4>
+                        <ul>
+                          {changes
+                            .filter((change) => change.group === group)
+                            .map((change, index) => (
+                              <li key={`${change.label}-${index}`}>
+                                <span className="visit-changes__label">{change.label}</span>
+                                {change.added !== undefined || change.removed !== undefined ? (
+                                  <span className="visit-changes__list">
+                                    {(change.removed ?? []).map((item) => (
+                                      <em key={`-${item}`} className="is-removed">
+                                        Removed: {item}
+                                      </em>
+                                    ))}
+                                    {(change.added ?? []).map((item) => (
+                                      <em key={`+${item}`} className="is-added">
+                                        Added: {item}
+                                      </em>
+                                    ))}
+                                  </span>
+                                ) : (
+                                  <span className="visit-changes__values">
+                                    <s>{change.before}</s>
+                                    <ArrowRight size={14} aria-hidden="true" />
+                                    <strong>{change.after}</strong>
+                                  </span>
+                                )}
+                              </li>
+                            ))}
+                        </ul>
+                      </section>
+                    ))
+                  )}
                 </div>
-              </div>
-              <p className="visit-address">{address || "Address will appear here."}</p>
-              {address !== "" ? (
-                <>
-                  <p className="visit-map-links">
-                    <span>Open in Maps</span>
-                    <a
-                      href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Google
-                    </a>
-                    <a
-                      href={`https://maps.apple.com/?daddr=${encodeURIComponent(address)}`}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Apple
-                    </a>
-                  </p>
-                  <iframe
-                    className="visit-map"
-                    title="Property map"
-                    src={`https://maps.google.com/maps?q=${encodeURIComponent(address)}&z=16&output=embed`}
-                    loading="lazy"
-                  />
-                </>
               ) : null}
             </section>
+
+            {revisions.length > 0 ? (
+              <details className="visit-card visit-history">
+                <summary>Saved visits ({revisions.length})</summary>
+                {revisions.map((revision) => (
+                  <div key={revision.savedAt} className="visit-history__entry">
+                    <strong>
+                      {new Date(revision.savedAt).toLocaleString([], {
+                        month: "short",
+                        day: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })}
+                    </strong>
+                    <ul>
+                      {revision.changes.map((change, index) => (
+                        <li key={index}>
+                          {change.label}: <s>{change.before}</s> → {change.after}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </details>
+            ) : null}
 
             {error !== null ? (
               <p className="visit-alert" role="alert">
@@ -1133,51 +1058,22 @@ export function OnSiteVisit({
 
             <div className="visit-actions">
               <button type="submit" className="visit-primary" disabled={pending}>
-                {pending ? "Saving" : "Save & continue"}
-              </button>
-              <button
-                type="button"
-                className="visit-secondary"
-                disabled={pending}
-                onClick={() => void persist("draft")}
-              >
-                Save draft
+                {pending ? "Saving" : "Save & draft quote"}
               </button>
               <p className="visit-save-hint">
-                {savedAt !== null ? `Draft saved at ${savedAt}.` : "Customer estimates stay on the project."}
+                {savedAt !== null ? `Saved at ${savedAt}.` : "Saves the visit and drafts the quote in Jobber. Nothing is sent to the customer."}
               </p>
             </div>
-          </aside>
+          </div>
         </form>
       </div>
     </VisitFrame>
+    </OriginalContext.Provider>
   );
 }
 
 export function VisitFrame({ children }: { children: ReactNode }) {
   return <div className="visit-app">{children}</div>;
-}
-
-export function VisitPlain({
-  title,
-  wide,
-  children,
-}: {
-  title: string;
-  wide?: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <div className="visit-app visit-app--plain">
-      <header className="visit-plain-bar">
-        <RetryNextImage src="/brand/logo-mark.png" alt="Quality First Turf" width={771} height={605} priority />
-      </header>
-      <main className={wide ? "visit-plain-main visit-plain-main--list" : "visit-plain-main"}>
-        <h1>{title}</h1>
-        {children}
-      </main>
-    </div>
-  );
 }
 
 function syncServiceFromAreas(
@@ -1195,7 +1091,7 @@ function syncServiceFromAreas(
   const areaNames = { ...form.areaNames };
   for (const area of areas) {
     if (area.service !== service || area.installType === "") continue;
-    areaNames[selectionKey(service, area.installType)] = area.label;
+    areaNames[selectionKey(service, area.installType)] = isDefaultAreaName(area) ? "" : area.label;
   }
   return {
     ...form,
@@ -1245,46 +1141,8 @@ function StatusPill({ status }: { status: ServiceStatus }) {
   return <span className={`visit-pill visit-pill--${status}`}>{label}</span>;
 }
 
-function VisitField({
-  id,
-  label,
-  value,
-  onChange,
-  error,
-  type = "text",
-  inputMode,
-  maxLength,
-}: {
-  id: string;
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  error?: string;
-  type?: string;
-  inputMode?: "numeric" | "email" | "decimal";
-  maxLength?: number;
-}) {
-  const errorId = `${id}-error`;
-  return (
-    <div className={error ? "visit-field is-invalid" : "visit-field"}>
-      <label htmlFor={id}>{label}</label>
-      <input
-        id={id}
-        type={type}
-        value={value}
-        inputMode={inputMode}
-        maxLength={maxLength}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={error ? errorId : undefined}
-        onChange={(event) => onChange(event.target.value)}
-      />
-      {error ? (
-        <p id={errorId} className="field-error">
-          {error}
-        </p>
-      ) : null}
-    </div>
-  );
+function VisitField(props: Omit<TextFieldProps, "variant">) {
+  return <TextField variant="visit" {...props} />;
 }
 
 function VisitNoteField({
@@ -1325,6 +1183,8 @@ function InstallGrid({
   onQuantity: (type: string, value: string) => void;
   onAreaName: (type: string, value: string) => void;
 }) {
+  const original = useOriginal();
+  const originalTypes = original?.form.installTypes[service] ?? [];
   const id = fieldIdFor("install", service);
   return (
     <fieldset className="visit-installs" id={id}>
@@ -1348,6 +1208,11 @@ function InstallGrid({
                 <span className="visit-installs__detail">{installTypeDetail[type]}</span>
               ) : null}
             </span>
+            {original !== null && selected.includes(type) !== originalTypes.includes(type) ? (
+              <span className="visit-installs__tag">
+                {selected.includes(type) ? "Added on site" : "Customer chose this"}
+              </span>
+            ) : null}
             {selected.includes(type) ? <Check size={14} aria-hidden="true" /> : null}
           </label>
         ))}
@@ -1363,6 +1228,15 @@ function InstallGrid({
                 key={type}
                 id={id}
                 label={linear ? `${choiceLabel(type)} linear feet` : `${choiceLabel(type)} quantity`}
+                numeric
+                stepper={linear ? 10 : 1}
+                placeholder={linear ? "e.g. 120" : "e.g. 10"}
+                customerValue={
+                  original !== null && (original.form.lightingQuantity[key] ?? "") !== (form.lightingQuantity[key] ?? "")
+                    ? (original.form.lightingQuantity[key] ?? "")
+                    : undefined
+                }
+                onRevert={original !== null ? () => onQuantity(type, original.form.lightingQuantity[key] ?? "") : undefined}
                 value={form.lightingQuantity[key] ?? ""}
                 error={problems[id]}
                 inputMode="decimal"
@@ -1388,6 +1262,7 @@ function AreaNames({
   problems: Record<string, string>;
   onChange: (type: string, value: string) => void;
 }) {
+  const original = useOriginal();
   const selected = form.installTypes[service] ?? [];
   if (selected.length < 2) return null;
   return (
@@ -1401,6 +1276,12 @@ function AreaNames({
             key={type}
             id={id}
             label={`${choiceLabel(type)} area, if you know it`}
+            customerValue={
+              original !== null && (original.form.areaNames[key] ?? "") !== (form.areaNames[key] ?? "")
+                ? (original.form.areaNames[key] ?? "")
+                : undefined
+            }
+            onRevert={original !== null ? () => onChange(type, original.form.areaNames[key] ?? "") : undefined}
             value={form.areaNames[key] ?? ""}
             error={problems[id]}
             onChange={(value) => onChange(type, value)}
@@ -1420,13 +1301,20 @@ function UndergroundMeasure({
   error?: string;
   onChange: (index: number, value: string) => void;
 }) {
+  const original = useOriginal();
   const index = areas.findIndex((area) => area.service === "Underground");
   const area = index >= 0 ? areas[index] : undefined;
   if (area === undefined) return null;
+  const before = originalAreaFor(area, 0, original);
   return (
     <VisitField
+      customerValue={before !== undefined && before.quantity !== area.quantity ? before.quantity : undefined}
+      onRevert={before !== undefined ? () => onChange(index, before.quantity) : undefined}
       id={`area-${index}-quantity`}
       label="Measured linear feet"
+      numeric
+      stepper={10}
+      placeholder="e.g. 120"
       value={area.quantity}
       error={error}
       inputMode="decimal"
@@ -1460,6 +1348,8 @@ function AreaList({
   onAdd: () => void;
   onReplace: (key: string, value: string) => void;
 }) {
+  const original = useOriginal();
+  const [needsInstall, setNeedsInstall] = useState<number | null>(null);
   const owned = areas
     .map((area, index) => ({ area, index }))
     .filter(({ area }) => area.service === service);
@@ -1485,15 +1375,35 @@ function AreaList({
           service === grassService
             ? productsFor(service, measureInstall)
             : productsFor(service, area.installType || ((form.installTypes[service] ?? [])[0] ?? ""));
+        const before = originalAreaFor(area, order, original);
+        const originalProduct = original?.form.product[productKey] ?? original?.form.product[service] ?? "";
+        const originalReplacement = original?.form.replacementInstall[productKey] ?? "";
         const linear =
           service === grassService &&
           grassUsesLinearFeet(measureInstall, form.product[productKey] ?? "");
+        // The field stays in place from the start; it just asks for an installation type first.
+        const replacing = service === grassService && form.grassWork === "Replacement";
+        const showProduct =
+          products.length > 0 ||
+          replacing ||
+          (types.length > 0 && types.some((type) => productsFor(service, type).length > 0));
+        // Replacement picks the new turf type in "New installation"; everything else uses "Installation type".
+        const waitingForInstall = replacing
+          ? measureInstall === ""
+          : types.length > 0 && area.installType === "";
+        const productError = problems[fieldIdFor("product", productKey)];
+        function askForInstall(at: number) {
+          setNeedsInstall(at);
+          const install = document.getElementById(replacing ? `area-${at}-replacement` : `area-${at}-install`);
+          install?.scrollIntoView({ block: "center", behavior: "smooth" });
+          install?.focus({ preventScroll: true });
+        }
         return (
-          <div key={`${area.label}-${index}`} className="visit-area">
+          <div key={index} className="visit-area">
             <div className="visit-area__head">
               <span>{order + 1}</span>
               <strong>{area.label || `Area ${order + 1}`}</strong>
-              <em>Measured on site</em>
+              <em>{original !== null && before === undefined ? "Added on site" : "Measured on site"}</em>
               <button type="button" className="visit-icon-btn" onClick={() => onRemove(index)}>
                 <Trash2 size={15} aria-hidden="true" />
                 Remove
@@ -1503,25 +1413,44 @@ function AreaList({
               <VisitField
                 id={`area-${index}-label`}
                 label="Area name"
-                value={area.label}
+                placeholder="e.g. Front yard"
+                customerValue={
+                  before !== undefined &&
+                  (isDefaultAreaName(before) ? "" : before.label) !== (isDefaultAreaName(area) ? "" : area.label)
+                    ? (isDefaultAreaName(before) ? "" : before.label)
+                    : undefined
+                }
+                onRevert={before !== undefined ? () => onName(index, before.label) : undefined}
+                value={isDefaultAreaName(area) ? "" : area.label}
                 error={problems[`area-${index}-label`]}
-                onChange={(value) => onName(index, value)}
+                onChange={(value) => onName(index, value.trim() === "" ? defaultAreaName(area, service) : value)}
               />
               <VisitField
                 id={`area-${index}-quantity`}
                 label={linear ? "Linear feet" : "Square feet"}
+                numeric
+                stepper={linear ? 10 : 50}
+                placeholder={linear ? "e.g. 120" : "e.g. 500"}
+                customerValue={before !== undefined && before.quantity !== area.quantity ? before.quantity : undefined}
+                onRevert={before !== undefined ? () => onArea(index, { quantity: before.quantity }) : undefined}
                 value={area.quantity}
                 error={problems[`area-${index}-quantity`]}
                 inputMode="decimal"
                 onChange={(value) => onArea(index, { quantity: decimalInput(value) })}
               />
               {types.length > 0 ? (
-                <div className="visit-field">
+                <div
+                  className={problems[`area-${index}-install`] ? "visit-field is-invalid" : "visit-field"}
+                  data-field={`area-${index}-install`}
+                >
                   <label htmlFor={`area-${index}-install`}>Installation type</label>
                   <select
                     id={`area-${index}-install`}
                     value={area.installType}
-                    onChange={(event) => onInstall(index, service, event.target.value)}
+                    onChange={(event) => {
+                      setNeedsInstall(null);
+                      onInstall(index, service, event.target.value);
+                    }}
                   >
                     <option value="">Select</option>
                     {types.map((type) => (
@@ -1530,46 +1459,117 @@ function AreaList({
                       </option>
                     ))}
                   </select>
+                  {before !== undefined && before.installType !== area.installType ? (
+                    <CustomerSaid
+                      value={before.installType}
+                      onRevert={() => {
+                        setNeedsInstall(null);
+                        onInstall(index, service, before.installType);
+                      }}
+                    />
+                  ) : null}
+                  {problems[`area-${index}-install`] ? (
+                    <p className="field-error">{problems[`area-${index}-install`]}</p>
+                  ) : null}
                 </div>
               ) : null}
-              {products.length > 0 ? (
-                <div className="visit-field">
-                  <label htmlFor={`area-${index}-product`}>Turf product</label>
-                  <select
-                    id={`area-${index}-product`}
-                    value={form.product[productKey] ?? form.product[service] ?? ""}
-                    onChange={(event) => onProduct(index, service, event.target.value)}
+              <div className="visit-area__pair">
+                {area.installType === "Artificial Grass Replacement" ? (
+                  <div
+                    className={
+                      problems[fieldIdFor("replacement", productKey)] ? "visit-field is-invalid" : "visit-field"
+                    }
+                    data-field={fieldIdFor("replacement", productKey)}
                   >
-                    <option value="">Select</option>
-                    {products.map((product) => (
-                      <option key={product.name} value={product.name}>
-                        {product.mark === null ? product.name : `${product.name} (${product.mark})`}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ) : null}
-              {area.installType === "Artificial Grass Replacement" ? (
-                <div className="visit-field">
-                  <label htmlFor={`area-${index}-replacement`}>New installation</label>
-                  <select
-                    id={`area-${index}-replacement`}
-                    value={form.replacementInstall[productKey] ?? ""}
-                    onChange={(event) => onReplace(productKey, event.target.value)}
+                    <label htmlFor={`area-${index}-replacement`}>New installation</label>
+                    <select
+                      id={`area-${index}-replacement`}
+                      value={form.replacementInstall[productKey] ?? ""}
+                      onChange={(event) => {
+                        setNeedsInstall(null);
+                        onReplace(productKey, event.target.value);
+                      }}
+                    >
+                      <option value="">Select</option>
+                      {turfInstallTypes.map((type) => (
+                        <option key={type} value={type}>
+                          {type}
+                        </option>
+                      ))}
+                    </select>
+                    {original !== null && originalReplacement !== (form.replacementInstall[productKey] ?? "") ? (
+                      <CustomerSaid value={originalReplacement} onRevert={() => onReplace(productKey, originalReplacement)} />
+                    ) : null}
+                    {problems[fieldIdFor("replacement", productKey)] ? (
+                      <p className="field-error">{problems[fieldIdFor("replacement", productKey)]}</p>
+                    ) : null}
+                  </div>
+                ) : null}
+                {showProduct ? (
+                  <div
+                    className={
+                      productError || needsInstall === index ? "visit-field is-invalid" : "visit-field"
+                    }
+                    data-field={fieldIdFor("product", productKey)}
                   >
-                    <option value="">Select</option>
-                    {turfInstallTypes.map((type) => (
-                      <option key={type} value={type}>
-                        {type}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ) : null}
+                    <label htmlFor={`area-${index}-product`}>Turf product</label>
+                    <select
+                      id={`area-${index}-product`}
+                      value={form.product[productKey] ?? form.product[service] ?? ""}
+                      aria-disabled={waitingForInstall || undefined}
+                      onMouseDown={(event) => {
+                        if (!waitingForInstall) return;
+                        event.preventDefault();
+                        askForInstall(index);
+                      }}
+                      onFocus={() => {
+                        if (waitingForInstall) setNeedsInstall(index);
+                      }}
+                      onKeyDown={(event) => {
+                        if (!waitingForInstall || event.key === "Tab") return;
+                        event.preventDefault();
+                        askForInstall(index);
+                      }}
+                      onChange={(event) => onProduct(index, service, event.target.value)}
+                    >
+                      <option value="">Select</option>
+                      {products.map((product) => (
+                        <option key={product.name} value={product.name}>
+                          {product.mark === null ? product.name : `${product.name} (${product.mark})`}
+                        </option>
+                      ))}
+                    </select>
+                    {original !== null && originalProduct !== (form.product[productKey] ?? form.product[service] ?? "") ? (
+                      <CustomerSaid value={originalProduct} onRevert={() => onProduct(index, service, originalProduct)} />
+                    ) : null}
+                    {needsInstall === index ? (
+                      <p className="field-error">
+                        {replacing ? "Select the new installation first." : "Select an installation type first."}
+                      </p>
+                    ) : productError ? (
+                      <p className="field-error">{productError}</p>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
             </div>
           </div>
         );
       })}
+      {original !== null
+        ? original.areas
+            .filter(
+              (item) =>
+                item.service === service &&
+                !owned.some(({ area, index: at }, order) => originalAreaFor(area, order, original) === item && at >= 0),
+            )
+            .map((item) => (
+              <p key={item.label} className="field-original visit-removed">
+                Customer listed <strong>{isDefaultAreaName(item) ? choiceLabel(item.label) : item.label}</strong>
+                {item.quantity !== "" ? ` (${item.quantity})` : ""}. Removed on site.
+              </p>
+            ))
+        : null}
       <button type="button" className="visit-text-btn" onClick={onAdd}>
         <Plus size={16} aria-hidden="true" />
         Add another area
@@ -1599,9 +1599,11 @@ function AddOnBlock({
           ? []
           : (form.installTypes[service] ?? [])
       : (form.installTypes[service] ?? []);
+  const original = useOriginal();
   const addOns = addOnsForSelected(service, selectedTypes);
   if (addOns.length === 0) return null;
   const selected = form.addOns[service] ?? [];
+  const originalSelected = original?.form.addOns[service] ?? [];
   return (
     <div className="visit-addons">
       <fieldset>
@@ -1619,16 +1621,39 @@ function AddOnBlock({
                 />
                 <span>{addOn}</span>
               </label>
-              {checked ? (
-                <input
-                  aria-label={`${addOn} quantity`}
-                  inputMode="decimal"
-                  value={form.addOnQuantity[quantityKey] ?? ""}
-                  onChange={(event) => onQuantity(quantityKey, decimalInput(event.target.value))}
+              {original !== null && originalSelected.includes(addOn) !== checked ? (
+                <CustomerSaid
+                  text={
+                    checked
+                      ? "Added on site. The customer did not choose this."
+                      : "Removed on site. The customer chose this."
+                  }
+                  actionLabel={checked ? "Remove" : "Restore"}
+                  onRevert={() => onToggle(service, addOn)}
                 />
               ) : null}
-              {problems[fieldIdFor("qty", quantityKey)] ? (
-                <p className="field-error">{problems[fieldIdFor("qty", quantityKey)]}</p>
+              {checked ? (
+                <VisitField
+                  id={fieldIdFor("qty", quantityKey)}
+                  label={`${addOn} quantity`}
+                  numeric
+                  stepper={1}
+                  placeholder="e.g. 1"
+                  customerValue={
+                    original !== null &&
+                    (original.form.addOnQuantity[quantityKey] ?? "") !== (form.addOnQuantity[quantityKey] ?? "")
+                      ? (original.form.addOnQuantity[quantityKey] ?? "")
+                      : undefined
+                  }
+                  onRevert={
+                    original !== null
+                      ? () => onQuantity(quantityKey, original.form.addOnQuantity[quantityKey] ?? "")
+                      : undefined
+                  }
+                  value={form.addOnQuantity[quantityKey] ?? ""}
+                  error={problems[fieldIdFor("qty", quantityKey)]}
+                  onChange={(value) => onQuantity(quantityKey, value)}
+                />
               ) : null}
             </div>
           );
@@ -1642,10 +1667,14 @@ function PhotosPanel({
   areas,
   siteIndex,
   onPhoto,
+  note,
+  onNote,
 }: {
   areas: VisitArea[];
   siteIndex: number;
   onPhoto: (index: number, file: File) => void;
+  note: string;
+  onNote: (value: string) => void;
 }) {
   const all = areas.flatMap((area, index) =>
     area.photoUrls.map((url, photoIndex) => ({
@@ -1677,21 +1706,20 @@ function PhotosPanel({
           ),
         )}
         {siteIndex >= 0 ? (
-          <label className="visit-photo-add">
-            <Plus size={20} aria-hidden="true" />
+          <PhotoPicker className="visit-photo-add" onFile={(file) => onPhoto(siteIndex, file)}>
+<Plus size={20} aria-hidden="true" />
             <span>Add photo</span>
-            <input
-              className="visually-hidden"
-              type="file"
-              accept="image/*"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                event.target.value = "";
-                if (file !== undefined) onPhoto(siteIndex, file);
-              }}
-            />
-          </label>
+</PhotoPicker>
         ) : null}
+      </div>
+      <div className="visit-field visit-note">
+        <label htmlFor="visit-note">Notes</label>
+        <textarea
+          id="visit-note"
+          value={note}
+          placeholder="Add notes about the property, access, layout, or special considerations."
+          onChange={(event) => onNote(event.target.value)}
+        />
       </div>
     </>
   );

@@ -4,6 +4,7 @@ import { createHash, randomBytes, timingSafeEqual } from "crypto";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { action, env } from "../_generated/server";
+import { rateLimiter } from "../rateLimits";
 
 function same(left: string, right: string) {
   const a = createHash("sha256").update(left).digest();
@@ -11,10 +12,25 @@ function same(left: string, right: string) {
   return timingSafeEqual(a, b);
 }
 
+type Account = { email: string; password: string };
+
+/** One login is shared by every salesperson, set with SALES_EMAIL and SALES_PASSWORD. */
+function configuredAccounts(): Account[] {
+  const email = env.SALES_EMAIL?.trim() ?? "";
+  const password = env.SALES_PASSWORD ?? "";
+  return email !== "" && password !== "" ? [{ email, password }] : [];
+}
+
 const loginResult = v.union(
-  v.object({ token: v.string() }),
-  v.object({ error: v.union(v.literal("unconfigured"), v.literal("rejected")) }),
+  v.object({ token: v.string(), email: v.string() }),
+  v.object({
+    error: v.union(v.literal("unconfigured"), v.literal("rejected"), v.literal("limited")),
+  }),
 );
+
+type LoginResult =
+  | { token: string; email: string }
+  | { error: "unconfigured" | "rejected" | "limited" };
 
 export const login = action({
   args: {
@@ -22,17 +38,28 @@ export const login = action({
     password: v.string(),
   },
   returns: loginResult,
-  handler: async (ctx, args): Promise<{ token: string } | { error: "unconfigured" | "rejected" }> => {
-    const email = env.SALES_EMAIL;
-    const password = env.SALES_PASSWORD;
-    if (email === undefined || password === undefined || email === "" || password === "") {
-      return { error: "unconfigured" };
+  handler: async (ctx, args): Promise<LoginResult> => {
+    const attempt = args.email.trim().toLowerCase().slice(0, 254);
+    const overall = await rateLimiter.limit(ctx, "loginGlobal");
+    const perEmail = await rateLimiter.limit(ctx, "loginPerEmail", { key: attempt });
+    if (!overall.ok || !perEmail.ok) return { error: "limited" };
+
+    const accounts = configuredAccounts();
+    if (accounts.length === 0) {
+      console.error("SALES_EMAIL / SALES_PASSWORD are not set on this deployment.");
+      return { error: "rejected" };
     }
-    const emailMatches = same(args.email.trim().toLowerCase(), email.trim().toLowerCase());
-    const passwordMatches = same(args.password, password);
-    if (!emailMatches || !passwordMatches) return { error: "rejected" };
+    // Check every account so the response time does not reveal which emails exist.
+    let matched: Account | null = null;
+    for (const account of accounts) {
+      const emailMatches = same(attempt, account.email.trim().toLowerCase());
+      const passwordMatches = same(args.password, account.password);
+      if (emailMatches && passwordMatches && matched === null) matched = account;
+    }
+    if (matched === null) return { error: "rejected" };
+    const email = matched.email.trim().toLowerCase();
     const token = randomBytes(32).toString("hex");
-    const stored = await ctx.runMutation(internal.sales.mutations.start, { token });
-    return { token: stored };
+    await ctx.runMutation(internal.sales.mutations.start, { token, email });
+    return { token, email };
   },
 });

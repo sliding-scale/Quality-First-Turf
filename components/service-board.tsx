@@ -25,7 +25,6 @@ export default function ServiceBoard({
       className="service-board"
       role="group"
       aria-label="Services"
-      aria-invalid={invalid || undefined}
       aria-describedby={invalid && describedBy ? describedBy : undefined}
     >
       {cards.map((card, index) => (

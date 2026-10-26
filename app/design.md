@@ -1,10 +1,26 @@
-# Quality First Turf — Website Design Specification
+# Quality First Turf — App Design Notes
 
-**Reference website:** https://qualityfirstturf.com/  
-**Purpose:** Visual and implementation guide for recreating or refreshing the website.  
-**Scope:** Global design system, page structure, component patterns, responsive behavior, and accessibility.
+> This file started life as a spec for the marketing website (https://qualityfirstturf.com/). The app in this repo is the customer intake form and the sales on-site tool, so the notes below describe **this app**. The brand sections that follow are still a valid reference for look and feel; the token table is the original proposal.
 
-> **Accuracy note:** The reference page's content and section sequence were inspected. The CSS values in `global.css` are a coherent implementation proposal inspired by the artificial-turf / outdoor-living brand and its content—not measured pixel values. For exact visual matching, compare against desktop and mobile screenshots and tune the tokens.
+## App surfaces
+
+| Surface | Route | CSS prefixes |
+|---|---|---|
+| Customer intake (details, services, review, confirmation) | `/` | `intake-*`, `services-*`, `review-*`, `confirmation-*` |
+| Sales sign-in and project list | `/visit` | `sales-login*`, `sales-list__*`, `sales-skeleton__*` |
+| On-site visit | `/visit/[projectId]` | `visit-*` |
+
+All styles live in `app/globals.css` (not `global.css`). Fonts: IBM Plex Sans (body) and DM Sans (headings) via `next/font` in `app/layout.tsx`.
+
+## Conventions
+
+- Every text input has a visible label **and** a placeholder showing a realistic example (`Jane`, `(555) 123-4567`, `e.g. 500`).
+- Primary actions are pill buttons ≥ 48px tall; Back is a quieter secondary style.
+- Headings: one `h1` per page; keep card headings clearly smaller than the page `h1`.
+- List cards show only name, status, short address and date; details belong on the project page.
+- Slow screens show skeletons (`components/sales-skeleton.tsx`, `loading.tsx`), not blank pages.
+- Breakpoints in use: 1100, 860, 720 and 560 px. Prefer these over new values.
+- Known debt: several overlapping token sets (`--forest-green…`, `--color-brand-*`, `--visit-*`) and dead CSS from earlier designs; consolidate when touching a surface.
 
 ## 1. Brand and experience
 

@@ -3,13 +3,14 @@ import { planQuoteLines } from "../../lib/quote-lines";
 import { internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
 import type { ActionCtx } from "../_generated/server";
-import { action, env, internalAction } from "../_generated/server";
+import { action, env } from "../_generated/server";
 import {
   addDraftLines,
   createClient,
   createDraftQuote,
+  createRequest,
   editQuoteTitle,
-  findCatalogueProduct,
+  loadCatalogue,
   findClients,
   JobberError,
   readQuote,
@@ -17,6 +18,7 @@ import {
   removeDraftLines,
   type DraftLine,
 } from "../jobber/client";
+import { rateLimiter } from "../rateLimits";
 import { projectStatus } from "../schema";
 
 const accessTokenSkewMs = 60_000;
@@ -52,27 +54,48 @@ async function loadAndDraft(
   if (loaded === null) {
     throw new Error("Project not found");
   }
+  if (!(await ctx.runMutation(internal.projects.mutations.claimDraft, { projectId }))) {
+    return busyResult(loaded.project);
+  }
   try {
     return await draftForProject(ctx, loaded.project, loaded.workAreas);
   } catch (error) {
     return await remember(ctx, loaded.project, {
       status: "needs attention",
-        jobberClientId: loaded.project.jobberClientId,
-        jobberRequestId: loaded.project.jobberRequestId ?? null,
-        jobberQuoteId: loaded.project.jobberQuoteId,
+      jobberClientId: loaded.project.jobberClientId,
+      jobberRequestId: loaded.project.jobberRequestId ?? null,
+      jobberQuoteId: loaded.project.jobberQuoteId,
       missingMapping: null,
       integrationError: describe(error),
     });
   }
 }
 
-export const draftQuote = internalAction({
-  args: { projectId: v.id("projects") },
-  returns: draftQuoteResult,
-  handler: async (ctx, args): Promise<DraftQuoteResult> => {
-    return await loadAndDraft(ctx, args.projectId);
-  },
-});
+function busyResult(project: Doc<"projects">): DraftQuoteResult {
+  return {
+    projectId: project._id,
+    status: project.status,
+    jobberClientId: project.jobberClientId,
+    jobberRequestId: project.jobberRequestId ?? null,
+    jobberQuoteId: project.jobberQuoteId,
+    missingMapping: project.missingMapping,
+    integrationError: "A quote is already being drafted for this project. Try again in a minute.",
+  };
+}
+
+/** The customer-facing action never echoes Jobber ids or upstream error text. */
+function publicResult(result: DraftQuoteResult): DraftQuoteResult {
+  return {
+    ...result,
+    jobberClientId: null,
+    jobberRequestId: null,
+    missingMapping: result.missingMapping === null ? null : "Some items need a manual check.",
+    integrationError:
+      result.integrationError === null
+        ? null
+        : "The quote could not be drafted automatically. The office will follow up.",
+  };
+}
 
 export const publishVisit = action({
   args: { projectId: v.id("projects") },
@@ -85,17 +108,23 @@ export const publishVisit = action({
       projectId: args.projectId,
     });
     if (loaded === null) throw new Error("Project not found");
+    await rateLimiter.limit(ctx, "publishVisit", { throws: true });
+    if (!(await ctx.runMutation(internal.projects.mutations.claimDraft, { projectId: args.projectId }))) {
+      return publicResult(busyResult(loaded.project));
+    }
     try {
-      return await publishForProject(ctx, loaded.project);
+      return publicResult(await publishForProject(ctx, loaded.project));
     } catch (error) {
-      return await remember(ctx, loaded.project, {
-        status: loaded.project.jobberQuoteId === null ? "needs attention" : loaded.project.status,
-        jobberClientId: loaded.project.jobberClientId,
-        jobberRequestId: loaded.project.jobberRequestId ?? null,
-        jobberQuoteId: loaded.project.jobberQuoteId,
-        missingMapping: loaded.project.missingMapping,
-        integrationError: describe(error),
-      });
+      return publicResult(
+        await remember(ctx, loaded.project, {
+          status: loaded.project.jobberQuoteId === null ? "needs attention" : loaded.project.status,
+          jobberClientId: loaded.project.jobberClientId,
+          jobberRequestId: loaded.project.jobberRequestId ?? null,
+          jobberQuoteId: loaded.project.jobberQuoteId,
+          missingMapping: loaded.project.missingMapping,
+          integrationError: describe(error),
+        }),
+      );
     }
   },
 });
@@ -150,10 +179,11 @@ async function draftForProject(
     });
   }
 
+  const catalogue = await loadCatalogue(accessToken);
   const lines: DraftLine[] = [];
   const missingNames: string[] = [];
   for (const plannedLine of planned.lines) {
-    const product = await findCatalogueProduct(accessToken, plannedLine.name);
+    const product = catalogue.get(plannedLine.name) ?? null;
     if (product === null || !Number.isFinite(product.defaultUnitCost)) {
       missingNames.push(plannedLine.name);
       continue;
@@ -327,6 +357,22 @@ async function publishForProject(
     });
   }
 
+  // The customer's own submission goes in as a Request; a failure here must not block the quote.
+  let requestId = project.jobberRequestId ?? null;
+  if (requestId === null) {
+    try {
+      requestId = await createRequest({
+        accessToken,
+        clientId: client.id,
+        propertyId,
+        title: quoteTitle(project),
+        details: submissionDetails(project),
+      });
+    } catch (error) {
+      console.error("Jobber request was not created:", error instanceof Error ? error.message : error);
+    }
+  }
+
   const planned = planQuoteLines({
     services: project.services,
     products: project.products,
@@ -337,10 +383,11 @@ async function publishForProject(
   const intended = planned.lines.length > 0
     ? planned.lines
     : project.services.map((name) => ({ name, quantity: 1 }));
+  const catalogue = await loadCatalogue(accessToken);
   const lines: DraftLine[] = [];
   const unmatched: string[] = [];
   for (const plannedLine of intended) {
-    const product = await findCatalogueProduct(accessToken, plannedLine.name);
+    const product = catalogue.get(plannedLine.name) ?? null;
     if (product !== null && Number.isFinite(product.defaultUnitCost)) {
       lines.push({
         name: product.name,
@@ -373,7 +420,7 @@ async function publishForProject(
   return await remember(ctx, project, {
     status: drafted && missing === "" ? "quote drafted" : "needs attention",
     jobberClientId: client.id,
-    jobberRequestId: project.jobberRequestId ?? null,
+    jobberRequestId: requestId,
     jobberQuoteId: created.id,
     missingMapping: missing === "" ? null : missing,
     integrationError: drafted ? null : "Jobber did not leave the quote as a draft.",
@@ -396,8 +443,41 @@ async function ensureClient(accessToken: string, project: Doc<"projects">) {
   });
 }
 
+/** The customer's submission as label/value rows for the Jobber Request. */
+function submissionDetails(project: Doc<"projects">): { label: string; value: string }[] {
+  const source = project.submitted ?? project;
+  const rows: { label: string; value: string }[] = [
+    { label: "Name", value: `${source.firstName} ${source.lastName}`.trim() },
+    { label: "Phone", value: source.phone },
+    { label: "Email", value: source.email },
+    {
+      label: "Property address",
+      value: [source.street1, source.street2, source.city, source.state, source.zip]
+        .filter((part) => part.trim() !== "")
+        .join(", "),
+    },
+    { label: "Services", value: source.services.join(", ") },
+  ];
+  for (const answer of source.answers.slice(0, 60)) {
+    rows.push({ label: answer.question, value: answer.value });
+  }
+  for (const measurement of source.measurements.slice(0, 40)) {
+    const size =
+      measurement.unmeasured
+        ? "Not measured"
+        : measurement.squareFeet !== null
+          ? `${measurement.squareFeet} sq ft`
+          : measurement.linearFeet !== null
+            ? `${measurement.linearFeet} linear ft`
+            : "No size";
+    rows.push({ label: `Customer estimate · ${measurement.label}`, value: size });
+  }
+  if (source.notes.trim() !== "") rows.push({ label: "Notes", value: source.notes });
+  return rows.filter((row) => row.value.trim() !== "");
+}
+
 function quoteTitle(project: Doc<"projects">): string {
-  return `${project.firstName} ${project.lastName} · ${project._id}`.trim();
+  return `${project.firstName} ${project.lastName} · ${project.shortCode ?? project._id}`.trim();
 }
 
 async function matchClient(
@@ -406,7 +486,7 @@ async function matchClient(
   phone: string,
 ) {
   const trimmedEmail = email.trim();
-  const trimmedPhone = phone.trim();
+  const phoneDigits = phone.replace(/\D/g, "").slice(-10);
   if (trimmedEmail !== "") {
     const byEmail = await findClients(accessToken, trimmedEmail);
     const emailMatch = byEmail.find(
@@ -418,12 +498,14 @@ async function matchClient(
       return emailMatch;
     }
   }
-  if (trimmedPhone === "") {
+  if (phoneDigits.length < 10) {
     return null;
   }
-  const byPhone = await findClients(accessToken, trimmedPhone);
+  const byPhone = await findClients(accessToken, phoneDigits);
   return (
-    byPhone.find((client) => client.phone === trimmedPhone) ?? null
+    byPhone.find(
+      (client) => client.phone !== null && client.phone.replace(/\D/g, "").slice(-10) === phoneDigits,
+    ) ?? null
   );
 }
 
@@ -447,5 +529,6 @@ async function remember(
 
 function describe(error: unknown): string {
   const message = error instanceof Error ? error.message : "Jobber request failed";
+  console.error("Jobber draft failed:", message);
   return message.slice(0, 500);
 }

@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as crons from "../crons.js";
 import type * as http from "../http.js";
 import type * as jobber_client from "../jobber/client.js";
 import type * as jobber_connection from "../jobber/connection.js";
@@ -17,6 +18,8 @@ import type * as jobber_queries from "../jobber/queries.js";
 import type * as projects_actions from "../projects/actions.js";
 import type * as projects_mutations from "../projects/mutations.js";
 import type * as projects_queries from "../projects/queries.js";
+import type * as projects_shortCode from "../projects/shortCode.js";
+import type * as rateLimits from "../rateLimits.js";
 import type * as sales_login from "../sales/login.js";
 import type * as sales_mutations from "../sales/mutations.js";
 import type * as sales_queries from "../sales/queries.js";
@@ -29,6 +32,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  crons: typeof crons;
   http: typeof http;
   "jobber/client": typeof jobber_client;
   "jobber/connection": typeof jobber_connection;
@@ -38,6 +42,8 @@ declare const fullApi: ApiFromModules<{
   "projects/actions": typeof projects_actions;
   "projects/mutations": typeof projects_mutations;
   "projects/queries": typeof projects_queries;
+  "projects/shortCode": typeof projects_shortCode;
+  rateLimits: typeof rateLimits;
   "sales/login": typeof sales_login;
   "sales/mutations": typeof sales_mutations;
   "sales/queries": typeof sales_queries;
@@ -70,4 +76,6 @@ export declare const internal: FilterApi<
   FunctionReference<any, "internal">
 >;
 
-export declare const components: {};
+export declare const components: {
+  rateLimiter: import("@convex-dev/rate-limiter/_generated/component.js").ComponentApi<"rateLimiter">;
+};

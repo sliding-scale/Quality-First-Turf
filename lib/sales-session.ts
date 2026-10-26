@@ -1,4 +1,5 @@
 const storageKey = "qft-sales-session";
+const changeEvent = "qft-sales-session-change";
 
 function readable(value: string | null) {
   return value !== null && value.length >= 32 ? value : null;
@@ -6,23 +7,44 @@ function readable(value: string | null) {
 
 export function readSalesSession(): string | null {
   if (typeof window === "undefined") return null;
-  return (
-    readable(window.localStorage.getItem(storageKey)) ??
-    readable(window.sessionStorage.getItem(storageKey))
-  );
+  try {
+    return (
+      readable(window.sessionStorage.getItem(storageKey)) ??
+      readable(window.localStorage.getItem(storageKey))
+    );
+  } catch {
+    return null;
+  }
 }
 
-export function writeSalesSession(token: string, remember = true) {
-  if (remember) {
-    window.localStorage.setItem(storageKey, token);
-    window.sessionStorage.removeItem(storageKey);
-    return;
+/** `remember` keeps the token across browser restarts; otherwise it ends with the tab. */
+export function writeSalesSession(token: string, remember = false) {
+  try {
+    const keep = remember ? window.localStorage : window.sessionStorage;
+    const drop = remember ? window.sessionStorage : window.localStorage;
+    keep.setItem(storageKey, token);
+    drop.removeItem(storageKey);
+  } catch {
+    // Storage blocked: the session lasts until the page is closed.
   }
-  window.sessionStorage.setItem(storageKey, token);
-  window.localStorage.removeItem(storageKey);
+  window.dispatchEvent(new Event(changeEvent));
 }
 
 export function clearSalesSession() {
-  window.localStorage.removeItem(storageKey);
-  window.sessionStorage.removeItem(storageKey);
+  try {
+    window.localStorage.removeItem(storageKey);
+    window.sessionStorage.removeItem(storageKey);
+  } catch {
+    // Nothing stored.
+  }
+  window.dispatchEvent(new Event(changeEvent));
+}
+
+export function subscribeSalesSession(listener: () => void) {
+  window.addEventListener(changeEvent, listener);
+  window.addEventListener("storage", listener);
+  return () => {
+    window.removeEventListener(changeEvent, listener);
+    window.removeEventListener("storage", listener);
+  };
 }

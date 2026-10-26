@@ -80,6 +80,9 @@ export function serviceForLabel(
       if (areaName !== "" && label === areaName) return service;
     }
   }
+  // Repair/replacement areas ("Artificial Grass Replacement job") belong to the grass service,
+  // not to whichever service happens to come first.
+  if (label.startsWith(grassService) && form.services.includes(grassService)) return grassService;
   const measurement = measurements.find((item) => item.label === label);
   if (measurement !== undefined) {
     if (label === "Underground") return "Underground";
@@ -161,11 +164,50 @@ function defaultArea(service: string, form: DiscoveryState, index: number): Visi
   };
 }
 
+const JOB_SUFFIX = " job";
+
+/**
+ * The customer form records a repair/replacement twice: the job's size ("Artificial Grass
+ * Replacement job") and the new work itself ("Artificial Grass Replacement"). On site that is one
+ * area, so the job entry is folded into its partner and kept only if it stands alone.
+ */
+function foldJobAreas<T extends { label: string }>(items: T[], merge: (base: T, job: T) => T): T[] {
+  const result: T[] = [];
+  const jobs: T[] = [];
+  for (const item of items) {
+    if (item.label.endsWith(JOB_SUFFIX) && items.some((other) => other.label === item.label.slice(0, -JOB_SUFFIX.length))) {
+      jobs.push(item);
+    } else {
+      result.push(item);
+    }
+  }
+  return result.map((item) => {
+    const job = jobs.find((entry) => entry.label === `${item.label}${JOB_SUFFIX}`);
+    return job === undefined ? item : merge(item, job);
+  });
+}
+
 export function seedVisitAreas(
-  workAreas: VisitWorkArea[],
-  measurements: CustomerMeasurement[],
+  storedAreas: VisitWorkArea[],
+  customerMeasurements: CustomerMeasurement[],
   form: DiscoveryState,
 ): VisitArea[] {
+  const workAreas = foldJobAreas(storedAreas, (base, job) => ({
+    ...base,
+    quantity: base.quantity ?? job.quantity,
+    length: base.length ?? job.length,
+    width: base.width ?? job.width,
+    notes: [base.notes, job.notes].filter((note) => note !== "").join(", "),
+    photoIds: [...base.photoIds, ...job.photoIds],
+    photoUrls: [...base.photoUrls, ...job.photoUrls],
+  }));
+  const measurements = foldJobAreas(customerMeasurements, (base, job) => ({
+    ...base,
+    squareFeet: base.squareFeet ?? job.squareFeet,
+    linearFeet: base.linearFeet ?? job.linearFeet,
+    length: base.length ?? job.length,
+    width: base.width ?? job.width,
+  }));
   const seeded: VisitArea[] = [];
   if (workAreas.length > 0) {
     for (const area of workAreas) {

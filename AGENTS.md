@@ -42,3 +42,10 @@ Retain qualifying friction even if it is later fixed or worked around; record th
 Before the final response, run one reporting pass. If candidates remain, from this file's directory run `npx --no-install next internal agent-feedback-instructions` once without piping or truncating its output. Follow its output or error guidance. If a network sandbox blocks it, retry with network access; if it still returns no output, continue normally.
 
 <!-- END:nextjs-agent-feedback -->
+
+## Project notes
+
+- Design/CSS conventions: `app/design.md`. All CSS is in `app/globals.css`; prefix classes by surface (`intake-`, `services-`, `review-`, `sales-list__`, `visit-`).
+- Backend modules, access model and Jobber flow: `convex/README.md`. Clients must never be able to write Jobber/integration fields.
+- `lib/dummy-catalogue.ts` is a placeholder; real Jobber item names are needed before launch.
+- Run `npm run typecheck` and `npm run lint` before finishing.

@@ -205,12 +205,16 @@ export async function createClient(
   return data.clientCreate.client;
 }
 
-export async function createVisitRequest(args: {
+/**
+ * Creates the Jobber Request that holds what the customer originally submitted.
+ * It is never edited afterwards; the quote carries the salesperson's verified numbers.
+ */
+export async function createRequest(args: {
   accessToken: string;
   clientId: string;
   propertyId: string;
   title: string;
-  reference: string;
+  details: { label: string; value: string }[];
 }): Promise<string> {
   const data = await jobberGraphql<{
     requestCreate: {
@@ -234,8 +238,11 @@ export async function createVisitRequest(args: {
           form: {
             sections: [
               {
-                label: "Site visit",
-                items: [{ label: "Reference", answerText: args.reference }],
+                label: "Submitted by the customer",
+                items: args.details.map((detail) => ({
+                  label: detail.label.slice(0, 200),
+                  answerText: detail.value.slice(0, 1000),
+                })),
               },
             ],
           },
@@ -272,12 +279,11 @@ export async function editQuoteTitle(args: {
   if (message !== null) throw new JobberError(message);
 }
 
-export async function findCatalogueProduct(
-  accessToken: string,
-  name: string,
-): Promise<CatalogueProduct | null> {
+/** Reads the product catalogue once so a quote with many lines costs one query, not one per line. */
+export async function loadCatalogue(accessToken: string): Promise<Map<string, CatalogueProduct>> {
+  const catalogue = new Map<string, CatalogueProduct>();
   let after: string | null = null;
-  for (let page = 0; page < 5; page += 1) {
+  for (let page = 0; page < 10; page += 1) {
     const data: {
       products: {
         nodes: CatalogueProduct[];
@@ -285,8 +291,8 @@ export async function findCatalogueProduct(
       };
     } = await jobberGraphql(
       accessToken,
-      `query FindProduct($searchTerm: String!, $after: String) {
-        products(searchTerm: $searchTerm, first: 50, after: $after) {
+      `query Catalogue($after: String) {
+        products(first: 100, after: $after) {
           nodes {
             id
             name
@@ -295,14 +301,13 @@ export async function findCatalogueProduct(
           pageInfo { hasNextPage endCursor }
         }
       }`,
-      { searchTerm: name, after },
+      { after },
     );
-    const match = data.products.nodes.find((product) => product.name === name);
-    if (match !== undefined) return match;
-    if (!data.products.pageInfo.hasNextPage) return null;
+    for (const product of data.products.nodes) catalogue.set(product.name, product);
+    if (!data.products.pageInfo.hasNextPage) break;
     after = data.products.pageInfo.endCursor;
   }
-  return null;
+  return catalogue;
 }
 
 export async function readQuote(
@@ -458,6 +463,7 @@ async function requestTokens(
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams(fields).toString(),
+    signal: AbortSignal.timeout(20_000),
   });
   const body: unknown = await response.json().catch(() => null);
   if (!response.ok || !isTokenResponse(body)) {
@@ -483,6 +489,7 @@ async function jobberGraphql<T>(
       "X-JOBBER-GRAPHQL-VERSION": jobberGraphqlVersion,
     },
     body: JSON.stringify({ query, variables }),
+    signal: AbortSignal.timeout(20_000),
   });
   const body: unknown = await response.json().catch(() => null);
   if (!response.ok || typeof body !== "object" || body === null) {

@@ -1,6 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { DM_Sans, IBM_Plex_Sans } from "next/font/google";
 import Script from "next/script";
+import { DesktopScale } from "@/components/desktop-scale";
 import { ConvexClientProvider } from "@/components/convex-client-provider";
 import { PhotoRetries } from "@/components/ui/retry-image";
 import "./globals.css";
@@ -15,6 +16,13 @@ const dmSans = DM_Sans({
   variable: "--font-dm-sans",
   subsets: ["latin"],
 });
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#1b4a32",
+};
 
 export const metadata: Metadata = {
   title: "Quality First Turf",
@@ -33,7 +41,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           {`history.scrollRestoration="manual"`}
         </Script>
         <PhotoRetries />
-        <ConvexClientProvider>{children}</ConvexClientProvider>
+        <DesktopScale>
+          <ConvexClientProvider>{children}</ConvexClientProvider>
+        </DesktopScale>
       </body>
     </html>
   );

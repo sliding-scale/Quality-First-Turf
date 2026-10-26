@@ -11,7 +11,17 @@ import {
   redirectUri,
 } from "./client";
 
-export const connect = httpAction(async (ctx) => {
+export const connect = httpAction(async (ctx, request) => {
+  const connectKey = env.JOBBER_CONNECT_KEY;
+  const suppliedKey = new URL(request.url).searchParams.get("key") ?? "";
+  if (!connectKey || !(await sameSecret(suppliedKey, connectKey))) {
+    return page(
+      403,
+      "Not allowed",
+      "Open this page with the connect key: /jobber/connect?key=… (set JOBBER_CONNECT_KEY on the Convex deployment).",
+    );
+  }
+
   const clientId = env.JOBBER_CLIENT_ID;
   const clientSecret = env.JOBBER_CLIENT_SECRET;
   if (!clientId || !clientSecret) {
@@ -111,7 +121,7 @@ export const callback = httpAction(async (ctx, request) => {
       return page(
         200,
         "Jobber connected",
-        `Connected to ${account.name}. You can close this tab.`,
+        "Jobber is connected. You can close this tab.",
       );
     } catch {
       return page(
@@ -133,8 +143,26 @@ function page(status: number, title: string, message: string): Response {
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title></head><body><h1>${escapeHtml(title)}</h1><p>${escapeHtml(message)}</p></body></html>`;
   return new Response(html, {
     status,
-    headers: { "Content-Type": "text/html; charset=utf-8" },
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-store",
+      "Referrer-Policy": "no-referrer",
+      "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'",
+    },
   });
+}
+
+async function sameSecret(left: string, right: string): Promise<boolean> {
+  const encoder = new TextEncoder();
+  const [a, b] = await Promise.all([
+    crypto.subtle.digest("SHA-256", encoder.encode(left)),
+    crypto.subtle.digest("SHA-256", encoder.encode(right)),
+  ]);
+  const x = new Uint8Array(a);
+  const y = new Uint8Array(b);
+  let diff = 0;
+  for (let i = 0; i < x.length; i += 1) diff |= x[i] ^ y[i];
+  return diff === 0;
 }
 
 function escapeHtml(value: string): string {

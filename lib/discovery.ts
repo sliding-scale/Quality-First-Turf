@@ -231,9 +231,9 @@ export const installTypes: Record<string, string[]> = {
     "Premium Pet",
     "Playground",
     "Glue Down Over Concrete",
-    "Turf Stip",
+    "Turf Strip",
   ],
-  "Putting Green": ["Entertaintment Putting Green", "PGA Putting Green"],
+  "Putting Green": ["Entertainment Putting Green", "PGA Putting Green"],
   Underground: [
     '3" Drains',
     '4" Drains',
@@ -270,13 +270,13 @@ const grassProducts: Record<string, ProductOption[]> = {
   "Premium Pet": petTurf,
   Playground: playgroundTurf,
   "Glue Down Over Concrete": everyGrassProduct,
-  "Turf Stip": everyGrassProduct,
+  "Turf Strip": everyGrassProduct,
 };
 
 export type CustomerType = "Homeowner" | "Contractor";
 
 export function grassUsesLinearFeet(installType: string, product: string): boolean {
-  return installType === "Turf Stip" && product !== "Kids Play";
+  return installType === "Turf Strip" && product !== "Kids Play";
 }
 
 export const turfInstallTypes = [
@@ -287,7 +287,7 @@ export const turfInstallTypes = [
   "Premium Pet",
   "Playground",
   "Glue Down Over Concrete",
-  "Turf Stip",
+  "Turf Strip",
 ];
 
 export const soilConditions = ["Standard soil", "Rocky or clay soil", "Not sure"] as const;
@@ -975,6 +975,15 @@ export function phoneInput(value: string): string {
   let digits = value.replace(/\D/g, "");
   if (digits.length === 11 && digits.startsWith("1")) digits = digits.slice(1);
   return digits.slice(0, 10);
+}
+
+/** Digits (at most 10) shown as the person types: 555 → (555, 5551234 → (555) 123-4. */
+export function formatPhone(value: string): string {
+  const digits = phoneInput(value);
+  if (digits.length === 0) return "";
+  if (digits.length <= 3) return `(${digits}`;
+  if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
 }
 
 export function emailInput(value: string): string {

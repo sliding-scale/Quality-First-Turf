@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { internalQuery, query } from "../_generated/server";
 import { activeSalesSession } from "../sales/session";
-import schema, { projectStatus } from "../schema";
+import schema, { changeValidator, projectStatus } from "../schema";
 
 const workAreaLimit = 100;
 
@@ -29,6 +29,7 @@ export const get = internalQuery({
 
 const salesProject = v.object({
   projectId: v.id("projects"),
+  shortCode: v.union(v.string(), v.null()),
   firstName: v.string(),
   lastName: v.string(),
   email: v.string(),
@@ -43,21 +44,28 @@ const salesProject = v.object({
   createdAt: v.number(),
 });
 
+const listLimit = 200;
+
 export const listForSales = query({
   args: { sessionToken: v.string() },
   returns: v.object({
     signedIn: v.boolean(),
+    truncated: v.boolean(),
     projects: v.array(salesProject),
   }),
   handler: async (ctx, args) => {
-    if ((await activeSalesSession(ctx, args.sessionToken)) === null) {
-      return { signedIn: false, projects: [] };
+    const session = await activeSalesSession(ctx, args.sessionToken);
+    if (session === null) {
+      return { signedIn: false, truncated: false, projects: [] };
     }
-    const projects = await ctx.db.query("projects").order("desc").take(200);
+    const found = await ctx.db.query("projects").order("desc").take(listLimit + 1);
+    const projects = found.slice(0, listLimit);
     return {
       signedIn: true,
+      truncated: found.length > listLimit,
       projects: projects.map((project) => ({
         projectId: project._id,
+        shortCode: project.shortCode ?? null,
         firstName: project.firstName,
         lastName: project.lastName,
         email: project.email,
@@ -75,6 +83,22 @@ export const listForSales = query({
   },
 });
 
+/** Lets `/visit/K7M3PQ` work in place of the long database id. */
+export const resolveCode = query({
+  args: { sessionToken: v.string(), code: v.string() },
+  returns: v.union(v.id("projects"), v.null()),
+  handler: async (ctx, args) => {
+    if ((await activeSalesSession(ctx, args.sessionToken)) === null) return null;
+    const code = args.code.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (code.length !== 6) return null;
+    const project = await ctx.db
+      .query("projects")
+      .withIndex("by_shortCode", (q) => q.eq("shortCode", code))
+      .first();
+    return project?._id ?? null;
+  },
+});
+
 export const visit = query({
   args: {
     sessionToken: v.string(),
@@ -85,7 +109,22 @@ export const visit = query({
     v.null(),
     v.object({
       access: v.literal("ok"),
-      project: schema.doc("projects"),
+      project: schema
+        .doc("projects")
+        .omit(
+          "jobberClientId",
+          "jobberRequestId",
+          "jobberQuoteId",
+          "missingMapping",
+          "integrationError",
+          "draftingUntil",
+        ),
+      revisions: v.array(
+        v.object({
+          savedAt: v.number(),
+          changes: v.array(changeValidator),
+        }),
+      ),
       workAreas: v.array(
         v.object({
           label: v.string(),
@@ -127,6 +166,24 @@ export const visit = query({
         photoUrls,
       });
     }
-    return { access: "ok" as const, project, workAreas };
+    const {
+      jobberClientId: _client,
+      jobberRequestId: _request,
+      jobberQuoteId: _quote,
+      missingMapping: _mapping,
+      integrationError: _error,
+      draftingUntil: _drafting,
+      ...visible
+    } = project;
+    const storedRevisions = await ctx.db
+      .query("visitRevisions")
+      .withIndex("by_projectId", (q) => q.eq("projectId", args.projectId))
+      .order("desc")
+      .take(30);
+    const revisions = storedRevisions.map((revision) => ({
+      savedAt: revision.savedAt,
+      changes: revision.changes,
+    }));
+    return { access: "ok" as const, project: visible, workAreas, revisions };
   },
 });

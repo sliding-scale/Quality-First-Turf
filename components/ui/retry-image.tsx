@@ -1,7 +1,7 @@
 "use client";
 
 import NextImage, { type ImageProps } from "next/image";
-import { useEffect, useRef, useState, type ImgHTMLAttributes, type SyntheticEvent } from "react";
+import { useEffect, useRef, useState, type ImgHTMLAttributes, type SyntheticEvent, useLayoutEffect } from "react";
 
 const maxDelayMs = 10000;
 
@@ -24,7 +24,9 @@ function useRetryingSrc(src: string) {
   const alive = useRef(true);
   const seenSrc = useRef(src);
 
-  attemptRef.current = attempt;
+  useLayoutEffect(() => {
+    attemptRef.current = attempt;
+  });
 
   const clearTimer = () => {
     if (timer.current !== null) {
@@ -98,9 +100,13 @@ export default function RetryImage({ src, onLoad, onError, style, ...rest }: Ret
   const [holding, setHolding] = useState(false);
   const nodeRef = useRef<HTMLImageElement>(null);
   const retryRef = useRef(retry);
-  retryRef.current = retry;
+  useLayoutEffect(() => {
+    retryRef.current = retry;
+  });
 
   useEffect(() => {
+    // Reset the placeholder whenever the source changes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setHolding(false);
   }, [src]);
 
@@ -144,9 +150,13 @@ export function RetryNextImage({ src, onLoad, onError, style, ...rest }: RetryNe
   const [holding, setHolding] = useState(false);
   const nodeRef = useRef<HTMLImageElement>(null);
   const retryRef = useRef(retry);
-  retryRef.current = retry;
+  useLayoutEffect(() => {
+    retryRef.current = retry;
+  });
 
   useEffect(() => {
+    // Reset the placeholder whenever the source changes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setHolding(false);
   }, [src]);
 

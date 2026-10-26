@@ -32,6 +32,31 @@ export const workAreaInput = v.object({
   photoIds: v.array(v.id("_storage")),
 });
 
+/** What the customer submitted, frozen when the project is created and never edited afterwards. */
+export const submittedValidator = v.object({
+  firstName: v.string(),
+  lastName: v.string(),
+  phone: v.string(),
+  email: v.string(),
+  street1: v.string(),
+  street2: v.string(),
+  city: v.string(),
+  state: v.string(),
+  zip: v.string(),
+  services: v.array(v.string()),
+  products: v.array(v.string()),
+  answers: v.array(answerValidator),
+  notes: v.string(),
+  measurements: v.array(measurementValidator),
+});
+
+/** One difference recorded by a salesperson's save: what the record said, and what it says now. */
+export const changeValidator = v.object({
+  label: v.string(),
+  before: v.string(),
+  after: v.string(),
+});
+
 export default defineSchema({
   projects: defineTable({
     status: projectStatus,
@@ -55,7 +80,15 @@ export default defineSchema({
     jobberQuoteId: v.union(v.string(), v.null()),
     missingMapping: v.union(v.string(), v.null()),
     integrationError: v.union(v.string(), v.null()),
-  }),
+    shortCode: v.optional(v.string()),
+    submitted: v.optional(submittedValidator),
+    draftingUntil: v.optional(v.number()),
+  }).index("by_shortCode", ["shortCode"]),
+  visitRevisions: defineTable({
+    projectId: v.id("projects"),
+    savedAt: v.number(),
+    changes: v.array(changeValidator),
+  }).index("by_projectId", ["projectId"]),
   workAreas: defineTable({
     projectId: v.id("projects"),
     label: v.string(),
@@ -68,7 +101,10 @@ export default defineSchema({
   salesSessions: defineTable({
     token: v.string(),
     expiresAt: v.number(),
-  }).index("by_token", ["token"]),
+    email: v.optional(v.string()),
+  })
+    .index("by_token", ["token"])
+    .index("by_expiresAt", ["expiresAt"]),
   jobberConnections: defineTable({
     singleton: v.literal("default"),
     refreshToken: v.union(v.string(), v.null()),

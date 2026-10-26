@@ -1,36 +1,83 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Quality First Turf — intake & on-site visit app
 
-## Getting Started
+A Next.js + Convex app with two audiences:
 
-First, run the development server:
+- **Customers** fill in a discovery form (`/`): contact details, property address, services wanted, and per-service questions. On submit a project is saved and a draft quote is pushed to Jobber.
+- **Sales staff** sign in (`/visit`), open a project, verify and measure on site (property, services/areas, photos & notes), and re-draft the quote in Jobber.
+
+## Stack
+
+Next.js 16 (App Router, `cacheComponents`, Turbopack), React 19, Tailwind 4 (plus a large hand-written `app/globals.css`), Convex backend, `lucide-react` icons. Jobber GraphQL API for clients/quotes.
+
+> Next.js 16 has breaking changes versus older versions. Read `node_modules/next/dist/docs/` before changing framework-level code (see `AGENTS.md`).
+
+## Routes
+
+| Route | Purpose |
+|---|---|
+| `/` | Customer discovery form, services, review, confirmation (`components/discovery-form.tsx`) |
+| `/visit` | Sales sign-in, then a project sidebar (search + list) with the visit pane on the right (`components/visit-shell.tsx`) |
+| `/visit/[code]` | On-site visit (`code` is the 6-character project code like `K7M3PQ`; the long database id also works): property → services → photos & notes → review (`components/on-site-visit.tsx`) |
+| `GET <CONVEX_SITE_URL>/jobber/connect?key=…` | Starts the Jobber OAuth connection (Convex HTTP action) |
+| `GET <CONVEX_SITE_URL>/jobber/callback` | Jobber OAuth redirect target |
+
+## Getting started
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npx convex dev      # creates/links a deployment, writes .env.local, watches convex/
+npm run dev         # in a second terminal → http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Copy `.env.example` to `.env.local` if you are not using `npx convex dev` to generate it.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Environment variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Variable | Where | Purpose |
+|---|---|---|
+| `NEXT_PUBLIC_CONVEX_URL` | `.env.local` | Convex client URL (required) |
+| `CONVEX_DEPLOYMENT` | `.env.local` | Written by `npx convex dev` |
+| `SALES_EMAIL`, `SALES_PASSWORD` | Convex deployment | The one login every salesperson shares. If unset, nobody can sign in |
+| `JOBBER_CLIENT_ID`, `JOBBER_CLIENT_SECRET` | Convex deployment | Jobber OAuth app credentials |
+| `JOBBER_CONNECT_KEY` | Convex deployment | Secret required in `/jobber/connect?key=…` so only you can (re)connect Jobber |
 
-## Learn More
+Set Convex variables with `npx convex env set NAME value` (add `--prod` for production).
 
-To learn more about Next.js, take a look at the following resources:
+## Connecting Jobber
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. Create a Jobber developer app. Set its redirect URI to `https://<deployment>.convex.site/jobber/callback`.
+2. Set `JOBBER_CLIENT_ID`, `JOBBER_CLIENT_SECRET`, and `JOBBER_CONNECT_KEY` on the Convex deployment.
+3. Open `https://<deployment>.convex.site/jobber/connect?key=<JOBBER_CONNECT_KEY>` once and approve access. Tokens are stored in the `jobberConnections` table and refreshed automatically.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Quote lines are built in `lib/quote-lines.ts` from `lib/dummy-catalogue.ts`. **The catalogue is a placeholder** (`DUMMY …` names): replace it with the real Jobber product/service names before going live, or quotes will report a missing mapping (project status `needs attention`).
 
-## Deploy on Vercel
+## Sales sign-in model
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+One shared email/password (`SALES_EMAIL` / `SALES_PASSWORD`) is checked in `convex/sales/login.ts`, which issues a random token whose hash is stored in `salesSessions` (14 days). The browser keeps it in storage under `qft-sales-session` and passes it as `sessionToken` to every sales query/mutation. All signed-in staff see every project (latest 200). Per-person accounts would be a follow-up.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Project status lifecycle
+
+`discovery saved` → `on-site saved` → `quote drafted` (or `needs attention` when Jobber mapping/API fails; see `missingMapping` / `integrationError`).
+
+## Layout
+
+```
+app/            routes, layout, global CSS (app/globals.css), design notes (app/design.md)
+components/     discovery-form, intake-property, work-areas, on-site-*, confirmation-*, sales-skeleton, ui/
+lib/            form rules & validation (discovery.ts), drafts, quote-lines, catalogue, sales-session
+convex/         schema, projects/ sales/ jobber/ modules, http routes (see convex/README.md)
+```
+
+## Scripts
+
+| Script | What it does |
+|---|---|
+| `npm run dev` | Next dev server |
+| `npm run build` / `npm start` | Production build / serve |
+| `npm run lint` | ESLint |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm run convex:dev` / `convex:deploy` | Convex dev watcher / deploy functions |
+
+## Deployment
+
+Deploy the Next.js app (e.g. Vercel) with `NEXT_PUBLIC_CONVEX_URL` pointing at the production deployment, and run `npm run convex:deploy` for the backend. Set the Convex variables above on the production deployment.

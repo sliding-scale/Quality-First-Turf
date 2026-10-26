@@ -1,9 +1,10 @@
 "use client";
 
+import { TextField, type TextFieldProps } from "@/components/ui/fields";
 import { Dispatch, SetStateAction } from "react";
 import { Id } from "@/convex/_generated/dataModel";
 import RetryImage from "@/components/ui/retry-image";
-import { decimalInput } from "@/lib/discovery";
+import { PhotoPicker } from "@/components/ui/inputs";
 
 export type WorkAreaDraft = {
   label: string;
@@ -109,6 +110,7 @@ export function WorkAreas({
             <AreaField
               id={`area-${index}-label`}
               label="Area name"
+              placeholder="e.g. Front lawn"
               value={area.label}
               error={problems[`area-${index}-label`]}
               className="span-2"
@@ -117,6 +119,8 @@ export function WorkAreas({
             <AreaField
               id={`area-${index}-quantity`}
               label="Square feet"
+              stepper={50}
+              placeholder="e.g. 450"
               value={area.quantity}
               error={problems[`area-${index}-quantity`]}
               numeric
@@ -127,6 +131,7 @@ export function WorkAreas({
               <textarea
                 id={`area-${index}-notes`}
                 value={area.notes}
+                placeholder="Slope, drainage, obstacles"
                 onChange={(event) => update(index, { notes: event.target.value })}
               />
             </div>
@@ -143,19 +148,9 @@ export function WorkAreas({
             )}
           </div>
           <div className="button-row">
-            <label className="button button--outline">
-              Add photo
-              <input
-                className="visually-hidden"
-                type="file"
-                accept="image/*"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  event.target.value = "";
-                  if (file !== undefined) onPhoto(index, file);
-                }}
-              />
-            </label>
+            <PhotoPicker className="button button--outline" onFile={(file) => onPhoto(index, file)}>
+Add photo
+</PhotoPicker>
             <button
               type="button"
               className="button button--outline"
@@ -181,40 +176,6 @@ export function WorkAreas({
   );
 }
 
-function AreaField({
-  id,
-  label,
-  value,
-  error,
-  numeric = false,
-  className,
-  onChange,
-}: {
-  id: string;
-  label: string;
-  value: string;
-  error?: string;
-  numeric?: boolean;
-  className?: string;
-  onChange: (value: string) => void;
-}) {
-  const errorId = `${id}-error`;
-  return (
-    <div className={error ? `form-field is-invalid ${className ?? ""}` : `form-field ${className ?? ""}`}>
-      <label htmlFor={id}>{label}</label>
-      <input
-        id={id}
-        inputMode={numeric ? "decimal" : undefined}
-        value={value}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={error ? errorId : undefined}
-        onChange={(event) => onChange(numeric ? decimalInput(event.target.value) : event.target.value)}
-      />
-      {error ? (
-        <p id={errorId} className="field-error">
-          {error}
-        </p>
-      ) : null}
-    </div>
-  );
+function AreaField(props: Omit<TextFieldProps, "variant">) {
+  return <TextField variant="form" {...props} />;
 }

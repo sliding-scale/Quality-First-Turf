@@ -19,6 +19,14 @@ import {
 } from "@/lib/discovery";
 
 const storageKey = "qft-discovery-draft";
+const draftVersion = 1;
+const draftMaxAgeMs = 24 * 60 * 60 * 1000;
+
+// Drafts saved before the spelling fixes still carry the old option names.
+const legacySpellings: [string, string][] = [
+  ["Entertaintment", "Entertainment"],
+  ["Turf Stip", "Turf Strip"],
+];
 
 export type DiscoveryStep = "property" | "services" | "details" | "confirmation";
 
@@ -181,10 +189,16 @@ function stepFor(step: unknown, form: DiscoveryState): DiscoveryStep {
 
 export function readDiscoveryDraft(): DiscoveryDraft | null {
   try {
-    const raw = window.localStorage.getItem(storageKey);
+    let raw = window.localStorage.getItem(storageKey);
     if (raw === null) return null;
+    for (const [from, to] of legacySpellings) raw = raw.replaceAll(from, to);
     const parsed: unknown = JSON.parse(raw);
     if (!isRecord(parsed)) return null;
+    // Contact details sit in this draft, so it expires instead of lingering on a shared device.
+    if (typeof parsed.savedAt === "number" && Date.now() - parsed.savedAt > draftMaxAgeMs) {
+      window.localStorage.removeItem(storageKey);
+      return null;
+    }
     const form = formFrom(parsed.form);
     return { form, step: stepFor(parsed.step, form) };
   } catch {
@@ -193,9 +207,20 @@ export function readDiscoveryDraft(): DiscoveryDraft | null {
 }
 
 export function writeDiscoveryDraft(draft: DiscoveryDraft) {
-  window.localStorage.setItem(storageKey, JSON.stringify(draft));
+  try {
+    window.localStorage.setItem(
+      storageKey,
+      JSON.stringify({ ...draft, version: draftVersion, savedAt: Date.now() }),
+    );
+  } catch {
+    // Private mode or a full quota: the form still works, it just won't be restored.
+  }
 }
 
 export function clearDiscoveryDraft() {
-  window.localStorage.removeItem(storageKey);
+  try {
+    window.localStorage.removeItem(storageKey);
+  } catch {
+    // Nothing stored.
+  }
 }
