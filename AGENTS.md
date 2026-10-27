@@ -47,5 +47,5 @@ Before the final response, run one reporting pass. If candidates remain, from th
 
 - Design/CSS conventions: `app/design.md`. All CSS is in `app/globals.css`; prefix classes by surface (`intake-`, `services-`, `review-`, `sales-list__`, `visit-`).
 - Backend modules, access model and Jobber flow: `convex/README.md`. Clients must never be able to write Jobber/integration fields.
-- `lib/dummy-catalogue.ts` is a placeholder; real Jobber item names are needed before launch.
+- `lib/catalogue.ts` builds the Jobber item names; priced retail items (`RP - …`) come from `lib/price-list.ts` and are synced with `convex/jobber/sync.ts`. Contractor (`DUMMY CP - …`) items and the services the 2026 price list does not cover are still placeholders.
 - Run `npm run typecheck` and `npm run lint` before finishing.

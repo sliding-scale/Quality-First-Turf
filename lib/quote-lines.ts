@@ -1,4 +1,4 @@
-import { findDummyItem } from "./dummy-catalogue";
+import { findCatalogueItem } from "./catalogue";
 import {
   areaBandFor,
   canonicalService,
@@ -154,13 +154,24 @@ function planGrass(
   }
   for (const installType of selected) {
     if (installType === "Artificial Grass Repair" || installType === "Artificial Grass Replacement") {
-      addLine(
-        lines,
-        gaps,
-        { customerType, service: grassService, installType },
-        1,
-        `${grassService} / ${installType}`,
-      );
+      // Repair and replacement are priced per square foot, in the same size bands as the turf.
+      const owner = { service: grassService, installType };
+      const jobLabel = installType === "Artificial Grass Repair" ? installType : `${installType} job`;
+      let jobSize = measure(project, jobLabel, "square feet", usedLabels, owner);
+      if (jobSize === null && installType === "Artificial Grass Replacement") {
+        jobSize = measure(project, installType, "square feet", usedLabels, owner);
+      }
+      if (jobSize === null) {
+        gaps.push(`Size is still missing for ${installType}.`);
+      } else {
+        addLine(
+          lines,
+          gaps,
+          { customerType, service: grassService, installType, areaBand: areaBandFor(jobSize) },
+          jobSize,
+          `${grassService} / ${installType}`,
+        );
+      }
     }
     if (installType === "Artificial Grass Repair") continue;
 
@@ -198,7 +209,8 @@ function planGrass(
         service: grassService,
         installType: productInstall,
         product,
-        areaBand: linear ? null : areaBandFor(quantity),
+        // Turf strips are priced per linear foot in the same bands, read against the linear feet.
+        areaBand: areaBandFor(quantity),
       },
       quantity,
       `${installType} / ${product}`,
@@ -336,7 +348,7 @@ function addLine(
   quantity: number,
   label: string,
 ) {
-  const item = findDummyItem(query);
+  const item = findCatalogueItem(query);
   if (item === null || quantity <= 0) {
     gaps.push(`No catalogue item for ${label}.`);
     return;

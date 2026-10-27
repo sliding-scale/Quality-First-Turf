@@ -24,6 +24,8 @@ export type CustomerMeasurement = {
 export type VisitArea = WorkAreaDraft & {
   service: string;
   installType: string;
+  /** The title shown on the card while its name is being typed; unset means follow the name. */
+  shownLabel?: string;
 };
 
 export type VisitWorkArea = {
@@ -52,8 +54,7 @@ export function formatEstimate(measurement: CustomerMeasurement | undefined): st
         ? measurement.length * measurement.width
         : null;
   if (feet !== null) {
-    const band = measurement.areaBand ? `, ${measurement.areaBand}` : "";
-    return `Customer estimated ${feet} SF${band}.`;
+    return `Customer estimated ${feet} SF.`;
   }
   if (measurement.linearFeet !== null) {
     return `Customer estimated ${measurement.linearFeet} linear ft.`;
@@ -122,8 +123,8 @@ function draftFromStored(area: VisitWorkArea, guessedService: string, form: Disc
   const service = area.service ?? guessedService;
   return {
     label: area.label,
-    length: "",
-    width: "",
+    length: area.length !== null ? String(area.length) : "",
+    width: area.width !== null ? String(area.width) : "",
     quantity: squareFeetValue(area.quantity, area.length, area.width),
     notes: area.notes,
     photoIds: area.photoIds,
@@ -212,14 +213,17 @@ export function seedVisitAreas(
     width: base.width ?? job.width,
   }));
   const seeded: VisitArea[] = [];
+  // Lighting is priced per item or per foot and has no areas; its quantities live on its own card.
   if (workAreas.length > 0) {
     for (const area of workAreas) {
       const service = serviceForLabel(area.label, form, measurements);
+      if (service === "Low Voltage Lighting") continue;
       seeded.push(draftFromStored(area, service, form));
     }
   } else {
     for (const measurement of measurements) {
       const service = serviceForLabel(measurement.label, form, measurements);
+      if (service === "Low Voltage Lighting") continue;
       seeded.push(draftFromMeasurement(measurement, service, form));
     }
   }
@@ -284,47 +288,6 @@ export function measuredSquareFeet(area: VisitArea): string {
 
 export function areaHasMeasure(area: VisitArea): boolean {
   return measuredSquareFeet(area) !== "";
-}
-
-export type ServiceStatus = "needs" | "partial" | "verified";
-
-export function serviceStatus(service: string, form: DiscoveryState, areas: VisitArea[]): ServiceStatus {
-  if (service === "Low Voltage Lighting") {
-    const selected = form.installTypes[service] ?? [];
-    if (selected.length === 0) return "needs";
-    const measured = selected.filter(
-      (type) => (form.lightingQuantity[selectionKey(service, type)] ?? "").trim() !== "",
-    ).length;
-    return measured === selected.length ? "verified" : "partial";
-  }
-  if (!hasFollowUp(service)) return "verified";
-
-  const owned = areasForService(areas, service);
-  if (service === "Underground") {
-    const measured =
-      owned.some((area) => area.quantity.trim() !== "") || form.linearFeet.trim() !== "";
-    const soilKnown = form.soil === "Standard soil" || form.soil === "Rocky or clay soil";
-    if (measured && soilKnown) return "verified";
-    if (measured || soilKnown || form.soil === "Not sure") return "partial";
-    return "needs";
-  }
-
-  const types = form.installTypes[service] ?? [];
-  if (types.length === 0) return "needs";
-  if (owned.length === 0) return "needs";
-  const measured = owned.filter(areaHasMeasure).length;
-  if (measured === 0) return "needs";
-  const productsReady =
-    service === grassService
-      ? types.every((type) => {
-          if (type === "Artificial Grass Repair") return true;
-          return (form.product[selectionKey(service, type)] ?? "") !== "";
-        })
-      : service === "Putting Green"
-        ? (form.product[service] ?? "") !== ""
-        : true;
-  if (measured === owned.length && productsReady) return "verified";
-  return "partial";
 }
 
 export function serviceNeedsAreas(service: string): boolean {

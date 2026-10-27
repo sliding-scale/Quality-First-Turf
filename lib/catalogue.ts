@@ -1,3 +1,4 @@
+import { retailPrice } from "./price-list";
 import {
   addOnsFor,
   grassService,
@@ -10,9 +11,11 @@ import {
 } from "./discovery";
 
 /**
- * Placeholder Jobber names. Replace this file with the real catalogue.
- * Names start with DUMMY so they are not mistaken for live Jobber items.
- * Prices are not stored here. Jobber prices the item once the real name exists.
+ * The Jobber product and service names the quote is built from, one per priced combination.
+ * Retail (RP) items covered by the 2026 price list use their real names. Contractor (CP) items,
+ * and services the price list does not cover (SOD, Pavers and the rest), are still placeholders
+ * whose names start with DUMMY so they are not mistaken for live items. Prices live in
+ * `price-list.ts` and in Jobber; this file only decides the names.
  */
 
 export type CatalogueMeasure = "square feet" | "linear feet" | "count";
@@ -49,6 +52,38 @@ const bandInName: Record<string, string> = {
   "2000+": "2000+",
 };
 
+/** The price list's own wording for items whose on-screen name is shorter. */
+const lightingNames: Record<string, string> = {
+  "Run Loose Lay Wire": "Run Loose Lay Wire",
+  "Run Wire Through Conduit": "Run Wire Through Conduit",
+  "Run Line Under Concrete": "Run Line Under Concrete",
+  "Install Outlet": "Outlet Installation",
+  "Install GFI": "Install GFI + Circuit + Running and Connecting Line",
+  "Install Conduit with 110V Line": "Install Conduit with 110 Voltage Line",
+  "Install Controller": "Controller Installation",
+  "150 Watt Transformer": "150 Watt Transformer Installation",
+  "300 Watt Transformer": "300 Watt Transformer Installation",
+  "600 Watt Transformer": "600 Watt Transformer Installation",
+  "Corona Bullet Up Lights": "Corona Bullet Up Lights Installation",
+  "Corona Path Lights": "Corona Path Lights Installation",
+  "Step Lights, Pro-Trade LL1":
+    "Step Lights Installation [Pro-Trade LL1 7 in. Ledge Light Bronze Finish 1.25W 100 Lumen]",
+  "Step Lights, Alliance SL35":
+    "Step Lights Installation [Alliance SL35 Step Light, Black, Integrated LED, 2700K, Brass]",
+  "Under Lights, Pro-Trade LL1":
+    "Under Lights Installation [Pro-Trade LL1 7 in. Ledge Light Bronze Finish 1.25W 100 Lumen]",
+};
+
+const undergroundNames: Record<string, string> = {
+  '3" Drains': '3" Drains Installed',
+  '4" Drains': '4" Drains Installed',
+  '1" Mainline': '1" Mainline PVC Schedule 40 Installed (12" Deep)',
+  '3/4" Waterline': '3/4" Waterline PVC Schedule 40 Installed',
+  "Pipe Sleeve": "Pipe Sleeve PVC Schedule 40 Installed",
+  '2" Conduit': '2" Conduit Installed (18" Deep)',
+  '3/4" Gas Line': '3/4" Gas Line Installed',
+};
+
 function priceCode(customerType: CustomerType): "RP" | "CP" {
   return customerType === "Homeowner" ? "RP" : "CP";
 }
@@ -65,26 +100,12 @@ function buildCatalogue(): CatalogueItem[] {
 
     for (const installType of turfInstallTypes) {
       for (const product of productsFor(grassService, installType)) {
-        if (grassUsesLinearFeet(installType, product.name)) {
-          items.push(
-            item({
-              name: `DUMMY ${code} - AG ${installType} Install - ${product.name}`,
-              measure: "linear feet",
-              customerType,
-              service: grassService,
-              installType,
-              product: product.name,
-              areaBand: null,
-              addOn: null,
-            }),
-          );
-          continue;
-        }
+        const linear = grassUsesLinearFeet(installType, product.name);
         for (const areaBand of areaBands) {
           items.push(
             item({
               name: `DUMMY ${code} - AG ${installType} Install - ${product.name} [${bandInName[areaBand]}]`,
-              measure: "square feet",
+              measure: linear ? "linear feet" : "square feet",
               customerType,
               service: grassService,
               installType,
@@ -97,30 +118,25 @@ function buildCatalogue(): CatalogueItem[] {
       }
     }
 
-    items.push(
-      item({
-        name: `DUMMY ${code} - AG Replacement`,
-        measure: "count",
-        customerType,
-        service: grassService,
-        installType: "Artificial Grass Replacement",
-        product: null,
-        areaBand: null,
-        addOn: null,
-      }),
-    );
-    items.push(
-      item({
-        name: `DUMMY ${code} - AG Repair`,
-        measure: "count",
-        customerType,
-        service: grassService,
-        installType: "Artificial Grass Repair",
-        product: null,
-        areaBand: null,
-        addOn: null,
-      }),
-    );
+    for (const [short, installType] of [
+      ["Replacement", "Artificial Grass Replacement"],
+      ["Repair", "Artificial Grass Repair"],
+    ] as const) {
+      for (const areaBand of areaBands) {
+        items.push(
+          item({
+            name: `DUMMY ${code} - AG ${short} [${bandInName[areaBand]}]`,
+            measure: "square feet",
+            customerType,
+            service: grassService,
+            installType,
+            product: null,
+            areaBand,
+            addOn: null,
+          }),
+        );
+      }
+    }
 
     for (const addOn of addOnsFor(grassService, "Budget Friendly")) {
       items.push(
@@ -210,7 +226,7 @@ function buildCatalogue(): CatalogueItem[] {
       for (const soil of ["Standard soil", "Rocky or clay soil"]) {
         items.push(
           item({
-            name: `DUMMY ${code} - Underground ${installType} [${soil}]`,
+            name: `DUMMY ${code} - Underground ${undergroundNames[installType] ?? installType} [${soil}]`,
             measure: "linear feet",
             customerType,
             service: "Underground",
@@ -227,7 +243,7 @@ function buildCatalogue(): CatalogueItem[] {
     for (const installType of installTypes["Low Voltage Lighting"] ?? []) {
       items.push(
         item({
-          name: `DUMMY ${code} - Lighting ${installType}`,
+          name: `DUMMY ${code} - Lighting ${lightingNames[installType] ?? installType}`,
           measure: "count",
           customerType,
           service: "Low Voltage Lighting",
@@ -267,9 +283,14 @@ function buildCatalogue(): CatalogueItem[] {
   return items;
 }
 
-export const dummyCatalogue: CatalogueItem[] = buildCatalogue();
+export const catalogue: CatalogueItem[] = buildCatalogue().map((entry) =>
+  // Priced retail items drop the placeholder prefix; everything else keeps it.
+  entry.customerType === "Homeowner" && retailPrice(entry) !== null
+    ? { ...entry, name: entry.name.replace(/^DUMMY /, "") }
+    : entry,
+);
 
-export function findDummyItem(query: {
+export function findCatalogueItem(query: {
   customerType: CustomerType;
   service: string;
   installType?: string | null;
@@ -279,7 +300,7 @@ export function findDummyItem(query: {
   soil?: string | null;
 }): CatalogueItem | null {
   return (
-    dummyCatalogue.find(
+    catalogue.find(
       (entry) =>
         entry.customerType === query.customerType &&
         entry.service === query.service &&

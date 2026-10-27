@@ -57,12 +57,8 @@ function formRows(form: DiscoveryState): Rows {
   add("state", "State", form.state, contactGroup);
   add("zip", "ZIP code", form.zip, contactGroup);
   add("customerType", "Customer type", form.customerType, contactGroup);
-  add(
-    "services",
-    "Services",
-    orderServices(form.services).map(serviceLabel).join(", "),
-    contactGroup,
-  );
+  const picked = orderServices(form.services).map(serviceLabel);
+  add("services", "Services", picked.join(", "), contactGroup, picked);
 
   for (const [key, types] of Object.entries(form.installTypes)) {
     add(`installTypes:${key}`, "Installation items", [...types].sort().join(", "), key, types);

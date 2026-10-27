@@ -60,6 +60,15 @@ export const changeValidator = v.object({
   after: v.string(),
 });
 
+/** A consultation booked on the project's Jobber request; date and time are the wall-clock values entered. */
+export const consultationValidator = v.object({
+  assessmentId: v.string(),
+  date: v.string(),
+  time: v.string(),
+  minutes: v.number(),
+  instructions: v.string(),
+});
+
 export default defineSchema({
   projects: defineTable({
     status: projectStatus,
@@ -85,7 +94,10 @@ export default defineSchema({
     integrationError: v.union(v.string(), v.null()),
     shortCode: v.optional(v.string()),
     submitted: v.optional(submittedValidator),
+    /** Set when a salesperson has completed the on-site visit. */
+    visitedAt: v.optional(v.number()),
     draftingUntil: v.optional(v.number()),
+    consultation: v.optional(consultationValidator),
   }).index("by_shortCode", ["shortCode"]),
   visitRevisions: defineTable({
     projectId: v.id("projects"),

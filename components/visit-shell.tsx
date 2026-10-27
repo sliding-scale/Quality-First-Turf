@@ -140,25 +140,22 @@ function ProjectSidebar({
               : "No projects match that search."}
           </p>
         ) : (
-          projects.map((project) => {
-            const key = project.shortCode ?? project.projectId;
-            const active = activeCode !== null && normalizeShortCode(activeCode) === normalizeShortCode(key);
-            const name = `${project.firstName} ${project.lastName}`.trim() || "Unnamed customer";
-            const address = [project.street1, project.city].filter((part) => part.trim() !== "").join(", ");
-            return (
-              <Link
-                key={project.projectId}
-                className={active ? "visit-sidebar__item is-active" : "visit-sidebar__item"}
-                href={`/visit/${key}`}
-                aria-current={active ? "page" : undefined}
-              >
-                <strong>{name}</strong>
-                <span>
-                  {[formatShortCode(project.shortCode), address].filter((part) => part !== "").join(" · ")}
-                </span>
-              </Link>
-            );
-          })
+          <>
+            <ProjectGroup
+              title="Pending"
+              hint="Incoming requests waiting for a visit"
+              projects={projects.filter((project) => project.visitedAt === null)}
+              activeCode={activeCode}
+            />
+            <ProjectGroup
+              title="Completed"
+              hint="Visit done"
+              projects={projects
+                .filter((project) => project.visitedAt !== null)
+                .sort((left, right) => (right.visitedAt ?? 0) - (left.visitedAt ?? 0))}
+              activeCode={activeCode}
+            />
+          </>
         )}
         {data?.signedIn === true && data.truncated ? (
           <p className="visit-sidebar__note">Showing the latest 200. Search to find older ones.</p>
@@ -168,9 +165,56 @@ function ProjectSidebar({
   );
 }
 
+type GroupedProject = ListedProject & { visitedAt: number | null };
+
+function ProjectGroup({
+  title,
+  hint,
+  projects,
+  activeCode,
+}: {
+  title: string;
+  hint: string;
+  projects: GroupedProject[];
+  activeCode: string | null;
+}) {
+  return (
+    <section className="visit-sidebar__group" aria-label={`${title} projects`}>
+      <h2 className="visit-sidebar__group-title">
+        {title}
+        <span>{projects.length}</span>
+      </h2>
+      {projects.length === 0 ? (
+        <p className="visit-sidebar__note">{`None. ${hint}.`}</p>
+      ) : (
+        projects.map((project) => {
+          const key = project.shortCode ?? project.projectId;
+          const active = activeCode !== null && normalizeShortCode(activeCode) === normalizeShortCode(key);
+          const name = `${project.firstName} ${project.lastName}`.trim() || "Unnamed customer";
+          const address = [project.street1, project.city].filter((part) => part.trim() !== "").join(", ");
+          return (
+            <Link
+              key={project.projectId}
+              className={active ? "visit-sidebar__item is-active" : "visit-sidebar__item"}
+              href={`/visit/${key}`}
+              aria-current={active ? "page" : undefined}
+            >
+              <strong>{name}</strong>
+              <span>
+                {[formatShortCode(project.shortCode), address].filter((part) => part !== "").join(" · ")}
+              </span>
+            </Link>
+          );
+        })
+      )}
+    </section>
+  );
+}
+
 type ListedProject = {
   projectId: string;
   shortCode: string | null;
+  visitedAt: number | null;
   firstName: string;
   lastName: string;
   email: string;

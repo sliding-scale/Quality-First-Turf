@@ -46,6 +46,7 @@ export function OnSiteForm({ projectId }: { projectId: string }) {
       key={id}
       projectId={id}
       sessionToken={token}
+      canSchedule={data.canSchedule}
       project={data.project}
       workAreas={data.workAreas}
       revisions={data.revisions}

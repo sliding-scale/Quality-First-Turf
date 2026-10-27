@@ -49,7 +49,9 @@ Set Convex variables with `npx convex env set NAME value` (add `--prod` for prod
 2. Set `JOBBER_CLIENT_ID`, `JOBBER_CLIENT_SECRET`, and `JOBBER_CONNECT_KEY` on the Convex deployment.
 3. Open `https://<deployment>.convex.site/jobber/connect?key=<JOBBER_CONNECT_KEY>` once and approve access. Tokens are stored in the `jobberConnections` table and refreshed automatically.
 
-Quote lines are built in `lib/quote-lines.ts` from `lib/dummy-catalogue.ts`. **The catalogue is a placeholder** (`DUMMY …` names): replace it with the real Jobber product/service names before going live, or quotes will report a missing mapping (project status `needs attention`).
+Quote lines are built in `lib/quote-lines.ts` from `lib/catalogue.ts`. Retail items covered by the 2026 price list (grass, putting green, demolition, underground, lighting) use real names (`RP - …`) and prices from `lib/price-list.ts`; run `npx convex run jobber/sync:plan` to compare with Jobber and `jobber/sync:apply` to create, reprice or hide items (Jobber cannot delete, so replaced items are hidden). Contractor (`DUMMY CP - …`) items and the 12 services the list does not price are still placeholders. A missing item makes the quote report a missing mapping (project status `needs attention`).
+
+The customer form creates a Jobber **Request** only. The quote is drafted when the salesperson saves the on-site visit, and is linked to that Request. The **Consultation** button in the visit header books, moves or cancels the Request's appointment (`convex/projects/consultation.ts`); it uses the connected Jobber user's time zone.
 
 ## Sales sign-in model
 

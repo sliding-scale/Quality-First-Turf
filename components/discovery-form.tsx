@@ -41,6 +41,8 @@ import {
 import { ConfirmationPage } from "@/components/confirmation-page";
 import { IntakeFrame, PropertyStep } from "@/components/intake-property";
 import ServiceBoard from "@/components/service-board";
+import { InstallCard } from "@/components/ui/install-card";
+import { RequiredStar } from "@/components/ui/fields";
 import { TextField, type TextFieldProps } from "@/components/ui/fields";
 import {
   clearDiscoveryDraft,
@@ -50,7 +52,7 @@ import {
 } from "@/lib/discovery-draft";
 import { friendlyError } from "@/lib/errors";
 import { scrollToStart, transitionStep } from "@/lib/step-transition";
-import { toggleRadio } from "@/components/ui/inputs";
+import { blockEnterSubmit, toggleRadio } from "@/components/ui/inputs";
 
 const customerSteps: DiscoveryStep[] = ["property", "services", "details"];
 
@@ -438,7 +440,7 @@ export function DiscoveryForm() {
               Which services are
               <span className="services-copy__break">you considering?</span>
             </h1>
-            <p className="services-copy__sub">Choose one or more.</p>
+            <p className="services-copy__sub">Choose one or more.<RequiredStar /></p>
           </div>
           <div id="services">
             {fieldErrors.services ? (
@@ -482,7 +484,7 @@ export function DiscoveryForm() {
           </div>
         </form>
       ) : (
-      <form className="review-page" onSubmit={onSubmit} noValidate>
+      <form className="review-page" onSubmit={onSubmit} onKeyDown={blockEnterSubmit} noValidate>
         <div className="review-page__bg" aria-hidden="true" />
         {step === "details" ? (
           <div className="review-stage">
@@ -490,7 +492,8 @@ export function DiscoveryForm() {
               <h1>A few questions</h1>
               <p>
                 You chose <ServiceNames names={orderServices(form.services)} />.
-                <QuietServices names={orderServices(form.services)} /> If you do not know a measurement, you can still send this in.
+                <br />
+                If you do not know a measurement, you can still send this in.
               </p>
             </div>
             <div className="review-cards">
@@ -630,18 +633,6 @@ function ServiceNames({ names }: { names: string[] }) {
   ));
 }
 
-function QuietServices({ names }: { names: string[] }) {
-  const quiet = names.filter((service) => !hasFollowUp(service));
-  if (quiet.length === 0) return null;
-  const verb = quiet.length === 1 ? "needs" : "need";
-  return (
-    <>
-      {" "}
-      <ServiceNames names={quiet} /> {verb} nothing else here.
-    </>
-  );
-}
-
 function choiceLabel(value: string) {
   return value;
 }
@@ -665,7 +656,6 @@ function DemoSection({
   const selected = form.installTypes[service] ?? [];
   const addOns = addOnsForSelected(service, selected);
   const installId = fieldIdFor("install", service);
-  const needsAreaName = selected.length > 1;
   const [folded, setFolded] = useState<Record<string, boolean>>({});
 
   function toggleInstallType(value: string) {
@@ -692,15 +682,10 @@ function DemoSection({
           </span>
           <span className="demo-panel__title">
             {serviceLabel(service)}
-            <span className="demo-panel__kind">Installation type</span>
+            <span className="demo-panel__kind">Installation type<RequiredStar /></span>
           </span>
         </h2>
         <div className="demo-types" id={installId}>
-          {needsAreaName ? (
-            <p className="muted">
-              Name the area for each installation type, such as front yard or back yard.
-            </p>
-          ) : null}
           {problems[installId] ? (
             <p className="field-error" role="alert">
               {problems[installId]}
@@ -708,82 +693,47 @@ function DemoSection({
           ) : null}
           {(installTypes[service] ?? []).map((type) => {
             const checked = selected.includes(type);
-            const expanded = checked && !folded[type];
             const areaKey = selectionKey(service, type);
             const panelId = `${fieldIdFor("install", service, type)}-panel`;
             return (
-              <div key={type} className={checked ? "demo-type is-on" : "demo-type"}>
-                <div className="demo-type__head">
-                  <label className="demo-type__choice">
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() => toggleInstallType(type)}
-                    />
-                    <span className="demo-mark" aria-hidden="true" />
-                    <span className="demo-type__copy">
-                      <span className="demo-type__name">{choiceLabel(type)}</span>
-                      {installTypeDetail[type] ? (
-                        <span className="demo-type__detail">{installTypeDetail[type]}</span>
-                      ) : null}
-                    </span>
-                  </label>
-                  {checked ? (
-                    <button
-                      type="button"
-                      className="demo-type__toggle"
-                      aria-expanded={expanded}
-                      aria-controls={panelId}
-                      onClick={() =>
-                        setFolded((current) => ({ ...current, [type]: !current[type] }))
-                      }
-                    >
-                      {expanded ? (
-                        <ChevronUp strokeWidth={2.25} aria-hidden="true" />
-                      ) : (
-                        <ChevronDown strokeWidth={2.25} aria-hidden="true" />
-                      )}
-                      <span className="visually-hidden">
-                        {expanded ? `Hide ${type} details` : `Show ${type} details`}
-                      </span>
-                    </button>
-                  ) : null}
-                </div>
-                {expanded ? (
-                  <div className="demo-type__body" id={panelId}>
-                    <div className={needsAreaName ? "demo-type__fields" : "demo-type__fields demo-type__fields--single"}>
-                      {needsAreaName ? (
-                        <Field
-                          id={fieldIdFor("area", areaKey)}
-                          label="Which area is this?"
-                          placeholder="front yard"
-                          value={form.areaNames[areaKey] ?? ""}
-                          error={problems[fieldIdFor("area", areaKey)]}
-                          onChange={(value) => {
-                            clearProblem(fieldIdFor("area", areaKey));
-                            setForm((current) => ({
-                              ...current,
-                              areaNames: { ...current.areaNames, [areaKey]: value },
-                            }));
-                          }}
-                        />
-                      ) : null}
-                      <SquareFeetField
-                        id={fieldIdFor("square-feet", service, type)}
-                        value={form.squareFeet[type] ?? ""}
-                        error={problems[fieldIdFor("square-feet", service, type)]}
-                        onChange={(value) => {
-                          clearProblem(fieldIdFor("square-feet", service, type));
-                          setForm((current) => ({
-                            ...current,
-                            squareFeet: { ...current.squareFeet, [type]: value },
-                          }));
-                        }}
-                      />
-                    </div>
-                  </div>
-                ) : null}
-              </div>
+              <InstallCard
+                key={type}
+                title={choiceLabel(type)}
+                detail={installTypeDetail[type]}
+                checked={checked}
+                expanded={!folded[type]}
+                panelId={panelId}
+                onSelect={() => toggleInstallType(type)}
+                onFold={() => setFolded((current) => ({ ...current, [type]: !current[type] }))}
+              >
+                <Field
+                  id={fieldIdFor("area", areaKey)}
+                  label="Which area is this?"
+                  placeholder="e.g. Front yard"
+                  value={form.areaNames[areaKey] ?? ""}
+                  error={problems[fieldIdFor("area", areaKey)]}
+                  onChange={(value) => {
+                    clearProblem(fieldIdFor("area", areaKey));
+                    setForm((current) => ({
+                      ...current,
+                      areaNames: { ...current.areaNames, [areaKey]: value },
+                    }));
+                  }}
+                />
+                <SquareFeetField
+                  dims={sizeDims(form, setForm, type)}
+                  id={fieldIdFor("square-feet", service, type)}
+                  value={form.squareFeet[type] ?? ""}
+                  error={problems[fieldIdFor("square-feet", service, type)]}
+                  onChange={(value) => {
+                    clearProblem(fieldIdFor("square-feet", service, type));
+                    setForm((current) => ({
+                      ...current,
+                      squareFeet: { ...current.squareFeet, [type]: value },
+                    }));
+                  }}
+                />
+              </InstallCard>
             );
           })}
         </div>
@@ -815,29 +765,6 @@ const puttingOptions = [
   },
 ];
 
-function GolferIcon() {
-  return (
-    <svg
-      className="golfer-icon"
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.75"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="15.2" cy="4.6" r="1.85" />
-      <path d="M14.3 6.7 11.4 12.2" />
-      <path d="M11.4 12.2 8.2 18" />
-      <path d="M11.4 12.2 14.6 18" />
-      <path d="M13.7 8.2 9.2 10.8" />
-      <path d="M9.2 10.8 5.2 15.4" />
-      <circle cx="4.3" cy="16.7" r="0.85" fill="currentColor" stroke="none" />
-    </svg>
-  );
-}
-
 function PuttingGreenSection({
   form,
   setForm,
@@ -850,6 +777,7 @@ function PuttingGreenSection({
   clearProblem: (id: string) => void;
 }) {
   const service = "Putting Green";
+  const [folded, setFolded] = useState<Record<string, boolean>>({});
   const selected = form.installTypes[service] ?? [];
   const installType = selected[0] ?? "";
   const products = productsFor(service, installType);
@@ -914,10 +842,10 @@ function PuttingGreenSection({
         </span>
         <span className="demo-panel__title">
           Putting Green
-          <span className="demo-panel__kind">Installation type</span>
+          <span className="demo-panel__kind">Installation type<RequiredStar /></span>
         </span>
       </h2>
-      <div className="putting-options" id={installId} role="radiogroup" aria-labelledby="putting-green-heading">
+      <div className="demo-types" id={installId} role="radiogroup" aria-labelledby="putting-green-heading">
         <p className="putting-lead">Select the type of putting green you&apos;re interested in.</p>
         {problems[installId] ? (
           <p className="field-error" role="alert">
@@ -926,54 +854,71 @@ function PuttingGreenSection({
         ) : null}
         {puttingOptions.map((option) => {
           const checked = installType === option.value;
+          const areaKey = selectionKey(service, option.value);
           return (
-            <label key={option.value} className={checked ? "putting-option is-on" : "putting-option"}>
-              <input
-                type="radio"
-                name="putting-green-install"
-                {...toggleRadio(checked, () => chooseType(option.value), () => chooseType(""))}
+            <InstallCard
+              key={option.value}
+              single
+              name="putting-green-install"
+              title={option.label}
+              detail={option.detail}
+              checked={checked}
+              expanded={!folded[option.value]}
+              panelId={`${fieldIdFor("install", service, option.value)}-panel`}
+              onSelect={() => {
+                setFolded((current) => ({ ...current, [option.value]: false }));
+                chooseType(checked ? "" : option.value);
+              }}
+              onFold={() => setFolded((current) => ({ ...current, [option.value]: !current[option.value] }))}
+            >
+              <Field
+                id={fieldIdFor("area", areaKey)}
+                label="Which area is this?"
+                placeholder="e.g. Backyard"
+                value={form.areaNames[areaKey] ?? ""}
+                error={problems[fieldIdFor("area", areaKey)]}
+                onChange={(value) => {
+                  clearProblem(fieldIdFor("area", areaKey));
+                  setForm((current) => ({
+                    ...current,
+                    areaNames: { ...current.areaNames, [areaKey]: value },
+                  }));
+                }}
               />
-              <span className="putting-option__mark" aria-hidden="true" />
-              <span className="putting-option__icon" aria-hidden="true">
-                {option.icon === "flag" ? <Flag strokeWidth={1.75} /> : <GolferIcon />}
-              </span>
-              <span className="putting-option__copy">
-                <span className="putting-option__name">{option.label}</span>
-                <span className="putting-option__detail">{option.detail}</span>
-              </span>
-            </label>
+              {products.length > 0 ? (
+                <ChoiceGroup
+                  id={fieldIdFor("product", service)}
+                  legend="Product"
+                  required
+                  name={`${service}-product`}
+                  look="photos"
+                  images={productPhotos}
+                  error={problems[fieldIdFor("product", service)]}
+                  options={products.map((product) =>
+                    product.mark === null ? product.name : `${product.name} (${product.mark})`,
+                  )}
+                  values={products.map((product) => product.name)}
+                  value={form.product[service] ?? ""}
+                  onChange={(value) => {
+                    clearProblem(fieldIdFor("product", service));
+                    setForm((current) => ({
+                      ...current,
+                      product: { ...current.product, [service]: value },
+                    }));
+                  }}
+                />
+              ) : null}
+              <SquareFeetField
+                dims={sizeDims(form, setForm, installType)}
+                id={feetId}
+                value={feetValue}
+                error={problems[feetId]}
+                onChange={setFeet}
+              />
+            </InstallCard>
           );
         })}
       </div>
-      <SquareFeetField
-        id={feetId}
-        value={feetValue}
-        error={problems[feetId]}
-        stepped
-        onChange={setFeet}
-      />
-      {products.length > 0 ? (
-        <ChoiceGroup
-          id={fieldIdFor("product", service)}
-          legend="Product"
-          name={`${service}-product`}
-          look="photos"
-          images={productPhotos}
-          error={problems[fieldIdFor("product", service)]}
-          options={products.map((product) =>
-            product.mark === null ? product.name : `${product.name} (${product.mark})`,
-          )}
-          values={products.map((product) => product.name)}
-          value={form.product[service] ?? ""}
-          onChange={(value) => {
-            clearProblem(fieldIdFor("product", service));
-            setForm((current) => ({
-              ...current,
-              product: { ...current.product, [service]: value },
-            }));
-          }}
-        />
-      ) : null}
       </div>
       <AddOnAside
         service={service}
@@ -1001,7 +946,7 @@ function UndergroundSection({
   const service = "Underground";
   const selected = form.installTypes[service] ?? [];
   const installId = fieldIdFor("install", service);
-  const needsAreaName = selected.length > 1;
+  const needsAreaName = selected.length > 0;
   const [folded, setFolded] = useState<Record<string, boolean>>({});
   const types = installTypes[service] ?? [];
   const soilError = problems["underground-soil"];
@@ -1035,15 +980,10 @@ function UndergroundSection({
           </span>
           <span className="demo-panel__title">
             Underground
-            <span className="demo-panel__kind">Installation type</span>
+            <span className="demo-panel__kind">Installation type<RequiredStar /></span>
           </span>
         </h2>
         <div className="demo-types" id={installId}>
-          {needsAreaName ? (
-            <p className="muted">
-              Name the area for each installation type, such as front yard or back yard.
-            </p>
-          ) : null}
           {problems[installId] ? (
             <p className="field-error" role="alert">
               {problems[installId]}
@@ -1120,7 +1060,7 @@ function UndergroundSection({
                           aria-invalid={soilError ? true : undefined}
                           aria-describedby={soilError ? "underground-soil-error" : undefined}
                         >
-                          <legend>What is the soil like?</legend>
+                          <legend>What is the soil like?<RequiredStar /></legend>
                           {soilError ? (
                             <p id="underground-soil-error" className="field-error" role="alert">
                               {soilError}
@@ -1360,6 +1300,7 @@ function FollowUp({
             <ChoiceGroup
               id={fieldIdFor("product", service)}
               legend="Product"
+              required
               name={`${service}-product`}
               look="photos"
               images={productPhotos}
@@ -1395,6 +1336,7 @@ function FollowUp({
               <ChoiceGroup
                 id="underground-soil"
                 legend="What is the soil like?"
+                required
                 name="underground-soil"
                 options={[...soilConditions]}
                 values={[...soilConditions]}
@@ -1429,19 +1371,16 @@ function FollowUp({
     );
   }
 
-  const needsAreaName = selected.length > 1;
+  const needsAreaName = selected.length > 0;
 
   return (
     <>
     <div className="service-list" id={installId}>
-      <span className="expand-label">Installation type</span>
+      <span className="expand-label">Installation type<RequiredStar /></span>
       {problems[installId] ? (
         <p className="field-error" role="alert">
           {problems[installId]}
         </p>
-      ) : null}
-      {needsAreaName ? (
-        <p className="muted">Name the area for each installation type if you know it, such as front yard or back yard.</p>
       ) : null}
       {(installTypes[service] ?? []).map((type) => {
         const checked = selected.includes(type);
@@ -1471,7 +1410,7 @@ function FollowUp({
                   <Field
                     id={fieldIdFor("area", areaKey)}
                     label="Which area is this, if you know it?"
-                    placeholder="e.g. Front yard, backyard, side yard"
+                    placeholder="e.g. Front yard"
                     value={form.areaNames[areaKey] ?? ""}
                     error={problems[fieldIdFor("area", areaKey)]}
                     onChange={(value) => {
@@ -1485,6 +1424,7 @@ function FollowUp({
                 ) : null}
                 {asksForArea(service, type) ? (
                   <SquareFeetField
+                    dims={sizeDims(form, setForm, type)}
                     id={fieldIdFor("square-feet", service, type)}
                     value={form.squareFeet[type] ?? ""}
                     error={problems[fieldIdFor("square-feet", service, type)]}
@@ -1572,6 +1512,7 @@ function GrassFollowUp({
   const installId = fieldIdFor("install", service);
   const workId = fieldIdFor("grass-work", service);
   const work = form.grassWork;
+  const [folded, setFolded] = useState<Record<string, boolean>>({});
 
   function chooseWork(nextWork: DiscoveryState["grassWork"] | "") {
     clearProblem(workId);
@@ -1598,6 +1539,7 @@ function GrassFollowUp({
 
   function toggleInstallType(value: string) {
     clearProblem(installId);
+    setFolded((current) => ({ ...current, [value]: false }));
     setForm((current) => {
       const currentTypes = (current.installTypes[service] ?? []).filter((type) =>
         turfInstallTypes.includes(type),
@@ -1618,6 +1560,7 @@ function GrassFollowUp({
     const id = fieldIdFor("square-feet", jobKey);
     return (
       <SquareFeetField
+        dims={sizeDims(form, setForm, jobKey)}
         id={id}
         value={form.squareFeet[jobKey] ?? ""}
         error={problems[id]}
@@ -1638,7 +1581,7 @@ function GrassFollowUp({
     <>
     <div className="grass-follow" id={workId}>
       <p className="grass-label" id={`${workId}-label`}>
-        What do you need?
+        What do you need?<RequiredStar />
       </p>
       {problems[workId] ? (
         <p className="field-error" role="alert">
@@ -1684,8 +1627,8 @@ function GrassFollowUp({
       {work === "Replacement" ? (
         <div className="grass-body">
           {jobAreaField("Artificial Grass Replacement")}
-          <div className="grass-packages" id={replacementId}>
-            <p className="grass-heading">New turf installation</p>
+          <div className="demo-types" id={replacementId}>
+            <p className="grass-heading">New turf installation<RequiredStar /></p>
             {problems[replacementId] ? (
               <p className="field-error" role="alert">
                 {problems[replacementId]}
@@ -1693,80 +1636,77 @@ function GrassFollowUp({
             ) : null}
             {turfInstallTypes.map((type) => {
               const meta = turfPackageMeta[type];
+              const chosen = replacementInstall === type;
               return (
-                <GrassOption
+                <InstallCard
                   key={type}
+                  single
                   name={`${replacementKey}-replacement-install`}
-                  checked={replacementInstall === type}
                   title={choiceLabel(type)}
-                  detail={meta?.detail ?? ""}
-                  icon={meta?.icon ?? Sprout}
-                  onChange={() => {
+                  detail={meta?.detail}
+                  checked={chosen}
+                  expanded={!folded[`replacement-${type}`]}
+                  panelId={`${fieldIdFor("replacement", type)}-panel`}
+                  onSelect={() => {
                     clearProblem(replacementId);
+                    setFolded((current) => ({ ...current, [`replacement-${type}`]: false }));
                     setForm((current) => ({
                       ...current,
                       replacementInstall: {
                         ...current.replacementInstall,
-                        [replacementKey]: replacementInstall === type ? "" : type,
+                        [replacementKey]: chosen ? "" : type,
                       },
                     }));
                   }}
-                />
+                  onFold={() =>
+                    setFolded((current) => ({
+                      ...current,
+                      [`replacement-${type}`]: !current[`replacement-${type}`],
+                    }))
+                  }
+                >
+                  <GrassScope
+                    form={form}
+                    setForm={setForm}
+                    scopeKey={replacementKey}
+                    productInstall={type}
+                    problems={problems}
+                    clearProblem={clearProblem}
+                    sizeFirst
+                  />
+                </InstallCard>
               );
             })}
           </div>
-          {replacementInstall !== "" ? (
-            <GrassScope
-              form={form}
-              setForm={setForm}
-              scopeKey={replacementKey}
-              productInstall={replacementInstall}
-              problems={problems}
-              clearProblem={clearProblem}
-              sizeFirst
-            />
-          ) : null}
         </div>
       ) : null}
       {work === "Installation" ? (
         <div className="grass-body" id={installId}>
-          <div className="grass-packages">
-            <p className="grass-heading">Installation type</p>
+          <div className="demo-types">
+            <p className="grass-heading">Installation type<RequiredStar /></p>
             {problems[installId] ? (
               <p className="field-error" role="alert">
                 {problems[installId]}
               </p>
             ) : null}
-            {selected.length > 1 ? (
-              <p className="muted grass-packages__note">
-                Name the area for each installation type if you know it, such as front yard or back yard.
-              </p>
-            ) : null}
             {turfInstallTypes.map((installType) => {
               const meta = turfPackageMeta[installType];
+              const key = selectionKey(service, installType);
               return (
-                <GrassOption
+                <InstallCard
                   key={installType}
-                  multiple
-                  checked={selected.includes(installType)}
                   title={choiceLabel(installType)}
-                  detail={meta?.detail ?? ""}
-                  icon={meta?.icon ?? Sprout}
-                  onChange={() => toggleInstallType(installType)}
-                />
-              );
-            })}
-          </div>
-          {selected.map((installType) => {
-            const key = selectionKey(service, installType);
-            return (
-              <div key={installType} className="grass-scope">
-                {selected.length > 1 ? <p className="grass-heading">{choiceLabel(installType)}</p> : null}
-                {selected.length > 1 ? (
+                  detail={meta?.detail}
+                  checked={selected.includes(installType)}
+                  expanded={!folded[installType]}
+                  panelId={`${fieldIdFor("install", service, installType)}-panel`}
+                  onSelect={() => toggleInstallType(installType)}
+                  onFold={() => setFolded((current) => ({ ...current, [installType]: !current[installType] }))}
+                >
                   <Field
                     id={fieldIdFor("area", key)}
-                    label="Which area is this, if you know it?"
-                    placeholder="e.g. Front yard, backyard, side yard"
+                    label="Which area is this?"
+                    placeholder="e.g. Front yard"
                     value={form.areaNames[key] ?? ""}
                     error={problems[fieldIdFor("area", key)]}
                     onChange={(value) => {
@@ -1777,18 +1717,18 @@ function GrassFollowUp({
                       }));
                     }}
                   />
-                ) : null}
-                <GrassScope
-                  form={form}
-                  setForm={setForm}
-                  scopeKey={key}
-                  productInstall={installType}
-                  problems={problems}
-                  clearProblem={clearProblem}
-                />
-              </div>
-            );
-          })}
+                  <GrassScope
+                    form={form}
+                    setForm={setForm}
+                    scopeKey={key}
+                    productInstall={installType}
+                    problems={problems}
+                    clearProblem={clearProblem}
+                  />
+                </InstallCard>
+              );
+            })}
+          </div>
         </div>
       ) : null}
     </div>
@@ -1841,6 +1781,7 @@ function GrassScope({
   const linear = grassUsesLinearFeet(productInstall, form.product[scopeKey] ?? "");
   const size = (
     <SquareFeetField
+      dims={linear ? undefined : sizeDims(form, setForm, scopeKey)}
       id={squareFeetId}
       unit={linear ? "lin ft" : "sq ft"}
       value={form.squareFeet[scopeKey] ?? ""}
@@ -1864,7 +1805,7 @@ function GrassScope({
           aria-invalid={problems[productId] ? true : undefined}
           aria-describedby={problems[productId] ? `${productId}-error` : undefined}
         >
-          <legend>Turf product</legend>
+          <legend>Turf product<RequiredStar /></legend>
           <p className="grass-products__hint">Select the turf product you&apos;re interested in.</p>
           {problems[productId] ? (
             <p id={`${productId}-error`} className="field-error" role="alert">
@@ -2045,6 +1986,36 @@ function chosenAddOns(form: DiscoveryState, service: string): string[] {
   return chosen;
 }
 
+type SizeDims = {
+  length: string;
+  width: string;
+  onChange: (length: string, width: string) => void;
+};
+
+/** Length and width for a size field, kept in the form under the same key as its area. */
+function sizeDims(
+  form: DiscoveryState,
+  setForm: Dispatch<SetStateAction<DiscoveryState>>,
+  key: string,
+): SizeDims {
+  return {
+    length: form.length[key] ?? "",
+    width: form.width[key] ?? "",
+    onChange: (length, width) =>
+      setForm((current) => ({
+        ...current,
+        length: { ...current.length, [key]: length },
+        width: { ...current.width, [key]: width },
+      })),
+  };
+}
+
+function decimalText(value: string): string {
+  const cleaned = value.replace(/[^\d.]/g, "");
+  const dot = cleaned.indexOf(".");
+  return (dot === -1 ? cleaned : cleaned.slice(0, dot + 1) + cleaned.slice(dot + 1).replaceAll(".", "")).slice(0, 8);
+}
+
 function SquareFeetField({
   id,
   value,
@@ -2052,6 +2023,7 @@ function SquareFeetField({
   onChange,
   unit = "sq ft",
   stepped = false,
+  dims,
 }: {
   id: string;
   value: string;
@@ -2059,9 +2031,21 @@ function SquareFeetField({
   onChange: (value: string) => void;
   unit?: "sq ft" | "lin ft" | "each";
   stepped?: boolean;
+  /** Lets the customer type length and width; the area is worked out from them. */
+  dims?: SizeDims;
 }) {
   const linear = unit === "lin ft";
   const each = unit === "each";
+  const area = (length: string, width: string) =>
+    Number(length) > 0 && Number(width) > 0 ? Math.round(Number(length) * Number(width)) : null;
+  const worked = dims === undefined || linear || each ? null : area(dims.length, dims.width);
+  function setDims(length: string, width: string) {
+    if (dims === undefined) return;
+    dims.onChange(length, width);
+    const next = area(length, width);
+    // Once the dimensions stop making an area, drop the figure they had produced.
+    onChange(next !== null ? String(next) : worked !== null ? "" : value);
+  }
   const spoken = linear ? "linear feet" : each ? "each" : "square feet";
   const stepAmount = each ? 1 : 50;
   function step(direction: 1 | -1) {
@@ -2080,6 +2064,32 @@ function SquareFeetField({
           : `form-field sqft-field${stepped ? " sqft-field--stepped" : ""}`
       }
     >
+      {dims !== undefined && !linear && !each ? (
+        <div className="sqft-dims">
+          <label htmlFor={`${id}-length`}>
+            <span>Length (ft)</span>
+            <input
+              id={`${id}-length`}
+              inputMode="decimal"
+              placeholder="e.g. 20"
+              autoComplete="off"
+              value={dims.length}
+              onChange={(event) => setDims(decimalText(event.target.value), dims.width)}
+            />
+          </label>
+          <label htmlFor={`${id}-width`}>
+            <span>Width (ft)</span>
+            <input
+              id={`${id}-width`}
+              inputMode="decimal"
+              placeholder="e.g. 25"
+              autoComplete="off"
+              value={dims.width}
+              onChange={(event) => setDims(dims.length, decimalText(event.target.value))}
+            />
+          </label>
+        </div>
+      ) : null}
       <label htmlFor={id}>
         {each ? "Quantity, if you know it" : linear ? "Linear feet, if you know it" : "Square footage, if you know it"}
         <span className="visually-hidden"> in {spoken}</span>
@@ -2090,14 +2100,15 @@ function SquareFeetField({
             id={id}
             type="text"
             inputMode="numeric"
-            placeholder={each ? "e.g. 10" : linear ? "e.g. 120" : "e.g. 500"}
+            placeholder={each ? "e.g. 10" : linear ? "e.g. 120" : worked !== null ? "" : "e.g. 500"}
             autoComplete="off"
+            readOnly={worked !== null}
             value={value}
             aria-invalid={error ? true : undefined}
             aria-describedby={error ? errorId : undefined}
             onChange={(event) => onChange(event.target.value.replace(/\D/g, "").slice(0, 8))}
           />
-          <span className="sqft-field__spin">
+          <span className="sqft-field__spin" hidden={worked !== null}>
             <button type="button" aria-label={`Add ${stepAmount} ${spoken}`} onClick={() => step(1)}>
               <ChevronUp strokeWidth={2.25} aria-hidden="true" />
             </button>
@@ -2298,6 +2309,7 @@ function Notes({
 function ChoiceGroup({
   id,
   legend,
+  required = false,
   name,
   options,
   values,
@@ -2311,6 +2323,7 @@ function ChoiceGroup({
 }: {
   id?: string;
   legend: string;
+  required?: boolean;
   name: string;
   options: string[];
   values?: string[];
@@ -2367,7 +2380,10 @@ function ChoiceGroup({
       aria-describedby={error ? errorId : undefined}
       className={look === "photos" ? "choice-list product-photos" : look === "cards" ? "choice-list product-choices" : "choice-list"}
     >
-      <legend>{legend}</legend>
+      <legend>
+        {legend}
+        {required ? <RequiredStar /> : null}
+      </legend>
       {error ? (
         <p id={errorId} className="field-error" role="alert">
           {error}

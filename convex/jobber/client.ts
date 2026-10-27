@@ -30,6 +30,7 @@ type CatalogueProduct = {
   id: string;
   name: string;
   defaultUnitCost: number;
+  visible?: boolean | null;
 };
 
 export type DraftLine = {
@@ -283,7 +284,8 @@ export async function editQuoteTitle(args: {
 export async function loadCatalogue(accessToken: string): Promise<Map<string, CatalogueProduct>> {
   const catalogue = new Map<string, CatalogueProduct>();
   let after: string | null = null;
-  for (let page = 0; page < 10; page += 1) {
+  // The catalogue holds well over 1,000 items, so read every page; hidden (replaced) items are skipped.
+  for (let page = 0; page < 40; page += 1) {
     const data: {
       products: {
         nodes: CatalogueProduct[];
@@ -297,13 +299,16 @@ export async function loadCatalogue(accessToken: string): Promise<Map<string, Ca
             id
             name
             defaultUnitCost
+            visible
           }
           pageInfo { hasNextPage endCursor }
         }
       }`,
       { after },
     );
-    for (const product of data.products.nodes) catalogue.set(product.name, product);
+    for (const product of data.products.nodes) {
+      if (product.visible !== false) catalogue.set(product.name, product);
+    }
     if (!data.products.pageInfo.hasNextPage) break;
     after = data.products.pageInfo.endCursor;
   }
@@ -350,6 +355,7 @@ export async function createDraftQuote(args: {
   accessToken: string;
   clientId: string;
   propertyId: string;
+  requestId?: string;
   title: string;
   lineItems: DraftLine[];
 }): Promise<{ id: string; quoteStatus: string }> {
@@ -370,6 +376,7 @@ export async function createDraftQuote(args: {
       attributes: {
         clientId: args.clientId,
         propertyId: args.propertyId,
+        ...(args.requestId === undefined ? {} : { requestId: args.requestId }),
         title: args.title,
         lineItems: args.lineItems.map(lineAttributes),
       },
@@ -476,7 +483,7 @@ async function requestTokens(
   };
 }
 
-async function jobberGraphql<T>(
+export async function jobberGraphql<T>(
   accessToken: string,
   query: string,
   variables: Record<string, unknown>,

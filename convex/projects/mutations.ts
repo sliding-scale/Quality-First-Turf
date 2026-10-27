@@ -232,6 +232,17 @@ export const update = mutation({
       const gaps = (planned.missing?.match(/[^.]+\./g) ?? [])
         .map((gap) => gap.trim())
         .filter((gap) => !gap.startsWith("No catalogue item for"));
+      // Each lighting item also needs a quantity (or length) from the salesperson; it has no area.
+      const answers = args.answers ?? project.answers;
+      const lightingTypes = answers
+        .filter((answer) => answer.question === "Low Voltage Lighting install type")
+        .map((answer) => answer.value);
+      for (const type of lightingTypes) {
+        const quantity = answers.find(
+          (answer) => answer.question === "Low Voltage Lighting quantity" && answer.value.startsWith(`${type}: `),
+        );
+        if (quantity === undefined) gaps.push(`Enter a quantity for ${type}.`);
+      }
       if (gaps.length > 0) {
         throw new ConvexError(`This visit is not complete yet. ${gaps.join(" ")}`);
       }
@@ -245,6 +256,7 @@ export const update = mutation({
     if (measurements !== undefined) {
       patch.measurements = measurements.map(withSquareFeet);
     }
+    if (requireComplete === true) patch.visitedAt = Date.now();
     await ctx.db.patch("projects", projectId, patch);
 
     if (changes !== undefined && changes.length > 0) {

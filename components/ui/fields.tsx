@@ -19,6 +19,15 @@ const classes: Record<FieldVariant, { root: string; error: string }> = {
   visit: { root: "visit-field", error: "field-error" },
 };
 
+/** The red star beside a field the customer or salesperson must fill in. */
+export function RequiredStar() {
+  return (
+    <span className="required-star" aria-hidden="true">
+      *
+    </span>
+  );
+}
+
 /** "Customer said: X" under a field the salesperson changed, with an optional way back. */
 export function CustomerSaid({
   value,
@@ -72,6 +81,10 @@ export type TextFieldProps = {
   onRevert?: () => void;
   /** Adds up/down arrows that change the number by this amount (use with `numeric`). */
   stepper?: number;
+  /** Shows a value that is worked out from other fields. */
+  readOnly?: boolean;
+  onFocus?: () => void;
+  onBlur?: () => void;
 };
 
 export function TextField({
@@ -93,6 +106,9 @@ export function TextField({
   customerValue,
   onRevert,
   stepper,
+  readOnly = false,
+  onFocus,
+  onBlur,
 }: TextFieldProps) {
   const fieldId = id ?? label.toLowerCase().replaceAll(" ", "-");
   const errorId = `${fieldId}-error`;
@@ -103,7 +119,8 @@ export function TextField({
     <div className={root}>
       <label htmlFor={fieldId}>
         {variant === "intake" ? <span>{label}</span> : label}
-        {hint ? <span className="intake-field__hint">{hint}</span> : null}
+        {required || hint === "Required" ? <RequiredStar /> : null}
+        {hint && hint !== "Required" ? <span className="intake-field__hint">{hint}</span> : null}
       </label>
       {stepper !== undefined ? (
         <div className="field-stepper">
@@ -114,6 +131,9 @@ export function TextField({
           value={value}
           placeholder={placeholder}
           required={required}
+          readOnly={readOnly}
+          onFocus={onFocus}
+          onBlur={onBlur}
           aria-required={required || hint === "Required" ? true : undefined}
           autoComplete={autoComplete}
           autoCapitalize={email ? "none" : "words"}
@@ -149,6 +169,9 @@ export function TextField({
           value={value}
           placeholder={placeholder}
           required={required}
+          readOnly={readOnly}
+          onFocus={onFocus}
+          onBlur={onBlur}
           aria-required={required || hint === "Required" ? true : undefined}
           autoComplete={autoComplete}
           autoCapitalize={email ? "none" : "words"}
@@ -202,7 +225,8 @@ export function StateSelect({
     <div className={error ? `${style.root} is-invalid` : style.root}>
       <label htmlFor="state">
         {variant === "intake" ? <span>State</span> : "State"}
-        {hint ? <span className="intake-field__hint">{hint}</span> : null}
+        {hint === "Required" ? <RequiredStar /> : null}
+        {hint && hint !== "Required" ? <span className="intake-field__hint">{hint}</span> : null}
       </label>
       <select
         id="state"
@@ -271,7 +295,7 @@ export function contactFields({
       variant,
       id,
       error: problems[id],
-      hint: required ? "Required" : undefined,
+      hint: "Required",
       customerValue:
         changed && original !== undefined
           ? id === "phone"
@@ -309,7 +333,7 @@ export function contactFields({
       <TextField {...common("city")} label="City" placeholder="San Diego" autoComplete={auto("address-level2")} value={form.city} onChange={(value) => onPatch({ city: value })} />
     ),
     state: (
-      <StateSelect variant={variant} hint={required ? "Required" : undefined} autoComplete={auto("address-level1")} value={form.state} error={problems.state} onChange={(value) => onPatch({ state: value })} customerValue={original !== undefined && original.state !== form.state ? original.state : undefined} onRevert={original !== undefined ? () => onPatch({ state: original.state }) : undefined} />
+      <StateSelect variant={variant} hint="Required" autoComplete={auto("address-level1")} value={form.state} error={problems.state} onChange={(value) => onPatch({ state: value })} customerValue={original !== undefined && original.state !== form.state ? original.state : undefined} onRevert={original !== undefined ? () => onPatch({ state: original.state }) : undefined} />
     ),
     zip: (
       <TextField {...common("zip")} label="ZIP code" placeholder="92101" inputMode="numeric" autoComplete={auto("postal-code")} maxLength={10} value={form.zip} onChange={(value) => onPatch({ zip: zipInput(value) })} />

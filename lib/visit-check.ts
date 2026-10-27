@@ -1,4 +1,13 @@
-import { fieldIdFor, grassService, selectionKey, serviceLabel, services } from "@/lib/discovery";
+import {
+  fieldIdFor,
+  grassService,
+  installTypes,
+  lightingUnit,
+  selectionKey,
+  serviceLabel,
+  services,
+  type DiscoveryState,
+} from "@/lib/discovery";
 import { planQuoteLines } from "@/lib/quote-lines";
 import { SITE_PHOTOS_LABEL, type VisitArea } from "@/lib/visit-areas";
 
@@ -91,4 +100,26 @@ export function checkVisit(input: CheckInput): VisitCheck {
     }
   }
   return { problems, general };
+}
+
+/**
+ * Every lighting item the visit lists needs a quantity (each) or length (linear feet), written by
+ * the salesperson. Lighting is priced per each or per linear foot, so it has no area. The customer
+ * form leaves the quantity optional, so this only runs on the visit.
+ */
+export function lightingProblems(form: DiscoveryState): Record<string, string> {
+  const problems: Record<string, string> = {};
+  const service = "Low Voltage Lighting";
+  if (!form.services.includes(service)) return problems;
+  // In the order of the list, so the first error is the one nearest the top of the screen.
+  const chosen = form.installTypes[service] ?? [];
+  for (const type of (installTypes[service] ?? []).filter((item) => chosen.includes(item))) {
+    const key = selectionKey(service, type);
+    const quantity = Number((form.lightingQuantity[key] ?? "").trim());
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      problems[fieldIdFor("qty", key)] =
+        lightingUnit(type) === "lin ft" ? "Enter the linear feet." : "Enter how many.";
+    }
+  }
+  return problems;
 }

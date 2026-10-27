@@ -30,6 +30,7 @@ export const get = internalQuery({
 const salesProject = v.object({
   projectId: v.id("projects"),
   shortCode: v.union(v.string(), v.null()),
+  visitedAt: v.union(v.number(), v.null()),
   firstName: v.string(),
   lastName: v.string(),
   email: v.string(),
@@ -66,6 +67,7 @@ export const listForSales = query({
       projects: projects.map((project) => ({
         projectId: project._id,
         shortCode: project.shortCode ?? null,
+        visitedAt: project.visitedAt ?? null,
         firstName: project.firstName,
         lastName: project.lastName,
         email: project.email,
@@ -109,6 +111,8 @@ export const visit = query({
     v.null(),
     v.object({
       access: v.literal("ok"),
+      /** Whether the project has a Jobber request a consultation can be booked on. */
+      canSchedule: v.boolean(),
       project: schema
         .doc("projects")
         .omit(
@@ -170,6 +174,7 @@ export const visit = query({
         installType: area.installType,
       });
     }
+    const canSchedule = Boolean(project.jobberRequestId);
     const {
       jobberClientId: _client,
       jobberRequestId: _request,
@@ -188,6 +193,6 @@ export const visit = query({
       savedAt: revision.savedAt,
       changes: revision.changes,
     }));
-    return { access: "ok" as const, project: visible, workAreas, revisions };
+    return { access: "ok" as const, canSchedule, project: visible, workAreas, revisions };
   },
 });

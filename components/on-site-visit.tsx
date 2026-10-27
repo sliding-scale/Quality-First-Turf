@@ -47,10 +47,12 @@ import {
   services,
   soilConditions,
   turfInstallTypes,
+  unitForAddOn,
   withAddOn,
   type DiscoveryState,
 } from "@/lib/discovery";
-import { contactFields, CustomerSaid, TextField, type TextFieldProps } from "@/components/ui/fields";
+import { contactFields, CustomerSaid, RequiredStar, TextField, type TextFieldProps } from "@/components/ui/fields";
+import { ConsultationButton, type Consultation } from "@/components/consultation-button";
 import { formatShortCode, friendlyError } from "@/lib/errors";
 import { scrollToStart } from "@/lib/step-transition";
 import { parseWorkAreas } from "@/components/work-areas";
@@ -67,16 +69,14 @@ import {
   measuredSquareFeet,
   seedVisitAreas,
   serviceNeedsAreas,
-  serviceStatus,
   sitePhotosArea,
   type CustomerMeasurement,
-  type ServiceStatus,
   type VisitArea,
   type VisitWorkArea,
 } from "@/lib/visit-areas";
-import { PhotoPicker, toggleRadio } from "@/components/ui/inputs";
+import { blockEnterSubmit, PhotoPicker, toggleRadio } from "@/components/ui/inputs";
 import { compareSnapshots, storedChanges, type Snapshot } from "@/lib/project-changes";
-import { checkVisit } from "@/lib/visit-check";
+import { checkVisit, lightingProblems } from "@/lib/visit-check";
 
 const serviceIcons: Record<string, LucideIcon> = {
   Demo: Shovel,
@@ -102,6 +102,81 @@ function originalAreaFor(area: VisitArea, order: number, original: OriginalState
   return original === null ? undefined : matchOriginalArea(area, order, original.areas);
 }
 
+/**
+ * Length, width and the area they make. Typing both works the area out; with one missing
+ * the area can be typed directly, so a known size never has to be measured twice.
+ */
+function SizeFields({
+  id,
+  length,
+  width,
+  area,
+  areaLabel = "Area (sq ft)",
+  error,
+  customerValue,
+  onRevert,
+  onChange,
+}: {
+  id: string;
+  length: string;
+  width: string;
+  area: string;
+  areaLabel?: string;
+  error?: string;
+  customerValue?: string;
+  onRevert?: () => void;
+  onChange: (next: { length: string; width: string; area: string }) => void;
+}) {
+  const product = (l: string, w: string) => (Number(l) > 0 && Number(w) > 0 ? Number(l) * Number(w) : null);
+  const worked = product(length, width);
+  function setDims(nextLength: string, nextWidth: string) {
+    const next = product(nextLength, nextWidth);
+    onChange({
+      length: nextLength,
+      width: nextWidth,
+      // Once the dimensions stop making an area, drop the figure they had produced.
+      area: next !== null ? String(Math.round(next * 100) / 100) : worked !== null ? "" : area,
+    });
+  }
+  return (
+    <div className="visit-size">
+      <VisitField
+        id={`${id}-length`}
+        label="Length (ft)"
+        numeric
+        stepper={1}
+        placeholder="e.g. 20"
+        value={length}
+        onChange={(value) => setDims(decimalInput(value), width)}
+      />
+      <VisitField
+        id={`${id}-width`}
+        label="Width (ft)"
+        numeric
+        stepper={1}
+        placeholder="e.g. 25"
+        value={width}
+        onChange={(value) => setDims(length, decimalInput(value))}
+      />
+      <VisitField
+        id={id}
+        label={areaLabel}
+        required
+        numeric
+        readOnly={worked !== null}
+        stepper={worked !== null ? undefined : 50}
+        placeholder="or type the area"
+        value={area}
+        error={error}
+        customerValue={customerValue}
+        onRevert={onRevert}
+        inputMode="decimal"
+        onChange={(value) => onChange({ length, width, area: decimalInput(value) })}
+      />
+    </div>
+  );
+}
+
 function choiceLabel(value: string) {
   return value;
 }
@@ -109,12 +184,14 @@ function choiceLabel(value: string) {
 export function OnSiteVisit({
   projectId,
   sessionToken,
+  canSchedule,
   project,
   workAreas,
   revisions,
 }: {
   projectId: Id<"projects">;
   sessionToken: string;
+  canSchedule: boolean;
   project: {
     firstName: string;
     lastName: string;
@@ -132,6 +209,7 @@ export function OnSiteVisit({
     measurements: CustomerMeasurement[];
     shortCode?: string;
     submitted?: SavedProject;
+    consultation?: Consultation;
   };
   workAreas: VisitWorkArea[];
   revisions: { savedAt: number; changes: { label: string; before: string; after: string }[] }[];
@@ -430,6 +508,12 @@ export function OnSiteVisit({
       );
       return false;
     }
+    // Lighting items need a quantity or length from the salesperson before anything is saved.
+    const lighting = lightingProblems(synced);
+    if (Object.keys(lighting).length > 0) {
+      showProblems(lighting, "Fill in the highlighted fields, then save again.");
+      return false;
+    }
     // Stop here, with the problems marked on their fields, rather than saving an incomplete draft.
     const check = checkVisit({
       services: built.payload.services,
@@ -548,10 +632,17 @@ export function OnSiteVisit({
             <small className="visit-banner__code">Project {formatShortCode(project.shortCode)}</small>
           ) : null}
         </h1>
+        <ConsultationButton
+          sessionToken={sessionToken}
+          projectId={projectId}
+          canSchedule={canSchedule}
+          email={form.email}
+          consultation={project.consultation}
+        />
       </header>
 
       <div className="visit-main">
-        <form className="visit-body" onSubmit={onSubmit} noValidate>
+        <form className="visit-body" onSubmit={onSubmit} onKeyDown={blockEnterSubmit} noValidate>
           <div className="visit-column">
             <section id="property" className="visit-card">
               <div className="visit-card__head">
@@ -697,7 +788,6 @@ export function OnSiteVisit({
 
               {orderServices(form.services).map((service) => {
                 const Icon = serviceIcons[service] ?? Home;
-                const status = serviceStatus(service, form, areas);
                 const open = openServices.includes(service);
                 const estimate = estimateFor(estimates, labelsForService(service, form));
                 return (
@@ -728,7 +818,6 @@ export function OnSiteVisit({
                           {changeCount(service)} {changeCount(service) === 1 ? "change" : "changes"}
                         </span>
                       ) : null}
-                      <StatusPill status={status} />
                       <ChevronDown size={18} aria-hidden="true" />
                     </button>
 
@@ -755,14 +844,6 @@ export function OnSiteVisit({
                                 lightingQuantity: { ...current.lightingQuantity, [key]: value },
                               }));
                             }}
-                            onAreaName={(type, value) => {
-                              const key = selectionKey(service, type);
-                              clearProblem(fieldIdFor("area", key));
-                              setForm((current) => ({
-                                ...current,
-                                areaNames: { ...current.areaNames, [key]: value },
-                              }));
-                            }}
                           />
                         ) : null}
 
@@ -782,7 +863,10 @@ export function OnSiteVisit({
                               }}
                             />
                             <fieldset className="visit-soil" id="underground-soil">
-                              <legend>Soil</legend>
+                              <legend>
+                                Soil
+                                <RequiredStar />
+                              </legend>
                               {soilConditions.filter((soil) => soil !== "Not sure").map((soil) => (
                                 <label key={soil} className="choice-card">
                                   <input
@@ -801,10 +885,21 @@ export function OnSiteVisit({
                                 <p className="field-error">{fieldErrors["underground-soil"]}</p>
                               ) : null}
                               {original !== null && original.form.soil !== form.soil ? (
-                                <CustomerSaid
-                                  value={original.form.soil}
-                                  onRevert={() => setForm((current) => ({ ...current, soil: original.form.soil }))}
-                                />
+                                original.form.soil === "Not sure" ? (
+                                  // "Not sure" is not something a salesperson can pick, so there is nothing to revert to.
+                                  <CustomerSaid
+                                    text={
+                                      form.soil === ""
+                                        ? "The customer was not sure. Check the soil on site and choose one."
+                                        : "The customer was not sure about the soil."
+                                    }
+                                  />
+                                ) : (
+                                  <CustomerSaid
+                                    value={original.form.soil}
+                                    onRevert={() => setForm((current) => ({ ...current, soil: original.form.soil }))}
+                                  />
+                                )
                               ) : null}
                             </fieldset>
                             <UndergroundMeasure
@@ -817,7 +912,10 @@ export function OnSiteVisit({
 
                         {service === grassService ? (
                           <fieldset className="visit-installs" id={fieldIdFor("grass-work", service)}>
-                            <legend>What do you need?</legend>
+                            <legend>
+                              What do you need?
+                              <RequiredStar />
+                            </legend>
                             {fieldErrors[fieldIdFor("grass-work", service)] ? (
                               <p className="field-error" role="alert">
                                 {fieldErrors[fieldIdFor("grass-work", service)]}
@@ -891,6 +989,13 @@ export function OnSiteVisit({
                                 withAddOn(current, key, addOn, !(current.addOns[key] ?? []).includes(addOn)),
                               )
                             }
+                            onDims={(quantityKey, length, width) =>
+                              setForm((current) => ({
+                                ...current,
+                                length: { ...current.length, [quantityKey]: length },
+                                width: { ...current.width, [quantityKey]: width },
+                              }))
+                            }
                             onQuantity={(quantityKey, value) => {
                               clearProblem(fieldIdFor("qty", quantityKey));
                               const split = quantityKey.indexOf("::");
@@ -925,9 +1030,6 @@ export function OnSiteVisit({
                           />
                         ) : null}
 
-                        {!hasFollowUp(service) ? (
-                          <p className="visit-quiet">Selected by the customer. Nothing else to confirm here.</p>
-                        ) : null}
                       </div>
                     ) : null}
                   </article>
@@ -1130,8 +1232,8 @@ function syncServiceFromAreas(
   };
 }
 
+/** A short line under the service name; it describes what is on the card, never whether it is "verified". */
 function statusCopy(service: string, form: DiscoveryState, areas: VisitArea[]): string {
-  const status = serviceStatus(service, form, areas);
   if (service === "Low Voltage Lighting") {
     const selected = form.installTypes[service] ?? [];
     const measured = selected.filter(
@@ -1144,9 +1246,8 @@ function statusCopy(service: string, form: DiscoveryState, areas: VisitArea[]): 
   if (serviceNeedsAreas(service) && service !== "Underground") {
     return `${owned.length} area${owned.length === 1 ? "" : "s"} on this visit`;
   }
-  if (status === "verified") return "Ready for the quote";
-  if (status === "partial") return "Partially verified";
-  return "Needs verification";
+  if (service === "Underground") return "Soil and length to measure";
+  return "Selected by the customer";
 }
 
 function reviewLine(service: string, form: DiscoveryState, areas: VisitArea[]): string {
@@ -1163,12 +1264,6 @@ function reviewLine(service: string, form: DiscoveryState, areas: VisitArea[]): 
   }
   if (types.length > 0) return types.map(choiceLabel).join(", ");
   return "Selected";
-}
-
-function StatusPill({ status }: { status: ServiceStatus }) {
-  const label =
-    status === "verified" ? "Verified" : status === "partial" ? "Partially verified" : "Needs verification";
-  return <span className={`visit-pill visit-pill--${status}`}>{label}</span>;
 }
 
 function VisitField(props: Omit<TextFieldProps, "variant">) {
@@ -1202,7 +1297,6 @@ function InstallGrid({
   problems,
   onToggle,
   onQuantity,
-  onAreaName,
 }: {
   service: string;
   selected: string[];
@@ -1211,7 +1305,6 @@ function InstallGrid({
   problems: Record<string, string>;
   onToggle: (value: string) => void;
   onQuantity: (type: string, value: string) => void;
-  onAreaName: (type: string, value: string) => void;
 }) {
   const original = useOriginal();
   const originalTypes = original?.form.installTypes[service] ?? [];
@@ -1249,7 +1342,7 @@ function InstallGrid({
       </div>
       {service === "Low Voltage Lighting" && selected.length > 0 ? (
         <div className="visit-area-names">
-          {selected.map((type) => {
+          {(installTypes[service] ?? []).filter((type) => selected.includes(type)).map((type) => {
             const key = selectionKey(service, type);
             const id = fieldIdFor("qty", key);
             const linear = lightingUnit(type) === "lin ft";
@@ -1258,6 +1351,7 @@ function InstallGrid({
                 key={type}
                 id={id}
                 label={linear ? `${choiceLabel(type)} linear feet` : `${choiceLabel(type)} quantity`}
+                required
                 numeric
                 stepper={linear ? 10 : 1}
                 placeholder={linear ? "e.g. 120" : "e.g. 10"}
@@ -1276,7 +1370,6 @@ function InstallGrid({
           })}
         </div>
       ) : null}
-      <AreaNames service={service} form={form} problems={problems} onChange={onAreaName} />
     </fieldset>
   );
 }
@@ -1294,11 +1387,10 @@ function AreaNames({
 }) {
   const original = useOriginal();
   const selected = form.installTypes[service] ?? [];
-  if (selected.length < 2) return null;
+  if (selected.length < 1) return null;
   return (
     <div className="visit-area-names">
-      <p className="visit-quiet">Name the area for each installation type if you know it, such as front yard or back yard.</p>
-      {selected.map((type) => {
+      {(installTypes[service] ?? []).filter((type) => selected.includes(type)).map((type) => {
         const key = selectionKey(service, type);
         const id = fieldIdFor("area", key);
         return (
@@ -1342,6 +1434,7 @@ function UndergroundMeasure({
       onRevert={before !== undefined ? () => onChange(index, before.quantity) : undefined}
       id={`area-${index}-quantity`}
       label="Measured linear feet"
+      required
       numeric
       stepper={10}
       placeholder="e.g. 120"
@@ -1432,7 +1525,7 @@ function AreaList({
           <div key={index} className="visit-area">
             <div className="visit-area__head">
               <span>{order + 1}</span>
-              <strong>{areaDisplayName(area, order)}</strong>
+              <strong>{areaDisplayName({ ...area, label: area.shownLabel ?? area.label }, order)}</strong>
               <em>{original !== null && before === undefined ? "Added on site" : "Measured on site"}</em>
               <button type="button" className="visit-icon-btn" onClick={() => onRemove(index)}>
                 <Trash2 size={15} aria-hidden="true" />
@@ -1444,6 +1537,8 @@ function AreaList({
                 id={`area-${index}-label`}
                 label="Area name"
                 placeholder="e.g. Front yard"
+                onFocus={() => onArea(index, { shownLabel: area.label })}
+                onBlur={() => onArea(index, { shownLabel: undefined })}
                 customerValue={
                   before !== undefined &&
                   (isDefaultAreaName(before) ? "" : before.label) !== (isDefaultAreaName(area) ? "" : area.label)
@@ -1455,26 +1550,48 @@ function AreaList({
                 error={problems[`area-${index}-label`]}
                 onChange={(value) => onName(index, value.trim() === "" ? defaultAreaName(area, service) : value)}
               />
-              <VisitField
-                id={`area-${index}-quantity`}
-                label={linear ? "Linear feet" : "Square feet"}
-                numeric
-                stepper={linear ? 10 : 50}
-                placeholder={linear ? "e.g. 120" : "e.g. 500"}
-                customerValue={before !== undefined && before.quantity !== area.quantity ? before.quantity : undefined}
-                onRevert={before !== undefined ? () => onArea(index, { quantity: before.quantity }) : undefined}
-                value={area.quantity}
-                error={problems[`area-${index}-quantity`]}
-                inputMode="decimal"
-                onChange={(value) => onArea(index, { quantity: decimalInput(value) })}
-              />
+              {linear ? (
+                <VisitField
+                  id={`area-${index}-quantity`}
+                  label="Linear feet"
+                  required
+                  numeric
+                  stepper={10}
+                  placeholder="e.g. 120"
+                  customerValue={before !== undefined && before.quantity !== area.quantity ? before.quantity : undefined}
+                  onRevert={before !== undefined ? () => onArea(index, { quantity: before.quantity }) : undefined}
+                  value={area.quantity}
+                  error={problems[`area-${index}-quantity`]}
+                  inputMode="decimal"
+                  onChange={(value) => onArea(index, { quantity: decimalInput(value) })}
+                />
+              ) : (
+                <SizeFields
+                  id={`area-${index}-quantity`}
+                  length={area.length}
+                  width={area.width}
+                  area={area.quantity}
+                  areaLabel="Area (sq ft)"
+                  error={problems[`area-${index}-quantity`]}
+                  customerValue={before !== undefined && before.quantity !== area.quantity ? before.quantity : undefined}
+                  onRevert={
+                    before !== undefined
+                      ? () => onArea(index, { length: before.length, width: before.width, quantity: before.quantity })
+                      : undefined
+                  }
+                  onChange={(next) => onArea(index, { length: next.length, width: next.width, quantity: next.area })}
+                />
+              )}
               <div className="visit-area__pair">
               {types.length > 0 ? (
                 <div
                   className={problems[`area-${index}-install`] ? "visit-field is-invalid" : "visit-field"}
                   data-field={`area-${index}-install`}
                 >
-                  <label htmlFor={`area-${index}-install`}>Installation type</label>
+                  <label htmlFor={`area-${index}-install`}>
+                    Installation type
+                    <RequiredStar />
+                  </label>
                   <select
                     id={`area-${index}-install`}
                     value={area.installType}
@@ -1511,7 +1628,10 @@ function AreaList({
                     }
                     data-field={fieldIdFor("replacement", productKey)}
                   >
-                    <label htmlFor={`area-${index}-replacement`}>New installation</label>
+                    <label htmlFor={`area-${index}-replacement`}>
+                      New installation
+                      <RequiredStar />
+                    </label>
                     <select
                       id={`area-${index}-replacement`}
                       value={form.replacementInstall[productKey] ?? ""}
@@ -1542,7 +1662,10 @@ function AreaList({
                     }
                     data-field={fieldIdFor("product", productKey)}
                   >
-                    <label htmlFor={`area-${index}-product`}>Turf product</label>
+                    <label htmlFor={`area-${index}-product`}>
+                      Turf product
+                      <RequiredStar />
+                    </label>
                     <select
                       id={`area-${index}-product`}
                       value={form.product[productKey] ?? form.product[service] ?? ""}
@@ -1614,12 +1737,14 @@ function AddOnBlock({
   problems,
   onToggle,
   onQuantity,
+  onDims,
 }: {
   service: string;
   form: DiscoveryState;
   problems: Record<string, string>;
   onToggle: (key: string, addOn: string) => void;
   onQuantity: (quantityKey: string, value: string) => void;
+  onDims: (quantityKey: string, length: string, width: string) => void;
 }) {
   const selectedTypes =
     service === grassService
@@ -1663,27 +1788,53 @@ function AddOnBlock({
                 />
               ) : null}
               {checked ? (
-                <VisitField
-                  id={fieldIdFor("qty", quantityKey)}
-                  label={`${addOn} quantity`}
-                  numeric
-                  stepper={1}
-                  placeholder="e.g. 1"
-                  customerValue={
-                    original !== null &&
-                    (original.form.addOnQuantity[quantityKey] ?? "") !== (form.addOnQuantity[quantityKey] ?? "")
-                      ? (original.form.addOnQuantity[quantityKey] ?? "")
-                      : undefined
-                  }
-                  onRevert={
-                    original !== null
-                      ? () => onQuantity(quantityKey, original.form.addOnQuantity[quantityKey] ?? "")
-                      : undefined
-                  }
-                  value={form.addOnQuantity[quantityKey] ?? ""}
-                  error={problems[fieldIdFor("qty", quantityKey)]}
-                  onChange={(value) => onQuantity(quantityKey, value)}
-                />
+                unitForAddOn(addOn) === "sq ft" ? (
+                  <SizeFields
+                    id={fieldIdFor("qty", quantityKey)}
+                    length={form.length[quantityKey] ?? ""}
+                    width={form.width[quantityKey] ?? ""}
+                    area={form.addOnQuantity[quantityKey] ?? ""}
+                    areaLabel={`${addOn} (sq ft)`}
+                    error={problems[fieldIdFor("qty", quantityKey)]}
+                    customerValue={
+                      original !== null &&
+                      (original.form.addOnQuantity[quantityKey] ?? "") !== (form.addOnQuantity[quantityKey] ?? "")
+                        ? (original.form.addOnQuantity[quantityKey] ?? "")
+                        : undefined
+                    }
+                    onRevert={
+                      original !== null
+                        ? () => onQuantity(quantityKey, original.form.addOnQuantity[quantityKey] ?? "")
+                        : undefined
+                    }
+                    onChange={(next) => {
+                      onDims(quantityKey, next.length, next.width);
+                      onQuantity(quantityKey, next.area);
+                    }}
+                  />
+                ) : (
+                  <VisitField
+                    id={fieldIdFor("qty", quantityKey)}
+                    label={`${addOn} (${unitForAddOn(addOn) === "linear ft" ? "linear ft" : unitForAddOn(addOn)})`}
+                    numeric
+                    stepper={unitForAddOn(addOn) === "linear ft" ? 10 : 1}
+                    placeholder={unitForAddOn(addOn) === "linear ft" ? "e.g. 120" : "e.g. 1"}
+                    customerValue={
+                      original !== null &&
+                      (original.form.addOnQuantity[quantityKey] ?? "") !== (form.addOnQuantity[quantityKey] ?? "")
+                        ? (original.form.addOnQuantity[quantityKey] ?? "")
+                        : undefined
+                    }
+                    onRevert={
+                      original !== null
+                        ? () => onQuantity(quantityKey, original.form.addOnQuantity[quantityKey] ?? "")
+                        : undefined
+                    }
+                    value={form.addOnQuantity[quantityKey] ?? ""}
+                    error={problems[fieldIdFor("qty", quantityKey)]}
+                    onChange={(value) => onQuantity(quantityKey, value)}
+                  />
+                )
               ) : null}
             </div>
           );

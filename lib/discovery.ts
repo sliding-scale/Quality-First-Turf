@@ -141,16 +141,16 @@ export const installTypeDetail: Record<string, string> = {
     "Removal of grass and vegetation, then reshaping and leveling the soil. Includes haul and dump.",
   '3" Drains': "Helps manage water drainage and prevent pooling.",
   '4" Drains': "Larger drainage capacity for heavy water flow.",
-  '1" Mainline': "Primary water line for irrigation systems.",
-  '3/4" Waterline': "Secondary waterline for irrigation.",
-  '1" Pipe Sleeve': "Protects pipes when running under hardscapes.",
-  '2" Conduit': "Electrical conduit for low voltage lighting or other utilities.",
+  '1" Mainline': "PVC Schedule 40, 12\" deep. Primary water line for irrigation systems.",
+  '3/4" Waterline': "PVC Schedule 40. Secondary waterline for irrigation.",
+  "Pipe Sleeve": "PVC Schedule 40. Protects pipes when running under hardscapes.",
+  '2" Conduit': "18\" deep. Electrical conduit for low voltage lighting or other utilities.",
   '3/4" Gas Line': "Gas line for fire features or outdoor appliances.",
   "Run Loose Lay Wire": "Low voltage wire run above or within the landscape (no conduit).",
   "Run Wire Through Conduit": "Wire run through protective conduit for added durability.",
   "Run Line Under Concrete": "Low voltage wire run beneath concrete surfaces.",
   "Install Outlet": "Outdoor outlet for lighting system.",
-  "Install GFI": "Ground fault interrupter for safety.",
+  "Install GFI": "Includes the circuit, and running and connecting the line.",
   "Install Conduit with 110V Line": "Conduit run with 110V power line.",
   "Install Controller": "Lighting controller for automated operation.",
   "150 Watt Transformer": "Transformer for a smaller set of lights.",
@@ -193,22 +193,24 @@ const puttingAddOns = [
   "Unique Cup Set / Flag Light Set",
 ];
 
+/** Units follow the price list: SF add-ons are measured length × width, LF by length, EA by count. */
 const addOnUnits: Record<string, string> = {
-  "Additional #16 / #20 Silica Sand": "bags",
-  "Additional #60 Silica Sand": "bags",
-  "Additional Pet Deodorizer": "bags",
-  "Additional Camofill": "bags",
-  "Additional Seam Tape": "rolls",
-  "Additional Weed Cloth": "rolls",
-  "Gopher Wire": "rolls",
+  "Additional #16 / #20 Silica Sand": "sq ft",
+  "Additional #60 Silica Sand": "sq ft",
+  "Additional Pet Deodorizer": "sq ft",
+  "Additional Camofill": "sq ft",
+  "Additional Seam Tape": "linear ft",
+  "Additional Weed Cloth": "sq ft",
+  "Gopher Wire": "sq ft",
   "1 x 4 Bender Board": "linear ft",
   "2 x 4 Pressure Treated Lumber": "linear ft",
   "Black Aluminum Border": "linear ft",
   "Aluminium Golf Cup / Flag Set": "each",
   "Unique Cup Set / Flag Light Set": "each",
-  'Additional 2" of Base': "layers",
-  [additionalDemo]: "layers",
-  [additionalDemoRegrade]: "layers",
+  // The price list charges every extra 2" of base or demolition per square foot.
+  'Additional 2" of Base': "sq ft",
+  [additionalDemo]: "sq ft",
+  [additionalDemoRegrade]: "sq ft",
   "Concrete / Rock": "sq ft",
 };
 
@@ -239,7 +241,7 @@ export const installTypes: Record<string, string[]> = {
     '4" Drains',
     '1" Mainline',
     '3/4" Waterline',
-    '1" Pipe Sleeve',
+    "Pipe Sleeve",
     '2" Conduit',
     '3/4" Gas Line',
   ],
@@ -655,11 +657,8 @@ export function buildDiscovery(input: DiscoveryState): DiscoveryBuild {
     for (const installType of selected) {
       answers.push({ question: `${service} install type`, value: installType });
     }
-    const needsAreaName = selected.length > 1 || service === "Low Voltage Lighting";
     for (const type of selected) {
-      const areaName = needsAreaName
-        ? (input.areaNames[selectionKey(service, type)] ?? "").trim()
-        : "";
+      const areaName = (input.areaNames[selectionKey(service, type)] ?? "").trim();
       if (areaName !== "") {
         answers.push({ question: `${service} area`, value: `${type}: ${areaName}` });
       }
@@ -796,10 +795,9 @@ function collectGrass(
   noteLines: string[],
 ): { error: string; fieldId: string } | null {
   const service = grassService;
-  const needsAreaName = selected.length > 1;
   for (const installType of selected) {
     const key = selectionKey(service, installType);
-    const areaName = needsAreaName ? (input.areaNames[key] ?? "").trim() : "";
+    const areaName = (input.areaNames[key] ?? "").trim();
     answers.push({ question: `${service} install type`, value: installType });
     if (areaName !== "") {
       answers.push({

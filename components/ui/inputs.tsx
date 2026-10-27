@@ -1,6 +1,18 @@
 import type { KeyboardEvent, ReactNode } from "react";
 
 /**
+ * Pressing Enter in a field submits its form, which on a long form validates everything and
+ * jumps to whatever is still empty. Forms that should only submit from their button use this
+ * as `onKeyDown`; Enter in a notes box (a new line) and on the buttons themselves still works.
+ */
+export function blockEnterSubmit(event: KeyboardEvent<HTMLFormElement>) {
+  if (event.key !== "Enter") return;
+  const target = event.target;
+  if (target instanceof HTMLTextAreaElement || target instanceof HTMLButtonElement) return;
+  event.preventDefault();
+}
+
+/**
  * Props for a radio that can be turned off again: clicking (or pressing Space on)
  * the selected option clears it, so optional questions don't trap an answer.
  */

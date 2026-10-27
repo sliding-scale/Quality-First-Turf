@@ -3,7 +3,7 @@ import { planQuoteLines } from "../../lib/quote-lines";
 import { internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
 import type { ActionCtx } from "../_generated/server";
-import { action, env } from "../_generated/server";
+import { action, env, internalAction } from "../_generated/server";
 import {
   addDraftLines,
   createClient,
@@ -93,9 +93,23 @@ function publicResult(result: DraftQuoteResult): DraftQuoteResult {
     integrationError:
       result.integrationError === null
         ? null
-        : "The quote could not be drafted automatically. The office will follow up.",
+        : "The request could not be sent to the office automatically. The office will follow up.",
   };
 }
+
+/** Lists the product names and default prices in Jobber, read-only, to line the app's item names up with the real ones. */
+export const listCatalogue = internalAction({
+  args: {},
+  returns: v.array(v.object({ name: v.string(), unitCost: v.number() })),
+  handler: async (ctx) => {
+    const accessToken = await accessTokenFor(ctx);
+    const catalogue = await loadCatalogue(accessToken);
+    return [...catalogue.values()].map((product) => ({
+      name: product.name,
+      unitCost: product.defaultUnitCost,
+    }));
+  },
+});
 
 export const publishVisit = action({
   args: { projectId: v.id("projects") },
@@ -219,6 +233,7 @@ async function draftForProject(
       accessToken,
       clientId: client.id,
       propertyId,
+      requestId: project.jobberRequestId ?? undefined,
       title: quoteTitle(project),
       lineItems: lines,
     });
@@ -292,7 +307,7 @@ async function draftForProject(
   });
 }
 
-async function accessTokenFor(ctx: ActionCtx): Promise<string> {
+export async function accessTokenFor(ctx: ActionCtx): Promise<string> {
   const clientId = env.JOBBER_CLIENT_ID;
   const clientSecret = env.JOBBER_CLIENT_SECRET;
   if (!clientId || !clientSecret) {
@@ -333,12 +348,12 @@ async function publishForProject(
   ctx: ActionCtx,
   project: Doc<"projects">,
 ): Promise<DraftQuoteResult> {
-  if (project.jobberQuoteId) {
+  if (project.jobberRequestId) {
     return {
       projectId: project._id,
       status: project.status,
       jobberClientId: project.jobberClientId,
-      jobberRequestId: project.jobberRequestId ?? null,
+      jobberRequestId: project.jobberRequestId,
       jobberQuoteId: project.jobberQuoteId,
       missingMapping: project.missingMapping,
       integrationError: null,
@@ -357,7 +372,7 @@ async function publishForProject(
     });
   }
 
-  // The customer's own submission goes in as a Request; a failure here must not block the quote.
+  // The customer's submission becomes a Request only. The quote is drafted later, from the on-site visit.
   let requestId = project.jobberRequestId ?? null;
   if (requestId === null) {
     try {
@@ -369,61 +384,22 @@ async function publishForProject(
         details: submissionDetails(project),
       });
     } catch (error) {
-      console.error("Jobber request was not created:", error instanceof Error ? error.message : error);
-    }
-  }
-
-  const planned = planQuoteLines({
-    services: project.services,
-    products: project.products,
-    answers: project.answers,
-    measurements: project.measurements,
-    workAreas: [],
-  });
-  const intended = planned.lines.length > 0
-    ? planned.lines
-    : project.services.map((name) => ({ name, quantity: 1 }));
-  const catalogue = await loadCatalogue(accessToken);
-  const lines: DraftLine[] = [];
-  const unmatched: string[] = [];
-  for (const plannedLine of intended) {
-    const product = catalogue.get(plannedLine.name) ?? null;
-    if (product !== null && Number.isFinite(product.defaultUnitCost)) {
-      lines.push({
-        name: product.name,
-        productOrServiceId: product.id,
-        quantity: plannedLine.quantity,
-        unitPrice: product.defaultUnitCost,
-      });
-    } else {
-      unmatched.push(plannedLine.name);
-      lines.push({
-        name: plannedLine.name,
-        quantity: plannedLine.quantity,
-        unitPrice: 0,
+      return await remember(ctx, project, {
+        status: "needs attention",
+        jobberClientId: client.id,
+        jobberQuoteId: null,
+        missingMapping: null,
+        integrationError: describe(error),
       });
     }
   }
-  const missing = [planned.missing, unmatched.length === 0 ? null : `${unmatched.join(", ")} has no Jobber item`]
-    .filter((part): part is string => part !== null && part !== "")
-    .join(" ")
-    .slice(0, 500);
-
-  const created = await createDraftQuote({
-    accessToken,
-    clientId: client.id,
-    propertyId,
-    title: quoteTitle(project),
-    lineItems: lines,
-  });
-  const drafted = created.quoteStatus === "draft";
   return await remember(ctx, project, {
-    status: drafted && missing === "" ? "quote drafted" : "needs attention",
+    status: project.status,
     jobberClientId: client.id,
     jobberRequestId: requestId,
-    jobberQuoteId: created.id,
-    missingMapping: missing === "" ? null : missing,
-    integrationError: drafted ? null : "Jobber did not leave the quote as a draft.",
+    jobberQuoteId: project.jobberQuoteId,
+    missingMapping: null,
+    integrationError: null,
   });
 }
 

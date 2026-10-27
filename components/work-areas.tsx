@@ -54,6 +54,15 @@ export function parseWorkAreas(areas: WorkAreaDraft[]): {
         workAreas: null,
       };
     }
+    const length = optionalNumber(area.length);
+    const width = optionalNumber(area.width);
+    if (length === "invalid" || width === "invalid") {
+      return {
+        error: `Enter the length and width for ${label} as numbers, or leave them blank.`,
+        fieldId: `area-${index}-length`,
+        workAreas: null,
+      };
+    }
     const quantity = optionalNumber(area.quantity);
     if (quantity === "invalid") {
       return {
@@ -64,8 +73,8 @@ export function parseWorkAreas(areas: WorkAreaDraft[]): {
     }
     workAreas.push({
       label,
-      length: null,
-      width: null,
+      length,
+      width,
       quantity,
       notes: area.notes.trim(),
       photoIds: area.photoIds,
