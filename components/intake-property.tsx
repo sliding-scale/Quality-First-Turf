@@ -1,9 +1,9 @@
 "use client";
 
-import { ArrowRight, Check, Handshake, HardHat, House, Leaf, Lock, Shield } from "lucide-react";
+import { ArrowRight, Check, HardHat, House, Lock } from "lucide-react";
 import { RetryNextImage } from "@/components/ui/retry-image";
 import { FormEvent, ReactNode } from "react";
-import { ConfirmationFit, ViewportFit } from "@/components/confirmation-fit";
+import { ConfirmationFit } from "@/components/confirmation-fit";
 import { contactFields } from "@/components/ui/fields";
 import type { DiscoveryState } from "@/lib/discovery";
 import { DiscoveryStep } from "@/lib/discovery-draft";
@@ -68,11 +68,9 @@ export function IntakeFrame({
 
   if (step === "property") {
     return (
-      <div className="intake intake--property">
-        <ViewportFit className="intake-fit" minLayoutWidth={1440}>
-          <IntakeHeader step={step} onStep={onStep} />
-          {children}
-        </ViewportFit>
+      <div className="intake intake--simple">
+        <IntakeHeader step={step} onStep={onStep} />
+        {children}
       </div>
     );
   }
@@ -147,40 +145,75 @@ export function PropertyStep({
 }) {
   const fields = contactFields({ variant: "intake", form, problems, onPatch, required: true });
   return (
-    <div className="intake-split">
-      <form className="intake-pane" onSubmit={onSubmit} noValidate>
-        <div className="intake-card">
-          <h2>Your details</h2>
-          <p className="intake-card__lead">
-            Who we should contact, and the address of the property.
-            <br />
-            The services come next.
-          </p>
-          <div className="intake-fields">
-            <fieldset className="intake-group">
-              <legend>Contact</legend>
-              <div className="intake-grid">
-                {fields.firstName}
-                {fields.lastName}
-              </div>
-              <div className="intake-grid">
-                {fields.phone}
-                {fields.email}
-              </div>
-            </fieldset>
-            <fieldset className="intake-group">
-              <legend>Property address</legend>
-              <div className="intake-grid">
-                {fields.street1}
-                {fields.street2}
-              </div>
-              <div className="intake-grid intake-grid--address">
-                {fields.city}
-                {fields.state}
-                {fields.zip}
-              </div>
-            </fieldset>
-          </div>
+    <main className="simple-main">
+      <form className="simple-card" onSubmit={onSubmit} noValidate>
+        <div>
+          <h1>Your details</h1>
+          <p className="simple-card__lead">Tell us who you are, and where the work is. The services come next.</p>
+        </div>
+        <div className="intake-fields">
+          <fieldset className="intake-group">
+            <legend>I am</legend>
+            <div className="simple-audiences">
+              {audiences.map((audience) => {
+                const selected = form.customerType === audience.value;
+                const Icon = audience.icon;
+                return (
+                  <label
+                    key={audience.value}
+                    className={selected ? "simple-audience is-selected" : "simple-audience"}
+                  >
+                    <input
+                      className="visually-hidden"
+                      type="radio"
+                      name="customer-type"
+                      value={audience.value}
+                      {...toggleRadio(
+                        selected,
+                        () => onPatch({ customerType: audience.value }),
+                        () => onPatch({ customerType: "" }),
+                      )}
+                    />
+                    <span className="simple-audience__icon">
+                      <Icon strokeWidth={1.75} aria-hidden="true" />
+                    </span>
+                    <span className="simple-audience__text">
+                      <strong>{audience.title}</strong>
+                      <small>{audience.detail}</small>
+                    </span>
+                    <span className="simple-audience__radio" aria-hidden="true">
+                      <span />
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
+          <fieldset className="intake-group">
+            <legend>Contact</legend>
+            <div className="intake-grid">
+              {fields.firstName}
+              {fields.lastName}
+            </div>
+            <div className="intake-grid">
+              {fields.phone}
+              {fields.email}
+            </div>
+          </fieldset>
+          <fieldset className="intake-group">
+            <legend>Property address</legend>
+            <div className="intake-grid">
+              {fields.street1}
+              {fields.street2}
+            </div>
+            <div className="intake-grid intake-grid--address">
+              {fields.city}
+              {fields.state}
+              {fields.zip}
+            </div>
+          </fieldset>
+        </div>
+        <div className="simple-card__footer">
           <button className="intake-continue" type="submit" disabled={pending}>
             {pending ? "Saving" : "Continue"}
             {pending ? null : <ArrowRight strokeWidth={2} aria-hidden="true" />}
@@ -191,71 +224,6 @@ export function PropertyStep({
           </p>
         </div>
       </form>
-      <section className="intake-hero">
-        <div className="intake-hero__media" aria-hidden="true">
-          <RetryNextImage
-            src="/images/turf-landscape.webp"
-            alt=""
-            fill
-            priority
-            sizes="(max-width: 959px) 100vw, 50vw"
-            className="intake-hero__photo"
-          />
-          <div className="intake-hero__wash" />
-        </div>
-        <div className="intake-hero__copy">
-          <h1>
-            Let&apos;s bring your <span className="intake-hero__break">outdoor vision to life.</span>
-          </h1>
-          <p className="intake-hero__sub">Tell us who you are, and where the work is.</p>
-          <fieldset className="intake-audiences">
-            <legend className="visually-hidden">Are you a homeowner or a contractor?</legend>
-            {audiences.map((audience) => {
-              const selected = form.customerType === audience.value;
-              const Icon = audience.icon;
-              return (
-                <label key={audience.value} className={selected ? "intake-audience is-selected" : "intake-audience"}>
-                  <input
-                    className="visually-hidden"
-                    type="radio"
-                    name="customer-type"
-                    value={audience.value}
-                    {...toggleRadio(
-                      selected,
-                      () => onPatch({ customerType: audience.value }),
-                      () => onPatch({ customerType: "" }),
-                    )}
-                  />
-                  <span className="intake-audience__icon">
-                    <Icon strokeWidth={1.75} aria-hidden="true" />
-                  </span>
-                  <span className="intake-audience__text">
-                    <strong>{audience.title}</strong>
-                    <small>{audience.detail}</small>
-                  </span>
-                  <span className="intake-audience__radio" aria-hidden="true">
-                    <span />
-                  </span>
-                </label>
-              );
-            })}
-          </fieldset>
-        </div>
-        <ul className="intake-trust">
-          <li>
-            <Shield strokeWidth={1.75} aria-hidden="true" />
-            Premium quality turf
-          </li>
-          <li>
-            <Leaf strokeWidth={1.75} aria-hidden="true" />
-            Professional installation
-          </li>
-          <li>
-            <Handshake strokeWidth={1.75} aria-hidden="true" />
-            Trusted across Southern California
-          </li>
-        </ul>
-      </section>
-    </div>
+    </main>
   );
 }

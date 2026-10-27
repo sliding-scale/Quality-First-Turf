@@ -25,9 +25,9 @@ const lengths = [
 
 const defaultMinutes = 60;
 
-/** Quarter-hour start times from 6:00 AM to 8:00 PM, as "HH:MM". */
-const startTimes = Array.from({ length: 57 }, (_, index) => {
-  const total = 6 * 60 + index * 15;
+/** Quarter-hour start times across the day, as "HH:MM". */
+const startTimes = Array.from({ length: 96 }, (_, index) => {
+  const total = index * 15;
   return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
 });
 

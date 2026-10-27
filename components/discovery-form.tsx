@@ -130,26 +130,6 @@ const productPhotos: Record<string, string> = {
   "Poa Annua Max": productSrc("POA Annua Max.webp"),
 };
 
-const servicePhotos: Record<string, string> = {
-  Demo: "/images/services/demo.webp",
-  [grassService]: "/images/services/grass.webp",
-  "Putting Green": "/images/services/putting.webp",
-  Underground: "/images/services/underground.webp",
-  "Low Voltage Lighting": "/images/services/lighting.webp",
-  SOD: "/images/services/sod.webp",
-  "Patio Covers": "/images/services/patio.webp",
-  Concrete: "/images/services/concrete.webp",
-  "Retaining Walls": "/images/services/retaining.webp",
-  "Planter Walls": "/images/services/planter.webp",
-  Pavers: "/images/services/pavers.webp",
-  "Bar & Bbq": "/images/services/bbq.webp",
-  "Fire Pits": "/images/services/fire.webp",
-  "Decomposite Granite": "/images/services/granite.webp",
-  "Decorative Rock": "/images/services/rock.webp",
-  Irrigation: "/images/services/irrigation.webp",
-  Planting: "/images/services/planting.webp",
-};
-
 export function DiscoveryForm() {
   const createProject = useMutation(api.projects.mutations.create);
   const publishVisit = useAction(api.projects.actions.publishVisit);
@@ -452,7 +432,6 @@ export function DiscoveryForm() {
               invalid={Boolean(fieldErrors.services)}
               describedBy="services-error"
                 cards={services.map((service) => ({
-                imgUrl: servicePhotos[service],
                 label: serviceLabel(service),
                 selected: form.services.includes(service),
               }))}
@@ -485,7 +464,6 @@ export function DiscoveryForm() {
         </form>
       ) : (
       <form className="review-page" onSubmit={onSubmit} onKeyDown={blockEnterSubmit} noValidate>
-        <div className="review-page__bg" aria-hidden="true" />
         {step === "details" ? (
           <div className="review-stage">
             <div className="review-intro">
@@ -1884,58 +1862,9 @@ function AddOnAside({
   problems: Record<string, string>;
   clearProblem: (id: string) => void;
 }) {
-  const [shown, setShown] = useState(addOns);
-  const [closing, setClosing] = useState(false);
-  const [open, setOpen] = useState(false);
-  const shownRef = useRef(shown);
-  const addOnsRef = useRef(addOns);
-  const addOnKey = addOns.join("\n");
-  useLayoutEffect(() => {
-    shownRef.current = shown;
-    addOnsRef.current = addOns;
-  });
-
-  useEffect(() => {
-    const next = addOnsRef.current;
-    if (next.length > 0) {
-      setShown(next);
-      setClosing(false);
-      return;
-    }
-    if (shownRef.current.length === 0) return;
-    setOpen(false);
-    setClosing(true);
-    const duration = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 160 : 480;
-    const timeout = window.setTimeout(() => {
-      setShown([]);
-      setClosing(false);
-    }, duration);
-    return () => window.clearTimeout(timeout);
-  }, [addOnKey]);
-
-  useEffect(() => {
-    if (closing || shown.length === 0) return;
-    let second = 0;
-    const first = requestAnimationFrame(() => {
-      second = requestAnimationFrame(() => setOpen(true));
-    });
-    return () => {
-      cancelAnimationFrame(first);
-      cancelAnimationFrame(second);
-    };
-  }, [addOnKey, closing, shown.length]);
-
-  if (shown.length === 0) return null;
-  const asideClass = ["demo-addons", open && !closing ? "is-open" : "", closing ? "is-closing" : ""]
-    .filter(Boolean)
-    .join(" ");
+  if (addOns.length === 0) return null;
   return (
-    <aside
-      className={asideClass}
-      aria-label={`Add-ons for ${serviceLabel(service)}`}
-      aria-hidden={closing || undefined}
-      inert={closing || undefined}
-    >
+    <aside className="demo-addons" aria-label={`Add-ons for ${serviceLabel(service)}`}>
       <div className="demo-addons__drawer">
       <div className="demo-addons__head">
         <span className="review-card__icon demo-addons__icon">
@@ -1943,13 +1872,13 @@ function AddOnAside({
         </span>
         <div>
           <h2>Add-ons</h2>
-          <p>Select any additional options for this installation type.</p>
+          <p>Optional extras you can add to this installation.</p>
         </div>
       </div>
       <AddOnList
         legend="Add-on"
         look="cards"
-        addOns={shown}
+        addOns={addOns}
         selected={chosenAddOns(form, service)}
         quantities={form.addOnQuantity}
         problems={problems}

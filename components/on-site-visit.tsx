@@ -14,6 +14,7 @@ import {
   Shovel,
   Sprout,
   Trash2,
+  TriangleAlert,
   UserRound,
   Waves,
   type LucideIcon,
@@ -585,6 +586,12 @@ export function OnSiteVisit({
     return (
       <VisitFrame>
         <div className="visit-done">
+          <span
+            className={done.ready ? "confirmation-hero__mark visit-done__mark" : "visit-done__mark visit-done__mark--warn"}
+            aria-hidden="true"
+          >
+            {done.ready ? <Check strokeWidth={2.4} /> : <TriangleAlert strokeWidth={2} />}
+          </span>
           <h1>Visit saved</h1>
           <p>The measured areas and photos are on this project. The customer&apos;s original sizes are still there for the office to see.</p>
           <p className={done.ready ? "visit-done__ok" : "visit-alert"} role={done.ready ? undefined : "alert"}>
