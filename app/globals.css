@@ -8743,3 +8743,37 @@ video {
     right: 0.85rem;
   }
 }
+
+/* The sections the customer broke an area into, shown read-only on the visit */
+.visit-area__sections {
+  grid-column: 1 / -1;
+  padding: 0.6rem 0.8rem;
+  border: 1px dashed #cdd6ca;
+  border-radius: 10px;
+  background: #f4f7f2;
+  font-size: 0.9rem;
+}
+
+.visit-area__sections p {
+  margin: 0 0 0.35rem;
+  color: var(--visit-muted, #5d6d64);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.visit-area__sections ul {
+  display: grid;
+  gap: 0.2rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.visit-area__sections li span {
+  display: inline-block;
+  min-width: 5.5rem;
+  color: var(--visit-muted, #5d6d64);
+  font-weight: 600;
+}

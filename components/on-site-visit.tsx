@@ -62,6 +62,7 @@ import { parseWorkAreas } from "@/components/work-areas";
 import {
   areasForService,
   asWorkAreaDrafts,
+  customerSections,
   emptyServiceArea,
   estimatesFor,
   formatEstimates,
@@ -95,7 +96,12 @@ function defaultAreaName(area: VisitArea, service: string) {
 }
 
 /** The customer's submission, available to every field so it can show what they originally said. */
-type OriginalState = { form: DiscoveryState; areas: VisitArea[] };
+type OriginalState = {
+  form: DiscoveryState;
+  areas: VisitArea[];
+  /** The customer's own answers, which hold how each area was broken into sections. */
+  answers: { question: string; value: string }[];
+};
 const OriginalContext = createContext<OriginalState | null>(null);
 function useOriginal() {
   return useContext(OriginalContext);
@@ -279,6 +285,7 @@ export function OnSiteVisit({
     const originalForm = projectToForm(project.submitted).form;
     return {
       form: originalForm,
+      answers: project.submitted.answers,
       areas: seedVisitAreas([], project.submitted.measurements, originalForm),
     };
   }, [project.submitted]);
@@ -1574,6 +1581,15 @@ function AreaList({
             ? productsFor(service, measureInstall)
             : productsFor(service, area.installType || ((form.installTypes[service] ?? [])[0] ?? ""));
         const before = originalAreaFor(area, order, original);
+        const sections =
+          original === null
+            ? []
+            : customerSections(
+                original.answers,
+                service,
+                before?.installType ?? area.installType,
+                [before?.label ?? "", area.label].filter((name) => name !== ""),
+              );
         const originalProduct = original?.form.product[productKey] ?? original?.form.product[service] ?? "";
         const originalReplacement = original?.form.replacementInstall[productKey] ?? "";
         const linear =
@@ -1657,6 +1673,19 @@ function AreaList({
                   onChange={(next) => onArea(index, { length: next.length, width: next.width, quantity: next.area })}
                 />
               )}
+              {sections.length > 1 || (sections.length === 1 && sections[0].includes("×")) ? (
+                <div className="visit-area__sections">
+                  <p>Customer&apos;s sections</p>
+                  <ul>
+                    {sections.map((line, at) => (
+                      <li key={at}>
+                        <span>{`Section ${at + 1}`}</span>
+                        {line}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
               <div className="visit-area__pair">
               {types.length > 0 ? (
                 <div

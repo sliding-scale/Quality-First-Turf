@@ -345,3 +345,31 @@ export function emptyServiceArea(service: string, existing: VisitArea[] = []): V
   }
   return { ...emptyWorkArea(nextAreaLabel(service, existing)), service, installType: "" };
 }
+
+/**
+ * The sections the customer broke an area into, one line each, such as "20 × 25 ft = 500 sq ft".
+ * The customer form records them in an "area detail" answer; this reads them back so the visit can
+ * show what the customer entered. Empty when the area was a single size.
+ */
+export function customerSections(
+  answers: { question: string; value: string }[],
+  service: string,
+  installType: string,
+  labels: string[],
+): string[] {
+  for (const label of labels) {
+    const prefix = `${installType}: ${label}: `;
+    const detail = answers.find(
+      (answer) => answer.question === `${service} area detail` && answer.value.startsWith(prefix),
+    );
+    if (detail === undefined) continue;
+    const parts = detail.value.slice(prefix.length).split(" = ")[0].split(" + ");
+    if (parts.length === 0 || parts[0] === "") continue;
+    return parts.map((part) => {
+      const dims = part.match(/^(\d+(?:\.\d+)?) x (\d+(?:\.\d+)?) ft$/);
+      if (dims === null) return part;
+      return `${dims[1]} × ${dims[2]} ft = ${Math.round(Number(dims[1]) * Number(dims[2]))} sq ft`;
+    });
+  }
+  return [];
+}
