@@ -27,6 +27,7 @@ import { Id } from "@/convex/_generated/dataModel";
 import {
   addOnsForSelected,
   allowsMultipleInstallTypes,
+  areaFromName,
   asksForNotes,
   buildDiscovery,
   contactProblems,
@@ -49,6 +50,7 @@ import {
   soilConditions,
   turfInstallTypes,
   unitForAddOn,
+  usesAreaList,
   withAddOn,
   type DiscoveryState,
 } from "@/lib/discovery";
@@ -61,8 +63,8 @@ import {
   areasForService,
   asWorkAreaDrafts,
   emptyServiceArea,
-  estimateFor,
-  formatEstimate,
+  estimatesFor,
+  formatEstimates,
   areaDisplayName,
   isDefaultAreaName,
   labelsForService,
@@ -796,7 +798,7 @@ export function OnSiteVisit({
               {orderServices(form.services).map((service) => {
                 const Icon = serviceIcons[service] ?? Home;
                 const open = openServices.includes(service);
-                const estimate = estimateFor(estimates, labelsForService(service, form));
+                const serviceEstimates = estimatesFor(estimates, service, labelsForService(service, form));
                 return (
                   <article key={service} className="visit-card visit-service">
                     <button
@@ -830,8 +832,8 @@ export function OnSiteVisit({
 
                     {open ? (
                       <div className="visit-service__body">
-                        {estimate !== undefined || serviceNeedsAreas(service) ? (
-                          <p className="visit-estimate">{formatEstimate(estimate)}</p>
+                        {serviceEstimates.length > 0 || serviceNeedsAreas(service) ? (
+                          <p className="visit-estimate">{formatEstimates(serviceEstimates)}</p>
                         ) : null}
 
                         {service === "Low Voltage Lighting" ||
@@ -1232,10 +1234,21 @@ function syncServiceFromAreas(
     if (area.service !== service || area.installType === "") continue;
     areaNames[selectionKey(service, area.installType)] = isDefaultAreaName(area) ? "" : area.label;
   }
+  // Every area of an installation type is recorded, so the answers list them all.
+  const yards = { ...form.areas };
+  for (const type of types) {
+    if (!usesAreaList(service, type)) continue;
+    yards[selectionKey(service, type)] = areas
+      .filter((area) => area.service === service && area.installType === type)
+      .map((area, index) =>
+        areaFromName(`a${index + 1}`, isDefaultAreaName(area) ? "" : area.label, area.quantity.trim()),
+      );
+  }
   return {
     ...form,
     installTypes: { ...form.installTypes, [service]: types },
     areaNames,
+    areas: yards,
   };
 }
 

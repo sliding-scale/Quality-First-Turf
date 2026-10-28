@@ -40,6 +40,7 @@ import {
 } from "@/lib/discovery";
 import { ConfirmationPage } from "@/components/confirmation-page";
 import { IntakeFrame, PropertyStep } from "@/components/intake-property";
+import { AreaPlanner } from "@/components/area-planner";
 import ServiceBoard from "@/components/service-board";
 import { InstallCard } from "@/components/ui/install-card";
 import { RequiredStar } from "@/components/ui/fields";
@@ -684,32 +685,12 @@ function DemoSection({
                 onSelect={() => toggleInstallType(type)}
                 onFold={() => setFolded((current) => ({ ...current, [type]: !current[type] }))}
               >
-                <Field
-                  id={fieldIdFor("area", areaKey)}
-                  label="Which area is this?"
-                  placeholder="e.g. Front yard"
-                  value={form.areaNames[areaKey] ?? ""}
-                  error={problems[fieldIdFor("area", areaKey)]}
-                  onChange={(value) => {
-                    clearProblem(fieldIdFor("area", areaKey));
-                    setForm((current) => ({
-                      ...current,
-                      areaNames: { ...current.areaNames, [areaKey]: value },
-                    }));
-                  }}
-                />
-                <SquareFeetField
-                  dims={sizeDims(form, setForm, type)}
-                  id={fieldIdFor("square-feet", service, type)}
-                  value={form.squareFeet[type] ?? ""}
-                  error={problems[fieldIdFor("square-feet", service, type)]}
-                  onChange={(value) => {
-                    clearProblem(fieldIdFor("square-feet", service, type));
-                    setForm((current) => ({
-                      ...current,
-                      squareFeet: { ...current.squareFeet, [type]: value },
-                    }));
-                  }}
+                <AreaPlanner
+                  areaKey={areaKey}
+                  areas={form.areas[areaKey] ?? []}
+                  problems={problems}
+                  clearProblem={clearProblem}
+                  onChange={(next) => setForm((current) => ({ ...current, areas: { ...current.areas, [areaKey]: next } }))}
                 />
               </InstallCard>
             );
@@ -761,15 +742,6 @@ function PuttingGreenSection({
   const products = productsFor(service, installType);
   const addOns = addOnsForSelected(service, selected);
   const installId = fieldIdFor("install", service);
-  const feetId = installType
-    ? fieldIdFor("square-feet", service, installType)
-    : fieldIdFor("square-feet", service);
-  const feetValue = installType
-    ? (form.squareFeet[installType] ?? "")
-    : (form.squareFeet["Entertainment Putting Green"] ??
-      form.squareFeet["PGA Putting Green"] ??
-      "");
-
   function chooseType(value: string) {
     clearProblem(installId);
     if (value === "") {
@@ -787,28 +759,19 @@ function PuttingGreenSection({
         current.squareFeet["Entertainment Putting Green"] ||
         current.squareFeet["PGA Putting Green"] ||
         "";
+      const newKey = selectionKey(service, value);
+      const carriedAreas =
+        (current.areas[newKey] ?? []).length === 0 && previous !== ""
+          ? (current.areas[selectionKey(service, previous)] ?? [])
+          : [];
       return {
         ...current,
         installTypes: { ...current.installTypes, [service]: [value] },
+        areas: carriedAreas.length > 0 ? { ...current.areas, [newKey]: carriedAreas } : current.areas,
         squareFeet:
           carried === "" ? current.squareFeet : { ...current.squareFeet, [value]: carried },
       };
     });
-  }
-
-  function setFeet(value: string) {
-    clearProblem(feetId);
-    setForm((current) => ({
-      ...current,
-      squareFeet:
-        installType === ""
-          ? {
-              ...current.squareFeet,
-              "Entertainment Putting Green": value,
-              "PGA Putting Green": value,
-            }
-          : { ...current.squareFeet, [installType]: value },
-    }));
   }
 
   return (
@@ -849,20 +812,6 @@ function PuttingGreenSection({
               }}
               onFold={() => setFolded((current) => ({ ...current, [option.value]: !current[option.value] }))}
             >
-              <Field
-                id={fieldIdFor("area", areaKey)}
-                label="Which area is this?"
-                placeholder="e.g. Backyard"
-                value={form.areaNames[areaKey] ?? ""}
-                error={problems[fieldIdFor("area", areaKey)]}
-                onChange={(value) => {
-                  clearProblem(fieldIdFor("area", areaKey));
-                  setForm((current) => ({
-                    ...current,
-                    areaNames: { ...current.areaNames, [areaKey]: value },
-                  }));
-                }}
-              />
               {products.length > 0 ? (
                 <ChoiceGroup
                   id={fieldIdFor("product", service)}
@@ -886,13 +835,13 @@ function PuttingGreenSection({
                   }}
                 />
               ) : null}
-              <SquareFeetField
-                dims={sizeDims(form, setForm, installType)}
-                id={feetId}
-                value={feetValue}
-                error={problems[feetId]}
-                onChange={setFeet}
-              />
+              <AreaPlanner
+                  areaKey={areaKey}
+                  areas={form.areas[areaKey] ?? []}
+                  problems={problems}
+                  clearProblem={clearProblem}
+                  onChange={(next) => setForm((current) => ({ ...current, areas: { ...current.areas, [areaKey]: next } }))}
+                />
             </InstallCard>
           );
         })}
@@ -1681,20 +1630,6 @@ function GrassFollowUp({
                   onSelect={() => toggleInstallType(installType)}
                   onFold={() => setFolded((current) => ({ ...current, [installType]: !current[installType] }))}
                 >
-                  <Field
-                    id={fieldIdFor("area", key)}
-                    label="Which area is this?"
-                    placeholder="e.g. Front yard"
-                    value={form.areaNames[key] ?? ""}
-                    error={problems[fieldIdFor("area", key)]}
-                    onChange={(value) => {
-                      clearProblem(fieldIdFor("area", key));
-                      setForm((current) => ({
-                        ...current,
-                        areaNames: { ...current.areaNames, [key]: value },
-                      }));
-                    }}
-                  />
                   <GrassScope
                     form={form}
                     setForm={setForm}
@@ -1702,6 +1637,7 @@ function GrassFollowUp({
                     productInstall={installType}
                     problems={problems}
                     clearProblem={clearProblem}
+                    listAreas
                   />
                 </InstallCard>
               );
@@ -1743,6 +1679,7 @@ function GrassScope({
   problems,
   clearProblem,
   sizeFirst = false,
+  listAreas = false,
 }: {
   form: DiscoveryState;
   setForm: Dispatch<SetStateAction<DiscoveryState>>;
@@ -1751,6 +1688,8 @@ function GrassScope({
   problems: Record<string, string>;
   clearProblem: (id: string) => void;
   sizeFirst?: boolean;
+  /** List the yards (each with sections) instead of a single size. */
+  listAreas?: boolean;
 }) {
   const service = grassService;
   const products = productsFor(service, productInstall);
@@ -1775,7 +1714,7 @@ function GrassScope({
   );
   return (
     <>
-      {sizeFirst ? size : null}
+      {sizeFirst && !listAreas ? size : null}
       {products.length > 0 ? (
         <fieldset
           id={productId}
@@ -1842,7 +1781,20 @@ function GrassScope({
           </div>
         </fieldset>
       ) : null}
-      {sizeFirst ? null : size}
+      {listAreas ? (
+        <AreaPlanner
+          areaKey={scopeKey}
+          areas={form.areas[scopeKey] ?? []}
+          linear={linear}
+          problems={problems}
+          clearProblem={clearProblem}
+          onChange={(next) =>
+            setForm((current) => ({ ...current, areas: { ...current.areas, [scopeKey]: next } }))
+          }
+        />
+      ) : sizeFirst ? null : (
+        size
+      )}
     </>
   );
 }

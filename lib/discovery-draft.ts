@@ -1,5 +1,9 @@
 import {
+  areaPlaces,
   decimalInput,
+  emptySection,
+  withAreas,
+  type AreaDraft,
   emailInput,
   canonicalService,
   emptyDiscovery,
@@ -106,7 +110,7 @@ function formFrom(value: unknown): DiscoveryState {
     : [];
   const installTypes = remapServiceKeys(stringListRecord(value.installTypes));
   const savedWork = grassWork(value.grassWork);
-  return normalizeDemoChoices({
+  return withAreas(normalizeDemoChoices({
     ...blank,
     firstName: text(value.firstName),
     lastName: text(value.lastName),
@@ -121,6 +125,7 @@ function formFrom(value: unknown): DiscoveryState {
     services: orderServices(savedServices),
     installTypes,
     areaNames: remapKeyed(stringRecord(value.areaNames)),
+    areas: areasFrom(value.areas),
     replacementInstall: remapKeyed(stringRecord(value.replacementInstall)),
     product: remapKeyed(stringRecord(value.product)),
     addOns: remapServiceKeys(stringListRecord(value.addOns)),
@@ -135,7 +140,34 @@ function formFrom(value: unknown): DiscoveryState {
     soil: soilCondition(value.soil),
     notes: stringRecord(value.notes),
     grassWork: savedWork || grassWorkFromTypes(installTypes[grassService] ?? []),
-  });
+  }));
+}
+
+function areasFrom(value: unknown): Record<string, AreaDraft[]> {
+  if (!isRecord(value)) return {};
+  const result: Record<string, AreaDraft[]> = {};
+  for (const [key, list] of Object.entries(value)) {
+    if (!Array.isArray(list)) continue;
+    const areas: AreaDraft[] = [];
+    list.forEach((item, index) => {
+      if (!isRecord(item)) return;
+      const sections = Array.isArray(item.sections)
+        ? item.sections.filter(isRecord).map((section) => ({
+            length: decimalInput(text(section.length)),
+            width: decimalInput(text(section.width)),
+            size: decimalInput(text(section.size)),
+          }))
+        : [];
+      areas.push({
+        id: `a${index + 1}`,
+        place: areaPlaces.find((place) => place === item.place) ?? "",
+        other: text(item.other).slice(0, 60),
+        sections: sections.length > 0 ? sections.slice(0, 20) : [emptySection()],
+      });
+    });
+    if (areas.length > 0) result[remapServiceKey(key)] = areas.slice(0, 20);
+  }
+  return result;
 }
 
 function remapServiceKey(key: string): string {

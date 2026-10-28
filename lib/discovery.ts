@@ -321,6 +321,8 @@ export type DiscoveryState = {
   services: string[];
   installTypes: Record<string, string[]>;
   areaNames: Record<string, string>;
+  /** The yards (areas) the customer listed for each installation type, each with its own sections. */
+  areas: Record<string, AreaDraft[]>;
   replacementInstall: Record<string, string>;
   product: Record<string, string>;
   addOns: Record<string, string[]>;
@@ -352,6 +354,7 @@ export function emptyDiscovery(): DiscoveryState {
     services: [],
     installTypes: {},
     areaNames: {},
+    areas: {},
     replacementInstall: {},
     product: {},
     addOns: {},
@@ -371,6 +374,148 @@ export function emptyDiscovery(): DiscoveryState {
 
 export function selectionKey(service: string, installType: string): string {
   return `${service}::${installType}`;
+}
+
+export const areaPlaces = ["Front yard", "Back yard", "Side yard", "Other"] as const;
+export type AreaPlace = (typeof areaPlaces)[number];
+
+/** One rectangle of a yard: its length and width, and the size they work out to (or a size typed in). */
+export type AreaSection = { length: string; width: string; size: string };
+
+/** One place the work happens (front yard, back yard...), made of one or more sections. */
+export type AreaDraft = { id: string; place: AreaPlace | ""; other: string; sections: AreaSection[] };
+
+export function emptySection(): AreaSection {
+  return { length: "", width: "", size: "" };
+}
+
+export function emptyArea(id: string): AreaDraft {
+  return { id, place: "", other: "", sections: [emptySection()] };
+}
+
+export function nextAreaId(list: AreaDraft[]): string {
+  const highest = list.reduce((most, area) => Math.max(most, Number(area.id.slice(1)) || 0), 0);
+  return `a${highest + 1}`;
+}
+
+/** The size a section's length and width make, rounded to a whole foot; null until both are given. */
+export function workedSize(section: AreaSection): number | null {
+  const length = Number(section.length);
+  const width = Number(section.width);
+  return length > 0 && width > 0 ? Math.round(length * width) : null;
+}
+
+export function sectionSize(section: AreaSection): number | null {
+  const size = Number(section.size);
+  return section.size.trim() !== "" && Number.isFinite(size) && size > 0 ? size : null;
+}
+
+/** The yard's total: its sections added together; null while none has a size. */
+export function areaTotal(area: AreaDraft): number | null {
+  let total = 0;
+  let found = false;
+  for (const section of area.sections) {
+    const size = sectionSize(section);
+    if (size === null) continue;
+    total += size;
+    found = true;
+  }
+  return found ? total : null;
+}
+
+export function areasTotal(list: AreaDraft[]): number | null {
+  let total = 0;
+  let found = false;
+  for (const area of list) {
+    const size = areaTotal(area);
+    if (size === null) continue;
+    total += size;
+    found = true;
+  }
+  return found ? total : null;
+}
+
+/** What the customer called a yard; empty while they have not chosen. */
+export function areaBaseName(area: AreaDraft): string {
+  if (area.place === "Other") return area.other.trim() || "Other area";
+  return area.place;
+}
+
+/** One distinct label per yard: its name, the installation type while unnamed, a number after a repeat. */
+export function areaLabels(list: AreaDraft[], fallback: string): string[] {
+  const seen = new Map<string, number>();
+  return list.map((area) => {
+    const base = areaBaseName(area) || fallback;
+    const count = (seen.get(base) ?? 0) + 1;
+    seen.set(base, count);
+    return count === 1 ? base : `${base} ${count}`;
+  });
+}
+
+/** The names the customer gave this installation type's areas, whichever way they were recorded. */
+export function areaNamesFor(form: DiscoveryState, service: string, installType: string): string[] {
+  const key = selectionKey(service, installType);
+  const names = areaLabels(form.areas[key] ?? [], installType).filter((name) => name !== installType);
+  const single = (form.areaNames[key] ?? "").trim();
+  if (single !== "" && !names.includes(single)) names.push(single);
+  return names;
+}
+
+export function areaSizeId(key: string, areaId: string, index: number): string {
+  return fieldIdFor("area-size", key, areaId, String(index));
+}
+
+/** Installation types whose areas are listed yard by yard, each with sections. */
+export function usesAreaList(service: string, installType: string): boolean {
+  if (service === "Demo" || service === "Putting Green") return true;
+  return (
+    service === grassService &&
+    installType !== "Artificial Grass Repair" &&
+    installType !== "Artificial Grass Replacement"
+  );
+}
+
+/** A yard drawn from a name and a size, as the on-site visit records them. */
+export function areaFromName(id: string, name: string, size: string): AreaDraft {
+  const named = name.trim() === "" ? { place: "" as const, other: "" } : placeAndOther(name);
+  return { id, place: named.place, other: named.other, sections: [{ length: "", width: "", size }] };
+}
+
+function placeAndOther(name: string): { place: AreaPlace; other: string } {
+  const match = areaPlaces.find((place) => place.toLowerCase() === name.trim().toLowerCase());
+  if (match !== undefined && match !== "Other") return { place: match, other: "" };
+  return { place: "Other", other: name.trim() };
+}
+
+/**
+ * Turns the older single-name, single-size entries into a one-yard list, so drafts and projects saved
+ * before yards existed still open with what the customer typed.
+ */
+export function withAreas(form: DiscoveryState): DiscoveryState {
+  const areas = { ...form.areas };
+  let changed = false;
+  for (const service of services) {
+    if (!form.services.includes(service)) continue;
+    for (const type of form.installTypes[service] ?? []) {
+      if (!usesAreaList(service, type)) continue;
+      const key = selectionKey(service, type);
+      if ((areas[key] ?? []).length > 0) continue;
+      const name = (form.areaNames[key] ?? "").trim();
+      const size = (form.squareFeet[service === grassService ? key : type] ?? "").trim();
+      if (name === "" && size === "") continue;
+      const place = name === "" ? { place: "" as const, other: "" } : placeAndOther(name);
+      areas[key] = [
+        {
+          id: "a1",
+          place: place.place,
+          other: place.other,
+          sections: [{ length: form.length[type] ?? "", width: form.width[type] ?? "", size }],
+        },
+      ];
+      changed = true;
+    }
+  }
+  return changed ? { ...form, areas } : form;
 }
 
 export function grassJobAreaKey(installType: string): string {
@@ -555,6 +700,8 @@ type Measurement = {
   squareFeet: number | null;
   linearFeet: number | null;
   unmeasured: boolean;
+  service?: string;
+  installType?: string;
 };
 
 export type DiscoveryPayload = {
@@ -658,6 +805,7 @@ export function buildDiscovery(input: DiscoveryState): DiscoveryBuild {
       answers.push({ question: `${service} install type`, value: installType });
     }
     for (const type of selected) {
+      if ((input.areas[selectionKey(service, type)] ?? []).length > 0 && usesAreaList(service, type)) continue;
       const areaName = (input.areaNames[selectionKey(service, type)] ?? "").trim();
       if (areaName !== "") {
         answers.push({ question: `${service} area`, value: `${type}: ${areaName}` });
@@ -711,6 +859,12 @@ export function buildDiscovery(input: DiscoveryState): DiscoveryBuild {
 
     if (asksForArea(service, installType)) {
       for (const type of selected) {
+        const listed = input.areas[selectionKey(service, type)] ?? [];
+        if (listed.length > 0 && usesAreaList(service, type)) {
+          const listError = collectAreas(input, service, type, selectionKey(service, type), false, answers, measurements);
+          if (listError !== null) return invalid(listError.error, listError.fieldId);
+          continue;
+        }
         const areaName = (input.areaNames[selectionKey(service, type)] ?? "").trim();
         const areaError = optionalSquareFeet(
           areaName || type,
@@ -798,8 +952,9 @@ function collectGrass(
   for (const installType of selected) {
     const key = selectionKey(service, installType);
     const areaName = (input.areaNames[key] ?? "").trim();
+    const listed = usesAreaList(service, installType) && (input.areas[key] ?? []).length > 0;
     answers.push({ question: `${service} install type`, value: installType });
-    if (areaName !== "") {
+    if (areaName !== "" && !listed) {
       answers.push({
         question: `${service} area`,
         value: `${installType}: ${areaName}`,
@@ -854,6 +1009,19 @@ function collectGrass(
     products.push(product);
     answers.push({ question: `${installType} product`, value: product });
 
+    if (listed) {
+      const listError = collectAreas(
+        input,
+        service,
+        installType,
+        key,
+        grassUsesLinearFeet(productInstall, product),
+        answers,
+        measurements,
+      );
+      if (listError !== null) return listError;
+      continue;
+    }
     const measureText = input.squareFeet[key] ?? "";
     const areaError = grassUsesLinearFeet(productInstall, product)
       ? optionalLinearFeet(
@@ -887,6 +1055,68 @@ function collectGrass(
       answers,
     );
     if (quantityError !== null) return quantityError;
+  }
+  return null;
+}
+
+/** Records every yard listed for one installation type: its name, its sections, and its total. */
+function collectAreas(
+  input: DiscoveryState,
+  service: string,
+  type: string,
+  key: string,
+  linear: boolean,
+  answers: { question: string; value: string }[],
+  measurements: Measurement[],
+): { error: string; fieldId: string } | null {
+  const list = input.areas[key] ?? [];
+  const labels = areaLabels(list, type);
+  for (let index = 0; index < list.length; index += 1) {
+    const area = list[index];
+    const label = labels[index];
+    const parts: string[] = [];
+    let total = 0;
+    for (let at = 0; at < area.sections.length; at += 1) {
+      const section = area.sections[at];
+      const text = section.size.trim();
+      if (text === "") continue;
+      const value = Number(text);
+      if (!Number.isFinite(value) || value <= 0) {
+        return {
+          error: `Enter the ${linear ? "length" : "size"} for ${label}, or leave it blank.`,
+          fieldId: areaSizeId(key, area.id, at),
+        };
+      }
+      total += value;
+      parts.push(
+        !linear && workedSize(section) !== null
+          ? `${section.length} x ${section.width} ft`
+          : `${value} ${linear ? "ft" : "sq ft"}`,
+      );
+    }
+    if (areaBaseName(area) !== "") {
+      answers.push({ question: `${service} area`, value: `${type}: ${label}` });
+    }
+    if (parts.length > 1 || (parts.length === 1 && parts[0].includes(" x "))) {
+      answers.push({
+        question: `${service} area detail`,
+        value: `${type}: ${label}: ${parts.join(" + ")} = ${total} ${linear ? "linear ft" : "sq ft"}`,
+      });
+    }
+    const owner = { service, installType: type };
+    measurements.push(
+      parts.length === 0
+        ? { ...blankMeasurement(label), ...owner }
+        : {
+            label,
+            length: null,
+            width: null,
+            squareFeet: linear ? null : total,
+            linearFeet: linear ? total : null,
+            unmeasured: false,
+            ...owner,
+          },
+    );
   }
   return null;
 }
@@ -1116,6 +1346,48 @@ export type SavedProject = {
   }[];
 };
 
+/** The yards the customer listed, rebuilt from the saved answers and their sizes. */
+function restoreAreas(form: DiscoveryState, project: SavedProject): Record<string, AreaDraft[]> {
+  const result: Record<string, AreaDraft[]> = {};
+  const named: Record<string, string[]> = {};
+  for (const answer of project.answers) {
+    if (!answer.question.endsWith(" area")) continue;
+    const service = canonicalService(answer.question.slice(0, -" area".length));
+    const separator = answer.value.indexOf(": ");
+    if (separator <= 0 || !(services as readonly string[]).includes(service)) continue;
+    const key = selectionKey(service, answer.value.slice(0, separator));
+    (named[key] ??= []).push(answer.value.slice(separator + 2));
+  }
+  const sizeOf = (label: string): string => {
+    const measurement = project.measurements.find((item) => item.label === label);
+    if (measurement === undefined) return "";
+    const feet = storedSquareFeet(measurement);
+    if (feet !== null) return String(feet);
+    return measurement.linearFeet !== null && measurement.linearFeet > 0 ? String(measurement.linearFeet) : "";
+  };
+  for (const service of services) {
+    if (!form.services.includes(service)) continue;
+    for (const type of form.installTypes[service] ?? []) {
+      if (!usesAreaList(service, type)) continue;
+      const key = selectionKey(service, type);
+      const names = named[key] ?? [];
+      if (names.length === 0) {
+        const size = sizeOf(type);
+        if (size !== "") {
+          result[key] = [{ id: "a1", place: "", other: "", sections: [{ length: "", width: "", size }] }];
+        }
+        continue;
+      }
+      result[key] = names.map((name, index) => ({
+        id: `a${index + 1}`,
+        ...placeAndOther(name),
+        sections: [{ length: "", width: "", size: sizeOf(name) }],
+      }));
+    }
+  }
+  return result;
+}
+
 export function projectToForm(project: SavedProject): {
   form: DiscoveryState;
   visitNote: string;
@@ -1284,6 +1556,8 @@ export function projectToForm(project: SavedProject): {
       form.squareFeet[grassJobAreaKey("Artificial Grass Replacement")] = String(feet);
     }
   }
+
+  form.areas = restoreAreas(form, project);
 
   const visitLines: string[] = [];
   for (const line of project.notes.split("\n")) {

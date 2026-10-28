@@ -21,6 +21,9 @@ export const measurementValidator = v.object({
   linearFeet: v.union(v.number(), v.null()),
   unmeasured: v.boolean(),
   areaBand: v.optional(v.union(v.string(), v.null())),
+  /** Which service and installation type the size is for, so two areas with the same name stay apart. */
+  service: v.optional(v.string()),
+  installType: v.optional(v.string()),
 });
 
 export const workAreaInput = v.object({

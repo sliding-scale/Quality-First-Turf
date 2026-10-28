@@ -1,9 +1,8 @@
 import { emptyWorkArea, type WorkAreaDraft } from "@/components/work-areas";
 import {
-
+  areaNamesFor,
   grassService,
   hasFollowUp,
-  selectionKey,
   serviceLabel,
   type DiscoveryState,
 } from "@/lib/discovery";
@@ -19,6 +18,8 @@ export type CustomerMeasurement = {
   linearFeet: number | null;
   unmeasured: boolean;
   areaBand?: string | null;
+  service?: string;
+  installType?: string;
 };
 
 export type VisitArea = WorkAreaDraft & {
@@ -69,6 +70,28 @@ export function estimateFor(
   return measurements.find((item) => labels.includes(item.label));
 }
 
+/** Every size the customer gave for one service: by owner when recorded, otherwise by name. */
+export function estimatesFor(
+  measurements: CustomerMeasurement[],
+  service: string,
+  labels: string[],
+): CustomerMeasurement[] {
+  return measurements.filter((item) =>
+    item.service !== undefined ? item.service === service : labels.includes(item.label),
+  );
+}
+
+/** One line for the customer's sizes: the single estimate, or each area and what they come to together. */
+export function formatEstimates(list: CustomerMeasurement[]): string {
+  if (list.length <= 1) return formatEstimate(list[0]);
+  const sized = list.filter((item) => !item.unmeasured && (item.squareFeet ?? item.linearFeet ?? 0) > 0);
+  if (sized.length === 0) return "Customer did not know the sizes.";
+  const unit = (item: CustomerMeasurement) => (item.squareFeet !== null ? "SF" : "linear ft");
+  const parts = sized.map((item) => `${item.label} ${item.squareFeet ?? item.linearFeet} ${unit(item)}`);
+  const total = sized.reduce((sum, item) => sum + (item.squareFeet ?? item.linearFeet ?? 0), 0);
+  return `Customer estimated ${parts.join(", ")} (${total} ${unit(sized[0])} in all).`;
+}
+
 export function serviceForLabel(
   label: string,
   form: DiscoveryState,
@@ -79,8 +102,7 @@ export function serviceForLabel(
     if (label === service) return service;
     for (const type of form.installTypes[service] ?? []) {
       if (label === type) return service;
-      const areaName = form.areaNames[selectionKey(service, type)] ?? "";
-      if (areaName !== "" && label === areaName) return service;
+      if (areaNamesFor(form, service, type).includes(label)) return service;
     }
   }
   // Repair/replacement areas ("Artificial Grass Replacement job") belong to the grass service,
@@ -99,8 +121,7 @@ function installTypeForLabel(label: string, service: string, form: DiscoveryStat
   const types = form.installTypes[service] ?? [];
   if (types.includes(label)) return label;
   for (const type of types) {
-    const areaName = form.areaNames[selectionKey(service, type)] ?? "";
-    if (areaName !== "" && areaName === label) return type;
+    if (areaNamesFor(form, service, type).includes(label)) return type;
   }
   return types[0] ?? "";
 }
@@ -153,14 +174,14 @@ function draftFromMeasurement(
     photoIds: [],
     photoUrls: [],
     service,
-    installType: installTypeForLabel(measurement.label, service, form),
+    installType: measurement.installType ?? installTypeForLabel(measurement.label, service, form),
   };
 }
 
 function defaultArea(service: string, form: DiscoveryState, index: number): VisitArea {
   const types = form.installTypes[service] ?? [];
   const type = types[index] ?? types[0] ?? "";
-  const named = type === "" ? "" : (form.areaNames[selectionKey(service, type)] ?? "");
+  const named = type === "" ? "" : (areaNamesFor(form, service, type)[0] ?? "");
   return {
     ...emptyWorkArea(named || type || `${serviceLabel(service)} area`),
     service,
@@ -222,7 +243,7 @@ export function seedVisitAreas(
     }
   } else {
     for (const measurement of measurements) {
-      const service = serviceForLabel(measurement.label, form, measurements);
+      const service = measurement.service ?? serviceForLabel(measurement.label, form, measurements);
       if (service === "Low Voltage Lighting") continue;
       seeded.push(draftFromMeasurement(measurement, service, form));
     }
@@ -267,7 +288,11 @@ export function matchOriginalArea(
   originalAreas: VisitArea[],
 ): VisitArea | undefined {
   const same = originalAreas.filter((item) => item.service === area.service);
-  return same.find((item) => item.label === area.label) ?? same[order];
+  return (
+    same.find((item) => item.label === area.label && item.installType === area.installType) ??
+    same.find((item) => item.label === area.label) ??
+    same[order]
+  );
 }
 
 export function areasForService(areas: VisitArea[], service: string): VisitArea[] {
@@ -303,8 +328,7 @@ export function labelsForService(service: string, form: DiscoveryState): string[
   const labels = [service];
   for (const type of form.installTypes[service] ?? []) {
     labels.push(type);
-    const areaName = form.areaNames[selectionKey(service, type)] ?? "";
-    if (areaName !== "") labels.push(areaName);
+    labels.push(...areaNamesFor(form, service, type));
   }
   return labels;
 }

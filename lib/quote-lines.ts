@@ -363,15 +363,18 @@ function measure(
   usedLabels: Set<string>,
   owner?: { service: string; installType: string },
 ): number | null {
-  // An area belongs to a service and installation type whatever it is named.
-  const areas = project.workAreas.filter(
-    (area) =>
-      area.label === label ||
-      (owner !== undefined &&
-        owner.installType !== "" &&
-        area.service === owner.service &&
-        area.installType === owner.installType),
-  );
+  // An area belongs to a service and installation type whatever it is named, and two services can
+  // each have a "Back yard" without sharing it.
+  const areas = project.workAreas.filter((area) => {
+    const sameOwner =
+      owner !== undefined &&
+      owner.installType !== "" &&
+      area.service === owner.service &&
+      area.installType === owner.installType;
+    const hasOwner = area.service !== undefined && area.installType !== undefined && area.installType !== "";
+    if (owner !== undefined && owner.installType !== "" && hasOwner) return sameOwner;
+    return area.label === label || sameOwner;
+  });
   if (areas.length > 0) {
     let total = 0;
     let found = false;
