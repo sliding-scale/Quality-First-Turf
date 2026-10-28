@@ -97,7 +97,18 @@ function ProjectSidebar({
         .sort((left, right) => (right.visitedAt ?? 0) - (left.visitedAt ?? 0)),
     [projects],
   );
-  const shown = filter === "pending" ? pending : filter === "completed" ? completed : [...pending, ...completed];
+  const assigned = useMemo(
+    () => [...pending, ...completed].filter((project) => project.assignedToMe),
+    [pending, completed],
+  );
+  const shown =
+    filter === "pending"
+      ? pending
+      : filter === "completed"
+        ? completed
+        : filter === "assigned"
+          ? assigned
+          : [...pending, ...completed];
   const pageCount = Math.max(1, Math.ceil(shown.length / pageSize));
   const currentPage = Math.min(page, pageCount);
   const onPage = shown.slice((currentPage - 1) * pageSize, currentPage * pageSize);
@@ -146,7 +157,12 @@ function ProjectSidebar({
         </label>
         <StatusFilterMenu
           value={filter}
-          counts={{ all: projects.length, pending: pending.length, completed: completed.length }}
+          counts={{
+            all: projects.length,
+            pending: pending.length,
+            completed: completed.length,
+            assigned: assigned.length,
+          }}
           onChange={(next) => {
             setFilter(next);
             setPage(1);
@@ -174,13 +190,13 @@ function ProjectSidebar({
           <>
             <ProjectGroup
               title="Pending"
-              total={pending.length}
+              total={shown.filter((project) => project.visitedAt === null).length}
               projects={onPage.filter((project) => project.visitedAt === null)}
               activeCode={activeCode}
             />
             <ProjectGroup
               title="Completed"
-              total={completed.length}
+              total={shown.filter((project) => project.visitedAt !== null).length}
               projects={onPage.filter((project) => project.visitedAt !== null)}
               activeCode={activeCode}
             />
@@ -222,15 +238,16 @@ function ProjectSidebar({
 
 const pageSize = 10;
 
-type StatusFilter = "all" | "pending" | "completed";
+type StatusFilter = "all" | "pending" | "completed" | "assigned";
 
 const filterOptions: { value: StatusFilter; label: string }[] = [
   { value: "all", label: "All" },
   { value: "pending", label: "Pending" },
   { value: "completed", label: "Completed" },
+  { value: "assigned", label: "Assigned" },
 ];
 
-/** The filter button inside the search bar: a small menu of All, Pending and Completed. */
+/** The filter button inside the search bar: a small menu of All, Pending, Completed and Assigned. */
 function StatusFilterMenu({
   value,
   counts,
@@ -334,7 +351,10 @@ function ProjectGroup({
               href={`/visit/${key}`}
               aria-current={active ? "page" : undefined}
             >
-              <strong>{name}</strong>
+              <strong>
+                {name}
+                {project.assignedToMe ? <em className="visit-sidebar__tag">Assigned</em> : null}
+              </strong>
               <span>
                 {[formatShortCode(project.shortCode), address].filter((part) => part !== "").join(" · ")}
               </span>
@@ -360,6 +380,8 @@ type ListedProject = {
   zip: string;
   phone: string;
   services: string[];
+  assignedToMe: boolean;
+  assignedToOther: boolean;
 };
 
 function matches(project: ListedProject, query: string) {

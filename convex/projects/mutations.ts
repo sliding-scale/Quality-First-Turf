@@ -86,6 +86,44 @@ export const generateUploadUrl = mutation({
   },
 });
 
+/** Claims a lead for the signed-in salesperson. Refuses a lead someone else already holds. */
+export const assign = mutation({
+  args: { sessionToken: v.string(), projectId: v.id("projects") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const session = await activeSalesSession(ctx, args.sessionToken, true);
+    if (session === null || session.email === undefined) {
+      throw new Error("Sign in again to assign leads.");
+    }
+    const project = await ctx.db.get("projects", args.projectId);
+    if (project === null) throw new Error("This project is no longer available.");
+    if (project.assignedTo !== undefined && project.assignedTo !== session.email) {
+      throw new Error("This lead is already assigned to someone else.");
+    }
+    await ctx.db.patch("projects", args.projectId, { assignedTo: session.email });
+    return null;
+  },
+});
+
+/** Releases a lead the signed-in salesperson holds. */
+export const unassign = mutation({
+  args: { sessionToken: v.string(), projectId: v.id("projects") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const session = await activeSalesSession(ctx, args.sessionToken, true);
+    if (session === null || session.email === undefined) {
+      throw new Error("Sign in again to unassign leads.");
+    }
+    const project = await ctx.db.get("projects", args.projectId);
+    if (project === null) throw new Error("This project is no longer available.");
+    if (project.assignedTo !== session.email) {
+      throw new Error("Only the assigned salesperson can unassign this lead.");
+    }
+    await ctx.db.patch("projects", args.projectId, { assignedTo: undefined });
+    return null;
+  },
+});
+
 export const create = mutation({
   args: {
     firstName: v.string(),

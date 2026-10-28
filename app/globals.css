@@ -8662,3 +8662,84 @@ video {
     justify-self: end;
   }
 }
+
+/* Lead assignment: banner button and the sidebar tag */
+.visit-banner__actions {
+  position: relative;
+  z-index: 1;
+  grid-column: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+  margin-right: 1.5rem;
+}
+
+.visit-banner__actions .consultation-btn {
+  margin-right: 0;
+}
+
+.visit-assign {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.25rem;
+  padding: 0.35rem 0.95rem;
+  border: 1px solid rgb(255 255 255 / 70%);
+  border-radius: 999px;
+  background: rgb(18 53 38 / 55%);
+  color: #fff;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.visit-assign:hover:not(:disabled) {
+  background: rgb(18 53 38 / 80%);
+}
+
+.visit-assign.is-assigned {
+  background: #fff;
+  color: var(--visit-forest-deep, #123526);
+}
+
+.visit-assign:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.visit-assign--other {
+  cursor: default;
+}
+
+.visit-assign__error {
+  color: #fff;
+  font-size: 0.8rem;
+  text-shadow: 0 1px 2px rgb(8 24 16 / 60%);
+}
+
+.visit-sidebar__tag {
+  margin-left: 0.5rem;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  background: var(--visit-forest-deep, #123526);
+  color: #fff;
+  font-size: 0.65rem;
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  vertical-align: middle;
+}
+
+@media (max-width: 860px) {
+  .visit-banner__actions {
+    align-items: flex-start;
+    margin-right: 0;
+  }
+
+  .visit-banner__actions .consultation-btn {
+    position: absolute;
+    top: 0.6rem;
+    right: 0.85rem;
+  }
+}

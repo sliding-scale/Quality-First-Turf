@@ -101,6 +101,8 @@ export default defineSchema({
     visitedAt: v.optional(v.number()),
     draftingUntil: v.optional(v.number()),
     consultation: v.optional(consultationValidator),
+    /** Email of the salesperson who has claimed this lead; unset when unassigned. */
+    assignedTo: v.optional(v.string()),
   }).index("by_shortCode", ["shortCode"]),
   visitRevisions: defineTable({
     projectId: v.id("projects"),

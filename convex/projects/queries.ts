@@ -43,6 +43,10 @@ const salesProject = v.object({
   services: v.array(v.string()),
   status: projectStatus,
   createdAt: v.number(),
+  /** True when the signed-in salesperson holds this lead. */
+  assignedToMe: v.boolean(),
+  /** True when a different salesperson holds it. */
+  assignedToOther: v.boolean(),
 });
 
 const listLimit = 200;
@@ -80,6 +84,8 @@ export const listForSales = query({
         services: project.services,
         status: project.status,
         createdAt: project._creationTime,
+        assignedToMe: project.assignedTo !== undefined && project.assignedTo === session.email,
+        assignedToOther: project.assignedTo !== undefined && project.assignedTo !== session.email,
       })),
     };
   },
@@ -113,6 +119,8 @@ export const visit = query({
       access: v.literal("ok"),
       /** Whether the project has a Jobber request a consultation can be booked on. */
       canSchedule: v.boolean(),
+      /** Whether the lead is unassigned, held by the signed-in salesperson, or held by someone else. */
+      assignment: v.union(v.literal("none"), v.literal("me"), v.literal("other")),
       project: schema
         .doc("projects")
         .omit(
@@ -122,6 +130,7 @@ export const visit = query({
           "missingMapping",
           "integrationError",
           "draftingUntil",
+          "assignedTo",
         ),
       revisions: v.array(
         v.object({
@@ -145,7 +154,8 @@ export const visit = query({
     }),
   ),
   handler: async (ctx, args) => {
-    if ((await activeSalesSession(ctx, args.sessionToken)) === null) {
+    const session = await activeSalesSession(ctx, args.sessionToken);
+    if (session === null) {
       return { access: "signed-out" as const };
     }
     const project = await ctx.db.get("projects", args.projectId);
@@ -182,6 +192,7 @@ export const visit = query({
       missingMapping: _mapping,
       integrationError: _error,
       draftingUntil: _drafting,
+      assignedTo,
       ...visible
     } = project;
     const storedRevisions = await ctx.db
@@ -193,6 +204,8 @@ export const visit = query({
       savedAt: revision.savedAt,
       changes: revision.changes,
     }));
-    return { access: "ok" as const, canSchedule, project: visible, workAreas, revisions };
+    const assignment =
+      assignedTo === undefined ? ("none" as const) : assignedTo === session.email ? ("me" as const) : ("other" as const);
+    return { access: "ok" as const, canSchedule, assignment, project: visible, workAreas, revisions };
   },
 });

@@ -180,6 +180,56 @@ function SizeFields({
   );
 }
 
+/** Claims or releases the lead for the signed-in salesperson. */
+function AssignButton({
+  sessionToken,
+  projectId,
+  assignment,
+}: {
+  sessionToken: string;
+  projectId: Id<"projects">;
+  assignment: "none" | "me" | "other";
+}) {
+  const assign = useMutation(api.projects.mutations.assign);
+  const unassign = useMutation(api.projects.mutations.unassign);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (assignment === "other") {
+    return <span className="visit-assign visit-assign--other">Assigned to another salesperson</span>;
+  }
+  async function toggle() {
+    setBusy(true);
+    setError(null);
+    try {
+      if (assignment === "me") await unassign({ sessionToken, projectId });
+      else await assign({ sessionToken, projectId });
+    } catch {
+      setError("Could not update the assignment. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <>
+      <button
+        type="button"
+        className={assignment === "me" ? "visit-assign is-assigned" : "visit-assign"}
+        onClick={() => void toggle()}
+        disabled={busy}
+        aria-pressed={assignment === "me"}
+      >
+        {assignment === "me" ? "Assigned to you · Unassign" : "Assign to me"}
+      </button>
+      {error === null ? null : (
+        <span className="visit-assign__error" role="alert">
+          {error}
+        </span>
+      )}
+    </>
+  );
+}
+
 function choiceLabel(value: string) {
   return value;
 }
@@ -188,6 +238,7 @@ export function OnSiteVisit({
   projectId,
   sessionToken,
   canSchedule,
+  assignment,
   project,
   workAreas,
   revisions,
@@ -195,6 +246,7 @@ export function OnSiteVisit({
   projectId: Id<"projects">;
   sessionToken: string;
   canSchedule: boolean;
+  assignment: "none" | "me" | "other";
   project: {
     firstName: string;
     lastName: string;
@@ -641,13 +693,16 @@ export function OnSiteVisit({
             <small className="visit-banner__code">Project {formatShortCode(project.shortCode)}</small>
           ) : null}
         </h1>
-        <ConsultationButton
-          sessionToken={sessionToken}
-          projectId={projectId}
-          canSchedule={canSchedule}
-          email={form.email}
-          consultation={project.consultation}
-        />
+        <div className="visit-banner__actions">
+          <AssignButton sessionToken={sessionToken} projectId={projectId} assignment={assignment} />
+          <ConsultationButton
+            sessionToken={sessionToken}
+            projectId={projectId}
+            canSchedule={canSchedule}
+            email={form.email}
+            consultation={project.consultation}
+          />
+        </div>
       </header>
 
       <div className="visit-main">
