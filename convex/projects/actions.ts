@@ -18,6 +18,7 @@ import {
   removeDraftLines,
   type DraftLine,
 } from "../jobber/client";
+import { jobberKey } from "../../lib/jobber-names";
 import { rateLimiter } from "../rateLimits";
 import { projectStatus } from "../schema";
 
@@ -196,8 +197,14 @@ async function draftForProject(
   const catalogue = await loadCatalogue(accessToken);
   const lines: DraftLine[] = [];
   const missingNames: string[] = [];
+  const ambiguousNames: string[] = [];
   for (const plannedLine of planned.lines) {
-    const product = catalogue.get(plannedLine.name) ?? null;
+    const key = jobberKey(plannedLine.name);
+    if (catalogue.ambiguous.has(key)) {
+      ambiguousNames.push(plannedLine.name);
+      continue;
+    }
+    const product = catalogue.get(key) ?? null;
     if (product === null || !Number.isFinite(product.defaultUnitCost)) {
       missingNames.push(plannedLine.name);
       continue;
@@ -209,13 +216,15 @@ async function draftForProject(
       unitPrice: product.defaultUnitCost,
     });
   }
-  if (missingNames.length > 0) {
+  if (missingNames.length > 0 || ambiguousNames.length > 0) {
     return await remember(ctx, project, {
       status: "needs attention",
       jobberClientId: client.id,
       jobberQuoteId: project.jobberQuoteId,
-      missingMapping: missingNames
-        .map((name) => `${name} has no Jobber item`)
+      missingMapping: [
+        ...missingNames.map((name) => `${name} has no Jobber item`),
+        ...ambiguousNames.map((name) => `${name} matches more than one Jobber item`),
+      ]
         .join(" ")
         .slice(0, 500),
       integrationError: null,

@@ -1,3 +1,5 @@
+import { jobberKey } from "../../lib/jobber-names";
+
 const tokenUrl = "https://api.getjobber.com/api/oauth/token";
 const graphqlUrl = "https://api.getjobber.com/api/graphql";
 const authorizeUrlBase = "https://api.getjobber.com/api/oauth/authorize";
@@ -280,9 +282,19 @@ export async function editQuoteTitle(args: {
   if (message !== null) throw new JobberError(message);
 }
 
-/** Reads the product catalogue once so a quote with many lines costs one query, not one per line. */
-export async function loadCatalogue(accessToken: string): Promise<Map<string, CatalogueProduct>> {
-  const catalogue = new Map<string, CatalogueProduct>();
+export type JobberCatalogue = Map<string, CatalogueProduct> & {
+  /** Keys that more than one visible Jobber item answers to; they are left out rather than guessed at. */
+  ambiguous: Set<string>;
+};
+
+/**
+ * Reads the product catalogue once so a quote with many lines costs one query, not one per line.
+ * Items are keyed by `jobberKey`, so the client's numbered, differently worded names still match.
+ */
+export async function loadCatalogue(accessToken: string): Promise<JobberCatalogue> {
+  const catalogue = Object.assign(new Map<string, CatalogueProduct>(), {
+    ambiguous: new Set<string>(),
+  });
   let after: string | null = null;
   // The catalogue holds well over 1,000 items, so read every page; hidden (replaced) items are skipped.
   for (let page = 0; page < 40; page += 1) {
@@ -307,7 +319,16 @@ export async function loadCatalogue(accessToken: string): Promise<Map<string, Ca
       { after },
     );
     for (const product of data.products.nodes) {
-      if (product.visible !== false) catalogue.set(product.name, product);
+      if (product.visible === false) continue;
+      const key = jobberKey(product.name);
+      if (catalogue.ambiguous.has(key)) continue;
+      if (catalogue.has(key)) {
+        // Two items that read the same (for example a mislabelled copy) must not be picked between by luck.
+        catalogue.delete(key);
+        catalogue.ambiguous.add(key);
+        continue;
+      }
+      catalogue.set(key, product);
     }
     if (!data.products.pageInfo.hasNextPage) break;
     after = data.products.pageInfo.endCursor;
