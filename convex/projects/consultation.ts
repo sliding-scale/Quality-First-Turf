@@ -4,10 +4,13 @@ import type { Doc } from "../_generated/dataModel";
 import type { ActionCtx } from "../_generated/server";
 import { action, internalAction, internalMutation, internalQuery } from "../_generated/server";
 import { clockFromMinutes, minutesFromDayStart, overlaps, zonedToInstant, zonedWallClock } from "../../lib/zoned-time";
-import { jobberGraphql } from "../jobber/client";
+import { createRequest, jobberGraphql } from "../jobber/client";
 import { consultationValidator } from "../schema";
 import { salespersonName } from "../sales/accounts";
 import { accessTokenFor } from "./actions";
+import { saveVisitSnapshot } from "./visits";
+import { formatShortCode } from "../../lib/errors";
+import { visitLabel } from "../../lib/visits";
 
 type MutationErrors = { userErrors: { message: string }[] };
 type Who = { email: string; name: string };
@@ -41,17 +44,112 @@ function problem(errors: { message: string }[]): string | null {
   return errors.length === 0 ? null : errors.map((error) => error.message).join("; ");
 }
 
-/** The task notes Jobber shows: who the visit is for first, then whatever the salesperson typed. */
-function jobberNotes(name: string, notes: string): string {
-  return notes === "" ? `Salesperson: ${name}` : `Salesperson: ${name}\n\n${notes}`;
+/** The title Jobber shows on the request and its calendar entry: which visit, who is going, and for whom. */
+function jobberTitle(label: string, salesperson: string, project: Doc<"projects">): string {
+  const homeowner = `${project.firstName} ${project.lastName}`.trim();
+  const code = formatShortCode(project.shortCode);
+  return [label, salesperson, homeowner, code].filter((part) => part !== "").join(" · ").slice(0, 200);
+}
+
+/** The appointment notes Jobber shows: the visit and salesperson first, then the project, then whatever was typed. */
+function jobberNotes(label: string, salesperson: string, project: Doc<"projects">, notes: string): string {
+  const address = [project.street1, project.street2, project.city, project.state, project.zip]
+    .filter((part) => part.trim() !== "")
+    .join(", ");
+  const details = [
+    ["Homeowner", `${project.firstName} ${project.lastName}`.trim()],
+    ["Project ID", formatShortCode(project.shortCode)],
+    ["Address", address],
+    ["Phone", project.phone],
+    ["Email", project.email],
+    ["Services", project.services.join(", ")],
+  ]
+    .filter(([, value]) => value.trim() !== "")
+    .map(([name, value]) => `${name}: ${value}`);
+  return [`${label} · Salesperson: ${salesperson}`, details.join("\n"), notes]
+    .filter((block) => block !== "")
+    .join("\n\n");
+}
+
+/** A new Jobber request for a follow-up, because a request holds only one appointment. */
+async function createFollowUpRequest(
+  accessToken: string,
+  project: Doc<"projects">,
+  label: string,
+  salesperson: string,
+): Promise<string> {
+  const clientId = project.jobberClientId;
+  if (clientId === null) throw new ConvexError("This project has no Jobber client yet, so a follow-up cannot be booked.");
+  const found = await jobberGraphql<{ client: { clientProperties: { nodes: { id: string }[] } } | null }>(
+    accessToken,
+    `query Property($id: EncodedId!) { client(id: $id) { clientProperties(first: 1) { nodes { id } } } }`,
+    { id: clientId },
+  );
+  const propertyId = found.client?.clientProperties.nodes[0]?.id ?? null;
+  if (propertyId === null) throw new ConvexError("The Jobber client has no property, so a follow-up cannot be booked.");
+  const address = [project.street1, project.street2, project.city, project.state, project.zip]
+    .filter((part) => part.trim() !== "")
+    .join(", ");
+  return await createRequest({
+    accessToken,
+    clientId,
+    propertyId,
+    title: jobberTitle(label, salesperson, project),
+    details: [
+      { label: "Visit", value: label },
+      { label: "Salesperson", value: salesperson },
+      { label: "Homeowner", value: `${project.firstName} ${project.lastName}`.trim() },
+      { label: "Project ID", value: formatShortCode(project.shortCode) },
+      { label: "Address", value: address },
+      { label: "Phone", value: project.phone },
+      { label: "Email", value: project.email },
+      { label: "Services", value: project.services.join(", ") },
+    ].filter((row) => row.value.trim() !== ""),
+  });
+}
+
+/**
+ * Which visit a booking is for. A project whose current visit is saved complete is waiting for its next
+ * follow-up, so booking then starts that follow-up; otherwise it books or moves the current visit.
+ */
+function targetVisit(project: Doc<"projects">): { visit: number; advancing: boolean } {
+  const current = project.visitNumber ?? 0;
+  const advancing = project.visitedAt !== undefined;
+  return { visit: advancing ? current + 1 : current, advancing };
 }
 
 export const record = internalMutation({
-  args: { projectId: v.id("projects"), consultation: v.union(consultationValidator, v.null()) },
+  args: {
+    projectId: v.id("projects"),
+    consultation: v.union(consultationValidator, v.null()),
+    /** Starts the next follow-up: the finished visit is kept as its card and the new booking takes its place. */
+    advance: v.optional(v.boolean()),
+    /** The Jobber request created for a follow-up's appointment. */
+    followUpRequestId: v.optional(v.string()),
+  },
   returns: v.null(),
   handler: async (ctx, args) => {
+    if (args.advance === true) {
+      const project = await ctx.db.get("projects", args.projectId);
+      if (project === null || project.visitedAt === undefined) return null;
+      const visit = project.visitNumber ?? 0;
+      // Projects finished before visit cards existed get theirs now, before the next visit starts.
+      const card = await ctx.db
+        .query("visitSnapshots")
+        .withIndex("by_projectId_and_visit", (q) => q.eq("projectId", args.projectId).eq("visit", visit))
+        .first();
+      if (card === null) await saveVisitSnapshot(ctx, args.projectId, undefined);
+      await ctx.db.patch("projects", args.projectId, {
+        consultation: args.consultation ?? undefined,
+        visitNumber: visit + 1,
+        visitedAt: undefined,
+        followUpRequestId: args.followUpRequestId,
+      });
+      return null;
+    }
     await ctx.db.patch("projects", args.projectId, {
       consultation: args.consultation ?? undefined,
+      ...(args.followUpRequestId === undefined ? {} : { followUpRequestId: args.followUpRequestId }),
     });
     return null;
   },
@@ -241,19 +339,24 @@ export const book = action({
       throw new ConvexError("Choose a date and a time.");
     }
     if (!Number.isInteger(args.minutes) || args.minutes < 15 || args.minutes > 480) {
-      throw new ConvexError("Choose how long the consultation will take.");
+      throw new ConvexError("Choose how long the visit will take.");
     }
     if (args.date < new Date(Date.now() - 36 * 3_600_000).toISOString().slice(0, 10)) {
       throw new ConvexError("Choose a date that has not passed.");
     }
     const instructions = args.instructions.trim().slice(0, 1000);
     const { project, who } = await signedInProject(ctx, args.sessionToken, args.projectId);
+    const { visit, advancing } = targetVisit(project);
+    const label = visitLabel(visit);
     const accessToken = await accessTokenFor(ctx);
-    const requestId = project.jobberRequestId as string;
+    // A request holds one appointment, so the consultation lives on the project's own request and every
+    // follow-up gets a request of its own (null until it is created below, once the time is known to be free).
+    let requestId: string | null =
+      visit === 0 ? (project.jobberRequestId as string) : advancing ? null : (project.followUpRequestId ?? null);
 
-    // A request holds one appointment; move it rather than adding a second.
-    let assessmentId = project.consultation?.assessmentId ?? null;
-    if (assessmentId === null) {
+    // Move the visit's existing appointment rather than adding a second to the same request.
+    let assessmentId = requestId === null ? null : (project.consultation?.assessmentId ?? null);
+    if (requestId !== null && assessmentId === null) {
       const found = await jobberGraphql<{ request: { assessment: { id: string } | null } | null }>(
         accessToken,
         `query Existing($id: EncodedId!) { request(id: $id) { assessment { id } } }`,
@@ -285,8 +388,11 @@ export const book = action({
       );
     }
 
+    const madeRequest = requestId === null;
+    if (requestId === null) requestId = await createFollowUpRequest(accessToken, project, label, who.name);
+
     const input = {
-      instructions: jobberNotes(who.name, instructions),
+      instructions: jobberNotes(label, who.name, project, instructions),
       schedule: schedule(args.date, args.time, args.minutes, timezone, teamMemberId),
     };
     if (assessmentId === null) {
@@ -304,7 +410,7 @@ export const book = action({
       );
       const failed = problem(data.assessmentCreate.userErrors);
       if (failed !== null || data.assessmentCreate.assessment === null) {
-        throw new ConvexError(failed ?? "Jobber did not book the consultation.");
+        throw new ConvexError(failed ?? `Jobber did not book the ${label.toLowerCase()}.`);
       }
       assessmentId = data.assessmentCreate.assessment.id;
     } else {
@@ -321,6 +427,25 @@ export const book = action({
       if (failed !== null) throw new ConvexError(failed);
     }
 
+    // The request's title is what Jobber shows on the calendar entry. A request made for a follow-up is
+    // already titled. Otherwise this is best effort: the notes above carry the visit and salesperson,
+    // so a title Jobber refuses must not undo the booking.
+    if (!madeRequest) {
+      try {
+        const edited = await jobberGraphql<{ requestEdit: MutationErrors }>(
+          accessToken,
+          `mutation Title($id: EncodedId!, $input: RequestEditInput!) {
+            requestEdit(requestId: $id, input: $input) { userErrors { message } }
+          }`,
+          { id: requestId, input: { title: jobberTitle(label, who.name, project) } },
+        );
+        const refused = problem(edited.requestEdit.userErrors);
+        if (refused !== null) console.error(`Jobber did not retitle request ${requestId}: ${refused}`);
+      } catch (failure) {
+        console.error(`Could not retitle Jobber request ${requestId}`, failure);
+      }
+    }
+
     const consultation = {
       assessmentId,
       date: args.date,
@@ -332,6 +457,8 @@ export const book = action({
     await ctx.runMutation(internal.projects.consultation.record, {
       projectId: args.projectId,
       consultation,
+      advance: advancing,
+      followUpRequestId: visit > 0 ? requestId : undefined,
     });
     return consultation;
   },
@@ -342,7 +469,8 @@ export const cancel = action({
   returns: v.null(),
   handler: async (ctx, args) => {
     const { project } = await signedInProject(ctx, args.sessionToken, args.projectId);
-    if (project.consultation === undefined) return null;
+    // A finished visit has nothing booked to cancel; its next follow-up has not been scheduled yet.
+    if (project.consultation === undefined || project.visitedAt !== undefined) return null;
     const accessToken = await accessTokenFor(ctx);
     const data = await jobberGraphql<{ assessmentDelete: MutationErrors }>(
       accessToken,

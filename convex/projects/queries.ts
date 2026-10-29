@@ -1,10 +1,47 @@
 import { v } from "convex/values";
+import type { Doc } from "../_generated/dataModel";
 import { internalQuery, query } from "../_generated/server";
 import { salespersonName } from "../sales/accounts";
 import { activeSalesSession } from "../sales/session";
-import schema, { changeValidator, measuredSectionValidator, projectStatus } from "../schema";
+import schema, { measuredSectionValidator, projectStatus, answerValidator, measurementValidator } from "../schema";
 
 const workAreaLimit = 100;
+
+const workAreaView = v.object({
+  label: v.string(),
+  length: v.union(v.number(), v.null()),
+  width: v.union(v.number(), v.null()),
+  quantity: v.union(v.number(), v.null()),
+  notes: v.string(),
+  photoIds: v.array(v.id("_storage")),
+  photoUrls: v.array(v.union(v.string(), v.null())),
+  service: v.optional(v.string()),
+  installType: v.optional(v.string()),
+  sections: v.optional(v.array(measuredSectionValidator)),
+});
+
+/** One saved visit (the consultation or a follow-up) as its read-only card shows it. */
+const visitCard = v.object({
+  visit: v.number(),
+  savedAt: v.number(),
+  salesperson: v.optional(v.string()),
+  booking: v.optional(v.object({ date: v.string(), time: v.string(), minutes: v.number() })),
+  firstName: v.string(),
+  lastName: v.string(),
+  phone: v.string(),
+  email: v.string(),
+  street1: v.string(),
+  street2: v.string(),
+  city: v.string(),
+  state: v.string(),
+  zip: v.string(),
+  services: v.array(v.string()),
+  products: v.array(v.string()),
+  answers: v.array(answerValidator),
+  notes: v.string(),
+  measurements: v.array(measurementValidator),
+  workAreas: v.array(workAreaView),
+});
 
 export const get = internalQuery({
   args: { projectId: v.id("projects") },
@@ -138,26 +175,9 @@ export const visit = query({
           "draftingUntil",
           "assignedTo",
         ),
-      revisions: v.array(
-        v.object({
-          savedAt: v.number(),
-          changes: v.array(changeValidator),
-        }),
-      ),
-      workAreas: v.array(
-        v.object({
-          label: v.string(),
-          length: v.union(v.number(), v.null()),
-          width: v.union(v.number(), v.null()),
-          quantity: v.union(v.number(), v.null()),
-          notes: v.string(),
-          photoIds: v.array(v.id("_storage")),
-          photoUrls: v.array(v.union(v.string(), v.null())),
-          service: v.optional(v.string()),
-          installType: v.optional(v.string()),
-          sections: v.optional(v.array(measuredSectionValidator)),
-        }),
-      ),
+      /** Saved visits, oldest first: the consultation, then each follow-up. */
+      visits: v.array(visitCard),
+      workAreas: v.array(workAreaView),
     }),
   ),
   handler: async (ctx, args) => {
@@ -173,25 +193,29 @@ export const visit = query({
       .query("workAreas")
       .withIndex("by_projectId", (q) => q.eq("projectId", args.projectId))
       .take(workAreaLimit);
-    const workAreas = [];
-    for (const area of stored) {
-      const photoUrls = [];
-      for (const photoId of area.photoIds) {
-        photoUrls.push(await ctx.storage.getUrl(photoId));
+    const withPhotoUrls = async (areas: typeof stored | Doc<"visitSnapshots">["workAreas"]) => {
+      const result = [];
+      for (const area of areas) {
+        const photoUrls = [];
+        for (const photoId of area.photoIds) {
+          photoUrls.push(await ctx.storage.getUrl(photoId));
+        }
+        result.push({
+          label: area.label,
+          length: area.length,
+          width: area.width,
+          quantity: area.quantity,
+          notes: area.notes,
+          photoIds: area.photoIds,
+          photoUrls,
+          service: area.service,
+          installType: area.installType,
+          sections: area.sections,
+        });
       }
-      workAreas.push({
-        label: area.label,
-        length: area.length,
-        width: area.width,
-        quantity: area.quantity,
-        notes: area.notes,
-        photoIds: area.photoIds,
-        photoUrls,
-        service: area.service,
-        installType: area.installType,
-        sections: area.sections,
-      });
-    }
+      return result;
+    };
+    const workAreas = await withPhotoUrls(stored);
     const canSchedule = Boolean(project.jobberRequestId);
     const {
       jobberClientId: _client,
@@ -203,15 +227,15 @@ export const visit = query({
       assignedTo,
       ...visible
     } = project;
-    const storedRevisions = await ctx.db
-      .query("visitRevisions")
-      .withIndex("by_projectId", (q) => q.eq("projectId", args.projectId))
-      .order("desc")
-      .take(30);
-    const revisions = storedRevisions.map((revision) => ({
-      savedAt: revision.savedAt,
-      changes: revision.changes,
-    }));
+    const savedVisits = await ctx.db
+      .query("visitSnapshots")
+      .withIndex("by_projectId_and_visit", (q) => q.eq("projectId", args.projectId))
+      .take(50);
+    const visits = [];
+    for (const card of savedVisits) {
+      const { _id: _cardId, _creationTime: _cardCreated, projectId: _cardProject, addOns: _cardAddOns, ...shown } = card;
+      visits.push({ ...shown, workAreas: await withPhotoUrls(card.workAreas) });
+    }
     const assignment =
       assignedTo === undefined ? ("none" as const) : assignedTo === session.email ? ("me" as const) : ("other" as const);
     return {
@@ -221,7 +245,7 @@ export const visit = query({
       assignedToName: assignedTo === undefined ? null : salespersonName(assignedTo),
       project: visible,
       workAreas,
-      revisions,
+      visits,
     };
   },
 });

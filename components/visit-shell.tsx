@@ -3,7 +3,7 @@
 import { useMutation, useQuery } from "convex/react";
 import { Check, ChevronLeft, ChevronRight, ListFilter, Search, UserRound } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   createContext,
   ReactNode,
@@ -52,6 +52,18 @@ export function VisitShell({ children }: { children: ReactNode }) {
   const signIn = useCallback((next: string, remember = false) => writeSalesSession(next, remember), []);
   const signOut = useCallback(() => clearSalesSession(), []);
   const pathname = usePathname();
+  const router = useRouter();
+  // When a signed-in session ends (signing out, or it expires), leave the project's URL behind.
+  // A project link opened while signed out is left alone, so it still opens after logging in.
+  const wasSignedIn = useRef(false);
+  useEffect(() => {
+    if (typeof token === "string") {
+      wasSignedIn.current = true;
+    } else if (token === null && wasSignedIn.current) {
+      wasSignedIn.current = false;
+      if (pathname !== "/visit") router.replace("/visit");
+    }
+  }, [token, pathname, router]);
 
   if (token === undefined) {
     return <div className="visit-shell" aria-busy="true" />;

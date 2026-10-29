@@ -1,7 +1,7 @@
 "use client";
 
 import { useAction, useMutation } from "convex/react";
-import { ArrowRight, Box, Check, ChevronDown, ChevronUp, Flag, Gem, Layers, Leaf, Lightbulb, type LucideIcon, PawPrint, RefreshCw, Ruler, Shovel, Sprout, Star, Waves, Wrench } from "lucide-react";
+import { ArrowRight, Box, Check, ChevronDown, ChevronUp, ExternalLink, Flag, Gem, Layers, Leaf, Lightbulb, type LucideIcon, PawPrint, RefreshCw, Ruler, Shovel, Sprout, Star, Waves, Wrench } from "lucide-react";
 import RetryImage, { RetryNextImage } from "@/components/ui/retry-image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Dispatch, FormEvent, ReactNode, SetStateAction, useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -130,6 +130,64 @@ const productPhotos: Record<string, string> = {
   "Poa Annua Natural": productSrc("POA Annua Natural.webp"),
   "Poa Annua Max": productSrc("POA Annua Max.webp"),
 };
+
+function sampleSrc(file: string) {
+  return `/images/samples/${encodeURIComponent(file)}`;
+}
+
+/** Home pictures made for specific products. */
+const ownSamples: Record<string, string> = {
+  "Champions Choice": sampleSrc("Champions Choice.webp"),
+  Fringe: sampleSrc("Fringe.webp"),
+  "Hollywood Lush": sampleSrc("Hollywood Lush.webp"),
+  Hollywood: sampleSrc("Hollywood.webp"),
+  "Kennels Best": sampleSrc("Kennels Best.webp"),
+  "Kids Play": sampleSrc("Kids Play.webp"),
+  "La Jolla Lush": sampleSrc("La Jolla Lush.webp"),
+  Malibu: sampleSrc("Malibu.webp"),
+  Monterey: sampleSrc("Monterey.webp"),
+};
+
+/**
+ * What a home might look like with the product installed. Products without a picture of their own
+ * reuse the ones above in turn, in the order of the photo list, so each product always shows the same one.
+ */
+const productSamples: Record<string, string> = (() => {
+  const spare = Object.values(ownSamples);
+  const samples: Record<string, string> = {};
+  let next = 0;
+  for (const name of Object.keys(productPhotos)) {
+    samples[name] = ownSamples[name] ?? spare[next++ % spare.length];
+  }
+  return samples;
+})();
+
+/** A small button over a picture's top-right corner that opens it full size in a new tab, to zoom in. */
+function OpenImageLink({ href, label }: { href: string; label: string }) {
+  return (
+    <a
+      className="open-image"
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={`${label} (opens in a new tab)`}
+      title="Open in a new tab"
+    >
+      <ExternalLink size={16} aria-hidden="true" />
+    </a>
+  );
+}
+
+/** The sample picture shown beside the chosen product. */
+function ProductSample({ name, src }: { name: string; src: string }) {
+  return (
+    <figure className="product-sample">
+      <RetryImage src={src} alt={`A home with ${name} turf installed`} width={1697} height={927} />
+      <OpenImageLink href={src} label={`Open the ${name} home sample`} />
+      <figcaption>On a home</figcaption>
+    </figure>
+  );
+}
 
 export function DiscoveryForm() {
   const createProject = useMutation(api.projects.mutations.create);
@@ -390,7 +448,10 @@ export function DiscoveryForm() {
   if (!hydrated) {
     return (
       <IntakeFrame step="property">
-        <p className="intake-loading">Loading your request.</p>
+        <div className="intake-loading" role="status">
+          <span className="intake-loading__spinner" aria-hidden="true" />
+          <span className="visually-hidden">Loading your request</span>
+        </div>
       </IntakeFrame>
     );
   }
@@ -822,6 +883,7 @@ function PuttingGreenSection({
                   name={`${service}-product`}
                   look="photos"
                   images={productPhotos}
+                  samples={productSamples}
                   error={problems[fieldIdFor("product", service)]}
                   options={products.map((product) =>
                     product.mark === null ? product.name : `${product.name} (${product.mark})`,
@@ -1247,6 +1309,7 @@ function FollowUp({
               name={`${service}-product`}
               look="photos"
               images={productPhotos}
+              samples={productSamples}
               error={problems[fieldIdFor("product", service)]}
               options={products.map((product) =>
                 product.mark === null ? product.name : `${product.name} (${product.mark})`,
@@ -1763,7 +1826,9 @@ function GrassScope({
           <div
             className={
               products.some((item) => item.name === (form.product[scopeKey] ?? ""))
-                ? "grass-products__grid is-single"
+                ? productSamples[form.product[scopeKey] ?? ""] !== undefined
+                  ? "grass-products__grid is-single has-sample"
+                  : "grass-products__grid is-single"
                 : "grass-products__grid"
             }
           >
@@ -1814,9 +1879,16 @@ function GrassScope({
                     {product.name}
                     {product.mark ? <span className="grass-tile__mark"> ({product.mark})</span> : null}
                   </span>
+                  {checked && productPhotos[product.name] ? (
+                    <OpenImageLink href={productPhotos[product.name]} label={`Open the ${product.name} turf photo`} />
+                  ) : null}
                 </label>
               );
             })}
+            {products.some((item) => item.name === (form.product[scopeKey] ?? "")) &&
+            productSamples[form.product[scopeKey] ?? ""] !== undefined ? (
+              <ProductSample name={form.product[scopeKey] ?? ""} src={productSamples[form.product[scopeKey] ?? ""]} />
+            ) : null}
           </div>
           {products.some((item) => item.name === (form.product[scopeKey] ?? "")) ? (
             <ChangeChoice
@@ -2256,6 +2328,7 @@ function ChoiceGroup({
   multiple = false,
   look = "rows",
   images,
+  samples,
   error,
   onChange,
 }: {
@@ -2270,11 +2343,14 @@ function ChoiceGroup({
   multiple?: boolean;
   look?: "rows" | "cards" | "segment" | "photos";
   images?: Record<string, string>;
+  /** Pictures of the product in use, shown beside the chosen option when it has one. */
+  samples?: Record<string, string>;
   error?: string;
   onChange: (value: string) => void;
 }) {
   // With a single choice made, only that option stays; unselecting it brings the rest back.
   const collapsed = !multiple && look !== "segment" && value !== "" && options.some((option, index) => (values?.[index] ?? option) === value);
+  const sampleOfChoice = look === "photos" && collapsed ? samples?.[value] : undefined;
   const choices = options.map((option, index) => {
     const stored = values?.[index] ?? option;
     const checked = multiple ? valuesSelected.includes(stored) : value === stored;
@@ -2295,6 +2371,9 @@ function ChoiceGroup({
             <span className="product-photo__fallback" aria-hidden="true" />
           )}
           <span>{option}</span>
+          {checked && images?.[stored] ? (
+            <OpenImageLink href={images[stored]} label={`Open the ${stored} turf photo`} />
+          ) : null}
         </label>
       );
     }
@@ -2319,7 +2398,15 @@ function ChoiceGroup({
       id={id}
       aria-invalid={error ? true : undefined}
       aria-describedby={error ? errorId : undefined}
-      className={look === "photos" ? "choice-list product-photos" : look === "cards" ? "choice-list product-choices" : "choice-list"}
+      className={
+        look === "photos"
+          ? sampleOfChoice === undefined
+            ? "choice-list product-photos"
+            : "choice-list product-photos has-sample"
+          : look === "cards"
+            ? "choice-list product-choices"
+            : "choice-list"
+      }
     >
       <legend>
         {legend}
@@ -2331,6 +2418,7 @@ function ChoiceGroup({
         </p>
       ) : null}
       {look === "segment" ? <div className="segment">{choices}</div> : choices}
+      {sampleOfChoice === undefined ? null : <ProductSample name={value} src={sampleOfChoice} />}
       {collapsed ? <ChangeChoice label="Choose a different option" onClick={() => onChange("")} /> : null}
     </fieldset>
   );

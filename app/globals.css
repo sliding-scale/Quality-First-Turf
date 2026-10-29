@@ -1426,10 +1426,32 @@ hr {
 }
 
 .intake-loading {
-  margin: 2.5rem auto;
-  color: var(--dark-text);
-  font-size: 1.05rem;
-  text-align: center;
+  display: grid;
+  place-items: center;
+  min-height: 50dvh;
+  margin: 0 auto;
+}
+
+.intake-loading__spinner {
+  width: 3.5rem;
+  height: 3.5rem;
+  border: 0.3rem solid rgb(30 89 51 / 18%);
+  border-top-color: var(--primary-green);
+  border-radius: 50%;
+  animation: intake-spin 0.8s linear infinite;
+}
+
+@keyframes intake-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* A spinner has to keep turning to show the page is working, so it only slows down. */
+@media (prefers-reduced-motion: reduce) {
+  .intake-loading__spinner {
+    animation-duration: 2.4s;
+  }
 }
 
 .services-page {
@@ -6299,33 +6321,110 @@ video {
   min-width: 0;
 }
 
+/* "Choose a project" and "Project not found" sit in the middle of the pane. */
+.visit-shell__main:has(> .visit-empty) {
+  display: flex;
+  flex-direction: column;
+}
+
 .visit-empty {
   display: grid;
-  align-content: start;
-  gap: 0.75rem;
-  max-width: 34rem;
-  margin: 3rem auto;
-  padding: 0 1.25rem;
+  flex: 1;
+  align-content: center;
+  justify-items: center;
+  gap: 1rem;
+  width: 100%;
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: 3rem 1.5rem;
+  text-align: center;
 }
 
 .visit-empty h1 {
   margin: 0;
   color: #1b4a32;
   font-family: var(--font-heading);
-  font-size: var(--h1-step);
+  font-size: clamp(2.5rem, 6vw, 4rem);
   letter-spacing: -0.03em;
+  line-height: 1.05;
 }
 
 .visit-empty p {
+  max-width: 36rem;
   margin: 0;
   color: #5d6d64;
+  font-size: clamp(1.15rem, 2.2vw, 1.4rem);
   line-height: 1.55;
 }
 
 .visit-empty__link {
   width: fit-content;
+  margin-top: 0.5rem;
   color: #1b4a32;
+  font-size: 1.1rem;
   font-weight: 650;
+}
+
+/* Full-page notices (something went wrong, page not found), centred on the screen. */
+.status-page {
+  display: grid;
+  place-items: center;
+  padding: 2rem 1.5rem;
+  text-align: center;
+}
+
+.status-page__body {
+  display: grid;
+  justify-items: center;
+  gap: 1.1rem;
+  width: min(100%, 44rem);
+}
+
+.sales-list.status-page h1 {
+  width: auto;
+  font-size: clamp(2.5rem, 7vw, 4rem);
+  line-height: 1.05;
+}
+
+.status-page__lead {
+  max-width: 34rem;
+  margin: 0;
+  color: var(--primary-green);
+  font-size: clamp(1.15rem, 2.4vw, 1.4rem);
+  line-height: 1.55;
+}
+
+.status-page__action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3.25rem;
+  margin-top: 0.5rem;
+  padding: 0 2rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--primary-green);
+  color: #fff;
+  font: inherit;
+  font-size: 1.1rem;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.status-page__action:hover {
+  filter: brightness(1.12);
+}
+
+.status-page__action:focus-visible {
+  outline: 3px solid var(--primary-green);
+  outline-offset: 3px;
+}
+
+@media (max-width: 480px) {
+  .status-page__action {
+    width: 100%;
+  }
 }
 
 .visit-skeleton__card {
@@ -9456,5 +9555,285 @@ video {
 @media (max-width: 560px) {
   .visit-followup .visit-primary {
     width: 100%;
+  }
+}
+
+.visit-followup .visit-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+}
+
+@media (max-width: 560px) {
+  .visit-followup .visit-secondary {
+    width: 100%;
+  }
+}
+
+/* Visit history: the consultation and each follow-up, kept as read-only cards */
+.visit-snapshots__list {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.visit-snapshot {
+  border: 1px solid var(--visit-line);
+  border-left: 4px solid var(--visit-forest);
+  border-radius: 0.85rem;
+  background: #fbfaf5;
+}
+
+.visit-snapshot > summary {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem 0.75rem;
+  min-height: 3.25rem;
+  padding: 0.7rem 1rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.visit-snapshot > summary::-webkit-details-marker {
+  display: none;
+}
+
+.visit-snapshot__title {
+  display: grid;
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: 0.1rem;
+}
+
+.visit-snapshot__title strong {
+  font-family: var(--font-heading);
+  font-size: 1.05rem;
+}
+
+.visit-snapshot__title small {
+  color: var(--visit-muted);
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
+}
+
+.visit-snapshot__lock {
+  flex: none;
+  color: var(--visit-muted);
+}
+
+.visit-snapshot__chevron {
+  flex: none;
+  color: var(--visit-muted);
+  transition: transform 0.15s ease;
+}
+
+.visit-snapshot[open] > summary .visit-snapshot__chevron {
+  transform: rotate(180deg);
+}
+
+.visit-snapshot__body {
+  display: grid;
+  gap: 0.9rem;
+  padding: 0 1rem 1rem;
+}
+
+.visit-snapshot__body .visit-quiet {
+  margin: 0;
+}
+
+.visit-snapshot__changes {
+  margin-top: 0;
+  padding-top: 0.75rem;
+}
+
+.visit-snapshot__compare {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.35rem;
+  padding: 0.25rem;
+  border: 1px solid var(--visit-line);
+  border-radius: 999px;
+  background: #fff;
+}
+
+.visit-snapshot__compare button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 2.5rem;
+  padding: 0.35rem 0.75rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--visit-muted);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.visit-snapshot__compare button span {
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  background: #e6ede2;
+  font-size: 0.78rem;
+}
+
+.visit-snapshot__compare button.is-active {
+  background: var(--visit-forest);
+  color: #fff;
+}
+
+.visit-snapshot__compare button.is-active span {
+  background: rgb(255 255 255 / 22%);
+}
+
+.visit-snapshot__photos {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.visit-snapshot__photos h3 {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 1.05rem;
+}
+
+.visit-snapshot__photos figure {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+}
+
+.visit-snapshot__photos figcaption {
+  color: #123526;
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+
+.visit-snapshot__thumbs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr));
+  gap: 0.5rem;
+}
+
+.visit-snapshot__thumbs img {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 0.6rem;
+  object-fit: cover;
+}
+
+@media (max-width: 560px) {
+  .visit-snapshot > summary {
+    flex-wrap: wrap;
+    padding: 0.7rem 0.85rem;
+  }
+
+  .visit-snapshot__title {
+    flex-basis: calc(100% - 4rem);
+  }
+
+  .visit-snapshot__body {
+    padding: 0 0.85rem 0.9rem;
+  }
+
+  .visit-snapshot__compare {
+    grid-template-columns: minmax(0, 1fr);
+    border-radius: 1.25rem;
+  }
+
+  .visit-snapshot__compare button {
+    white-space: nowrap;
+    font-size: 0.85rem;
+  }
+}
+
+/* A chosen turf product shown beside a picture of a home with it installed */
+.open-image {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 2;
+  display: grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  place-items: center;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 92%);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 30%);
+  color: #123526;
+  cursor: pointer;
+}
+
+.open-image:hover {
+  background: #fff;
+}
+
+.open-image:focus-visible {
+  outline: 3px solid var(--primary-green);
+  outline-offset: 2px;
+}
+
+.product-sample {
+  position: relative;
+  display: block;
+  margin: 0;
+  overflow: hidden;
+  border: 1.5px solid #d5ddd3;
+  border-radius: 12px;
+  background: #173d2a;
+}
+
+.product-sample img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+
+.product-sample figcaption {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  padding: 1.7rem 0.75rem 0.55rem;
+  background: linear-gradient(180deg, rgb(8 24 14 / 0%) 0%, rgb(8 24 14 / 92%) 58%, rgb(6 18 10) 100%);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+/* The chosen turf tile and its home picture sit side by side. */
+.grass-products__grid.is-single.has-sample {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+}
+
+.grass-products__grid.is-single.has-sample .grass-tile {
+  aspect-ratio: auto;
+}
+
+.grass-products__grid.is-single.has-sample .grass-tile img {
+  aspect-ratio: 16 / 9;
+}
+
+.review-page .product-photos.has-sample,
+.review-page .product-photos.has-sample:has(.choice-change) {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.review-page .product-photos.has-sample .choice-change {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 640px) {
+  .grass-products__grid.is-single.has-sample,
+  .review-page .product-photos.has-sample,
+  .review-page .product-photos.has-sample:has(.choice-change) {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

@@ -8,6 +8,7 @@ import { internalMutation, mutation, type MutationCtx } from "../_generated/serv
 import { rateLimiter } from "../rateLimits";
 import { activeSalesSession } from "../sales/session";
 import { newShortCode } from "./shortCode";
+import { photosKeptByEarlierVisits, saveVisitSnapshot } from "./visits";
 import {
   answerValidator,
   changeValidator,
@@ -332,7 +333,9 @@ export const update = mutation({
         .query("workAreas")
         .withIndex("by_projectId", (q) => q.eq("projectId", projectId))
         .take(workAreaLimit + 1);
-      const kept = new Set<Id<"_storage">>(workAreas.flatMap((area) => area.photoIds));
+      // Photos the earlier visits' cards still show stay in storage even when this visit drops them.
+      const kept = await photosKeptByEarlierVisits(ctx, projectId, project.visitNumber ?? 0);
+      for (const area of workAreas) for (const photoId of area.photoIds) kept.add(photoId);
       for (const workArea of existing) {
         await ctx.db.delete("workAreas", workArea._id);
         for (const photoId of workArea.photoIds) {
@@ -342,6 +345,11 @@ export const update = mutation({
       for (const workArea of workAreas) {
         await ctx.db.insert("workAreas", { projectId, ...workArea });
       }
+    }
+
+    // A complete save is the card for this visit; earlier visits' cards are never touched.
+    if (requireComplete === true) {
+      await saveVisitSnapshot(ctx, projectId, session.name ?? salespersonName(session.email ?? ""));
     }
 
     return null;

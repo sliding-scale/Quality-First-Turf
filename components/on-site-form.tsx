@@ -51,7 +51,8 @@ export function OnSiteForm({ projectId }: { projectId: string }) {
       assignedToName={data.assignedToName}
       project={data.project}
       workAreas={data.workAreas}
-      revisions={data.revisions}
+      // A backend that has not been redeployed yet does not send visits; the page still opens without them.
+      visits={data.visits ?? []}
     />
   );
 }

@@ -6,6 +6,7 @@ import { FormEvent, useEffect, useId, useRef, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { friendlyError } from "@/lib/errors";
+import { visitLabel } from "@/lib/visits";
 
 export type Consultation = {
   assessmentId: string;
@@ -63,6 +64,7 @@ export function ConsultationButton({
   assignedToName,
   email,
   consultation,
+  visit,
 }: {
   sessionToken: string;
   projectId: Id<"projects">;
@@ -70,8 +72,13 @@ export function ConsultationButton({
   assignment: "none" | "me" | "other";
   assignedToName: string | null;
   email: string;
+  /** The booking for the visit being scheduled; undefined when that visit has not been booked yet. */
   consultation: Consultation | undefined;
+  /** Which visit this button schedules: 0 is the consultation, 1 and up are follow-ups. */
+  visit: number;
 }) {
+  const label = visitLabel(visit);
+  const lowerLabel = label.toLowerCase();
   const book = useAction(api.projects.consultation.book);
   const cancel = useAction(api.projects.consultation.cancel);
   const loadBusy = useAction(api.projects.consultation.busy);
@@ -139,7 +146,7 @@ export function ConsultationButton({
       await book({ sessionToken, projectId, date, time, minutes, instructions });
       close();
     } catch (failure) {
-      setError(friendlyError(failure, "The consultation could not be booked. Check your connection and try again."));
+      setError(friendlyError(failure, `The ${lowerLabel} could not be booked. Check your connection and try again.`));
     } finally {
       setPending(null);
     }
@@ -152,7 +159,7 @@ export function ConsultationButton({
       await cancel({ sessionToken, projectId });
       close();
     } catch (failure) {
-      setError(friendlyError(failure, "The consultation could not be cancelled. Try again."));
+      setError(friendlyError(failure, `The ${lowerLabel} could not be cancelled. Try again.`));
     } finally {
       setPending(null);
       setConfirmingCancel(false);
@@ -166,7 +173,7 @@ export function ConsultationButton({
     : assignment === "none"
       ? "Assign this lead to yourself first."
       : assignment === "other"
-        ? `Assigned to ${assignedToName ?? "another salesperson"}. Only they can book it.`
+        ? `Assigned to ${assignedToName ?? "another salesperson"}. They need to unassign it before you can schedule.`
         : undefined;
   const Icon = booked ? CalendarCheck : CalendarPlus;
 
@@ -184,11 +191,11 @@ export function ConsultationButton({
           <span className="consultation-btn__text">
             {booked ? (
               <>
-                <small>Consultation</small>
+                <small>{label}</small>
                 {`${day(consultation.date)} · ${clock(consultation.time)}`}
               </>
             ) : (
-              "Consultation"
+              label
             )}
           </span>
         </button>
@@ -209,7 +216,7 @@ export function ConsultationButton({
       >
         <form className="consultation-form" onSubmit={onSubmit} noValidate>
           <header className="consultation-form__head">
-            <h2 id="consultation-title">{booked ? "Reschedule consultation" : "Schedule consultation"}</h2>
+            <h2 id="consultation-title">{booked ? `Reschedule ${lowerLabel}` : `Schedule ${lowerLabel}`}</h2>
             <button type="button" className="visit-icon-btn" onClick={close} aria-label="Close">
               <X size={18} aria-hidden="true" />
             </button>
@@ -322,7 +329,7 @@ export function ConsultationButton({
                   onClick={() => setConfirmingCancel(true)}
                   disabled={pending !== null}
                 >
-                  Cancel consultation
+                  Cancel {lowerLabel}
                 </button>
               )
             ) : null}

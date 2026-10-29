@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useAction, useMutation } from "convex/react";
 import {
@@ -7,8 +7,10 @@ import {
   ChevronDown,
   ChevronLeft,
   Flag,
+  History,
   Home,
   Lightbulb,
+  Lock,
   Pencil,
   Plus,
   X,
@@ -86,7 +88,8 @@ import {
   type VisitWorkArea,
 } from "@/lib/visit-areas";
 import { blockEnterSubmit, PhotoPicker, toggleRadio } from "@/components/ui/inputs";
-import { compareSnapshots, storedChanges, type Snapshot } from "@/lib/project-changes";
+import { compareSnapshots, storedChanges, type Change, type Snapshot } from "@/lib/project-changes";
+import { visitLabel } from "@/lib/visits";
 import { checkVisit, lightingProblems, servicePhotoProblems } from "@/lib/visit-check";
 
 /** One photo on its way to storage, shown as a tile with a progress bar. */
@@ -405,6 +408,231 @@ function AssignButton({
   );
 }
 
+/** One saved visit (the consultation or a follow-up), as the server sends it. */
+type SavedVisit = SavedProject & {
+  visit: number;
+  savedAt: number;
+  salesperson?: string;
+  booking?: { date: string; time: string; minutes: number };
+  workAreas: VisitWorkArea[];
+};
+
+/** A saved visit rebuilt in the same shape as the live form, so it can be compared with other versions. */
+function snapshotOf(card: SavedVisit): Snapshot {
+  const { form, visitNote } = projectToForm(card);
+  return { form, visitNote, areas: seedVisitAreas(card.workAreas, card.measurements, form) };
+}
+
+function when(time: number): string {
+  return new Date(time).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
+function bookedFor(booking: { date: string; time: string }): string {
+  const [year, month, day] = booking.date.split("-").map(Number);
+  const [hour, minute] = booking.time.split(":").map(Number);
+  return new Date(year, month - 1, day, hour, minute).toLocaleString([], {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+/** The differences between two versions, one block per service. */
+function ChangeGroups({ changes }: { changes: Change[] }) {
+  return (
+    <>
+      {[...new Set(changes.map((change) => change.group))].map((group) => (
+        <section key={group} className="visit-changes__group">
+          <h4>
+            {(() => {
+              const GroupIcon = group === "Contact" ? UserRound : (serviceIcons[group] ?? Home);
+              return <GroupIcon size={16} aria-hidden="true" />;
+            })()}
+            {group === "Contact" ? "Customer & property" : serviceLabel(group)}
+            <span className="visit-service__changes">
+              {changes.filter((change) => change.group === group).length}
+            </span>
+          </h4>
+          <ul>
+            {changes
+              .filter((change) => change.group === group)
+              .map((change, index) => (
+                <li key={`${change.label}-${index}`}>
+                  <span className="visit-changes__label">{change.label}</span>
+                  {change.added !== undefined || change.removed !== undefined ? (
+                    <span className="visit-changes__list">
+                      {(change.removed ?? []).map((item) => (
+                        <em key={`-${item}`} className="is-removed">
+                          Removed: {item}
+                        </em>
+                      ))}
+                      {(change.added ?? []).map((item) => (
+                        <em key={`+${item}`} className="is-added">
+                          Added: {item}
+                        </em>
+                      ))}
+                    </span>
+                  ) : (
+                    <span className="visit-changes__values">
+                      <s>{change.before}</s>
+                      <ArrowRight size={14} aria-hidden="true" />
+                      <strong>{change.after}</strong>
+                    </span>
+                  )}
+                </li>
+              ))}
+          </ul>
+        </section>
+      ))}
+    </>
+  );
+}
+
+/** Every saved visit as a read-only card, newest first; nothing in here can be edited. */
+function VisitHistory({ visits, original }: { visits: SavedVisit[]; original: Snapshot | null }) {
+  const cards = useMemo(
+    () => [...visits].sort((left, right) => right.visit - left.visit).map((card) => ({ card, snapshot: snapshotOf(card) })),
+    [visits],
+  );
+  if (cards.length === 0) return null;
+  return (
+    <section className="visit-card visit-snapshots" aria-labelledby="visit-snapshots-title">
+      <div className="visit-card__head">
+        <div>
+          <h2 id="visit-snapshots-title">
+            <History size={18} aria-hidden="true" />
+            Visit history
+          </h2>
+          <p>Each saved visit is kept exactly as it was. These cards are read-only.</p>
+        </div>
+      </div>
+      <div className="visit-snapshots__list">
+        {cards.map(({ card, snapshot }, index) => {
+          const earlier = cards.find((other) => other.card.visit === card.visit - 1) ?? null;
+          return (
+            <VisitCard
+              key={card.visit}
+              card={card}
+              snapshot={snapshot}
+              original={original}
+              earlier={earlier === null ? null : { label: visitLabel(earlier.card.visit), snapshot: earlier.snapshot }}
+              startOpen={index === 0}
+            />
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function VisitCard({
+  card,
+  snapshot,
+  original,
+  earlier,
+  startOpen,
+}: {
+  card: SavedVisit;
+  snapshot: Snapshot;
+  original: Snapshot | null;
+  earlier: { label: string; snapshot: Snapshot } | null;
+  startOpen: boolean;
+}) {
+  const [against, setAgainst] = useState<"original" | "earlier">("original");
+  const sinceCustomer = useMemo(
+    () => (original === null ? [] : compareSnapshots(original, snapshot)),
+    [original, snapshot],
+  );
+  const sinceEarlier = useMemo(
+    () => (earlier === null ? [] : compareSnapshots(earlier.snapshot, snapshot)),
+    [earlier, snapshot],
+  );
+  const shown = against === "earlier" && earlier !== null ? sinceEarlier : sinceCustomer;
+  const photoAreas = card.workAreas.filter((area) => area.photoUrls.some((url) => url !== null));
+  const label = visitLabel(card.visit);
+  return (
+    <details className="visit-snapshot" open={startOpen}>
+      <summary>
+        <span className="visit-snapshot__title">
+          <strong>{label}</strong>
+          <small>
+            Saved {when(card.savedAt)}
+            {card.salesperson === undefined ? "" : ` Â· ${card.salesperson}`}
+          </small>
+        </span>
+        <span className="visit-service__changes">
+          {sinceCustomer.length} {sinceCustomer.length === 1 ? "change" : "changes"}
+        </span>
+        <Lock size={15} className="visit-snapshot__lock" aria-label="Read-only" />
+        <ChevronDown size={18} className="visit-snapshot__chevron" aria-hidden="true" />
+      </summary>
+      <div className="visit-snapshot__body">
+        {card.booking === undefined ? null : (
+          <p className="visit-quiet">
+            Booked for {bookedFor(card.booking)} ({card.booking.minutes} minutes).
+          </p>
+        )}
+        {earlier === null ? null : (
+          <div className="visit-snapshot__compare" role="group" aria-label={`Compare ${label}`}>
+            <button
+              type="button"
+              className={against === "original" ? "is-active" : undefined}
+              aria-pressed={against === "original"}
+              onClick={() => setAgainst("original")}
+            >
+              Customer&apos;s form
+              <span>{sinceCustomer.length}</span>
+            </button>
+            <button
+              type="button"
+              className={against === "earlier" ? "is-active" : undefined}
+              aria-pressed={against === "earlier"}
+              onClick={() => setAgainst("earlier")}
+            >
+              {earlier.label}
+              <span>{sinceEarlier.length}</span>
+            </button>
+          </div>
+        )}
+        <div className="visit-changes visit-snapshot__changes">
+          <h3>
+            {against === "earlier" && earlier !== null
+              ? `Changed since ${earlier.label}`
+              : "Changed from the customer's form"}
+          </h3>
+          {shown.length === 0 ? (
+            <p className="visit-quiet">
+              {against === "earlier" && earlier !== null
+                ? `Nothing changed since ${earlier.label}.`
+                : "Nothing changed. Everything matched what the customer submitted."}
+            </p>
+          ) : (
+            <ChangeGroups changes={shown} />
+          )}
+        </div>
+        {photoAreas.length === 0 ? null : (
+          <div className="visit-snapshot__photos">
+            <h3>Photos</h3>
+            {photoAreas.map((area, areaIndex) => (
+              <figure key={`${area.label}-${areaIndex}`}>
+                <figcaption>{area.label.replace(/^Service photos: /, "")}</figcaption>
+                <div className="visit-snapshot__thumbs">
+                  {area.photoUrls.map((url, index) =>
+                    url === null ? null : <RetryImage key={index} src={url} alt={`${area.label} photo ${index + 1}`} />,
+                  )}
+                </div>
+                {area.notes.trim() === "" ? null : <p className="visit-quiet">{area.notes}</p>}
+              </figure>
+            ))}
+          </div>
+        )}
+      </div>
+    </details>
+  );
+}
+
 function choiceLabel(value: string) {
   return value;
 }
@@ -417,7 +645,7 @@ export function OnSiteVisit({
   assignedToName,
   project,
   workAreas,
-  revisions,
+  visits,
 }: {
   projectId: Id<"projects">;
   sessionToken: string;
@@ -444,9 +672,11 @@ export function OnSiteVisit({
     consultation?: Consultation;
     /** Set once a visit has been saved complete. */
     visitedAt?: number;
+    /** 0 is the consultation; 1 and up are follow-ups. */
+    visitNumber?: number;
   };
   workAreas: VisitWorkArea[];
-  revisions: { savedAt: number; changes: { label: string; before: string; after: string }[] }[];
+  visits: SavedVisit[];
 }) {
   const updateProject = useMutation(api.projects.mutations.update);
   const generateUploadUrl = useMutation(api.projects.mutations.generateUploadUrl);
@@ -489,6 +719,16 @@ export function OnSiteVisit({
     [original, form, areas, visitNote],
   );
   const changeCount = (group: string) => changes.filter((change) => change.group === group).length;
+  const visit = project.visitNumber ?? 0;
+  // While a follow-up is under way, also show what has changed since the visit before it.
+  const earlierVisit = useMemo(
+    () => (project.visitedAt === undefined && visit > 0 ? (visits.find((card) => card.visit === visit - 1) ?? null) : null),
+    [project.visitedAt, visit, visits],
+  );
+  const sinceEarlier = useMemo(
+    () => (earlierVisit === null ? [] : compareSnapshots(snapshotOf(earlierVisit), { form, areas, visitNote })),
+    [earlierVisit, form, areas, visitNote],
+  );
   useEffect(() => {
     if (!dirty) return;
     const warn = (event: BeforeUnloadEvent) => event.preventDefault();
@@ -515,6 +755,9 @@ export function OnSiteVisit({
   const completed = project.visitedAt !== undefined;
   const [followUp, setFollowUp] = useState(false);
   const reviewing = completed && !followUp;
+  // The visit the top-right button schedules: once this one is saved, it is the next follow-up.
+  const thisLabel = visitLabel(visit);
+  const nextLabel = visitLabel(completed ? visit + 1 : visit);
   const focusFirstError = useRef(false);
   const estimates = project.measurements;
   // Only the salesperson holding the lead can change the visit, and only once a consultation is booked.
@@ -523,8 +766,8 @@ export function OnSiteVisit({
     assignment === "other"
       ? `This lead is assigned to ${assignedToName ?? "another salesperson"}. Only they can edit or save the visit.`
       : assignment === "none"
-        ? "Assign this lead to yourself and book a consultation to edit or save the visit."
-        : "Book a consultation first. The visit can only be edited and saved once one is booked.";
+        ? `Assign this lead to yourself and schedule the ${nextLabel.toLowerCase()} to edit or save the visit.`
+        : `Schedule the ${nextLabel.toLowerCase()} first. The visit can only be edited and saved once one is booked.`;
 
   function patch(partial: Partial<DiscoveryState>) {
     setDirty(true);
@@ -772,7 +1015,7 @@ export function OnSiteVisit({
       return false;
     }
     if (reviewing) {
-      setError("Choose Edit for follow-up visit first.");
+      setError(`Schedule the ${nextLabel.toLowerCase()} first, or choose Edit this visit.`);
       return false;
     }
     const problems = contactProblems(form);
@@ -863,10 +1106,10 @@ export function OnSiteVisit({
         const drafted = await draftVisit({ sessionToken, projectId });
         setDone({
           ready: drafted.status === "quote drafted",
-          updated: completed,
+          updated: completed || visit > 0,
           message:
             drafted.status === "quote drafted"
-              ? completed
+              ? completed || visit > 0
                 ? "The draft quote in Jobber now matches your changes. It has not been sent to the customer."
                 : "A draft quote is in Jobber for the office to review. It has not been sent."
               : drafted.missingMapping ??
@@ -903,10 +1146,10 @@ export function OnSiteVisit({
           >
             {done.ready ? <Check strokeWidth={2.4} /> : <TriangleAlert strokeWidth={2} />}
           </span>
-          <h1>{done.updated ? "Quote updated" : "Visit saved"}</h1>
+          <h1>{done.updated ? "Quote updated" : `${thisLabel} saved`}</h1>
           <p>
             {done.updated
-              ? "Your follow-up changes are saved on this project, and the history keeps what changed."
+              ? `Your changes are saved as ${thisLabel}, and the visit history keeps what changed.`
               : "The measured areas and photos are on this project. The customer's original sizes are still there for the office to see."}
           </p>
           <p className={done.ready ? "visit-done__ok" : "visit-alert"} role={done.ready ? undefined : "alert"}>
@@ -973,7 +1216,8 @@ export function OnSiteVisit({
             assignment={assignment}
             assignedToName={assignedToName}
             email={form.email}
-            consultation={project.consultation}
+            consultation={completed ? undefined : project.consultation}
+            visit={completed ? visit + 1 : visit}
           />
         </div>
       </header>
@@ -986,21 +1230,34 @@ export function OnSiteVisit({
                 {followUp ? <Pencil size={18} /> : <Check size={18} strokeWidth={2.6} />}
               </span>
               <div className="visit-followup__text">
-                <strong>{followUp ? "Editing for a follow-up visit" : "This visit is complete"}</strong>
+                <strong>{followUp ? `Editing ${thisLabel}` : `${thisLabel} complete`}</strong>
                 <p>
                   {followUp
-                    ? "Change what the customer asked for, then save. The draft quote in Jobber is updated to match, and the history keeps what changed."
-                    : `Saved ${new Date(project.visitedAt ?? 0).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}. Back for a follow-up visit, or did the customer change something? Edit it and the quote updates.`}
+                    ? `You are correcting ${thisLabel} before the next visit is scheduled. Saving updates its card and the draft quote in Jobber.`
+                    : `Saved ${new Date(project.visitedAt ?? 0).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}. Going back to the customer? Schedule ${nextLabel} at the top right. ${thisLabel} stays saved as it is, and ${nextLabel} starts from it.`}
                 </p>
               </div>
               {followUp ? null : (
-                <button type="button" className="visit-primary" disabled={locked} onClick={() => setFollowUp(true)}>
+                <button type="button" className="visit-secondary" disabled={locked} onClick={() => setFollowUp(true)}>
                   <Pencil size={16} aria-hidden="true" />
-                  Edit for follow-up visit
+                  Edit this visit
                 </button>
               )}
             </div>
+          ) : visit > 0 ? (
+            <div className="visit-followup is-editing" role="status">
+              <span className="visit-followup__icon" aria-hidden="true">
+                <Pencil size={18} />
+              </span>
+              <div className="visit-followup__text">
+                <strong>{thisLabel} in progress</strong>
+                <p>
+                  {`Your changes are saved as ${thisLabel}. ${visitLabel(visit - 1)}${visit > 1 ? " and earlier visits" : ""} stay saved below and cannot be edited.`}
+                </p>
+              </div>
+            </div>
           ) : null}
+          <VisitHistory visits={visits} original={original} />
           <fieldset className="visit-lock" disabled={locked || reviewing}>
           {locked ? (
             <p className="visit-alert" role="status">
@@ -1066,31 +1323,31 @@ export function OnSiteVisit({
                 <dl className="visit-facts">
                   <div>
                     <dt>Name</dt>
-                    <dd>{`${form.firstName} ${form.lastName}`.trim() || "—"}</dd>
+                    <dd>{`${form.firstName} ${form.lastName}`.trim() || "â€”"}</dd>
                   </div>
                   <div>
                     <dt>Email</dt>
-                    <dd>{form.email || "—"}</dd>
+                    <dd>{form.email || "â€”"}</dd>
                   </div>
                   <div>
                     <dt>City</dt>
-                    <dd>{form.city || "—"}</dd>
+                    <dd>{form.city || "â€”"}</dd>
                   </div>
                   <div>
                     <dt>Phone</dt>
-                    <dd>{form.phone || "—"}</dd>
+                    <dd>{form.phone || "â€”"}</dd>
                   </div>
                   <div>
                     <dt>Address</dt>
-                    <dd>{form.street1 || "—"}</dd>
+                    <dd>{form.street1 || "â€”"}</dd>
                   </div>
                   <div>
                     <dt>State</dt>
-                    <dd>{form.state || "—"}</dd>
+                    <dd>{form.state || "â€”"}</dd>
                   </div>
                   <div>
                     <dt>ZIP code</dt>
-                    <dd>{form.zip || "—"}</dd>
+                    <dd>{form.zip || "â€”"}</dd>
                   </div>
                   <div>
                     <dt>Customer</dt>
@@ -1474,78 +1731,24 @@ export function OnSiteVisit({
                   {changes.length === 0 ? (
                     <p className="visit-quiet">Nothing changed. Everything matches what the customer submitted.</p>
                   ) : (
-                    [...new Set(changes.map((change) => change.group))].map((group) => (
-                      <section key={group} className="visit-changes__group">
-                        <h4>
-                          {(() => {
-                            const GroupIcon = group === "Contact" ? UserRound : (serviceIcons[group] ?? Home);
-                            return <GroupIcon size={16} aria-hidden="true" />;
-                          })()}
-                          {group === "Contact" ? "Customer & property" : serviceLabel(group)}
-                          <span className="visit-service__changes">
-                            {changes.filter((change) => change.group === group).length}
-                          </span>
-                        </h4>
-                        <ul>
-                          {changes
-                            .filter((change) => change.group === group)
-                            .map((change, index) => (
-                              <li key={`${change.label}-${index}`}>
-                                <span className="visit-changes__label">{change.label}</span>
-                                {change.added !== undefined || change.removed !== undefined ? (
-                                  <span className="visit-changes__list">
-                                    {(change.removed ?? []).map((item) => (
-                                      <em key={`-${item}`} className="is-removed">
-                                        Removed: {item}
-                                      </em>
-                                    ))}
-                                    {(change.added ?? []).map((item) => (
-                                      <em key={`+${item}`} className="is-added">
-                                        Added: {item}
-                                      </em>
-                                    ))}
-                                  </span>
-                                ) : (
-                                  <span className="visit-changes__values">
-                                    <s>{change.before}</s>
-                                    <ArrowRight size={14} aria-hidden="true" />
-                                    <strong>{change.after}</strong>
-                                  </span>
-                                )}
-                              </li>
-                            ))}
-                        </ul>
-                      </section>
-                    ))
+                    <ChangeGroups changes={changes} />
                   )}
                 </div>
               ) : null}
+              {earlierVisit === null ? null : (
+                <div className="visit-changes" aria-labelledby="visit-since-title">
+                  <h3 id="visit-since-title">
+                    Changes since {visitLabel(visit - 1)}
+                    <span className="visit-service__changes">{sinceEarlier.length}</span>
+                  </h3>
+                  {sinceEarlier.length === 0 ? (
+                    <p className="visit-quiet">Nothing changed yet. Everything matches {visitLabel(visit - 1)}.</p>
+                  ) : (
+                    <ChangeGroups changes={sinceEarlier} />
+                  )}
+                </div>
+              )}
             </section>
-
-            {revisions.length > 0 ? (
-              <details className="visit-card visit-history">
-                <summary>Saved visits ({revisions.length})</summary>
-                {revisions.map((revision) => (
-                  <div key={revision.savedAt} className="visit-history__entry">
-                    <strong>
-                      {new Date(revision.savedAt).toLocaleString([], {
-                        month: "short",
-                        day: "numeric",
-                        hour: "numeric",
-                        minute: "2-digit",
-                      })}
-                    </strong>
-                    <ul>
-                      {revision.changes.map((change, index) => (
-                        <li key={index}>
-                          {change.label}: <s>{change.before}</s> → {change.after}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </details>
-            ) : null}
 
             {error !== null ? (
               <p className="visit-alert" role="alert">
@@ -1558,13 +1761,13 @@ export function OnSiteVisit({
                 {pending
                   ? "Saving"
                   : uploading
-                    ? "Uploading photos…"
-                    : completed
-                      ? "Save changes & update quote"
+                    ? "Uploading photosâ€¦"
+                    : completed || visit > 0
+                      ? `Save ${completed ? "changes" : thisLabel.toLowerCase()} & update quote`
                       : "Save & draft quote"}
               </button>
               <p className="visit-save-hint">
-                {locked ? "Saving is unlocked once this lead is yours and a consultation is booked." : reviewing ? "Choose Edit for follow-up visit at the top to make changes." : savedAt !== null ? `Saved at ${savedAt}.` : completed ? "Updates the draft quote in Jobber to match. Nothing is sent to the customer." : "Saves the visit and drafts the quote in Jobber. Nothing is sent to the customer."}
+                {locked ? `Saving is unlocked once this lead is yours and the ${nextLabel.toLowerCase()} is booked.` : reviewing ? `Schedule the ${nextLabel.toLowerCase()} at the top right to make changes.` : savedAt !== null ? `Saved at ${savedAt}.` : completed || visit > 0 ? "Updates the draft quote in Jobber to match. Nothing is sent to the customer." : "Saves the visit and drafts the quote in Jobber. Nothing is sent to the customer."}
               </p>
             </div>
           </div>
@@ -1642,7 +1845,7 @@ function reviewLine(service: string, form: DiscoveryState, areas: VisitArea[]): 
         const feet = measuredSquareFeet(area);
         return feet === "" ? area.label : `${area.label}: ${feet}`;
       })
-      .join(" · ");
+      .join(" Â· ");
     return measured;
   }
   if (types.length > 0) return types.map(choiceLabel).join(", ");
@@ -1733,7 +1936,7 @@ function ServicePhotos({
                 </>
               ) : (
                 <>
-                  <span>{item.progress >= 1 ? "Finishing…" : `Uploading ${Math.round(item.progress * 100)}%`}</span>
+                  <span>{item.progress >= 1 ? "Finishingâ€¦" : `Uploading ${Math.round(item.progress * 100)}%`}</span>
                   <span
                     className="service-photos__bar"
                     role="progressbar"
@@ -2061,7 +2264,7 @@ function AreaList({
                 onRevert={before !== undefined ? () => onArea(index, measuredPatch(sectionsOf(before), linear)) : undefined}
                 onChange={(patch) => onArea(index, patch)}
               />
-              {sections.length > 1 || (sections.length === 1 && sections[0].includes("×")) ? (
+              {sections.length > 1 || (sections.length === 1 && sections[0].includes("Ã—")) ? (
                 <div className="visit-area__sections">
                   <p>Customer&apos;s sections</p>
                   <ul>

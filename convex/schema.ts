@@ -114,7 +114,40 @@ export default defineSchema({
     consultation: v.optional(consultationValidator),
     /** Email of the salesperson who has claimed this lead; unset when unassigned. */
     assignedTo: v.optional(v.string()),
+    /** The visit being scheduled or worked on: 0 is the consultation, 1 and up are follow-ups. Unset means 0. */
+    visitNumber: v.optional(v.number()),
+    /** The Jobber request holding the current follow-up's appointment; the consultation uses `jobberRequestId`. */
+    followUpRequestId: v.optional(v.string()),
   }).index("by_shortCode", ["shortCode"]),
+  /**
+   * What the project looked like when a visit was saved: the consultation, then each follow-up.
+   * The newest one is rewritten by further saves of that visit; once the next visit is scheduled it is frozen.
+   */
+  visitSnapshots: defineTable({
+    projectId: v.id("projects"),
+    visit: v.number(),
+    savedAt: v.number(),
+    /** Name of the salesperson who saved it. */
+    salesperson: v.optional(v.string()),
+    /** When the visit was booked for, if it was. */
+    booking: v.optional(v.object({ date: v.string(), time: v.string(), minutes: v.number() })),
+    firstName: v.string(),
+    lastName: v.string(),
+    phone: v.string(),
+    email: v.string(),
+    street1: v.string(),
+    street2: v.string(),
+    city: v.string(),
+    state: v.string(),
+    zip: v.string(),
+    services: v.array(v.string()),
+    products: v.array(v.string()),
+    addOns: v.array(v.string()),
+    answers: v.array(answerValidator),
+    notes: v.string(),
+    measurements: v.array(measurementValidator),
+    workAreas: v.array(workAreaInput),
+  }).index("by_projectId_and_visit", ["projectId", "visit"]),
   visitRevisions: defineTable({
     projectId: v.id("projects"),
     savedAt: v.number(),
