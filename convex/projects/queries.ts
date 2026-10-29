@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { internalQuery, query } from "../_generated/server";
 import { salespersonName } from "../sales/accounts";
 import { activeSalesSession } from "../sales/session";
-import schema, { changeValidator, projectStatus } from "../schema";
+import schema, { changeValidator, measuredSectionValidator, projectStatus } from "../schema";
 
 const workAreaLimit = 100;
 
@@ -155,6 +155,7 @@ export const visit = query({
           photoUrls: v.array(v.union(v.string(), v.null())),
           service: v.optional(v.string()),
           installType: v.optional(v.string()),
+          sections: v.optional(v.array(measuredSectionValidator)),
         }),
       ),
     }),
@@ -188,6 +189,7 @@ export const visit = query({
         photoUrls,
         service: area.service,
         installType: area.installType,
+        sections: area.sections,
       });
     }
     const canSchedule = Boolean(project.jobberRequestId);

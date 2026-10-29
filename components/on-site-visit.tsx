@@ -11,6 +11,7 @@ import {
   Lightbulb,
   Pencil,
   Plus,
+  X,
   Shovel,
   Sprout,
   Trash2,
@@ -52,13 +53,14 @@ import {
   unitForAddOn,
   usesAreaList,
   withAddOn,
+  type AreaSection,
   type DiscoveryState,
 } from "@/lib/discovery";
 import { contactFields, CustomerSaid, RequiredStar, TextField, type TextFieldProps } from "@/components/ui/fields";
 import { ConsultationButton, type Consultation } from "@/components/consultation-button";
 import { formatShortCode, friendlyError } from "@/lib/errors";
 import { scrollToStart } from "@/lib/step-transition";
-import { parseWorkAreas } from "@/components/work-areas";
+import { emptyWorkArea, parseWorkAreas } from "@/components/work-areas";
 import {
   areasForService,
   asWorkAreaDrafts,
@@ -72,15 +74,46 @@ import {
   matchOriginalArea,
   measuredSquareFeet,
   seedVisitAreas,
+  measuredPatch,
+  sectionsOf,
+  SERVICE_PHOTOS,
+  serviceOfPhotos,
+  servicePhotosIndex,
+  servicePhotosLabel,
   serviceNeedsAreas,
-  sitePhotosArea,
   type CustomerMeasurement,
   type VisitArea,
   type VisitWorkArea,
 } from "@/lib/visit-areas";
 import { blockEnterSubmit, PhotoPicker, toggleRadio } from "@/components/ui/inputs";
 import { compareSnapshots, storedChanges, type Snapshot } from "@/lib/project-changes";
-import { checkVisit, lightingProblems } from "@/lib/visit-check";
+import { checkVisit, lightingProblems, servicePhotoProblems } from "@/lib/visit-check";
+
+/** One photo on its way to storage, shown as a tile with a progress bar. */
+type Upload = { id: string; service: string; name: string; preview: string; progress: number; failed: boolean };
+
+/** Sends a file to a Convex upload URL, reporting how much has gone (0 to 1); null when it failed. */
+function sendFile(url: string, file: File, onProgress: (fraction: number) => void): Promise<Id<"_storage"> | null> {
+  return new Promise((resolve) => {
+    const request = new XMLHttpRequest();
+    request.open("POST", url);
+    request.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+    request.upload.onprogress = (event) => {
+      if (event.lengthComputable) onProgress(event.loaded / event.total);
+    };
+    request.onload = () => {
+      try {
+        const body = JSON.parse(request.responseText) as { storageId?: Id<"_storage"> };
+        resolve(request.status >= 200 && request.status < 300 && body.storageId !== undefined ? body.storageId : null);
+      } catch {
+        resolve(null);
+      }
+    };
+    request.onerror = () => resolve(null);
+    request.onabort = () => resolve(null);
+    request.send(file);
+  });
+}
 
 const serviceIcons: Record<string, LucideIcon> = {
   Demo: Shovel,
@@ -109,6 +142,131 @@ function useOriginal() {
 
 function originalAreaFor(area: VisitArea, order: number, original: OriginalState | null): VisitArea | undefined {
   return original === null ? undefined : matchOriginalArea(area, order, original.areas);
+}
+
+/**
+ * The measurements of one area, in as many pieces as the salesperson took them. Each piece is a
+ * length and width (or just a length for linear work); the total is added up as they type.
+ */
+function SectionsField({
+  id,
+  area,
+  linear,
+  error,
+  customerValue,
+  onRevert,
+  onChange,
+}: {
+  id: string;
+  area: VisitArea;
+  linear: boolean;
+  error?: string;
+  customerValue?: string;
+  onRevert?: () => void;
+  onChange: (patch: Partial<VisitArea>) => void;
+}) {
+  const sections = sectionsOf(area);
+  const unit = linear ? "lin ft" : "sq ft";
+  const total = measuredPatch(sections, linear).quantity;
+  const change = (next: AreaSection[]) => onChange(measuredPatch(next, linear));
+  const setSection = (at: number, partial: Partial<AreaSection>) =>
+    change(sections.map((section, index) => (index === at ? { ...section, ...partial } : section)));
+  function setDims(at: number, length: string, width: string) {
+    const worked = Number(length) > 0 && Number(width) > 0 ? Math.round(Number(length) * Number(width) * 100) / 100 : null;
+    const hadWorked = Number(sections[at].length) > 0 && Number(sections[at].width) > 0;
+    // Once the dimensions stop making a size, drop the figure they had produced.
+    setSection(at, { length, width, size: worked !== null ? String(worked) : hadWorked ? "" : sections[at].size });
+  }
+  return (
+    <div className={error ? "visit-sections is-invalid" : "visit-sections"} id={id} data-field={id}>
+      <p className="visit-sections__title">
+        {linear ? "Measured linear feet" : "Measured area"}
+        <RequiredStar />
+      </p>
+      {sections.map((section, at) => {
+        const worked = !linear && Number(section.length) > 0 && Number(section.width) > 0;
+        return (
+          <div key={at} className="visit-section">
+            <div className="visit-section__head">
+              <span>{sections.length > 1 ? `Section ${at + 1}` : "Measurement"}</span>
+              {sections.length > 1 ? (
+                <button
+                  type="button"
+                  className="visit-icon-btn"
+                  aria-label={`Remove section ${at + 1}`}
+                  onClick={() => change(sections.filter((_, index) => index !== at))}
+                >
+                  <Trash2 size={14} aria-hidden="true" />
+                  Remove
+                </button>
+              ) : null}
+            </div>
+            <div className={linear ? "visit-size visit-size--linear" : "visit-size"}>
+              {linear ? (
+                <VisitField
+                  id={`${id}-s${at}-size`}
+                  label="Length (ft)"
+                  numeric
+                  stepper={10}
+                  placeholder="e.g. 120"
+                  inputMode="decimal"
+                  value={section.size}
+                  onChange={(value) => setSection(at, { size: decimalInput(value) })}
+                />
+              ) : (
+                <>
+                  <VisitField
+                    id={`${id}-s${at}-length`}
+                    label="Length (ft)"
+                    numeric
+                    stepper={1}
+                    placeholder="e.g. 20"
+                    value={section.length}
+                    onChange={(value) => setDims(at, decimalInput(value), section.width)}
+                  />
+                  <VisitField
+                    id={`${id}-s${at}-width`}
+                    label="Width (ft)"
+                    numeric
+                    stepper={1}
+                    placeholder="e.g. 25"
+                    value={section.width}
+                    onChange={(value) => setDims(at, section.length, decimalInput(value))}
+                  />
+                  <VisitField
+                    id={`${id}-s${at}-size`}
+                    label="Area (sq ft)"
+                    numeric
+                    readOnly={worked}
+                    stepper={worked ? undefined : 50}
+                    placeholder="or type the area"
+                    inputMode="decimal"
+                    value={section.size}
+                    onChange={(value) => setSection(at, { size: decimalInput(value) })}
+                  />
+                </>
+              )}
+            </div>
+          </div>
+        );
+      })}
+      <div className="visit-sections__foot">
+        <button
+          type="button"
+          className="visit-text-btn"
+          onClick={() => change([...sections, { length: "", width: "", size: "" }])}
+        >
+          <Plus size={16} aria-hidden="true" />
+          Add another section
+        </button>
+        <p className="visit-sections__total" aria-live="polite">
+          Total: <strong>{total === "" ? "not entered" : `${total} ${unit}`}</strong>
+        </p>
+      </div>
+      {error ? <p className="field-error">{error}</p> : null}
+      {customerValue !== undefined ? <CustomerSaid value={customerValue} onRevert={onRevert} /> : null}
+    </div>
+  );
 }
 
 /**
@@ -284,6 +442,8 @@ export function OnSiteVisit({
     shortCode?: string;
     submitted?: SavedProject;
     consultation?: Consultation;
+    /** Set once a visit has been saved complete. */
+    visitedAt?: number;
   };
   workAreas: VisitWorkArea[];
   revisions: { savedAt: number; changes: { label: string; before: string; after: string }[] }[];
@@ -310,10 +470,14 @@ export function OnSiteVisit({
   }));
   const [initialAreas] = useState<VisitArea[]>(() => seedVisitAreas(workAreas, project.measurements, loaded.form));
   const [areas, setAreas] = useState<VisitArea[]>(initialAreas);
-  const [visitNote, setVisitNote] = useState(loaded.visitNote);
+  // Notes saved on earlier visits are kept and re-saved, though the page no longer has a box for them.
+  const [visitNote] = useState(loaded.visitNote);
   const baseline = useRef<Snapshot | null>(null);
   const [editingProperty, setEditingProperty] = useState(false);
-  const [openServices, setOpenServices] = useState<string[]>([]);
+  // A finished visit opens with every service showing, so it can be read straight through.
+  const [openServices, setOpenServices] = useState<string[]>(() =>
+    project.visitedAt !== undefined ? [...projectToForm(project).form.services] : [],
+  );
   const [addingService, setAddingService] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -339,11 +503,18 @@ export function OnSiteVisit({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const previews = useRef<string[]>([]);
+  const [uploads, setUploads] = useState<Upload[]>([]);
+  const [fresh, setFresh] = useState<Id<"_storage">[]>([]);
+  const uploading = uploads.some((item) => !item.failed);
   useEffect(() => {
     const urls = previews.current;
     return () => urls.forEach((url) => URL.revokeObjectURL(url));
   }, []);
-  const [done, setDone] = useState<{ message: string; ready: boolean } | null>(null);
+  const [done, setDone] = useState<{ message: string; ready: boolean; updated: boolean } | null>(null);
+  // A saved visit is read-only until the salesperson chooses to edit it for a follow-up visit.
+  const completed = project.visitedAt !== undefined;
+  const [followUp, setFollowUp] = useState(false);
+  const reviewing = completed && !followUp;
   const focusFirstError = useRef(false);
   const estimates = project.measurements;
   // Only the salesperson holding the lead can change the visit, and only once a consultation is booked.
@@ -532,45 +703,76 @@ export function OnSiteVisit({
     });
   }
 
-  async function addPhoto(index: number, file: File) {
+  /** Changes a service's photos area, creating it the first time anything is added. */
+  function patchServicePhotos(service: string, change: (area: VisitArea) => VisitArea) {
+    setAreas((current) => {
+      const index = servicePhotosIndex(current, service);
+      if (index < 0) {
+        const fresh: VisitArea = {
+          ...emptyWorkArea(servicePhotosLabel(service)),
+          service: SERVICE_PHOTOS,
+          installType: "",
+        };
+        return [...current, change(fresh)];
+      }
+      return current.map((area, areaIndex) => (areaIndex === index ? change(area) : area));
+    });
+  }
+
+  async function addServicePhoto(service: string, file: File) {
+    const key = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const preview = URL.createObjectURL(file);
+    previews.current.push(preview);
     setError(null);
+    setUploads((current) => [...current, { id: key, service, name: file.name, preview, progress: 0, failed: false }]);
+    let storageId: Id<"_storage"> | null = null;
     try {
       const postUrl = await generateUploadUrl({ sessionToken });
-      const response = await fetch(postUrl, {
-        method: "POST",
-        headers: { "Content-Type": file.type || "application/octet-stream" },
-        body: file,
-      });
-      if (!response.ok) {
-        setError("The photo could not be uploaded.");
-        return;
-      }
-      const body = (await response.json()) as { storageId?: Id<"_storage"> };
-      if (body.storageId === undefined) {
-        setError("The photo could not be uploaded.");
-        return;
-      }
-      const preview = URL.createObjectURL(file);
-      previews.current.push(preview);
-      setAreas((current) =>
-        current.map((area, areaIndex) =>
-          areaIndex === index
-            ? {
-                ...area,
-                photoIds: [...area.photoIds, body.storageId as Id<"_storage">],
-                photoUrls: [...area.photoUrls, preview],
-              }
-            : area,
-        ),
+      storageId = await sendFile(postUrl, file, (fraction) =>
+        setUploads((current) => current.map((item) => (item.id === key ? { ...item, progress: fraction } : item))),
       );
     } catch {
-      setError("The photo could not be uploaded.");
+      storageId = null;
     }
+    if (storageId === null) {
+      setUploads((current) => current.map((item) => (item.id === key ? { ...item, failed: true } : item)));
+      return;
+    }
+    const uploadedId = storageId;
+    clearProblem(`service-photos-${service}`);
+    patchServicePhotos(service, (area) => ({
+      ...area,
+      photoIds: [...area.photoIds, uploadedId],
+      photoUrls: [...area.photoUrls, preview],
+    }));
+    setUploads((current) => current.filter((item) => item.id !== key));
+    // A short "Uploaded" tick so it is clear the photo went through.
+    setFresh((current) => [...current, uploadedId]);
+    window.setTimeout(() => setFresh((current) => current.filter((id) => id !== uploadedId)), 3000);
+  }
+
+  function removeServicePhoto(service: string, photoId: Id<"_storage">) {
+    patchServicePhotos(service, (area) => {
+      const at = area.photoIds.indexOf(photoId);
+      return {
+        ...area,
+        photoIds: area.photoIds.filter((_, index) => index !== at),
+        photoUrls: area.photoUrls.filter((_, index) => index !== at),
+      };
+    });
   }
 
   async function persist(mode: "draft" | "quote") {
     if (locked) {
       setError(lockedMessage);
+      return false;
+    }
+    if (uploading) {
+      setError("A photo is still uploading. Wait for it to finish, then save.");
+      return false;
+    }
+    if (reviewing) {
+      setError("Choose Edit for follow-up visit first.");
       return false;
     }
     const problems = contactProblems(form);
@@ -593,7 +795,12 @@ export function OnSiteVisit({
       );
       return false;
     }
-    const parsedAreas = parseWorkAreas(asWorkAreaDrafts(areas));
+    // A photos area for a service that has since been removed is left out of the save.
+    const liveAreas = areas.filter((area) => {
+      const owner = serviceOfPhotos(area);
+      return owner === null || synced.services.includes(owner);
+    });
+    const parsedAreas = parseWorkAreas(asWorkAreaDrafts(liveAreas));
     if (parsedAreas.error !== null || parsedAreas.workAreas === null) {
       showProblems(
         parsedAreas.fieldId !== null && parsedAreas.error !== null
@@ -605,8 +812,15 @@ export function OnSiteVisit({
     }
     // Lighting items need a quantity or length from the salesperson before anything is saved.
     const lighting = lightingProblems(synced);
-    if (Object.keys(lighting).length > 0) {
-      showProblems(lighting, "Fill in the highlighted fields, then save again.");
+    // Each service also needs a photo from the visit.
+    const photoGaps = servicePhotoProblems(synced.services, liveAreas);
+    if (Object.keys(lighting).length > 0 || Object.keys(photoGaps).length > 0) {
+      showProblems(
+        { ...lighting, ...photoGaps },
+        Object.keys(lighting).length === 0
+          ? "Add a photo for each service, then save again."
+          : "Fill in the highlighted fields, then save again.",
+      );
       return false;
     }
     // Stop here, with the problems marked on their fields, rather than saving an incomplete draft.
@@ -616,7 +830,7 @@ export function OnSiteVisit({
       answers: built.payload.answers,
       measurements: project.measurements,
       workAreas: parsedAreas.workAreas,
-      areas,
+      areas: liveAreas,
     });
     if (Object.keys(check.problems).length > 0 || check.general !== null) {
       if (check.problems.customerType !== undefined) setEditingProperty(true);
@@ -649,9 +863,12 @@ export function OnSiteVisit({
         const drafted = await draftVisit({ sessionToken, projectId });
         setDone({
           ready: drafted.status === "quote drafted",
+          updated: completed,
           message:
             drafted.status === "quote drafted"
-              ? "A draft quote is in Jobber for the office to review. It has not been sent."
+              ? completed
+                ? "The draft quote in Jobber now matches your changes. It has not been sent to the customer."
+                : "A draft quote is in Jobber for the office to review. It has not been sent."
               : drafted.missingMapping ??
                 drafted.integrationError ??
                 "The visit is saved. The quote needs attention.",
@@ -686,8 +903,12 @@ export function OnSiteVisit({
           >
             {done.ready ? <Check strokeWidth={2.4} /> : <TriangleAlert strokeWidth={2} />}
           </span>
-          <h1>Visit saved</h1>
-          <p>The measured areas and photos are on this project. The customer&apos;s original sizes are still there for the office to see.</p>
+          <h1>{done.updated ? "Quote updated" : "Visit saved"}</h1>
+          <p>
+            {done.updated
+              ? "Your follow-up changes are saved on this project, and the history keeps what changed."
+              : "The measured areas and photos are on this project. The customer's original sizes are still there for the office to see."}
+          </p>
           <p className={done.ready ? "visit-done__ok" : "visit-alert"} role={done.ready ? undefined : "alert"}>
             {done.message}
           </p>
@@ -695,7 +916,14 @@ export function OnSiteVisit({
             <Link className="visit-primary" href="/visit">
               Back to projects
             </Link>
-            <button type="button" className="visit-secondary" onClick={() => setDone(null)}>
+            <button
+              type="button"
+              className="visit-secondary"
+              onClick={() => {
+                setFollowUp(true);
+                setDone(null);
+              }}
+            >
               {done.ready ? "Edit this visit" : "Fix and try again"}
             </button>
           </div>
@@ -715,8 +943,6 @@ export function OnSiteVisit({
   const address = [form.street1, form.street2, form.city, form.state, form.zip]
     .filter((part) => part.trim() !== "")
     .join(", ");
-  const site = sitePhotosArea(areas);
-  const siteIndex = site === undefined ? -1 : areas.indexOf(site);
   const allOpen = form.services.every((service) => openServices.includes(service));
 
   return (
@@ -754,7 +980,28 @@ export function OnSiteVisit({
 
       <div className="visit-main">
         <form className="visit-body" onSubmit={onSubmit} onKeyDown={blockEnterSubmit} noValidate>
-          <fieldset className="visit-lock" disabled={locked}>
+          {completed ? (
+            <div className={followUp ? "visit-followup is-editing" : "visit-followup"} role="status">
+              <span className="visit-followup__icon" aria-hidden="true">
+                {followUp ? <Pencil size={18} /> : <Check size={18} strokeWidth={2.6} />}
+              </span>
+              <div className="visit-followup__text">
+                <strong>{followUp ? "Editing for a follow-up visit" : "This visit is complete"}</strong>
+                <p>
+                  {followUp
+                    ? "Change what the customer asked for, then save. The draft quote in Jobber is updated to match, and the history keeps what changed."
+                    : `Saved ${new Date(project.visitedAt ?? 0).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}. Back for a follow-up visit, or did the customer change something? Edit it and the quote updates.`}
+                </p>
+              </div>
+              {followUp ? null : (
+                <button type="button" className="visit-primary" disabled={locked} onClick={() => setFollowUp(true)}>
+                  <Pencil size={16} aria-hidden="true" />
+                  Edit for follow-up visit
+                </button>
+              )}
+            </div>
+          ) : null}
+          <fieldset className="visit-lock" disabled={locked || reviewing}>
           {locked ? (
             <p className="visit-alert" role="status">
               {lockedMessage}
@@ -1022,7 +1269,7 @@ export function OnSiteVisit({
                             <UndergroundMeasure
                               areas={areas}
                               error={fieldErrors["area-underground-quantity"] ?? fieldErrors["underground-feet"]}
-                              onChange={(index, value) => updateArea(index, { quantity: value })}
+                              onChange={(index, patch) => updateArea(index, patch)}
                             />
                           </>
                         ) : null}
@@ -1147,6 +1394,17 @@ export function OnSiteVisit({
                           />
                         ) : null}
 
+                        <ServicePhotos
+                          service={service}
+                          area={areas[servicePhotosIndex(areas, service)]}
+                          error={fieldErrors[`service-photos-${service}`]}
+                          uploads={uploads.filter((item) => item.service === service)}
+                          fresh={fresh}
+                          onDismiss={(id) => setUploads((current) => current.filter((item) => item.id !== id))}
+                          onPhoto={(file) => void addServicePhoto(service, file)}
+                          onRemove={(photoId) => removeServicePhoto(service, photoId)}
+                          onNote={(value) => patchServicePhotos(service, (area) => ({ ...area, notes: value }))}
+                        />
                       </div>
                     ) : null}
                   </article>
@@ -1181,16 +1439,6 @@ export function OnSiteVisit({
                   )}
                 </div>
               ) : null}
-            </section>
-
-            <section id="photos" className="visit-card">
-              <PhotosPanel
-                areas={areas}
-                siteIndex={siteIndex}
-                onPhoto={addPhoto}
-                note={visitNote}
-                onNote={setVisitNote}
-              />
             </section>
 
             <section id="review" className="visit-card">
@@ -1306,11 +1554,17 @@ export function OnSiteVisit({
             ) : null}
 
             <div className="visit-actions">
-              <button type="submit" className="visit-primary" disabled={pending || locked}>
-                {pending ? "Saving" : "Save & draft quote"}
+              <button type="submit" className="visit-primary" disabled={pending || locked || reviewing || uploading}>
+                {pending
+                  ? "Saving"
+                  : uploading
+                    ? "Uploading photos…"
+                    : completed
+                      ? "Save changes & update quote"
+                      : "Save & draft quote"}
               </button>
               <p className="visit-save-hint">
-                {locked ? "Saving is unlocked once this lead is yours and a consultation is booked." : savedAt !== null ? `Saved at ${savedAt}.` : "Saves the visit and drafts the quote in Jobber. Nothing is sent to the customer."}
+                {locked ? "Saving is unlocked once this lead is yours and a consultation is booked." : reviewing ? "Choose Edit for follow-up visit at the top to make changes." : savedAt !== null ? `Saved at ${savedAt}.` : completed ? "Updates the draft quote in Jobber to match. Nothing is sent to the customer." : "Saves the visit and drafts the quote in Jobber. Nothing is sent to the customer."}
               </p>
             </div>
           </div>
@@ -1397,6 +1651,121 @@ function reviewLine(service: string, form: DiscoveryState, areas: VisitArea[]): 
 
 function VisitField(props: Omit<TextFieldProps, "variant">) {
   return <TextField variant="visit" {...props} />;
+}
+
+/** One service's photos from the visit, and what needs doing; at least one photo is required to save. */
+function ServicePhotos({
+  service,
+  area,
+  error,
+  uploads,
+  fresh,
+  onDismiss,
+  onPhoto,
+  onRemove,
+  onNote,
+}: {
+  service: string;
+  area: VisitArea | undefined;
+  error: string | undefined;
+  uploads: Upload[];
+  fresh: Id<"_storage">[];
+  onDismiss: (id: string) => void;
+  onPhoto: (file: File) => void;
+  onRemove: (photoId: Id<"_storage">) => void;
+  onNote: (value: string) => void;
+}) {
+  const name = serviceLabel(service);
+  const ids = area?.photoIds ?? [];
+  return (
+    <fieldset
+      id={`service-photos-${service}`}
+      className={error ? "service-photos is-invalid" : "service-photos"}
+      aria-invalid={error ? true : undefined}
+    >
+      <legend>
+        Photos & notes for {name}
+        <RequiredStar />
+      </legend>
+      <p className="service-photos__hint">Take photos of the {name.toLowerCase()} work area and say what needs to be done.</p>
+      {error ? (
+        <p className="field-error" role="alert">
+          {error}
+        </p>
+      ) : null}
+      <div className="service-photos__grid">
+        {ids.map((id, index) => {
+          const url = area?.photoUrls[index] ?? null;
+          return (
+            <figure key={id} className="service-photos__item">
+              {url === null ? (
+                <span className="visit-photo-fallback">Photo</span>
+              ) : (
+                <RetryImage src={url} alt={`${name} photo ${index + 1}`} />
+              )}
+              {fresh.includes(id) ? (
+                <span className="service-photos__done" role="status">
+                  <Check size={12} aria-hidden="true" />
+                  Uploaded
+                </span>
+              ) : null}
+              <button
+                type="button"
+                className="service-photos__remove"
+                aria-label={`Remove ${name} photo ${index + 1}`}
+                onClick={() => onRemove(id)}
+              >
+                <X size={14} aria-hidden="true" />
+              </button>
+            </figure>
+          );
+        })}
+        {uploads.map((item) => (
+          <figure key={item.id} className={item.failed ? "service-photos__item is-failed" : "service-photos__item is-uploading"}>
+            <RetryImage src={item.preview} alt="" />
+            <div className="service-photos__progress">
+              {item.failed ? (
+                <>
+                  <span>Upload failed</span>
+                  <button type="button" onClick={() => onDismiss(item.id)}>
+                    Dismiss
+                  </button>
+                </>
+              ) : (
+                <>
+                  <span>{item.progress >= 1 ? "Finishing…" : `Uploading ${Math.round(item.progress * 100)}%`}</span>
+                  <span
+                    className="service-photos__bar"
+                    role="progressbar"
+                    aria-label={`Uploading ${item.name}`}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={Math.round(item.progress * 100)}
+                  >
+                    <span style={{ width: `${Math.round(item.progress * 100)}%` }} />
+                  </span>
+                </>
+              )}
+            </div>
+          </figure>
+        ))}
+        <PhotoPicker className="visit-photo-add service-photos__add" onFile={onPhoto}>
+          <Plus size={20} aria-hidden="true" />
+          <span>{ids.length === 0 ? "Add photo" : "Add another"}</span>
+        </PhotoPicker>
+      </div>
+      <div className="visit-field">
+        <label htmlFor={`service-note-${service}`}>What needs to be done</label>
+        <textarea
+          id={`service-note-${service}`}
+          value={area?.notes ?? ""}
+          maxLength={1000}
+          placeholder={`Notes for the ${name.toLowerCase()} work`}
+          onChange={(event) => onNote(event.target.value)}
+        />
+      </div>
+    </fieldset>
+  );
 }
 
 function VisitNoteField({
@@ -1550,7 +1919,7 @@ function UndergroundMeasure({
 }: {
   areas: VisitArea[];
   error?: string;
-  onChange: (index: number, value: string) => void;
+  onChange: (index: number, patch: Partial<VisitArea>) => void;
 }) {
   const original = useOriginal();
   const index = areas.findIndex((area) => area.service === "Underground");
@@ -1558,19 +1927,14 @@ function UndergroundMeasure({
   if (area === undefined) return null;
   const before = originalAreaFor(area, 0, original);
   return (
-    <VisitField
-      customerValue={before !== undefined && before.quantity !== area.quantity ? before.quantity : undefined}
-      onRevert={before !== undefined ? () => onChange(index, before.quantity) : undefined}
+    <SectionsField
       id={`area-${index}-quantity`}
-      label="Measured linear feet"
-      required
-      numeric
-      stepper={10}
-      placeholder="e.g. 120"
-      value={area.quantity}
+      area={area}
+      linear
       error={error}
-      inputMode="decimal"
-      onChange={(value) => onChange(index, decimalInput(value))}
+      customerValue={before !== undefined && before.quantity !== area.quantity ? before.quantity : undefined}
+      onRevert={before !== undefined ? () => onChange(index, measuredPatch(sectionsOf(before), true)) : undefined}
+      onChange={(patch) => onChange(index, patch)}
     />
   );
 }
@@ -1688,38 +2052,15 @@ function AreaList({
                 error={problems[`area-${index}-label`]}
                 onChange={(value) => onName(index, value.trim() === "" ? defaultAreaName(area, service) : value)}
               />
-              {linear ? (
-                <VisitField
-                  id={`area-${index}-quantity`}
-                  label="Linear feet"
-                  required
-                  numeric
-                  stepper={10}
-                  placeholder="e.g. 120"
-                  customerValue={before !== undefined && before.quantity !== area.quantity ? before.quantity : undefined}
-                  onRevert={before !== undefined ? () => onArea(index, { quantity: before.quantity }) : undefined}
-                  value={area.quantity}
-                  error={problems[`area-${index}-quantity`]}
-                  inputMode="decimal"
-                  onChange={(value) => onArea(index, { quantity: decimalInput(value) })}
-                />
-              ) : (
-                <SizeFields
-                  id={`area-${index}-quantity`}
-                  length={area.length}
-                  width={area.width}
-                  area={area.quantity}
-                  areaLabel="Area (sq ft)"
-                  error={problems[`area-${index}-quantity`]}
-                  customerValue={before !== undefined && before.quantity !== area.quantity ? before.quantity : undefined}
-                  onRevert={
-                    before !== undefined
-                      ? () => onArea(index, { length: before.length, width: before.width, quantity: before.quantity })
-                      : undefined
-                  }
-                  onChange={(next) => onArea(index, { length: next.length, width: next.width, quantity: next.area })}
-                />
-              )}
+              <SectionsField
+                id={`area-${index}-quantity`}
+                area={area}
+                linear={linear}
+                error={problems[`area-${index}-quantity`]}
+                customerValue={before !== undefined && before.quantity !== area.quantity ? before.quantity : undefined}
+                onRevert={before !== undefined ? () => onArea(index, measuredPatch(sectionsOf(before), linear)) : undefined}
+                onChange={(patch) => onArea(index, patch)}
+              />
               {sections.length > 1 || (sections.length === 1 && sections[0].includes("×")) ? (
                 <div className="visit-area__sections">
                   <p>Customer&apos;s sections</p>
@@ -1995,64 +2336,3 @@ function AddOnBlock({
   );
 }
 
-function PhotosPanel({
-  areas,
-  siteIndex,
-  onPhoto,
-  note,
-  onNote,
-}: {
-  areas: VisitArea[];
-  siteIndex: number;
-  onPhoto: (index: number, file: File) => void;
-  note: string;
-  onNote: (value: string) => void;
-}) {
-  const all = areas.flatMap((area, index) =>
-    area.photoUrls.map((url, photoIndex) => ({
-      url,
-      id: area.photoIds[photoIndex],
-      label: area.label,
-      index,
-    })),
-  );
-  return (
-    <>
-      <div className="visit-card__head">
-        <div>
-          <h2>Photos & notes</h2>
-          <p>Every photo stays with its work area. Site photos are for the whole property.</p>
-        </div>
-      </div>
-      <div className="visit-photos visit-photos--wide">
-        {all.map((photo) =>
-          photo.url === null ? (
-            <span key={photo.id} className="visit-photo-fallback">
-              {photo.label}
-            </span>
-          ) : (
-            <figure key={photo.id}>
-              <RetryImage src={photo.url} alt="" />
-              <figcaption>{photo.label}</figcaption>
-            </figure>
-          ),
-        )}
-        {siteIndex >= 0 ? (
-          <PhotoPicker className="visit-photo-add" onFile={(file) => onPhoto(siteIndex, file)}>
-<Plus size={20} aria-hidden="true" />
-            <span>Add photo</span>
-</PhotoPicker>
-        ) : null}
-      </div>
-      <div className="visit-field visit-note">
-        <label htmlFor="visit-note">Notes</label>
-        <textarea
-          id="visit-note"
-          value={note}
-          placeholder="Add notes about the property, access, layout, or special considerations."
-          onChange={(event) => onNote(event.target.value)}
-        />
-      </div>
-    </>
-  );
-}

@@ -3110,7 +3110,7 @@ hr {
 
 .review-page .product-photos {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.7rem;
 }
 
@@ -3354,7 +3354,7 @@ hr {
 
 .grass-products__grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.65rem;
 }
 
@@ -3892,7 +3892,16 @@ hr {
   }
 
   .review-page .product-photos {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .review-page .product-photos:has(.choice-change) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .product-photo img,
+  .product-photo__fallback {
+    aspect-ratio: 16 / 9;
   }
 
   .grass-works,
@@ -3900,8 +3909,34 @@ hr {
     grid-template-columns: 1fr;
   }
 
-  .grass-products__grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  /* One big picture per row, with the name written underneath instead of over it. */
+  .grass-products__grid,
+  .grass-products__grid.is-single {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.8rem;
+  }
+
+  .grass-tile {
+    aspect-ratio: auto;
+    background: #fff;
+  }
+
+  .grass-tile img,
+  .grass-tile__fallback {
+    height: auto;
+    aspect-ratio: 16 / 9;
+  }
+
+  .grass-tile__caption {
+    position: static;
+    padding: 0.7rem 0.85rem 0.8rem;
+    background: none;
+    color: var(--dark-text);
+    font-size: 0.95rem;
+  }
+
+  .grass-tile:has(input:checked) {
+    background: #f4f8f3;
   }
 
   .intake .review-intro h1 {
@@ -9089,4 +9124,337 @@ video {
 
 .visit-sidebar__user strong {
   color: #163226;
+}
+
+/* The link under a choice that has had its other options tucked away. */
+.choice-change {
+  grid-column: 1 / -1;
+  justify-self: start;
+  margin: 0.15rem 0 0;
+  padding: 0.35rem 0;
+  border: 0;
+  background: none;
+  color: var(--primary-green);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.choice-change:hover {
+  color: var(--forest-green);
+}
+
+.choice-change:focus-visible {
+  outline: 3px solid var(--forest-green);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* A lone chosen tile gets room to breathe instead of sitting in one narrow column. */
+.grass-products__grid.is-single {
+  grid-template-columns: minmax(0, 22rem);
+}
+
+.review-page .product-photos:has(.choice-change) {
+  grid-template-columns: minmax(0, 16rem);
+}
+
+/* One service's photos and note on the visit page */
+.service-photos {
+  display: grid;
+  gap: 0.7rem;
+  min-width: 0;
+  margin: 0.35rem 0 0;
+  padding: 0.95rem;
+  border: 1px solid var(--visit-line, #e1dccb);
+  border-radius: 1rem;
+  background: #fbfaf5;
+}
+
+.service-photos.is-invalid {
+  border-color: #c0392b;
+  background: #fdf3f1;
+}
+
+.service-photos legend {
+  padding: 0 0.3rem;
+  font-weight: 700;
+}
+
+.service-photos__hint {
+  margin: 0;
+  color: var(--visit-muted, #5d6b5f);
+  font-size: 0.88rem;
+}
+
+.service-photos__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr));
+  gap: 0.6rem;
+}
+
+.service-photos__item {
+  position: relative;
+  margin: 0;
+}
+
+.service-photos__item img,
+.service-photos__item .visit-photo-fallback,
+.service-photos__add {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 0.8rem;
+  object-fit: cover;
+}
+
+.service-photos__add {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 0.2rem;
+  cursor: pointer;
+}
+
+.service-photos__add:focus-within {
+  outline: 3px solid var(--forest-green, #1f5a3b);
+  outline-offset: 2px;
+}
+
+.service-photos__remove {
+  position: absolute;
+  top: 0.3rem;
+  right: 0.3rem;
+  display: grid;
+  width: 1.9rem;
+  height: 1.9rem;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: rgb(18 30 22 / 78%);
+  color: #fff;
+  cursor: pointer;
+}
+
+@media (max-width: 560px) {
+  .service-photos {
+    padding: 0.8rem;
+  }
+
+  .service-photos__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .service-photos__remove {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+}
+
+/* A photo that is still uploading: its own picture, dimmed, with a progress bar */
+.service-photos__item.is-uploading img,
+.service-photos__item.is-failed img {
+  opacity: 0.45;
+}
+
+.service-photos__progress {
+  position: absolute;
+  right: 0.4rem;
+  bottom: 0.4rem;
+  left: 0.4rem;
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: 0.6rem;
+  background: rgb(255 255 255 / 92%);
+  color: var(--dark-text, #1c2b22);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.service-photos__bar {
+  display: block;
+  height: 0.4rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #dfe7da;
+}
+
+.service-photos__bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--primary-green, #1f6b3f);
+  transition: width 0.2s ease;
+}
+
+.service-photos__item.is-failed .service-photos__progress {
+  color: #b3261e;
+}
+
+.service-photos__progress button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.service-photos__done {
+  position: absolute;
+  bottom: 0.4rem;
+  left: 0.4rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  background: var(--primary-green, #1f6b3f);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+/* An area measured in several pieces on the visit page */
+.visit-sections {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 0.7rem;
+  min-width: 0;
+}
+
+.visit-sections.is-invalid .visit-section {
+  border-color: #c0392b;
+}
+
+.visit-sections__title {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.visit-section {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.75rem;
+  border: 1px solid var(--visit-line, #e1dccb);
+  border-radius: 0.9rem;
+  background: #fbfaf5;
+}
+
+.visit-section__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  color: var(--visit-muted, #5d6b5f);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.visit-size.visit-size--linear {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.visit-sections__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+
+.visit-sections__total {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+@media (max-width: 560px) {
+  /* Length and width side by side, the area on its own row underneath. */
+  .visit-sections .visit-size {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .visit-sections .visit-size > :last-child {
+    grid-column: 1 / -1;
+  }
+
+  .visit-sections .visit-size.visit-size--linear {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .visit-sections__foot {
+    justify-content: flex-start;
+  }
+}
+
+/* Banner on a finished visit: says it is complete and offers to edit it for a follow-up */
+.visit-followup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.85rem 1rem;
+  margin: 0 0 1rem;
+  padding: 0.95rem 1.1rem;
+  border: 1px solid #b9d3bd;
+  border-radius: 1rem;
+  background: #eef6ec;
+}
+
+.visit-followup.is-editing {
+  border-color: #e2c987;
+  background: #fbf3dc;
+}
+
+.visit-followup__icon {
+  display: grid;
+  flex: none;
+  width: 2.2rem;
+  height: 2.2rem;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--primary-green, #1f6b3f);
+  color: #fff;
+}
+
+.visit-followup.is-editing .visit-followup__icon {
+  background: #a9741a;
+}
+
+.visit-followup__text {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+
+.visit-followup__text strong {
+  display: block;
+  font-size: 1rem;
+}
+
+.visit-followup__text p {
+  margin: 0.2rem 0 0;
+  color: #3c4f44;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.visit-followup .visit-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+}
+
+@media (max-width: 560px) {
+  .visit-followup .visit-primary {
+    width: 100%;
+  }
 }

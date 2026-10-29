@@ -281,7 +281,7 @@ async function draftForProject(
     return await remember(ctx, project, {
       status: "needs attention",
       ...kept,
-      integrationError: "The stored Jobber quote is no longer a draft. It was not changed.",
+      integrationError: "The quote in Jobber has already been sent, approved or changed by the office, so it was not updated. The visit is saved here; ask the office to revise the quote in Jobber.",
     });
   }
   if (existing.lineItemsTruncated) {

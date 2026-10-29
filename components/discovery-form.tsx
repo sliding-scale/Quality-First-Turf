@@ -796,6 +796,7 @@ function PuttingGreenSection({
         ) : null}
         {puttingOptions.map((option) => {
           const checked = installType === option.value;
+          if (installType !== "" && !checked) return null;
           const areaKey = selectionKey(service, option.value);
           return (
             <InstallCard
@@ -846,6 +847,9 @@ function PuttingGreenSection({
             </InstallCard>
           );
         })}
+        {installType !== "" ? (
+          <ChangeChoice label="Choose a different putting green" onClick={() => chooseType("")} />
+        ) : null}
       </div>
       </div>
       <AddOnAside
@@ -994,7 +998,8 @@ function UndergroundSection({
                               {soilError}
                             </p>
                           ) : null}
-                          {soilConditions.map((soil) => (
+                          {soilConditions.map((soil) =>
+                            form.soil !== "" && form.soil !== soil ? null : (
                             <label key={soil} className="ug-soil__option">
                               <input
                                 type="radio"
@@ -1020,7 +1025,17 @@ function UndergroundSection({
                               <span className="ug-soil__name">{soil}</span>
                               <span className="ug-soil__detail">{soilDetail[soil]}</span>
                             </label>
-                          ))}
+                            ),
+                          )}
+                          {form.soil !== "" ? (
+                            <ChangeChoice
+                              label="Choose a different option"
+                              onClick={() => {
+                                clearProblem("underground-soil");
+                                setForm((current) => ({ ...current, soil: "" }));
+                              }}
+                            />
+                          ) : null}
                         </fieldset>
                         <SquareFeetField
                           id="underground-feet"
@@ -1524,6 +1539,7 @@ function GrassFollowUp({
       >
         {grassWorks.map((option) => {
           const meta = grassWorkMeta[option];
+          if (work !== "" && work !== option) return null;
           return (
             <GrassOption
               key={option}
@@ -1536,6 +1552,7 @@ function GrassFollowUp({
             />
           );
         })}
+        {work !== "" ? <ChangeChoice label="Choose a different option" onClick={() => chooseWork("")} /> : null}
       </div>
       {work === "Repair" ? (
         <div className="grass-body">
@@ -1565,6 +1582,7 @@ function GrassFollowUp({
             {turfInstallTypes.map((type) => {
               const meta = turfPackageMeta[type];
               const chosen = replacementInstall === type;
+              if (replacementInstall !== "" && !chosen) return null;
               return (
                 <InstallCard
                   key={type}
@@ -1605,6 +1623,18 @@ function GrassFollowUp({
                 </InstallCard>
               );
             })}
+            {replacementInstall !== "" ? (
+              <ChangeChoice
+                label="Choose a different package"
+                onClick={() => {
+                  clearProblem(replacementId);
+                  setForm((current) => ({
+                    ...current,
+                    replacementInstall: { ...current.replacementInstall, [replacementKey]: "" },
+                  }));
+                }}
+              />
+            ) : null}
           </div>
         </div>
       ) : null}
@@ -1730,9 +1760,17 @@ function GrassScope({
               {problems[productId]}
             </p>
           ) : null}
-          <div className="grass-products__grid">
+          <div
+            className={
+              products.some((item) => item.name === (form.product[scopeKey] ?? ""))
+                ? "grass-products__grid is-single"
+                : "grass-products__grid"
+            }
+          >
             {products.map((product) => {
-              const checked = (form.product[scopeKey] ?? "") === product.name;
+              const chosenProduct = form.product[scopeKey] ?? "";
+              const checked = chosenProduct === product.name;
+              if (chosenProduct !== "" && !checked && products.some((item) => item.name === chosenProduct)) return null;
               return (
                 <label key={product.name} className="grass-tile">
                   <input
@@ -1780,6 +1818,15 @@ function GrassScope({
               );
             })}
           </div>
+          {products.some((item) => item.name === (form.product[scopeKey] ?? "")) ? (
+            <ChangeChoice
+              label="Choose a different turf"
+              onClick={() => {
+                clearProblem(productId);
+                setForm((current) => ({ ...current, product: { ...current.product, [scopeKey]: "" } }));
+              }}
+            />
+          ) : null}
         </fieldset>
       ) : null}
       {listAreas ? (
@@ -2188,6 +2235,15 @@ function Notes({
   );
 }
 
+/** Shown once a single choice is made and the other options are tucked away, so the customer can reopen them. */
+function ChangeChoice({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button type="button" className="choice-change" onClick={onClick}>
+      {label}
+    </button>
+  );
+}
+
 function ChoiceGroup({
   id,
   legend,
@@ -2217,9 +2273,12 @@ function ChoiceGroup({
   error?: string;
   onChange: (value: string) => void;
 }) {
+  // With a single choice made, only that option stays; unselecting it brings the rest back.
+  const collapsed = !multiple && look !== "segment" && value !== "" && options.some((option, index) => (values?.[index] ?? option) === value);
   const choices = options.map((option, index) => {
     const stored = values?.[index] ?? option;
     const checked = multiple ? valuesSelected.includes(stored) : value === stored;
+    if (collapsed && !checked) return null;
     if (look === "photos") {
       return (
         <label key={stored} className={checked ? "product-photo is-selected" : "product-photo"}>
@@ -2272,6 +2331,7 @@ function ChoiceGroup({
         </p>
       ) : null}
       {look === "segment" ? <div className="segment">{choices}</div> : choices}
+      {collapsed ? <ChangeChoice label="Choose a different option" onClick={() => onChange("")} /> : null}
     </fieldset>
   );
 }

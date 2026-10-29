@@ -4,6 +4,7 @@ import {
   isDefaultAreaName,
   matchOriginalArea,
   SITE_PHOTOS_LABEL,
+  isServicePhotos,
   type VisitArea,
 } from "@/lib/visit-areas";
 
@@ -88,7 +89,9 @@ function formRows(form: DiscoveryState): Rows {
 
 /** Services whose answers live on area cards, so they are compared per area instead. */
 function servicesWithAreas(areas: VisitArea[]): Set<string> {
-  return new Set(areas.filter((area) => area.service !== SITE_PHOTOS_LABEL).map((area) => area.service));
+  return new Set(
+    areas.filter((area) => area.service !== SITE_PHOTOS_LABEL && !isServicePhotos(area)).map((area) => area.service),
+  );
 }
 
 function areaChanges(before: VisitArea[], after: VisitArea[]): Change[] {

@@ -293,6 +293,11 @@ export const update = mutation({
         );
         if (quantity === undefined) gaps.push(`Enter a quantity for ${type}.`);
       }
+      // Every service needs at least one photo taken on site.
+      for (const service of args.services ?? project.services) {
+        const photos = workAreas.find((area) => area.service === "Service photos" && area.label === `Service photos: ${service}`);
+        if ((photos?.photoIds.length ?? 0) === 0) gaps.push(`Add a photo for ${service === "Demo" ? "Demolition" : service}.`);
+      }
       if (gaps.length > 0) {
         throw new ConvexError(`This visit is not complete yet. ${gaps.join(" ")}`);
       }

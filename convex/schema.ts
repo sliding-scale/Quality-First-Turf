@@ -26,6 +26,13 @@ export const measurementValidator = v.object({
   installType: v.optional(v.string()),
 });
 
+/** One measured piece of an area: its length and width (or a typed size), as the salesperson entered it. */
+export const measuredSectionValidator = v.object({
+  length: v.string(),
+  width: v.string(),
+  size: v.string(),
+});
+
 export const workAreaInput = v.object({
   label: v.string(),
   length: v.union(v.number(), v.null()),
@@ -36,6 +43,8 @@ export const workAreaInput = v.object({
   /** Which service card and installation type the area belongs to; quoting uses these, not the name. */
   service: v.optional(v.string()),
   installType: v.optional(v.string()),
+  /** The pieces measured on site; `quantity` is their total, which is what quoting reads. */
+  sections: v.optional(v.array(measuredSectionValidator)),
 });
 
 /** What the customer submitted, frozen when the project is created and never edited afterwards. */
@@ -121,6 +130,7 @@ export default defineSchema({
     photoIds: v.array(v.id("_storage")),
     service: v.optional(v.string()),
     installType: v.optional(v.string()),
+    sections: v.optional(v.array(measuredSectionValidator)),
   }).index("by_projectId", ["projectId"]),
   salesSessions: defineTable({
     token: v.string(),

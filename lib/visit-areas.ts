@@ -1,6 +1,7 @@
 import { emptyWorkArea, type WorkAreaDraft } from "@/components/work-areas";
 import {
   areaNamesFor,
+  type AreaSection,
   grassService,
   hasFollowUp,
   serviceLabel,
@@ -9,6 +10,26 @@ import {
 import type { Id } from "@/convex/_generated/dataModel";
 
 export const SITE_PHOTOS_LABEL = "Site photos";
+
+/** Marks the area that holds one service's photos and note; the service itself is in the label. */
+export const SERVICE_PHOTOS = "Service photos";
+
+export function servicePhotosLabel(service: string): string {
+  return `${SERVICE_PHOTOS}: ${service}`;
+}
+
+export function isServicePhotos(area: { service?: string }): boolean {
+  return area.service === SERVICE_PHOTOS;
+}
+
+/** The service a photos area belongs to, or null when the area is something else. */
+export function serviceOfPhotos(area: { label: string; service?: string }): string | null {
+  return isServicePhotos(area) ? area.label.slice(SERVICE_PHOTOS.length + 2) : null;
+}
+
+export function servicePhotosIndex(areas: { label: string; service?: string }[], service: string): number {
+  return areas.findIndex((area) => isServicePhotos(area) && area.label === servicePhotosLabel(service));
+}
 
 export type CustomerMeasurement = {
   label: string;
@@ -39,6 +60,7 @@ export type VisitWorkArea = {
   photoUrls: (string | null)[];
   service?: string;
   installType?: string;
+  sections?: { length: string; width: string; size: string }[];
 };
 
 export function formatEstimate(measurement: CustomerMeasurement | undefined): string {
@@ -152,6 +174,7 @@ function draftFromStored(area: VisitWorkArea, guessedService: string, form: Disc
     photoUrls: area.photoUrls,
     service,
     installType: area.installType ?? installTypeForLabel(area.label, service, form),
+    ...(area.sections === undefined ? {} : { sections: area.sections }),
   };
 }
 
@@ -237,7 +260,7 @@ export function seedVisitAreas(
   // Lighting is priced per item or per foot and has no areas; its quantities live on its own card.
   if (workAreas.length > 0) {
     for (const area of workAreas) {
-      const service = serviceForLabel(area.label, form, measurements);
+      const service = area.service ?? serviceForLabel(area.label, form, measurements);
       if (service === "Low Voltage Lighting") continue;
       seeded.push(draftFromStored(area, service, form));
     }
@@ -293,6 +316,52 @@ export function matchOriginalArea(
     same.find((item) => item.label === area.label) ??
     same[order]
   );
+}
+
+const roundTwo = (value: number) => Math.round(value * 100) / 100;
+
+/** The pieces an area was measured in; an area saved before sections existed is one piece. */
+export function sectionsOf(area: { sections?: AreaSection[]; length: string; width: string; quantity: string }): AreaSection[] {
+  if (area.sections !== undefined && area.sections.length > 0) return area.sections;
+  const both = Number(area.length) > 0 && Number(area.width) > 0;
+  return [{ length: both ? area.length : "", width: both ? area.width : "", size: area.quantity }];
+}
+
+/** What one piece comes to: length times width when both are given, otherwise the size typed in. */
+export function sectionAmount(section: AreaSection, linear: boolean): number | null {
+  if (!linear) {
+    const length = Number(section.length);
+    const width = Number(section.width);
+    if (length > 0 && width > 0) return roundTwo(length * width);
+  }
+  const size = Number(section.size);
+  return section.size.trim() !== "" && Number.isFinite(size) && size > 0 ? size : null;
+}
+
+/**
+ * The fields of an area that follow from its pieces: the pieces themselves, their total as the
+ * quantity quoting reads, and the length and width only while there is exactly one rectangle.
+ */
+export function measuredPatch(
+  sections: AreaSection[],
+  linear: boolean,
+): { sections: AreaSection[]; length: string; width: string; quantity: string } {
+  let total = 0;
+  let found = false;
+  for (const section of sections) {
+    const amount = sectionAmount(section, linear);
+    if (amount === null) continue;
+    total += amount;
+    found = true;
+  }
+  const only = sections.length === 1 ? sections[0] : undefined;
+  const rectangle = !linear && only !== undefined && Number(only.length) > 0 && Number(only.width) > 0;
+  return {
+    sections,
+    length: rectangle ? only.length : "",
+    width: rectangle ? only.width : "",
+    quantity: found ? String(roundTwo(total)) : "",
+  };
 }
 
 export function areasForService(areas: VisitArea[], service: string): VisitArea[] {

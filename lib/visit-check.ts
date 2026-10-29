@@ -9,7 +9,7 @@ import {
   type DiscoveryState,
 } from "@/lib/discovery";
 import { planQuoteLines } from "@/lib/quote-lines";
-import { SITE_PHOTOS_LABEL, type VisitArea } from "@/lib/visit-areas";
+import { isServicePhotos, servicePhotosIndex, SITE_PHOTOS_LABEL, type VisitArea } from "@/lib/visit-areas";
 
 type CheckInput = {
   services: string[];
@@ -55,7 +55,9 @@ export function checkVisit(input: CheckInput): VisitCheck {
   const areaIndex = (matches: (area: VisitArea, saved: CheckInput["workAreas"][number]) => boolean) =>
     input.areas.findIndex(
       (area, index) =>
-        area.service !== SITE_PHOTOS_LABEL && input.workAreas[index] !== undefined && matches(area, input.workAreas[index]),
+        area.service !== SITE_PHOTOS_LABEL &&
+        !isServicePhotos(area) &&
+        input.workAreas[index] !== undefined && matches(area, input.workAreas[index]),
     );
   const serviceByLabel = (label: string) => services.find((service) => serviceLabel(service) === label);
 
@@ -100,6 +102,18 @@ export function checkVisit(input: CheckInput): VisitCheck {
     }
   }
   return { problems, general };
+}
+
+/** Every selected service needs at least one photo from the visit, so each gets a message on its own photos block. */
+export function servicePhotoProblems(serviceNames: string[], areas: VisitArea[]): Record<string, string> {
+  const problems: Record<string, string> = {};
+  for (const service of serviceNames) {
+    const index = servicePhotosIndex(areas, service);
+    if (index < 0 || areas[index].photoIds.length === 0) {
+      problems[`service-photos-${service}`] = `Add at least one photo of the ${serviceLabel(service)} work.`;
+    }
+  }
+  return problems;
 }
 
 /**
