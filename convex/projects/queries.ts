@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalQuery, query } from "../_generated/server";
+import { salespersonName } from "../sales/accounts";
 import { activeSalesSession } from "../sales/session";
 import schema, { changeValidator, projectStatus } from "../schema";
 
@@ -47,6 +48,8 @@ const salesProject = v.object({
   assignedToMe: v.boolean(),
   /** True when a different salesperson holds it. */
   assignedToOther: v.boolean(),
+  /** Who holds the lead, for every salesperson to see; null when unassigned. */
+  assignedToName: v.union(v.string(), v.null()),
 });
 
 const listLimit = 200;
@@ -86,6 +89,7 @@ export const listForSales = query({
         createdAt: project._creationTime,
         assignedToMe: project.assignedTo !== undefined && project.assignedTo === session.email,
         assignedToOther: project.assignedTo !== undefined && project.assignedTo !== session.email,
+        assignedToName: project.assignedTo === undefined ? null : salespersonName(project.assignedTo),
       })),
     };
   },
@@ -121,6 +125,8 @@ export const visit = query({
       canSchedule: v.boolean(),
       /** Whether the lead is unassigned, held by the signed-in salesperson, or held by someone else. */
       assignment: v.union(v.literal("none"), v.literal("me"), v.literal("other")),
+      /** Display name of whoever holds the lead; null when nobody does. */
+      assignedToName: v.union(v.string(), v.null()),
       project: schema
         .doc("projects")
         .omit(
@@ -206,6 +212,14 @@ export const visit = query({
     }));
     const assignment =
       assignedTo === undefined ? ("none" as const) : assignedTo === session.email ? ("me" as const) : ("other" as const);
-    return { access: "ok" as const, canSchedule, assignment, project: visible, workAreas, revisions };
+    return {
+      access: "ok" as const,
+      canSchedule,
+      assignment,
+      assignedToName: assignedTo === undefined ? null : salespersonName(assignedTo),
+      project: visible,
+      workAreas,
+      revisions,
+    };
   },
 });

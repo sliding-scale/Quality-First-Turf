@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Check, HardHat, House, Lock } from "lucide-react";
+import { ArrowRight, HardHat, House, Lock } from "lucide-react";
 import { RetryNextImage } from "@/components/ui/retry-image";
 import { FormEvent, ReactNode } from "react";
 import { ConfirmationFit } from "@/components/confirmation-fit";
@@ -8,6 +8,14 @@ import { contactFields } from "@/components/ui/fields";
 import type { DiscoveryState } from "@/lib/discovery";
 import { DiscoveryStep } from "@/lib/discovery-draft";
 import { toggleRadio } from "@/components/ui/inputs";
+import {
+  Stepper,
+  StepperIndicator,
+  StepperItem,
+  StepperNav,
+  StepperTitle,
+  StepperTrigger,
+} from "@/components/ui/stepper";
 
 const quoteSteps: { id: DiscoveryStep; num: string; label: string }[] = [
   { id: "property", num: "01", label: "Your details" },
@@ -95,37 +103,36 @@ function IntakeHeader({
   return (
     <header className="intake-header">
       <BrandMark />
-      <nav className="intake-steps" aria-label="Quote progress">
-        <ol>
+      <Stepper
+        aria-label="Quote progress"
+        value={currentIndex + 1}
+        // Only steps already finished can be revisited; the rest follow the form.
+        onValueChange={(value) => {
+          const target = quoteSteps[value - 1];
+          if (target && value - 1 < currentIndex && onStep) onStep(target.id);
+        }}
+        className="w-full md:ml-auto md:max-w-xl md:flex-1"
+      >
+        <StepperNav className="gap-2 md:gap-3.5">
           {quoteSteps.map((item, index) => {
-            const current = item.id === step;
             const done = index < currentIndex;
-            const control = (
-              <>
-                <span className="intake-steps__num">
-                  {done ? <Check strokeWidth={2.75} aria-hidden="true" /> : item.num}
-                </span>
-                <span className="intake-steps__label">
-                  {done ? <span className="visually-hidden">Completed: </span> : null}
-                  {item.label}
-                </span>
-              </>
-            );
+            const clickable = done && onStep !== undefined;
             return (
-              <li key={item.id} className={current ? "is-current" : done ? "is-done" : undefined}>
-                {done && onStep ? (
-                  <button type="button" onClick={() => onStep(item.id)}>
-                    {control}
-                  </button>
-                ) : (
-                  <span aria-current={current ? "step" : undefined}>{control}</span>
-                )}
-                {index < quoteSteps.length - 1 ? <i className="intake-steps__rule" aria-hidden="true" /> : null}
-              </li>
+              <StepperItem key={item.id} step={index + 1} className="relative flex-1 items-start">
+                <StepperTrigger
+                  className={`m-0 flex grow flex-col items-start justify-center gap-3 border-0 bg-transparent p-0 text-inherit ${clickable ? "" : "cursor-default"}`}
+                >
+                  <StepperIndicator className="h-1 w-full bg-white/25 data-[state=active]:bg-white data-[state=completed]:bg-[#6fbf73]" />
+                  <StepperTitle className="m-0 text-start font-[inherit] text-xs tracking-normal font-semibold md:text-sm group-data-[state=active]/step:text-white group-data-[state=completed]/step:text-white/85 group-data-[state=inactive]/step:text-white/55">
+                    {done ? <span className="sr-only">Completed: </span> : null}
+                    {item.label}
+                  </StepperTitle>
+                </StepperTrigger>
+              </StepperItem>
             );
           })}
-        </ol>
-      </nav>
+        </StepperNav>
+      </Stepper>
     </header>
   );
 }

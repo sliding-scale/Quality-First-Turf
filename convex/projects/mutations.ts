@@ -1,4 +1,5 @@
 import { ConvexError, v } from "convex/values";
+import { salespersonName } from "../sales/accounts";
 import { contactProblems, type ContactFields } from "../../lib/discovery";
 import { planQuoteLines } from "../../lib/quote-lines";
 import { internal } from "../_generated/api";
@@ -98,7 +99,7 @@ export const assign = mutation({
     const project = await ctx.db.get("projects", args.projectId);
     if (project === null) throw new Error("This project is no longer available.");
     if (project.assignedTo !== undefined && project.assignedTo !== session.email) {
-      throw new Error("This lead is already assigned to someone else.");
+      throw new Error(`This lead is already assigned to ${salespersonName(project.assignedTo)}.`);
     }
     await ctx.db.patch("projects", args.projectId, { assignedTo: session.email });
     return null;
@@ -237,7 +238,8 @@ export const update = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    if ((await activeSalesSession(ctx, args.sessionToken, true)) === null) {
+    const session = await activeSalesSession(ctx, args.sessionToken, true);
+    if (session === null) {
       throw new Error("Sign in again to open projects.");
     }
     await assertPhotos(ctx, args.workAreas ?? []);
@@ -246,6 +248,16 @@ export const update = mutation({
     }
     const project = await ctx.db.get("projects", args.projectId);
     if (project === null) throw new Error("Project not found");
+    if (project.assignedTo !== session.email) {
+      throw new ConvexError(
+        project.assignedTo === undefined
+          ? "Assign this lead to yourself before editing or saving this visit."
+          : `This lead is assigned to ${salespersonName(project.assignedTo)}, so only they can edit it.`,
+      );
+    }
+    if (project.consultation === undefined) {
+      throw new ConvexError("Book a consultation before editing or saving this visit.");
+    }
     assertContact({
       firstName: args.firstName ?? project.firstName,
       lastName: args.lastName ?? project.lastName,

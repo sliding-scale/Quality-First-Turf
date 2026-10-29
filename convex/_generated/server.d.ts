@@ -33,7 +33,9 @@ type Env = {
   readonly JOBBER_CLIENT_ID: string | undefined;
   readonly JOBBER_CLIENT_SECRET: string | undefined;
   readonly JOBBER_CONNECT_KEY: string | undefined;
+  readonly SALES_ACCOUNTS: string | undefined;
   readonly SALES_EMAIL: string | undefined;
+  readonly SALES_NAME: string | undefined;
   readonly SALES_PASSWORD: string | undefined;
 };
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery } from "convex/react";
-import { Check, ChevronLeft, ChevronRight, ListFilter, Search } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, ListFilter, Search, UserRound } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -81,6 +81,7 @@ function ProjectSidebar({
 }) {
   const endSession = useMutation(api.sales.mutations.end);
   const data = useQuery(api.projects.queries.listForSales, { sessionToken: token });
+  const me = useQuery(api.sales.queries.me, { sessionToken: token });
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<StatusFilter>("all");
   const [page, setPage] = useState(1);
@@ -139,6 +140,15 @@ function ProjectSidebar({
           Sign out
         </button>
       </div>
+
+      {me === undefined || me === null ? null : (
+        <p className="visit-sidebar__user" title={me.email}>
+          <UserRound aria-hidden="true" strokeWidth={1.75} />
+          <span>
+            Signed in as <strong>{me.name}</strong>
+          </span>
+        </p>
+      )}
 
       <div className="visit-sidebar__searchbar">
         <label className="visit-sidebar__search">
@@ -353,7 +363,13 @@ function ProjectGroup({
             >
               <strong>
                 {name}
-                {project.assignedToMe ? <em className="visit-sidebar__tag">Assigned</em> : null}
+                {project.assignedToMe ? (
+                  <em className="visit-sidebar__tag">Assigned to you</em>
+                ) : project.assignedToOther ? (
+                  <em className="visit-sidebar__tag visit-sidebar__tag--other">
+                    {project.assignedToName === null ? "Assigned" : `Assigned · ${project.assignedToName}`}
+                  </em>
+                ) : null}
               </strong>
               <span>
                 {[formatShortCode(project.shortCode), address].filter((part) => part !== "").join(" · ")}
@@ -382,6 +398,7 @@ type ListedProject = {
   services: string[];
   assignedToMe: boolean;
   assignedToOther: boolean;
+  assignedToName: string | null;
 };
 
 function matches(project: ListedProject, query: string) {

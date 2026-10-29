@@ -9,6 +9,8 @@ const app = defineApp({
     JOBBER_CONNECT_KEY: v.optional(v.string()),
     SALES_EMAIL: v.optional(v.string()),
     SALES_PASSWORD: v.optional(v.string()),
+    SALES_NAME: v.optional(v.string()),
+    SALES_ACCOUNTS: v.optional(v.string()),
   },
 });
 

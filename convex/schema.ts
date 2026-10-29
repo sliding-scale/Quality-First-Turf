@@ -70,6 +70,8 @@ export const consultationValidator = v.object({
   time: v.string(),
   minutes: v.number(),
   instructions: v.string(),
+  /** Name of the salesperson who booked it, as shown in Jobber. */
+  salesperson: v.optional(v.string()),
 });
 
 export default defineSchema({
@@ -124,6 +126,7 @@ export default defineSchema({
     token: v.string(),
     expiresAt: v.number(),
     email: v.optional(v.string()),
+    name: v.optional(v.string()),
   })
     .index("by_token", ["token"])
     .index("by_expiresAt", ["expiresAt"]),

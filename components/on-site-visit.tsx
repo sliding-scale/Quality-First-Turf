@@ -191,10 +191,12 @@ function AssignButton({
   sessionToken,
   projectId,
   assignment,
+  assignedToName,
 }: {
   sessionToken: string;
   projectId: Id<"projects">;
   assignment: "none" | "me" | "other";
+  assignedToName: string | null;
 }) {
   const assign = useMutation(api.projects.mutations.assign);
   const unassign = useMutation(api.projects.mutations.unassign);
@@ -202,7 +204,11 @@ function AssignButton({
   const [error, setError] = useState<string | null>(null);
 
   if (assignment === "other") {
-    return <span className="visit-assign visit-assign--other">Assigned to another salesperson</span>;
+    return (
+      <span className="visit-assign visit-assign--other">
+        {assignedToName === null ? "Assigned to another salesperson" : `Assigned to ${assignedToName}`}
+      </span>
+    );
   }
   async function toggle() {
     setBusy(true);
@@ -218,14 +224,19 @@ function AssignButton({
   }
   return (
     <>
+      {assignment === "me" ? (
+        <span className="visit-assign__badge">
+          <Check size={16} aria-hidden="true" />
+          Assigned to you
+        </span>
+      ) : null}
       <button
         type="button"
         className={assignment === "me" ? "visit-assign is-assigned" : "visit-assign"}
         onClick={() => void toggle()}
         disabled={busy}
-        aria-pressed={assignment === "me"}
       >
-        {assignment === "me" ? "Assigned to you · Unassign" : "Assign to me"}
+        {assignment === "me" ? "Unassign" : "Assign to me"}
       </button>
       {error === null ? null : (
         <span className="visit-assign__error" role="alert">
@@ -245,6 +256,7 @@ export function OnSiteVisit({
   sessionToken,
   canSchedule,
   assignment,
+  assignedToName,
   project,
   workAreas,
   revisions,
@@ -253,6 +265,7 @@ export function OnSiteVisit({
   sessionToken: string;
   canSchedule: boolean;
   assignment: "none" | "me" | "other";
+  assignedToName: string | null;
   project: {
     firstName: string;
     lastName: string;
@@ -278,6 +291,7 @@ export function OnSiteVisit({
   const updateProject = useMutation(api.projects.mutations.update);
   const generateUploadUrl = useMutation(api.projects.mutations.generateUploadUrl);
   const draftVisit = useAction(api.projects.actions.draftVisit);
+  const refreshConsultation = useAction(api.projects.consultation.refresh);
   const loaded = useMemo(() => projectToForm(project), [project]);
   // The customer's own submission, rebuilt in the same shape as the form so the two can be compared.
   const original = useMemo(() => {
@@ -317,6 +331,13 @@ export function OnSiteVisit({
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty]);
+  // Office staff can move or remove the appointment in Jobber; pick that up as soon as the project opens.
+  useEffect(() => {
+    if (project.consultation === undefined) return;
+    refreshConsultation({ sessionToken, projectId }).catch(() => undefined);
+    // Once per opened project; the page is keyed by project.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const previews = useRef<string[]>([]);
   useEffect(() => {
     const urls = previews.current;
@@ -325,6 +346,14 @@ export function OnSiteVisit({
   const [done, setDone] = useState<{ message: string; ready: boolean } | null>(null);
   const focusFirstError = useRef(false);
   const estimates = project.measurements;
+  // Only the salesperson holding the lead can change the visit, and only once a consultation is booked.
+  const locked = assignment !== "me" || project.consultation === undefined;
+  const lockedMessage =
+    assignment === "other"
+      ? `This lead is assigned to ${assignedToName ?? "another salesperson"}. Only they can edit or save the visit.`
+      : assignment === "none"
+        ? "Assign this lead to yourself and book a consultation to edit or save the visit."
+        : "Book a consultation first. The visit can only be edited and saved once one is booked.";
 
   function patch(partial: Partial<DiscoveryState>) {
     setDirty(true);
@@ -540,6 +569,10 @@ export function OnSiteVisit({
   }
 
   async function persist(mode: "draft" | "quote") {
+    if (locked) {
+      setError(lockedMessage);
+      return false;
+    }
     const problems = contactProblems(form);
     const contactMessage = Object.values(problems)[0] ?? null;
     if (contactMessage !== null) {
@@ -701,11 +734,18 @@ export function OnSiteVisit({
           ) : null}
         </h1>
         <div className="visit-banner__actions">
-          <AssignButton sessionToken={sessionToken} projectId={projectId} assignment={assignment} />
+          <AssignButton
+            sessionToken={sessionToken}
+            projectId={projectId}
+            assignment={assignment}
+            assignedToName={assignedToName}
+          />
           <ConsultationButton
             sessionToken={sessionToken}
             projectId={projectId}
             canSchedule={canSchedule}
+            assignment={assignment}
+            assignedToName={assignedToName}
             email={form.email}
             consultation={project.consultation}
           />
@@ -714,6 +754,12 @@ export function OnSiteVisit({
 
       <div className="visit-main">
         <form className="visit-body" onSubmit={onSubmit} onKeyDown={blockEnterSubmit} noValidate>
+          <fieldset className="visit-lock" disabled={locked}>
+          {locked ? (
+            <p className="visit-alert" role="status">
+              {lockedMessage}
+            </p>
+          ) : null}
           <div className="visit-column">
             <section id="property" className="visit-card">
               <div className="visit-card__head">
@@ -1260,14 +1306,15 @@ export function OnSiteVisit({
             ) : null}
 
             <div className="visit-actions">
-              <button type="submit" className="visit-primary" disabled={pending}>
+              <button type="submit" className="visit-primary" disabled={pending || locked}>
                 {pending ? "Saving" : "Save & draft quote"}
               </button>
               <p className="visit-save-hint">
-                {savedAt !== null ? `Saved at ${savedAt}.` : "Saves the visit and drafts the quote in Jobber. Nothing is sent to the customer."}
+                {locked ? "Saving is unlocked once this lead is yours and a consultation is booked." : savedAt !== null ? `Saved at ${savedAt}.` : "Saves the visit and drafts the quote in Jobber. Nothing is sent to the customer."}
               </p>
             </div>
           </div>
+          </fieldset>
         </form>
       </div>
     </VisitFrame>

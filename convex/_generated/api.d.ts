@@ -22,6 +22,7 @@ import type * as projects_mutations from "../projects/mutations.js";
 import type * as projects_queries from "../projects/queries.js";
 import type * as projects_shortCode from "../projects/shortCode.js";
 import type * as rateLimits from "../rateLimits.js";
+import type * as sales_accounts from "../sales/accounts.js";
 import type * as sales_login from "../sales/login.js";
 import type * as sales_mutations from "../sales/mutations.js";
 import type * as sales_queries from "../sales/queries.js";
@@ -48,6 +49,7 @@ declare const fullApi: ApiFromModules<{
   "projects/queries": typeof projects_queries;
   "projects/shortCode": typeof projects_shortCode;
   rateLimits: typeof rateLimits;
+  "sales/accounts": typeof sales_accounts;
   "sales/login": typeof sales_login;
   "sales/mutations": typeof sales_mutations;
   "sales/queries": typeof sales_queries;

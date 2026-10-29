@@ -7,6 +7,24 @@
  * against a live visual screenshot if pixel-level matching is required.
  */
 
+/* Tailwind: theme tokens and utilities only. Preflight is left out so the hand-written styles below keep their resets.
+   Utilities are not layered, so they beat the element rules below (h3, button) instead of losing to them. */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css";
+
+/* Tokens the shadcn stepper expects; the form's own palette is mapped onto them. */
+@theme inline {
+  --color-primary: #1e5933;
+  --color-primary-foreground: #ffffff;
+  --color-accent: #e3ebdd;
+  --color-accent-foreground: #092521;
+  --color-muted: #d7ddd5;
+  --color-muted-foreground: #465249;
+  --color-ring: #1e5933;
+  --color-background: #fefefc;
+}
+
+
  :root {
   color-scheme: light;
 
@@ -6100,7 +6118,7 @@ video {
 
 .visit-shell {
   display: grid;
-  grid-template-columns: 20rem minmax(0, 1fr);
+  grid-template-columns: 24rem minmax(0, 1fr);
   min-height: var(--app-h, 100dvh);
   background: #f4f1e8;
   color: #163226;
@@ -7667,6 +7685,117 @@ video {
   overflow: visible;
 }
 
+.service-item {
+  position: relative;
+  display: grid;
+}
+
+.service-item > .service-card {
+  min-width: 0;
+}
+
+/* The preview of what is inside a service; hover-capable screens only, so taps still just select. */
+.service-peek {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  left: 0;
+  z-index: 30;
+  display: none;
+  width: max-content;
+  min-width: 100%;
+  max-width: min(27rem, 86vw);
+  padding: 0.75rem 0.9rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 10px 28px rgba(18, 53, 38, 0.18);
+  color: var(--dark-text);
+  pointer-events: none;
+}
+
+.service-peek__title {
+  margin: 0 0 0.4rem;
+  color: var(--muted-text);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.service-peek__list {
+  display: grid;
+  gap: 0.25rem 1.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.85rem;
+  line-height: 1.3;
+}
+
+.service-peek__list.is-long {
+  display: block;
+  column-count: 2;
+  column-gap: 1.5rem;
+}
+
+.service-peek__list.is-long li {
+  margin: 0 0 0.25rem;
+  break-inside: avoid;
+}
+
+.service-peek__list li {
+  margin: 0;
+  position: relative;
+  padding-left: 0.9rem;
+}
+
+.service-peek__list li::before {
+  content: "";
+  position: absolute;
+  top: 0.45em;
+  left: 0;
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 999px;
+  background: var(--primary-green);
+}
+
+.service-item:has(:focus-visible) .service-peek {
+  display: block;
+}
+
+@media (hover: hover) {
+  .service-item:hover .service-peek {
+    display: block;
+  }
+}
+
+/* Cards in the last column open their preview leftwards so it stays on screen. */
+@media (min-width: 1024px) {
+  .service-item:nth-child(4n) .service-peek {
+    right: 0;
+    left: auto;
+  }
+}
+
+@media (min-width: 720px) and (max-width: 1023px) {
+  .service-item:nth-child(3n) .service-peek {
+    right: 0;
+    left: auto;
+  }
+}
+
+@media (max-width: 719px) {
+  .service-item:nth-child(2n) .service-peek {
+    right: 0;
+    left: auto;
+  }
+
+  .service-peek__list.is-long {
+    column-count: 1;
+  }
+}
+
 .service-card {
   position: relative;
   display: grid;
@@ -8120,7 +8249,7 @@ video {
 .visit-sidebar__item.is-active {
   border-color: #2e7d32;
   background: #f1f7ee;
-  box-shadow: inset 3px 0 0 #2e7d32;
+  box-shadow: none;
 }
 
 .visit-sidebar__searchbar {
@@ -8150,6 +8279,9 @@ video {
 .visit-sidebar__list {
   scrollbar-width: thin;
   scrollbar-color: #d3dacf transparent;
+  /* Room on every side so the active card's border is never clipped by the scroll box or the scrollbar. */
+  scrollbar-gutter: stable;
+  padding: 0.2rem 0.5rem 0.5rem 0.3rem;
 }
 
 .visit-sidebar__list::-webkit-scrollbar {
@@ -8244,8 +8376,9 @@ video {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
-      "back action"
-      "title title";
+      "back back"
+      "title title"
+      "actions actions";
     align-items: center;
     gap: 0.4rem 0.75rem;
   }
@@ -8259,11 +8392,14 @@ video {
     grid-area: title;
   }
 
+  .visit-banner__actions {
+    grid-area: actions;
+    justify-self: stretch;
+  }
+
   .visit-banner .consultation-btn {
     position: static;
-    grid-area: action;
     flex: none;
-    justify-self: end;
     margin: 0;
     min-height: 2.5rem;
     padding: 0.4rem 0.85rem;
@@ -8667,40 +8803,47 @@ video {
 .visit-banner__actions {
   position: relative;
   z-index: 1;
-  grid-column: 3;
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.5rem;
-  margin-right: 1.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem 0.75rem;
+  margin-left: auto;
 }
 
 .visit-banner__actions .consultation-btn {
-  margin-right: 0;
+  margin: 0;
 }
 
 .visit-assign {
   display: inline-flex;
   align-items: center;
-  min-height: 2.25rem;
-  padding: 0.35rem 0.95rem;
-  border: 1px solid rgb(255 255 255 / 70%);
+  gap: 0.4rem;
+  min-height: 2.5rem;
+  padding: 0.35rem 1.1rem;
+  border: 1px solid var(--primary-green, #1e5933);
   border-radius: 999px;
-  background: rgb(18 53 38 / 55%);
+  background: var(--primary-green, #1e5933);
   color: #fff;
   font: inherit;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   font-weight: 700;
   cursor: pointer;
 }
 
 .visit-assign:hover:not(:disabled) {
-  background: rgb(18 53 38 / 80%);
+  background: var(--forest-green, #103f25);
 }
 
+/* Once the lead is yours, the release action reads as a button of its own. */
 .visit-assign.is-assigned {
+  border-color: #c0392b;
   background: #fff;
-  color: var(--visit-forest-deep, #123526);
+  color: #a93226;
+}
+
+.visit-assign.is-assigned:hover:not(:disabled) {
+  background: #fbeceb;
 }
 
 .visit-assign:disabled {
@@ -8709,13 +8852,31 @@ video {
 }
 
 .visit-assign--other {
+  min-height: 2.5rem;
+  padding: 0.35rem 1.1rem;
+  border: 1px solid #c9d3c6;
+  border-radius: 999px;
+  background: #f3f6f1;
+  color: #5d6d64;
+  font-size: 0.9rem;
+  font-weight: 600;
   cursor: default;
 }
 
+.visit-assign__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #2e7d32;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
 .visit-assign__error {
-  color: #fff;
+  flex-basis: 100%;
+  color: #a93226;
   font-size: 0.8rem;
-  text-shadow: 0 1px 2px rgb(8 24 16 / 60%);
+  text-align: right;
 }
 
 .visit-sidebar__tag {
@@ -8731,16 +8892,32 @@ video {
   vertical-align: middle;
 }
 
+.visit-sidebar__tag.visit-sidebar__tag--other {
+  background: #e7e3d6;
+  color: #4a4636;
+}
+
+/* Desktop: back link left, name filling the middle, actions pinned right across the full header. */
+@media (min-width: 861px) {
+  .visit-banner {
+    flex-wrap: nowrap;
+    gap: 1.5rem;
+  }
+
+  .visit-banner h1 {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+}
+
 @media (max-width: 860px) {
   .visit-banner__actions {
-    align-items: flex-start;
-    margin-right: 0;
+    justify-content: flex-start;
+    margin-left: 0;
   }
 
   .visit-banner__actions .consultation-btn {
-    position: absolute;
-    top: 0.6rem;
-    right: 0.85rem;
+    position: static;
   }
 }
 
@@ -8776,4 +8953,140 @@ video {
   min-width: 5.5rem;
   color: var(--visit-muted, #5d6d64);
   font-weight: 600;
+}
+
+/* The visit form locks as one unit until a consultation is booked; the fieldset adds no box of its own. */
+.visit-lock {
+  display: contents;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+/* Hover tooltip for the Consultation button; a disabled button gets no hover events, so the wrapper carries it. */
+.consultation-tip {
+  position: relative;
+  display: inline-flex;
+}
+
+.consultation-tip[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  z-index: 20;
+  width: max-content;
+  max-width: min(16rem, 80vw);
+  padding: 0.45rem 0.7rem;
+  border-radius: 0.5rem;
+  background: #163226;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.3;
+  text-align: left;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+}
+
+.consultation-tip[data-tip]:hover::after,
+.consultation-tip[data-tip]:focus-within::after {
+  opacity: 1;
+}
+
+/* Locked visit: dimmed and visibly unusable, including the save button. */
+.visit-lock:disabled > .visit-column {
+  opacity: 0.55;
+}
+
+.visit-lock:disabled :is(button, input, select, textarea, summary) {
+  cursor: not-allowed;
+}
+
+.visit-primary:disabled {
+  background: #9aa89f;
+  color: #fff;
+  cursor: not-allowed;
+}
+
+.visit-primary:disabled:hover {
+  background: #9aa89f;
+}
+
+/* Booking form: what the salesperson already has on the chosen day. */
+.consultation-busy {
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid #dfe5db;
+  border-radius: 0.75rem;
+  background: #f7f9f5;
+  color: #163226;
+  font-size: 0.88rem;
+}
+
+.consultation-busy p {
+  margin: 0;
+}
+
+.consultation-busy ul {
+  display: grid;
+  gap: 0.2rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.consultation-busy li span {
+  display: inline-block;
+  min-width: 9.5rem;
+  margin-right: 0.5rem;
+  font-weight: 700;
+}
+
+.consultation-busy__clash {
+  color: #a93226;
+  font-weight: 700;
+}
+
+@media (max-width: 480px) {
+  .consultation-busy li span {
+    display: block;
+    min-width: 0;
+  }
+}
+
+/* Who is signed in, under the logo. */
+.visit-sidebar__user {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #dfe5db;
+  border-radius: 0.75rem;
+  background: #f7f9f5;
+  color: #465249;
+  font-size: 0.88rem;
+}
+
+.visit-sidebar__user svg {
+  flex: none;
+  width: 1.1rem;
+  height: 1.1rem;
+  color: #2e7d32;
+}
+
+.visit-sidebar__user span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.visit-sidebar__user strong {
+  color: #163226;
 }

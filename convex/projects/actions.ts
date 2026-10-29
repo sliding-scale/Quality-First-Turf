@@ -55,6 +55,9 @@ async function loadAndDraft(
   if (loaded === null) {
     throw new Error("Project not found");
   }
+  if (loaded.project.consultation === undefined) {
+    throw new Error("Book a consultation before drafting the quote.");
+  }
   if (!(await ctx.runMutation(internal.projects.mutations.claimDraft, { projectId }))) {
     return busyResult(loaded.project);
   }
@@ -151,10 +154,14 @@ export const draftVisit = action({
   },
   returns: draftQuoteResult,
   handler: async (ctx, args): Promise<DraftQuoteResult> => {
-    const signedIn = await ctx.runQuery(internal.sales.queries.active, {
+    const who = await ctx.runQuery(internal.sales.queries.identity, {
       sessionToken: args.sessionToken,
     });
-    if (!signedIn) throw new Error("Sign in again to open projects.");
+    if (who === null) throw new Error("Sign in again to open projects.");
+    const owner = await ctx.runQuery(internal.projects.queries.get, { projectId: args.projectId });
+    if (owner !== null && owner.project.assignedTo !== who.email) {
+      throw new Error("Only the salesperson this lead is assigned to can draft its quote.");
+    }
     return await loadAndDraft(ctx, args.projectId);
   },
 });

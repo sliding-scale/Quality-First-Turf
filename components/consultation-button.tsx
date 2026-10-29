@@ -2,7 +2,7 @@
 
 import { useAction } from "convex/react";
 import { CalendarCheck, CalendarPlus, X } from "lucide-react";
-import { FormEvent, useRef, useState } from "react";
+import { FormEvent, useEffect, useId, useRef, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { friendlyError } from "@/lib/errors";
@@ -13,6 +13,7 @@ export type Consultation = {
   time: string;
   minutes: number;
   instructions: string;
+  salesperson?: string;
 };
 
 const lengths = [
@@ -45,6 +46,10 @@ function day(date: string, long = false): string {
   });
 }
 
+function minutesOf(time: string): number {
+  return Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
+}
+
 function today(): string {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
@@ -54,17 +59,22 @@ export function ConsultationButton({
   sessionToken,
   projectId,
   canSchedule,
+  assignment,
+  assignedToName,
   email,
   consultation,
 }: {
   sessionToken: string;
   projectId: Id<"projects">;
   canSchedule: boolean;
+  assignment: "none" | "me" | "other";
+  assignedToName: string | null;
   email: string;
   consultation: Consultation | undefined;
 }) {
   const book = useAction(api.projects.consultation.book);
   const cancel = useAction(api.projects.consultation.cancel);
+  const loadBusy = useAction(api.projects.consultation.busy);
   const dialog = useRef<HTMLDialogElement>(null);
   const [date, setDate] = useState("");
   const [time, setTime] = useState("09:00");
@@ -73,6 +83,32 @@ export function ConsultationButton({
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<"book" | "cancel" | null>(null);
   const [confirmingCancel, setConfirmingCancel] = useState(false);
+  // What this salesperson already has on the chosen day; null while it loads.
+  const [busy, setBusy] = useState<{ start: string; end: string; title: string; isBreak: boolean }[] | null>(null);
+  const [opens, setOpens] = useState(0);
+
+  useEffect(() => {
+    if (date === "") return;
+    let current = true;
+    loadBusy({ sessionToken, projectId, date })
+      .then((items) => {
+        if (current) setBusy(items);
+      })
+      .catch(() => {
+        if (current) setBusy([]);
+      });
+    return () => {
+      current = false;
+    };
+  }, [date, opens, loadBusy, sessionToken, projectId]);
+
+  const wanted = minutesOf(time);
+  const clash =
+    busy?.find((item) => {
+      const start = minutesOf(item.start);
+      const end = minutesOf(item.end) <= start ? minutesOf(item.end) + 1440 : minutesOf(item.end);
+      return wanted < end && start < wanted + minutes;
+    }) ?? null;
 
   // Opens on the booked appointment when there is one, otherwise on a blank form.
   function open() {
@@ -82,6 +118,8 @@ export function ConsultationButton({
     setInstructions(consultation?.instructions ?? "");
     setError(null);
     setConfirmingCancel(false);
+    setBusy(null);
+    setOpens((count) => count + 1);
     dialog.current?.showModal();
   }
 
@@ -122,29 +160,44 @@ export function ConsultationButton({
   }
 
   const booked = consultation !== undefined;
+  const tipId = useId();
+  const tip = !canSchedule
+    ? "Available once this project has reached Jobber."
+    : assignment === "none"
+      ? "Assign this lead to yourself first."
+      : assignment === "other"
+        ? `Assigned to ${assignedToName ?? "another salesperson"}. Only they can book it.`
+        : undefined;
   const Icon = booked ? CalendarCheck : CalendarPlus;
 
   return (
     <>
-      <button
-        type="button"
-        className={`consultation-btn${booked ? " is-booked" : ""}`}
-        onClick={open}
-        disabled={!canSchedule}
-        title={canSchedule ? undefined : "Available once this project has reached Jobber."}
-      >
-        <Icon size={18} aria-hidden="true" />
-        <span className="consultation-btn__text">
-          {booked ? (
-            <>
-              <small>Consultation</small>
-              {`${day(consultation.date)} · ${clock(consultation.time)}`}
-            </>
-          ) : (
-            "Consultation"
-          )}
-        </span>
-      </button>
+      <span className="consultation-tip" data-tip={tip}>
+        <button
+          type="button"
+          className={`consultation-btn${booked ? " is-booked" : ""}`}
+          onClick={open}
+          disabled={!canSchedule || assignment !== "me"}
+          aria-describedby={tip === undefined ? undefined : tipId}
+        >
+          <Icon size={18} aria-hidden="true" />
+          <span className="consultation-btn__text">
+            {booked ? (
+              <>
+                <small>Consultation</small>
+                {`${day(consultation.date)} · ${clock(consultation.time)}`}
+              </>
+            ) : (
+              "Consultation"
+            )}
+          </span>
+        </button>
+        {tip === undefined ? null : (
+          <span id={tipId} className="visually-hidden">
+            {tip}
+          </span>
+        )}
+      </span>
 
       <dialog
         ref={dialog}
@@ -164,7 +217,8 @@ export function ConsultationButton({
 
           {booked ? (
             <p className="consultation-form__current">
-              Booked for {day(consultation.date, true)} at {clock(consultation.time)}.
+              Booked for {day(consultation.date, true)} at {clock(consultation.time)}
+              {consultation.salesperson === undefined ? "" : ` with ${consultation.salesperson}`}.
             </p>
           ) : null}
 
@@ -175,7 +229,10 @@ export function ConsultationButton({
                 type="date"
                 value={date}
                 min={today()}
-                onChange={(event) => setDate(event.target.value)}
+                onChange={(event) => {
+                  setBusy(null);
+                  setDate(event.target.value);
+                }}
                 required
               />
             </label>
@@ -211,6 +268,35 @@ export function ConsultationButton({
             </label>
           </div>
 
+          {date === "" ? null : (
+            <div className="consultation-busy" aria-live="polite">
+              {busy === null ? (
+                <p>Checking your calendar…</p>
+              ) : busy.length === 0 ? (
+                <p>Your calendar is free on {day(date)}.</p>
+              ) : (
+                <>
+                  <p>Already booked or on a break on {day(date)}:</p>
+                  <ul>
+                    {busy.map((item, index) => (
+                      <li key={`${item.start}-${index}`}>
+                        <span>{`${clock(item.start)} – ${clock(item.end)}`}</span>
+                        {item.isBreak ? `On a break · ${item.title}` : item.title}
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+              {clash === null ? null : (
+                <p className="consultation-busy__clash" role="alert">
+                  {clash.isBreak
+                    ? `That time falls in a break (${clock(clash.start)} – ${clock(clash.end)}). Choose another time.`
+                    : `That time overlaps ${clash.title}. Choose another time.`}
+                </p>
+              )}
+            </div>
+          )}
+
           <p className="consultation-form__note">
             {email.trim() === ""
               ? "There is no email on file for this customer, so Jobber cannot send a confirmation."
@@ -240,7 +326,7 @@ export function ConsultationButton({
                 </button>
               )
             ) : null}
-            <button type="submit" className="visit-primary" disabled={pending !== null}>
+            <button type="submit" className="visit-primary" disabled={pending !== null || clash !== null}>
               {pending === "book" ? "Saving…" : booked ? "Save new time" : "Schedule"}
             </button>
           </div>

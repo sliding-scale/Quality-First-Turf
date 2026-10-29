@@ -4,7 +4,7 @@ import { internalMutation, mutation } from "../_generated/server";
 import { activeSalesSession, hashToken, sessionExpiry } from "./session";
 
 export const start = internalMutation({
-  args: { token: v.string(), email: v.string() },
+  args: { token: v.string(), email: v.string(), name: v.string() },
   returns: v.string(),
   handler: async (ctx, args) => {
     const expiresAt = sessionExpiry();
@@ -12,6 +12,7 @@ export const start = internalMutation({
       token: await hashToken(args.token),
       expiresAt,
       email: args.email,
+      name: args.name,
     });
     await ctx.scheduler.runAt(expiresAt, internal.sales.mutations.expire, { sessionId });
     return args.token;

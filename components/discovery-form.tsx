@@ -435,6 +435,7 @@ export function DiscoveryForm() {
                 cards={services.map((service) => ({
                 label: serviceLabel(service),
                 selected: form.services.includes(service),
+                includes: installTypes[service],
               }))}
               onToggle={(index) => toggleService(services[index])}
             />
