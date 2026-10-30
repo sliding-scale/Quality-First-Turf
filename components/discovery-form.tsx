@@ -224,13 +224,14 @@ export function DiscoveryForm() {
     if (restoredDraft.current) return;
     restoredDraft.current = true;
     const saved = readDiscoveryDraft();
-    const next = searchParams.has("step") ? urlStep : (saved?.step ?? "property");
+    // No saved draft (e.g. after submitting) means a fresh form: always start on the first page.
+    const next = saved === null ? "property" : searchParams.has("step") ? urlStep : saved.step;
     // Restoring the saved draft can only happen after mount (localStorage).
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (saved !== null) setForm(saved.form);
     trail.current = [next];
     setStep(next);
-    if ((!searchParams.has("step") && next !== "property") || searchParams.get("step") === "details") {
+    if (saved === null ? searchParams.has("step") : (!searchParams.has("step") && next !== "property") || searchParams.get("step") === "details") {
       pendingStep.current = next;
       router.replace(stepHref(next), { scroll: false });
     }

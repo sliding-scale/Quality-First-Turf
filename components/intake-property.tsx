@@ -122,7 +122,7 @@ function IntakeHeader({
                 <StepperTrigger
                   className={`m-0 flex grow flex-col items-start justify-center gap-3 border-0 bg-transparent p-0 text-inherit ${clickable ? "" : "cursor-default"}`}
                 >
-                  <StepperIndicator className="h-1 w-full bg-white/25 data-[state=active]:bg-white data-[state=completed]:bg-[#6fbf73]" />
+                  <StepperIndicator className="h-1 w-full bg-white/25 data-[state=active]:bg-white data-[state=completed]:bg-[#d7f33c]" />
                   <StepperTitle className="m-0 text-start font-[inherit] text-xs tracking-normal font-semibold md:text-sm group-data-[state=active]/step:text-white group-data-[state=completed]/step:text-white/85 group-data-[state=inactive]/step:text-white/55">
                     {done ? <span className="sr-only">Completed: </span> : null}
                     {item.label}
