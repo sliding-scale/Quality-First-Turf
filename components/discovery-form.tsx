@@ -532,16 +532,19 @@ export function DiscoveryForm() {
           <div className="review-stage">
             <div className="review-intro">
               <h1>A few questions</h1>
-              <p>
-                You chose <ServiceNames names={orderServices(form.services)} />.
-                <br />
-                If you do not know a measurement, you can still send this in.
-              </p>
+              <p>If you do not know a measurement, you can still send this in.</p>
             </div>
             <div className="review-cards">
               {orderServices(form.services)
                 .filter((service) => hasFollowUp(service))
-                .map((service) => {
+                .map((service) => (
+                <ServiceFold
+                  key={service}
+                  label={serviceLabel(service)}
+                  Icon={serviceIcons[service] ?? Sprout}
+                  hasErrors={Object.keys(fieldErrors).length > 0}
+                >
+                {(() => {
                 if (service === "Demo") {
                   return (
                     <DemoSection
@@ -609,7 +612,9 @@ export function DiscoveryForm() {
                     />
                   </section>
                 );
-              })}
+                })()}
+                </ServiceFold>
+              ))}
             </div>
             <div className="review-actions">
               {error !== null ? (
@@ -666,13 +671,37 @@ export function FormShell({
   );
 }
 
-function ServiceNames({ names }: { names: string[] }) {
-  return names.map((name, index) => (
-    <span key={name}>
-      {index > 0 ? ", " : null}
-      <strong className="review-service">{serviceLabel(name)}</strong>
-    </span>
-  ));
+/** One selected service on the questions page: closed until clicked, and opened for the customer if a field needs fixing. */
+function ServiceFold({
+  label,
+  Icon,
+  hasErrors,
+  children,
+}: {
+  label: string;
+  Icon: LucideIcon;
+  hasErrors: boolean;
+  children: ReactNode;
+}) {
+  const [opened, setOpened] = useState(false);
+  const open = opened || hasErrors;
+  return (
+    <article className="visit-service service-fold">
+      <button type="button" className="visit-service__toggle" aria-expanded={open} onClick={() => setOpened(!opened)}>
+        <span className="visit-service__icon">
+          <Icon size={18} aria-hidden="true" />
+        </span>
+        <span className="visit-service__title">
+          <strong>{label}</strong>
+        </span>
+        <span aria-hidden="true" />
+        <ChevronDown size={18} aria-hidden="true" />
+      </button>
+      <div className="service-fold__body" hidden={!open}>
+        {children}
+      </div>
+    </article>
+  );
 }
 
 function choiceLabel(value: string) {
@@ -735,6 +764,8 @@ function DemoSection({
           ) : null}
           {(installTypes[service] ?? []).map((type) => {
             const checked = selected.includes(type);
+            // Once a type is picked the others step aside; unselecting it brings them back.
+            if (selected.length > 0 && !checked) return null;
             const areaKey = selectionKey(service, type);
             const panelId = `${fieldIdFor("install", service, type)}-panel`;
             return (
@@ -986,6 +1017,8 @@ function UndergroundSection({
           ) : null}
           {types.map((type) => {
             const checked = selected.includes(type);
+            // Once a type is picked the others step aside; unselecting it brings them back.
+            if (selected.length > 0 && !checked) return null;
             const expanded = checked && ((forceDetails && type === detailHost) || !folded[type]);
             const areaKey = selectionKey(service, type);
             const panelId = `${fieldIdFor("install", service, type)}-panel`;
@@ -1176,6 +1209,8 @@ function LightingSection({
         ) : null}
         {(installTypes[service] ?? []).map((type) => {
           const checked = selected.includes(type);
+          // Once a type is picked the others step aside; unselecting it brings them back.
+          if (selected.length > 0 && !checked) return null;
           const expanded = checked && !folded[type];
           const areaKey = selectionKey(service, type);
           const panelId = `${fieldIdFor("install", service, type)}-panel`;
@@ -1391,6 +1426,8 @@ function FollowUp({
       ) : null}
       {(installTypes[service] ?? []).map((type) => {
         const checked = selected.includes(type);
+        // Once a type is picked the others step aside; unselecting it brings them back.
+        if (selected.length > 0 && !checked) return null;
         const areaKey = selectionKey(service, type);
         const showExpand =
           checked &&
@@ -1714,6 +1751,8 @@ function GrassFollowUp({
             {turfInstallTypes.map((installType) => {
               const meta = turfPackageMeta[installType];
               const key = selectionKey(service, installType);
+              // Once a package is picked the others step aside; unselecting it brings them back.
+              if (selected.length > 0 && !selected.includes(installType)) return null;
               return (
                 <InstallCard
                   key={installType}

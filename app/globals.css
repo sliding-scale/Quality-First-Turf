@@ -330,9 +330,7 @@ hr {
   position: relative;
   z-index: 20;
   min-height: var(--header-height);
-  background:
-    linear-gradient(100deg, rgb(4 10 6 / 92%) 0%, rgb(8 24 14 / 82%) 58%, rgb(10 30 18 / 86%) 100%),
-    var(--photo-turf, url("/images/turf-landscape.webp")) center 82% / cover no-repeat;
+  background: #000000;
   border-bottom: 1px solid rgb(27 34 29 / 12%);
 }
 
@@ -878,9 +876,7 @@ hr {
   gap: 2.75rem;
   height: var(--intake-header-height);
   padding: 0.85rem 2.75rem;
-  background:
-    linear-gradient(100deg, rgb(4 10 6 / 94%) 0%, rgb(8 24 14 / 88%) 58%, rgb(10 30 18 / 90%) 100%),
-    var(--photo-turf, url("/images/turf-landscape.webp")) center 82% / cover no-repeat;
+  background: #000000;
   border-bottom: 1px solid rgb(27 34 29 / 12%);
 }
 
@@ -7793,7 +7789,7 @@ video {
 .intake .intake-header,
 .intake--confirmation .intake-header,
 .intake--simple .intake-header {
-  background: #22272b !important;
+  background: #000000 !important;
   background-image: none !important;
   border-bottom: 0;
   box-shadow: none;
@@ -8339,7 +8335,7 @@ video {
 
 /* Project list sidebar: light, with a quiet scrollbar */
 .visit-sidebar {
-  background: #101612;
+  background: #000000;
   border-right: 1px solid #334237;
 }
 
@@ -8449,7 +8445,7 @@ video {
   min-height: 4.5rem;
   padding: 0.85rem 1.5rem;
   border-bottom: 1px solid #334237;
-  background: #101612 !important;
+  background: #000000 !important;
   background-image: none !important;
   color: #f4f6f1;
 }
@@ -9840,4 +9836,52 @@ video {
   .review-page .product-photos.has-sample:has(.choice-change) {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/* Questions page: each selected service is a closed card until clicked (same look as the visit page cards). */
+.service-fold {
+  padding: 1.15rem 1.2rem 1.25rem;
+  border: 1px solid #303c33;
+  border-radius: 1rem;
+  background: #141a15;
+  box-shadow: 0 10px 28px rgb(22 50 38 / 6%);
+}
+
+.service-fold .visit-service__title strong {
+  font-size: 1.05rem;
+}
+
+.service-fold:has(.visit-service__toggle:hover) {
+  border-color: #4a5f4f;
+}
+
+.service-fold__body {
+  margin-top: 1rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #38483d;
+}
+
+.service-fold__body[hidden] {
+  display: none;
+}
+
+.service-fold__body .review-card {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0.5rem 0;
+}
+
+.service-fold__body .review-card > h2,
+.service-fold__body .demo-panel > h2 {
+  display: none;
+}
+
+.review-page .service-fold .service-fold__body > .review-card,
+.review-page .service-fold .service-fold__body > .review-card--grass {
+  margin: 0.9rem 0 0;
+  padding: 1.4rem 1.6rem 1.5rem;
+  border: 0;
+  border-radius: 14px;
+  box-shadow: none;
 }
