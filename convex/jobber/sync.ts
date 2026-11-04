@@ -1,6 +1,6 @@
 import { v } from "convex/values";
-import { catalogue } from "../../lib/catalogue";
-import { priceUnit, retailPrice } from "../../lib/price-list";
+import { catalogue } from "../shared/catalogue";
+import { priceUnit, retailPrice } from "../shared/price-list";
 import { internalAction } from "../_generated/server";
 import { accessTokenFor } from "../projects/actions";
 import { jobberGraphql } from "./client";

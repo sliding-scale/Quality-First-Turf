@@ -1,4 +1,4 @@
-import { jobberKey } from "../../lib/jobber-names";
+import { jobberKey } from "../shared/jobber-names";
 
 const tokenUrl = "https://api.getjobber.com/api/oauth/token";
 const graphqlUrl = "https://api.getjobber.com/api/graphql";

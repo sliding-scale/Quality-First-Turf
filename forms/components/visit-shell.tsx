@@ -18,8 +18,8 @@ import {
 import { api } from "@/convex/_generated/api";
 import { SalesLogin } from "@/components/sales-login";
 import { RetryNextImage } from "@/components/ui/retry-image";
-import { serviceLabel } from "@/lib/discovery";
-import { formatShortCode, normalizeShortCode } from "@/lib/errors";
+import { serviceLabel } from "@/convex/shared/discovery";
+import { formatShortCode, normalizeShortCode } from "@/convex/shared/errors";
 import {
   clearSalesSession,
   readSalesSession,

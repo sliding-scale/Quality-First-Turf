@@ -5,8 +5,8 @@ import { CalendarCheck, CalendarPlus, X } from "lucide-react";
 import { FormEvent, useId, useRef, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { friendlyError } from "@/lib/errors";
-import { visitLabel } from "@/lib/visits";
+import { friendlyError } from "@/convex/shared/errors";
+import { visitLabel } from "@/convex/shared/visits";
 
 export type Consultation = {
   assessmentId: string;

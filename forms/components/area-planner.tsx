@@ -15,7 +15,7 @@ import {
   workedSize,
   type AreaDraft,
   type AreaSection,
-} from "@/lib/discovery";
+} from "@/convex/shared/discovery";
 
 /**
  * Lists the yards a job covers (front yard, back yard, side yard, other). Each yard is made of one

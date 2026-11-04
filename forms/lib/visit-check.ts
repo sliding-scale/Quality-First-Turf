@@ -7,8 +7,8 @@ import {
   serviceLabel,
   services,
   type DiscoveryState,
-} from "@/lib/discovery";
-import { planQuoteLines } from "@/lib/quote-lines";
+} from "@/convex/shared/discovery";
+import { planQuoteLines } from "@/convex/shared/quote-lines";
 import { isServicePhotos, servicePhotosIndex, SITE_PHOTOS_LABEL, type VisitArea } from "@/lib/visit-areas";
 
 type CheckInput = {

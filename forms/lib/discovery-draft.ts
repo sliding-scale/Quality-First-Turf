@@ -20,7 +20,7 @@ import {
   zipInput,
   type CustomerType,
   type DiscoveryState,
-} from "@/lib/discovery";
+} from "@/convex/shared/discovery";
 
 const storageKey = "qft-discovery-draft";
 const draftVersion = 1;

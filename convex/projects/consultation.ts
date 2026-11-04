@@ -3,14 +3,14 @@ import { internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
 import type { ActionCtx } from "../_generated/server";
 import { action, internalAction, internalMutation, internalQuery } from "../_generated/server";
-import { clockFromMinutes, minutesFromDayStart, overlaps, zonedToInstant, zonedWallClock } from "../../lib/zoned-time";
+import { clockFromMinutes, minutesFromDayStart, overlaps, zonedToInstant, zonedWallClock } from "../shared/zoned-time";
 import { createRequest, jobberGraphql } from "../jobber/client";
 import { consultationValidator } from "../schema";
 import { salespersonName } from "../sales/accounts";
 import { accessTokenFor } from "./actions";
 import { saveVisitSnapshot } from "./visits";
-import { formatShortCode } from "../../lib/errors";
-import { visitLabel } from "../../lib/visits";
+import { formatShortCode } from "../shared/errors";
+import { visitLabel } from "../shared/visits";
 
 type MutationErrors = { userErrors: { message: string }[] };
 type Who = { email: string; name: string };

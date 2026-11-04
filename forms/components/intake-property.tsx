@@ -5,7 +5,7 @@ import { RetryNextImage } from "@/components/ui/retry-image";
 import { FormEvent, ReactNode } from "react";
 import { ConfirmationFit } from "@/components/confirmation-fit";
 import { contactFields } from "@/components/ui/fields";
-import type { DiscoveryState } from "@/lib/discovery";
+import type { DiscoveryState } from "@/convex/shared/discovery";
 import { DiscoveryStep } from "@/lib/discovery-draft";
 import { toggleRadio } from "@/components/ui/inputs";
 import {

@@ -6,7 +6,7 @@ import {
   hasFollowUp,
   serviceLabel,
   type DiscoveryState,
-} from "@/lib/discovery";
+} from "@/convex/shared/discovery";
 import type { Id } from "@/convex/_generated/dataModel";
 
 export const SITE_PHOTOS_LABEL = "Site photos";

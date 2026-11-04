@@ -57,10 +57,10 @@ import {
   withAddOn,
   type AreaSection,
   type DiscoveryState,
-} from "@/lib/discovery";
+} from "@/convex/shared/discovery";
 import { contactFields, CustomerSaid, RequiredStar, TextField, type TextFieldProps } from "@/components/ui/fields";
 import { ConsultationButton, type Consultation } from "@/components/consultation-button";
-import { formatShortCode, friendlyError } from "@/lib/errors";
+import { formatShortCode, friendlyError } from "@/convex/shared/errors";
 import { scrollToStart } from "@/lib/step-transition";
 import { emptyWorkArea, parseWorkAreas } from "@/components/work-areas";
 import {
@@ -89,7 +89,7 @@ import {
 } from "@/lib/visit-areas";
 import { blockEnterSubmit, PhotoPicker, toggleRadio } from "@/components/ui/inputs";
 import { compareSnapshots, storedChanges, type Change, type Snapshot } from "@/lib/project-changes";
-import { visitLabel } from "@/lib/visits";
+import { visitLabel } from "@/convex/shared/visits";
 import { checkVisit, lightingProblems, servicePhotoProblems } from "@/lib/visit-check";
 
 /** One photo on its way to storage, shown as a tile with a progress bar. */

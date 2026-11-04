@@ -1,4 +1,4 @@
-import { formatPhone, orderServices, serviceLabel, type DiscoveryState } from "@/lib/discovery";
+import { formatPhone, orderServices, serviceLabel, type DiscoveryState } from "@/convex/shared/discovery";
 import {
   areaDisplayName,
   isDefaultAreaName,

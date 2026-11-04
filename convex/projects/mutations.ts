@@ -1,7 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import { salespersonName } from "../sales/accounts";
-import { contactProblems, type ContactFields } from "../../lib/discovery";
-import { planQuoteLines } from "../../lib/quote-lines";
+import { contactProblems, type ContactFields } from "../shared/discovery";
+import { planQuoteLines } from "../shared/quote-lines";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { internalMutation, mutation, type MutationCtx } from "../_generated/server";

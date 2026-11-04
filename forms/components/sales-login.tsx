@@ -5,7 +5,7 @@ import { ArrowRight, Eye, EyeOff, Lock, Mail } from "lucide-react";
 import Image from "next/image";
 import { FormEvent, useId, useState } from "react";
 import { api } from "@/convex/_generated/api";
-import { friendlyError } from "@/lib/errors";
+import { friendlyError } from "@/convex/shared/errors";
 
 export function SalesLogin({ onSignedIn }: { onSignedIn: (token: string, remember?: boolean) => void }) {
   const login = useAction(api.sales.login.login);

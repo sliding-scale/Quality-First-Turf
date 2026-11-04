@@ -7,8 +7,8 @@ import {
   phoneInput,
   zipInput,
   type DiscoveryState,
-} from "@/lib/discovery";
-import { canonicalState, US_STATES } from "@/lib/us-states";
+} from "@/convex/shared/discovery";
+import { canonicalState, US_STATES } from "@/convex/shared/us-states";
 
 /** The three form surfaces share one field implementation and differ only in class names. */
 export type FieldVariant = "intake" | "form" | "visit";

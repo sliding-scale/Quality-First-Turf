@@ -1,0 +1,6 @@
+# Safety net for the repo root. Each app has its own .gitignore too.
+.env*
+!.env.example
+node_modules/
+.DS_Store
+.vercel

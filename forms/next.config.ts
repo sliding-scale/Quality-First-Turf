@@ -1,6 +1,11 @@
+import path from "node:path";
 import type { NextConfig } from "next";
 
+// The shared Convex backend lives in ../convex, outside this app's folder.
+const repoRoot = path.resolve(__dirname, "..");
+
 const nextConfig: NextConfig = {
+  outputFileTracingRoot: repoRoot,
   images: {
     localPatterns: [{ pathname: "**" }],
   },
@@ -23,6 +28,7 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   turbopack: {
+    root: repoRoot,
     rules: {
       "*.css": {
         loaders: ["@tailwindcss/turbopack"],

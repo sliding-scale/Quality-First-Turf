@@ -37,7 +37,7 @@ import {
   soilDetail,
   turfInstallTypes,
   withAddOn,
-} from "@/lib/discovery";
+} from "@/convex/shared/discovery";
 import { ConfirmationPage } from "@/components/confirmation-page";
 import { IntakeFrame, PropertyStep } from "@/components/intake-property";
 import { AreaPlanner } from "@/components/area-planner";
@@ -51,7 +51,7 @@ import {
   writeDiscoveryDraft,
   type DiscoveryStep,
 } from "@/lib/discovery-draft";
-import { friendlyError } from "@/lib/errors";
+import { friendlyError } from "@/convex/shared/errors";
 import { scrollToStart, transitionStep } from "@/lib/step-transition";
 import { blockEnterSubmit, toggleRadio } from "@/components/ui/inputs";
 

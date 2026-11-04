@@ -1,0 +1,11 @@
+{
+  "name": "quality-first-turf",
+  "private": true,
+  "workspaces": [
+    "forms"
+  ],
+  "dependencies": {
+    "@convex-dev/rate-limiter": "^0.4.2",
+    "convex": "^1.47.0"
+  }
+}
