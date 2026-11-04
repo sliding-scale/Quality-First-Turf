@@ -1,0 +1,997 @@
+Name,Description,Category,Unit Price,Unit Cost,Duration Minutes,Quantity Enabled,Minimum Quantity,Maximum Quantity,Taxable,Active
+DUMMY RP - AG Budget Friendly Install - Players Choice [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Budget Friendly Install - Players Choice [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Budget Friendly Install - Players Choice [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Budget Friendly Install - Players Choice [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Budget Friendly Install - Players Choice [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Budget Friendly Install - Players Choice [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Budget Friendly Install - Olive Natural [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Budget Friendly Install - Olive Natural [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Budget Friendly Install - Olive Natural [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Budget Friendly Install - Olive Natural [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Budget Friendly Install - Olive Natural [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Budget Friendly Install - Olive Natural [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Budget Friendly Install - Cali's Finest Light [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Budget Friendly Install - Cali's Finest Light [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Budget Friendly Install - Cali's Finest Light [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Budget Friendly Install - Cali's Finest Light [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Budget Friendly Install - Cali's Finest Light [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Budget Friendly Install - Cali's Finest Light [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Budget Friendly Install - Hollywood [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Budget Friendly Install - Hollywood [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Budget Friendly Install - Hollywood [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Budget Friendly Install - Hollywood [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Budget Friendly Install - Hollywood [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Budget Friendly Install - Hollywood [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Budget Friendly Install - Spring Natural [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Budget Friendly Install - Spring Natural [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Budget Friendly Install - Spring Natural [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Budget Friendly Install - Spring Natural [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Budget Friendly Install - Spring Natural [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Budget Friendly Install - Spring Natural [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - La Jolla Lush [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - La Jolla Lush [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - La Jolla Lush [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - La Jolla Lush [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - La Jolla Lush [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - La Jolla Lush [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Pasadena [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Pasadena [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Pasadena [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Pasadena [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Pasadena [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Pasadena [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Cali's Finest [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Cali's Finest [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Cali's Finest [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Cali's Finest [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Cali's Finest [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Cali's Finest [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Hollywood Lush [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Hollywood Lush [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Hollywood Lush [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Hollywood Lush [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Hollywood Lush [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Hollywood Lush [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Central Park [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Central Park [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Central Park [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Central Park [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Central Park [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Central Park [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Wimbledon [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Wimbledon [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Wimbledon [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Wimbledon [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Wimbledon [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Wimbledon [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Malibu [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Malibu [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Malibu [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Malibu [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Malibu [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Malibu [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Big Sur [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Big Sur [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Big Sur [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Big Sur [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Big Sur [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Big Sur [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Monterey [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Monterey [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Monterey [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Monterey [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Monterey [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Monterey [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Sol Natural [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Sol Natural [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Sol Natural [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Sol Natural [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Sol Natural [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Sol Natural [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Brentwood [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Brentwood [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Brentwood [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Brentwood [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Brentwood [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Brentwood [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Newport [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Newport [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Newport [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Newport [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Newport [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Standard and Deluxe Install - Newport [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Basic Pet and Premium Pet Install - Pets Choice [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Basic Pet and Premium Pet Install - Pets Choice [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Basic Pet and Premium Pet Install - Pets Choice [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Basic Pet and Premium Pet Install - Pets Choice [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Basic Pet and Premium Pet Install - Pets Choice [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Basic Pet and Premium Pet Install - Pets Choice [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Basic Pet and Premium Pet Install - Kennels Best [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Basic Pet and Premium Pet Install - Kennels Best [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Basic Pet and Premium Pet Install - Kennels Best [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Basic Pet and Premium Pet Install - Kennels Best [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Basic Pet and Premium Pet Install - Kennels Best [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Basic Pet and Premium Pet Install - Kennels Best [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Basic Pet and Premium Pet Install - Fringe [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Basic Pet and Premium Pet Install - Fringe [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Basic Pet and Premium Pet Install - Fringe [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Basic Pet and Premium Pet Install - Fringe [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Basic Pet and Premium Pet Install - Fringe [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Basic Pet and Premium Pet Install - Fringe [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Playground Install - Kids Play [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Playground Install - Kids Play [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Playground Install - Kids Play [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Playground Install - Kids Play [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Playground Install - Kids Play [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Playground Install - Kids Play [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Players Choice [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Players Choice [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Players Choice [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Players Choice [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Players Choice [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Players Choice [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Olive Natural [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Olive Natural [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Olive Natural [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Olive Natural [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Olive Natural [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Olive Natural [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Cali's Finest Light [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Cali's Finest Light [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Cali's Finest Light [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Cali's Finest Light [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Cali's Finest Light [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Cali's Finest Light [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Hollywood [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Hollywood [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Hollywood [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Hollywood [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Hollywood [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Hollywood [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Spring Natural [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Spring Natural [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Spring Natural [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Spring Natural [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Spring Natural [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Spring Natural [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - La Jolla Lush [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - La Jolla Lush [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - La Jolla Lush [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - La Jolla Lush [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - La Jolla Lush [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - La Jolla Lush [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Pasadena [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Pasadena [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Pasadena [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Pasadena [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Pasadena [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Pasadena [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Cali's Finest [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Cali's Finest [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Cali's Finest [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Cali's Finest [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Cali's Finest [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Cali's Finest [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Hollywood Lush [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Hollywood Lush [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Hollywood Lush [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Hollywood Lush [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Hollywood Lush [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Hollywood Lush [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Central Park [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Central Park [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Central Park [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Central Park [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Central Park [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Central Park [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Wimbledon [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Wimbledon [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Wimbledon [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Wimbledon [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Wimbledon [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Wimbledon [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Malibu [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Malibu [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Malibu [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Malibu [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Malibu [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Malibu [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Big Sur [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Big Sur [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Big Sur [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Big Sur [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Big Sur [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Big Sur [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Monterey [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Monterey [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Monterey [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Monterey [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Monterey [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Monterey [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Sol Natural [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Sol Natural [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Sol Natural [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Sol Natural [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Sol Natural [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Sol Natural [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Brentwood [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Brentwood [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Brentwood [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Brentwood [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Brentwood [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Brentwood [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Newport [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Newport [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Newport [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Newport [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Newport [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Newport [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Pets Choice [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Pets Choice [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Pets Choice [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Pets Choice [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Pets Choice [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Pets Choice [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Kennels Best [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Kennels Best [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Kennels Best [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Kennels Best [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Kennels Best [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Kennels Best [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Fringe [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Fringe [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Fringe [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Fringe [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Fringe [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Fringe [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Kids Play [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Kids Play [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Kids Play [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Kids Play [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Kids Play [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Glue Down Over Concrete Install - Kids Play [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Players Choice [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Players Choice [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Players Choice [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Players Choice [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Players Choice [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Players Choice [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Olive Natural [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Olive Natural [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Olive Natural [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Olive Natural [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Olive Natural [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Olive Natural [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Cali's Finest Light [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Cali's Finest Light [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Cali's Finest Light [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Cali's Finest Light [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Cali's Finest Light [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Cali's Finest Light [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Hollywood [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Hollywood [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Hollywood [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Hollywood [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Hollywood [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Hollywood [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Spring Natural [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Spring Natural [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Spring Natural [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Spring Natural [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Spring Natural [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Spring Natural [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - La Jolla Lush [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - La Jolla Lush [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - La Jolla Lush [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - La Jolla Lush [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - La Jolla Lush [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - La Jolla Lush [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Pasadena [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Pasadena [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Pasadena [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Pasadena [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Pasadena [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Pasadena [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Cali's Finest [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Cali's Finest [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Cali's Finest [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Cali's Finest [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Cali's Finest [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Cali's Finest [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Hollywood Lush [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Hollywood Lush [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Hollywood Lush [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Hollywood Lush [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Hollywood Lush [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Hollywood Lush [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Central Park [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Central Park [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Central Park [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Central Park [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Central Park [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Central Park [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Wimbledon [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Wimbledon [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Wimbledon [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Wimbledon [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Wimbledon [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Wimbledon [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Malibu [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Malibu [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Malibu [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Malibu [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Malibu [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Malibu [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Big Sur [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Big Sur [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Big Sur [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Big Sur [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Big Sur [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Big Sur [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Monterey [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Monterey [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Monterey [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Monterey [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Monterey [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Monterey [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Sol Natural [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Sol Natural [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Sol Natural [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Sol Natural [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Sol Natural [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Sol Natural [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Brentwood [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Brentwood [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Brentwood [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Brentwood [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Brentwood [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Brentwood [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Newport [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Newport [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Newport [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Newport [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Newport [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Newport [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Pets Choice [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Pets Choice [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Pets Choice [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Pets Choice [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Pets Choice [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Pets Choice [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Kennels Best [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Kennels Best [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Kennels Best [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Kennels Best [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Kennels Best [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Kennels Best [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Fringe [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Fringe [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Fringe [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Fringe [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Fringe [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Fringe [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Kids Play [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Kids Play [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Kids Play [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Kids Play [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Kids Play [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Turf Stip Install - Kids Play [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Replacement,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Repair,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Add-on - Additional #16 / #20 Silica Sand,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Add-on - Additional Pet Deodorizer,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Add-on - Additional Camofill,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Add-on - Additional Seam Tape,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Add-on - Additional Weed Cloth,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Add-on - Gopher Wire,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Add-on - 1 x 4 Bender Board,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Add-on - 2 x 4 Pressure Treated Lumber,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - AG Add-on - Black Aluminum Border,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green Entertaintment Putting Green - Champions Choice [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green Entertaintment Putting Green - Champions Choice [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green Entertaintment Putting Green - Champions Choice [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green Entertaintment Putting Green - Champions Choice [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green Entertaintment Putting Green - Champions Choice [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green Entertaintment Putting Green - Champions Choice [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green Entertaintment Putting Green - Pro Putter [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green Entertaintment Putting Green - Pro Putter [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green Entertaintment Putting Green - Pro Putter [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green Entertaintment Putting Green - Pro Putter [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green Entertaintment Putting Green - Pro Putter [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green Entertaintment Putting Green - Pro Putter [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green Entertaintment Putting Green - Poa Annua Natural [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green Entertaintment Putting Green - Poa Annua Natural [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green Entertaintment Putting Green - Poa Annua Natural [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green Entertaintment Putting Green - Poa Annua Natural [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green Entertaintment Putting Green - Poa Annua Natural [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green Entertaintment Putting Green - Poa Annua Natural [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green Entertaintment Putting Green - Poa Annua Max [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green Entertaintment Putting Green - Poa Annua Max [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green Entertaintment Putting Green - Poa Annua Max [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green Entertaintment Putting Green - Poa Annua Max [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green Entertaintment Putting Green - Poa Annua Max [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green Entertaintment Putting Green - Poa Annua Max [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green PGA Putting Green - Champions Choice [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green PGA Putting Green - Champions Choice [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green PGA Putting Green - Champions Choice [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green PGA Putting Green - Champions Choice [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green PGA Putting Green - Champions Choice [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green PGA Putting Green - Champions Choice [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green PGA Putting Green - Pro Putter [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green PGA Putting Green - Pro Putter [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green PGA Putting Green - Pro Putter [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green PGA Putting Green - Pro Putter [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green PGA Putting Green - Pro Putter [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green PGA Putting Green - Pro Putter [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green PGA Putting Green - Poa Annua Natural [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green PGA Putting Green - Poa Annua Natural [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green PGA Putting Green - Poa Annua Natural [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green PGA Putting Green - Poa Annua Natural [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green PGA Putting Green - Poa Annua Natural [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green PGA Putting Green - Poa Annua Natural [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green PGA Putting Green - Poa Annua Max [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green PGA Putting Green - Poa Annua Max [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green PGA Putting Green - Poa Annua Max [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green PGA Putting Green - Poa Annua Max [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green PGA Putting Green - Poa Annua Max [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green PGA Putting Green - Poa Annua Max [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green Add-on - Additional #60 Silica Sand,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green Add-on - Additional Seam Tape,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green Add-on - Additional Weed Cloth,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green Add-on - Gopher Wire,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green Add-on - 1 x 4 Bender Board,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green Add-on - 2 x 4 Pressure Treated Lumber,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green Add-on - Black Aluminum Border,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green Add-on - Aluminium Golf Cup / Flag Set,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Putting Green Add-on - Unique Cup Set / Flag Light Set,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Demo Demo [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Demo Demo [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Demo Demo [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Demo Demo [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Demo Demo [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Demo Demo [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Demo Demo & Regrade [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Demo Demo & Regrade [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Demo Demo & Regrade [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Demo Demo & Regrade [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Demo Demo & Regrade [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Demo Demo & Regrade [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Demo Concrete / Rock Demo [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Demo Concrete / Rock Demo [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Demo Concrete / Rock Demo [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Demo Concrete / Rock Demo [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Demo Concrete / Rock Demo [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Demo Concrete / Rock Demo [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Demo Concrete / Rock Demo & Regrade [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Demo Concrete / Rock Demo & Regrade [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Demo Concrete / Rock Demo & Regrade [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Demo Concrete / Rock Demo & Regrade [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Demo Concrete / Rock Demo & Regrade [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Demo Concrete / Rock Demo & Regrade [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+"DUMMY RP - Underground Drains (3"" or 4"")",Placeholder. Quantity is linear feet.,Service,1.0,0.0,,false,,,true,true
+"DUMMY RP - Underground 1"" Mainline",Placeholder. Quantity is linear feet.,Service,1.0,0.0,,false,,,true,true
+"DUMMY RP - Underground 3/4"" Waterline",Placeholder. Quantity is linear feet.,Service,1.0,0.0,,false,,,true,true
+"DUMMY RP - Underground 1"" Pipe Sleeve",Placeholder. Quantity is linear feet.,Service,1.0,0.0,,false,,,true,true
+"DUMMY RP - Underground 2"" Conduit",Placeholder. Quantity is linear feet.,Service,1.0,0.0,,false,,,true,true
+"DUMMY RP - Underground 3/4"" Gas Line",Placeholder. Quantity is linear feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Lighting Run Wire,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Lighting Install Outlet,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Lighting Install GFI,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Lighting Install Conduit,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Lighting Install Controller,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Lighting Install Transformer,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Lighting Install Bullet up Lights,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Lighting Install Path Lights,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Lighting Install Step Lights,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Lighting Install Under Lights,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - SOD,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Patio Covers,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Concrete,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Retaining Walls,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Planter Walls,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Pavers,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Bar & Bbq,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Fire Pits,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Decomposite Granite,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Decorative Rock,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Irrigation,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY RP - Planting,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Budget Friendly Install - Players Choice [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Budget Friendly Install - Players Choice [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Budget Friendly Install - Players Choice [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Budget Friendly Install - Players Choice [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Budget Friendly Install - Players Choice [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Budget Friendly Install - Players Choice [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Budget Friendly Install - Olive Natural [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Budget Friendly Install - Olive Natural [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Budget Friendly Install - Olive Natural [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Budget Friendly Install - Olive Natural [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Budget Friendly Install - Olive Natural [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Budget Friendly Install - Olive Natural [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Budget Friendly Install - Cali's Finest Light [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Budget Friendly Install - Cali's Finest Light [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Budget Friendly Install - Cali's Finest Light [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Budget Friendly Install - Cali's Finest Light [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Budget Friendly Install - Cali's Finest Light [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Budget Friendly Install - Cali's Finest Light [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Budget Friendly Install - Hollywood [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Budget Friendly Install - Hollywood [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Budget Friendly Install - Hollywood [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Budget Friendly Install - Hollywood [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Budget Friendly Install - Hollywood [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Budget Friendly Install - Hollywood [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Budget Friendly Install - Spring Natural [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Budget Friendly Install - Spring Natural [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Budget Friendly Install - Spring Natural [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Budget Friendly Install - Spring Natural [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Budget Friendly Install - Spring Natural [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Budget Friendly Install - Spring Natural [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - La Jolla Lush [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - La Jolla Lush [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - La Jolla Lush [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - La Jolla Lush [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - La Jolla Lush [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - La Jolla Lush [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Pasadena [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Pasadena [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Pasadena [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Pasadena [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Pasadena [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Pasadena [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Cali's Finest [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Cali's Finest [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Cali's Finest [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Cali's Finest [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Cali's Finest [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Cali's Finest [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Hollywood Lush [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Hollywood Lush [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Hollywood Lush [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Hollywood Lush [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Hollywood Lush [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Hollywood Lush [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Central Park [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Central Park [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Central Park [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Central Park [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Central Park [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Central Park [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Wimbledon [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Wimbledon [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Wimbledon [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Wimbledon [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Wimbledon [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Wimbledon [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Malibu [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Malibu [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Malibu [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Malibu [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Malibu [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Malibu [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Big Sur [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Big Sur [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Big Sur [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Big Sur [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Big Sur [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Big Sur [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Monterey [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Monterey [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Monterey [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Monterey [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Monterey [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Monterey [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Sol Natural [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Sol Natural [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Sol Natural [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Sol Natural [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Sol Natural [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Sol Natural [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Brentwood [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Brentwood [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Brentwood [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Brentwood [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Brentwood [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Brentwood [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Newport [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Newport [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Newport [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Newport [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Newport [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Standard and Deluxe Install - Newport [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Basic Pet and Premium Pet Install - Pets Choice [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Basic Pet and Premium Pet Install - Pets Choice [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Basic Pet and Premium Pet Install - Pets Choice [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Basic Pet and Premium Pet Install - Pets Choice [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Basic Pet and Premium Pet Install - Pets Choice [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Basic Pet and Premium Pet Install - Pets Choice [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Basic Pet and Premium Pet Install - Kennels Best [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Basic Pet and Premium Pet Install - Kennels Best [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Basic Pet and Premium Pet Install - Kennels Best [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Basic Pet and Premium Pet Install - Kennels Best [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Basic Pet and Premium Pet Install - Kennels Best [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Basic Pet and Premium Pet Install - Kennels Best [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Basic Pet and Premium Pet Install - Fringe [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Basic Pet and Premium Pet Install - Fringe [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Basic Pet and Premium Pet Install - Fringe [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Basic Pet and Premium Pet Install - Fringe [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Basic Pet and Premium Pet Install - Fringe [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Basic Pet and Premium Pet Install - Fringe [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Playground Install - Kids Play [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Playground Install - Kids Play [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Playground Install - Kids Play [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Playground Install - Kids Play [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Playground Install - Kids Play [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Playground Install - Kids Play [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Players Choice [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Players Choice [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Players Choice [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Players Choice [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Players Choice [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Players Choice [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Olive Natural [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Olive Natural [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Olive Natural [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Olive Natural [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Olive Natural [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Olive Natural [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Cali's Finest Light [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Cali's Finest Light [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Cali's Finest Light [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Cali's Finest Light [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Cali's Finest Light [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Cali's Finest Light [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Hollywood [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Hollywood [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Hollywood [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Hollywood [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Hollywood [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Hollywood [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Spring Natural [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Spring Natural [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Spring Natural [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Spring Natural [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Spring Natural [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Spring Natural [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - La Jolla Lush [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - La Jolla Lush [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - La Jolla Lush [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - La Jolla Lush [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - La Jolla Lush [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - La Jolla Lush [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Pasadena [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Pasadena [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Pasadena [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Pasadena [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Pasadena [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Pasadena [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Cali's Finest [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Cali's Finest [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Cali's Finest [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Cali's Finest [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Cali's Finest [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Cali's Finest [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Hollywood Lush [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Hollywood Lush [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Hollywood Lush [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Hollywood Lush [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Hollywood Lush [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Hollywood Lush [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Central Park [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Central Park [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Central Park [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Central Park [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Central Park [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Central Park [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Wimbledon [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Wimbledon [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Wimbledon [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Wimbledon [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Wimbledon [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Wimbledon [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Malibu [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Malibu [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Malibu [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Malibu [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Malibu [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Malibu [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Big Sur [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Big Sur [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Big Sur [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Big Sur [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Big Sur [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Big Sur [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Monterey [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Monterey [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Monterey [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Monterey [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Monterey [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Monterey [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Sol Natural [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Sol Natural [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Sol Natural [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Sol Natural [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Sol Natural [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Sol Natural [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Brentwood [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Brentwood [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Brentwood [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Brentwood [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Brentwood [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Brentwood [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Newport [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Newport [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Newport [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Newport [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Newport [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Newport [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Pets Choice [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Pets Choice [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Pets Choice [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Pets Choice [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Pets Choice [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Pets Choice [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Kennels Best [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Kennels Best [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Kennels Best [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Kennels Best [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Kennels Best [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Kennels Best [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Fringe [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Fringe [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Fringe [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Fringe [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Fringe [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Fringe [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Kids Play [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Kids Play [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Kids Play [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Kids Play [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Kids Play [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Glue Down Over Concrete Install - Kids Play [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Players Choice [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Players Choice [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Players Choice [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Players Choice [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Players Choice [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Players Choice [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Olive Natural [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Olive Natural [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Olive Natural [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Olive Natural [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Olive Natural [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Olive Natural [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Cali's Finest Light [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Cali's Finest Light [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Cali's Finest Light [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Cali's Finest Light [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Cali's Finest Light [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Cali's Finest Light [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Hollywood [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Hollywood [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Hollywood [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Hollywood [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Hollywood [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Hollywood [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Spring Natural [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Spring Natural [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Spring Natural [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Spring Natural [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Spring Natural [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Spring Natural [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - La Jolla Lush [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - La Jolla Lush [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - La Jolla Lush [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - La Jolla Lush [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - La Jolla Lush [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - La Jolla Lush [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Pasadena [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Pasadena [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Pasadena [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Pasadena [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Pasadena [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Pasadena [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Cali's Finest [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Cali's Finest [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Cali's Finest [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Cali's Finest [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Cali's Finest [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Cali's Finest [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Hollywood Lush [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Hollywood Lush [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Hollywood Lush [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Hollywood Lush [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Hollywood Lush [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Hollywood Lush [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Central Park [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Central Park [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Central Park [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Central Park [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Central Park [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Central Park [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Wimbledon [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Wimbledon [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Wimbledon [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Wimbledon [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Wimbledon [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Wimbledon [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Malibu [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Malibu [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Malibu [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Malibu [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Malibu [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Malibu [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Big Sur [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Big Sur [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Big Sur [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Big Sur [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Big Sur [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Big Sur [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Monterey [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Monterey [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Monterey [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Monterey [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Monterey [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Monterey [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Sol Natural [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Sol Natural [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Sol Natural [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Sol Natural [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Sol Natural [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Sol Natural [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Brentwood [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Brentwood [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Brentwood [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Brentwood [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Brentwood [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Brentwood [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Newport [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Newport [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Newport [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Newport [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Newport [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Newport [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Pets Choice [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Pets Choice [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Pets Choice [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Pets Choice [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Pets Choice [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Pets Choice [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Kennels Best [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Kennels Best [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Kennels Best [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Kennels Best [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Kennels Best [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Kennels Best [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Fringe [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Fringe [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Fringe [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Fringe [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Fringe [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Fringe [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Kids Play [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Kids Play [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Kids Play [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Kids Play [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Kids Play [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Turf Stip Install - Kids Play [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Replacement,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Repair,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Add-on - Additional #16 / #20 Silica Sand,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Add-on - Additional Pet Deodorizer,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Add-on - Additional Camofill,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Add-on - Additional Seam Tape,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Add-on - Additional Weed Cloth,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Add-on - Gopher Wire,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Add-on - 1 x 4 Bender Board,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Add-on - 2 x 4 Pressure Treated Lumber,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - AG Add-on - Black Aluminum Border,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green Entertaintment Putting Green - Champions Choice [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green Entertaintment Putting Green - Champions Choice [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green Entertaintment Putting Green - Champions Choice [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green Entertaintment Putting Green - Champions Choice [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green Entertaintment Putting Green - Champions Choice [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green Entertaintment Putting Green - Champions Choice [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green Entertaintment Putting Green - Pro Putter [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green Entertaintment Putting Green - Pro Putter [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green Entertaintment Putting Green - Pro Putter [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green Entertaintment Putting Green - Pro Putter [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green Entertaintment Putting Green - Pro Putter [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green Entertaintment Putting Green - Pro Putter [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green Entertaintment Putting Green - Poa Annua Natural [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green Entertaintment Putting Green - Poa Annua Natural [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green Entertaintment Putting Green - Poa Annua Natural [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green Entertaintment Putting Green - Poa Annua Natural [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green Entertaintment Putting Green - Poa Annua Natural [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green Entertaintment Putting Green - Poa Annua Natural [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green Entertaintment Putting Green - Poa Annua Max [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green Entertaintment Putting Green - Poa Annua Max [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green Entertaintment Putting Green - Poa Annua Max [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green Entertaintment Putting Green - Poa Annua Max [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green Entertaintment Putting Green - Poa Annua Max [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green Entertaintment Putting Green - Poa Annua Max [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green PGA Putting Green - Champions Choice [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green PGA Putting Green - Champions Choice [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green PGA Putting Green - Champions Choice [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green PGA Putting Green - Champions Choice [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green PGA Putting Green - Champions Choice [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green PGA Putting Green - Champions Choice [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green PGA Putting Green - Pro Putter [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green PGA Putting Green - Pro Putter [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green PGA Putting Green - Pro Putter [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green PGA Putting Green - Pro Putter [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green PGA Putting Green - Pro Putter [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green PGA Putting Green - Pro Putter [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green PGA Putting Green - Poa Annua Natural [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green PGA Putting Green - Poa Annua Natural [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green PGA Putting Green - Poa Annua Natural [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green PGA Putting Green - Poa Annua Natural [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green PGA Putting Green - Poa Annua Natural [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green PGA Putting Green - Poa Annua Natural [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green PGA Putting Green - Poa Annua Max [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green PGA Putting Green - Poa Annua Max [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green PGA Putting Green - Poa Annua Max [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green PGA Putting Green - Poa Annua Max [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green PGA Putting Green - Poa Annua Max [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green PGA Putting Green - Poa Annua Max [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green Add-on - Additional #60 Silica Sand,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green Add-on - Additional Seam Tape,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green Add-on - Additional Weed Cloth,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green Add-on - Gopher Wire,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green Add-on - 1 x 4 Bender Board,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green Add-on - 2 x 4 Pressure Treated Lumber,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green Add-on - Black Aluminum Border,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green Add-on - Aluminium Golf Cup / Flag Set,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Putting Green Add-on - Unique Cup Set / Flag Light Set,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Demo Demo [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Demo Demo [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Demo Demo [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Demo Demo [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Demo Demo [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Demo Demo [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Demo Demo & Regrade [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Demo Demo & Regrade [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Demo Demo & Regrade [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Demo Demo & Regrade [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Demo Demo & Regrade [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Demo Demo & Regrade [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Demo Concrete / Rock Demo [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Demo Concrete / Rock Demo [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Demo Concrete / Rock Demo [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Demo Concrete / Rock Demo [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Demo Concrete / Rock Demo [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Demo Concrete / Rock Demo [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Demo Concrete / Rock Demo & Regrade [299 SF & UNDER],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Demo Concrete / Rock Demo & Regrade [300-699],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Demo Concrete / Rock Demo & Regrade [700-999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Demo Concrete / Rock Demo & Regrade [1000-1499],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Demo Concrete / Rock Demo & Regrade [1500-1999],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Demo Concrete / Rock Demo & Regrade [2000+],Placeholder. Quantity is square feet.,Service,1.0,0.0,,false,,,true,true
+"DUMMY CP - Underground Drains (3"" or 4"")",Placeholder. Quantity is linear feet.,Service,1.0,0.0,,false,,,true,true
+"DUMMY CP - Underground 1"" Mainline",Placeholder. Quantity is linear feet.,Service,1.0,0.0,,false,,,true,true
+"DUMMY CP - Underground 3/4"" Waterline",Placeholder. Quantity is linear feet.,Service,1.0,0.0,,false,,,true,true
+"DUMMY CP - Underground 1"" Pipe Sleeve",Placeholder. Quantity is linear feet.,Service,1.0,0.0,,false,,,true,true
+"DUMMY CP - Underground 2"" Conduit",Placeholder. Quantity is linear feet.,Service,1.0,0.0,,false,,,true,true
+"DUMMY CP - Underground 3/4"" Gas Line",Placeholder. Quantity is linear feet.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Lighting Run Wire,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Lighting Install Outlet,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Lighting Install GFI,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Lighting Install Conduit,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Lighting Install Controller,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Lighting Install Transformer,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Lighting Install Bullet up Lights,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Lighting Install Path Lights,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Lighting Install Step Lights,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Lighting Install Under Lights,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - SOD,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Patio Covers,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Concrete,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Retaining Walls,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Planter Walls,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Pavers,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Bar & Bbq,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Fire Pits,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Decomposite Granite,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Decorative Rock,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Irrigation,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true
+DUMMY CP - Planting,Placeholder. Quantity is a count.,Service,1.0,0.0,,false,,,true,true

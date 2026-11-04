@@ -1,6 +1,15 @@
 # Architecture
 
-Planned layout. Nothing is scaffolded yet, so adjust this file when the real structure diverges. Stack: Next.js (App Router), TypeScript, Tailwind, shadcn/ui, Convex, Clerk. It will be a new repo and a new Convex deployment (D-012). The UI is built first on sample data, behind the `src/data/` layer.
+Planned layout. Nothing is scaffolded yet, so adjust this file when the real structure diverges. Stack: Next.js (App Router), TypeScript, Tailwind, shadcn/ui, Convex, Clerk. It lives in a monorepo with the forms app and one shared Convex backend (D-026). The repo root is `Quality-First-Turf/`: `forms/` (live app) and `CRM/` (docs, mockups, later the CRM app). Where `convex/` lives is open (Q-020). The tree below shows the CRM app only. The UI is built first on sample data, behind the `src/data/` layer.
+
+## How this tree maps onto the shared backend (D-029, D-030)
+There is **one** Convex backend for both apps, at `convex/` in the repo root (a sibling of `forms/` and `CRM/`). The `convex/` folder in the tree below is the CRM's *share* of it, not a second folder:
+- CRM modules (`clients.ts`, `opportunities.ts`, `pipeline.ts`, `lib/`, `pricing/` and so on) live under `convex/crm/`. Function paths read `api.crm.clients.*`.
+- Domain logic used by both the backend and the apps (the forms' catalogue, price list, quote lines, discovery rules) is in `convex/shared/`. The CRM's pricing work can reuse it from there (D-021).
+- `schema.ts`, `http.ts`, `crons.ts` and `convex.config.ts` already exist and are shared. The CRM's tables, routes, jobs and env vars are added to them. Existing forms entries are never edited.
+- `auth.config.ts` (Clerk) is new.
+- Every CRM function goes through `crm/lib/access.ts`. Forms functions keep their own session check.
+- Each app has its own Next.js project, `package.json` and Vercel project. Both point at the same Convex deployment.
 
 ## Directory layout
 

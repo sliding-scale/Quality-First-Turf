@@ -2,6 +2,8 @@
 
 Guidance for Claude Code in this repository: the Quality First Turf CRM, a Jobber replacement.
 
+This folder is one app in a monorepo. The repo root `../CLAUDE.md` has the overall plan and the production safety rules, and applies here too.
+
 ## Read first
 - `docs/prd.md`: requirements. Source of truth for scope.
 - `docs/phases.md`: current plan and checklists. Update checkboxes as work completes.
@@ -12,7 +14,7 @@ Guidance for Claude Code in this repository: the Quality First Turf CRM, a Jobbe
 If a task conflicts with a recorded decision, say so instead of silently working around it.
 
 ## Current state
-UI-first, one step at a time. The Milestone 2 screens exist as plain HTML/CSS/JS mockups in `mockups/` (Home, Clients, Client page, New client) awaiting the user's approval (D-023). **No Next.js code is written until the user approves the mockups.** Nothing else is built until the user approves that step's design (D-020). No questions go to the client now; ask only when one blocks a specific piece of work (D-018).
+The client is shifting off Jobber as PRD milestones ship (D-027), so each milestone is built to completion on the real backend and released in order. Inside a milestone the UI comes first. The Milestone 2 screens exist as plain HTML/CSS/JS mockups in `mockups/` (Home, Clients, Client page, New client) awaiting the user's approval (D-023). **No Next.js code is written until the user approves the mockups.** Nothing else is built until the user approves that step's design (D-020). No questions go to the client now; ask only when one blocks a specific piece of work (D-018).
 
 ## How to work with this user
 - Go step by step. Settle one thing, then the next.
@@ -25,13 +27,14 @@ UI-first, one step at a time. The Milestone 2 screens exist as plain HTML/CSS/JS
 Superpowers skills (from github.com/obra/superpowers) are installed in `.claude/skills/`. Use `brainstorming` before designing a feature, `writing-plans` before multi-step implementation, `test-driven-development` and `systematic-debugging` while building, and `verification-before-completion` before calling a phase done. The `unslop` skill (github.com/heydamir/unslop, CC BY 4.0, credit kept in its files) is also installed. Use it to polish finished screens for spacing, colour, copy and details. Do not let it redesign the look: the client wants a Jobber-like, minimalist interface, so its "one bright element" and visual-richness advice does not apply to the staff app. This file and `docs/decisions.md` take precedence over a skill where they conflict.
 
 ## Stack
-Next.js (App Router) + TypeScript + Tailwind + shadcn/ui, Convex backend, Clerk auth. New repo and new Convex deployment (D-012). Verify the real file layout and scripts once scaffolded. Don't assume this file is current.
+Next.js (App Router) + TypeScript + Tailwind + shadcn/ui, Convex backend, Clerk auth. One monorepo with the forms app and one shared Convex backend (D-026). Verify the real file layout and scripts once scaffolded. Don't assume this file is current.
 
-## The live forms app (`../forms`)
-A separate, **live** customer-intake and on-site-visit app (Next.js 16, Convex, Jobber push) that the client already uses.
-- **Never modify it, deploy it, or touch its Convex or Jobber data without the user's explicit go-ahead.** Its own CLAUDE.md sets handoff rules.
-- Read it freely for reference. Copy what the CRM needs (visit flow, change log, pricing engine); don't import from it (D-012, D-021).
-- It stays connected to Jobber until the single cutover.
+## The monorepo and the live forms app (`../forms`)
+The git root is `Quality-First-Turf/` (one level above this folder). It holds `forms/` (the live customer-intake and on-site-visit app: Next.js 16, Convex, Jobber push, already used by the client) and `CRM/` (this folder). They share one Convex backend (D-026).
+- **Never modify the forms app, deploy, or touch its Convex or Jobber data without the user's explicit go-ahead.** Its own CLAUDE.md sets handoff rules.
+- **One `convex deploy` publishes everything, so CRM work can break the live forms.** Keep schema changes additive and don't edit the forms' tables. The shared backend is `../convex/` at the repo root (D-030). CRM backend code goes in `convex/crm/` (D-029). `convex/shared/` holds domain logic the forms also use; keep it pure TypeScript and treat edits as live-app changes. Work against the dev deployment only. Never deploy to production without the go-ahead.
+- Read the forms code freely. Never edit a forms function in place. Reuse it as it is, or copy it under `convex/crm/` (D-021).
+- **Jobber keeps working in full until the whole CRM is complete (D-028).** Don't touch the forms' Jobber push, sync, crons or `JOBBER_*` env vars. The forms-to-CRM enquiry flow belongs to the Milestone 3 release and needs the user's go-ahead.
 
 ## Non-negotiable architecture rules
 1. **One central record.** `opportunities` is the project record for its whole life (the UI says "Project"). Preplanning, Construction and Finance are `pipeline` + `stage` on that record. Never create a new project record at handoff. Child data (quotes, takeoffs, punch items, invoices, payments, documents) references the project ID.

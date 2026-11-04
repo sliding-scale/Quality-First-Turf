@@ -2,9 +2,9 @@
 
 **Phase N is PRD Milestone N.** The PRD's milestones are the phases. Milestone 1 is already done; Milestones 2 to 5 are below, with a short Setup step before Milestone 2.
 
-Delivery dates in the PRD are ignored ([D-005](decisions.md)). The CRM goes live in a **single switch-over** from Jobber at the end of Milestone 5 ([D-013](decisions.md)), so the milestones are internal stages, not separate handovers to the client.
+Delivery dates in the PRD are ignored ([D-005](decisions.md)). The client moves off Jobber as milestones ship, so **each milestone is built to completion and released in order** ([D-027](decisions.md)): it ships only when its PRD acceptance criteria pass. Jobber keeps working in full until the whole CRM is complete, then it is ended ([D-028](decisions.md)). The repo is a monorepo with one shared Convex backend ([D-026](decisions.md), [D-029](decisions.md)).
 
-**Method inside every milestone:** UI/UX first on sample data, then wire it to Convex. Each step is brainstormed and agreed with the user before it is built, and nothing is built until that step's design is approved ([D-020](decisions.md)). Status key: `[ ]` todo, `[~]` in progress, `[x]` done.
+**Method inside every milestone:** UI/UX first on sample data, then wire it to Convex. Each step is agreed with the user before it is built ([D-020](decisions.md)). Status key: `[ ]` todo, `[~]` in progress, `[x]` done.
 
 Current position: **Milestone 2 UI mockups** are built as plain HTML/CSS/JS in `mockups/` and waiting for the user's approval (D-023). Next.js is not started.
 
@@ -19,12 +19,15 @@ Current position: **Milestone 2 UI mockups** are built as plain HTML/CSS/JS in `
 Not a PRD milestone, but everything depends on it.
 - [x] Jobber screenshots received (Home, Clients, Client page, New client); colours sampled (D-019)
 - [ ] Receive the Quality First Turf logo from the user
-- [ ] Create the new CRM repo (D-012) and scaffold Next.js (TypeScript, Tailwind, shadcn/ui)
+- [x] Monorepo created: `forms/` moved in unchanged, `CRM/` added (D-026)
+- [x] Shared `convex/` moved to the repo root, beside `forms/` and `CRM/` (D-030)
+- [ ] Confirm the Convex CLI from `forms/` on the dev deployment, and the Vercel settings (root directory, include files outside it) on a preview build of the `monorepo` branch
+- [ ] Scaffold the CRM Next.js app (TypeScript, Tailwind, shadcn/ui) inside the repo
 - [ ] Design tokens: white, off-white, gray, black, one Jobber-green accent (D-019)
 - [ ] Data access layer with a sample-data provider, so screens switch to Convex later without rewrites
 - [ ] Realistic sample data, reusing the real catalogue and 2026 price list from `../forms` where useful
-- [ ] New Convex deployment connected; Clerk set up (users, multi-role)
-- [ ] Environments and env var documentation
+- [ ] Shared Convex backend extended with additive CRM tables (no edits to the forms' tables); Clerk set up (users, multi-role)
+- [ ] Environments and env var documentation; production deploys only with the user's go-ahead
 - [ ] Decide hosting (Q-004)
 
 **Exit:** the empty shell runs locally on sample data.
@@ -48,7 +51,7 @@ PRD goal: Sales can begin transitioning away from Jobber. Companies and Contacts
 - [ ] Clients: create/edit/view, search, filter, notes, activity history; indexed and paginated (no client-count limit)
 - [ ] Swap the Clients screens from sample data to Convex
 
-**Exit:** PRD Milestone 2 acceptance criteria met: Clients fully usable and access restricted by permission. The Jobber import criterion is covered once, at the end (Phase 5, D-022).
+**Exit:** PRD Milestone 2 acceptance criteria met: Clients fully usable and access restricted by permission. The Jobber import criterion follows D-022 and Q-021 (timing under review).
 
 ---
 
@@ -65,8 +68,8 @@ PRD goal: the complete sales workflow, from enquiry to approved contract.
 - [ ] Schema: `opportunities` (the central project record), `stageHistory`, `visitSnapshots`, `visitRevisions`, `workAreas`, `quotes`, `quoteLineItems`, `calendarEvents`, `tasks`, `documents`
 - [ ] One `moveStage` mutation that validates, writes history and triggers notifications and tasks
 - [ ] Guards: Closed Won needs signed contract + deposit (if applicable); Closed Lost incl. the three-month rule
-- [ ] Visit flow and change log copied from the forms app (D-012, D-021)
-- [ ] Pricing engine copied from the forms app: catalogue, 2026 price list, area-size bands, homeowner/contractor rates
+- [ ] Visit flow and change log from the forms app, reused or copied under `convex/crm/` (D-021, D-029)
+- [ ] Pricing engine from the forms app, reused or copied under `convex/crm/`: catalogue, 2026 price list, area-size bands, homeowner/contractor rates
 - [ ] Quotes with line items, scope of work, statuses, change requests
 - [ ] Calendar, tasks, double-booking prevention; Google Calendar availability lookup
 - [ ] Dashboard widgets computed from real records
@@ -117,13 +120,13 @@ PRD goal: the final workflow, communication integrations and production deployme
 - [ ] Permissions hardening across Admin, Sales, Office Team, Project Managers (multi-role)
 - [ ] Export for clients, projects, quotes and invoices
 
-**Launch and cutover**
+**Launch and ending Jobber**
 - [ ] Migration script from forms `projects` to clients and projects, tested against a copy
-- [ ] Jobber import, built and run once at the very end (D-022): pull via the API already connected in the forms app (CSV fallback, D-015), field mapping, de-duplication, per-row error report, dry run. Doing it once picks up every client added to Jobber during development
-- [ ] Repoint the forms app to the CRM. This touches live systems and needs the user's explicit go-ahead
+- [ ] Jobber import (timing under review: D-022, Q-021): pull via the API already connected in the forms app (CSV fallback, D-015), field mapping, de-duplication, per-row error report, dry run. A final top-up run before Jobber is ended picks up every client added to Jobber meanwhile
+- [ ] Repoint the forms app to the CRM and remove its Jobber push, sync and crons. This touches live systems, happens only when the CRM is complete (D-028) and needs the user's explicit go-ahead
 - [ ] End-to-end test from enquiry to payment; stage transitions; data integrity; permission matrix; integrations
 - [ ] Critical bug fixes
-- [ ] Production deployment, single switch-over, Jobber retired
+- [ ] Production deployment; end the Jobber connection (D-028); Jobber retired
 - [ ] Basic documentation and handover
 
 **Needs:** invoice template, phone/SMS provider, WhatsApp Business access. Ask when this phase starts.

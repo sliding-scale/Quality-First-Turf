@@ -44,16 +44,16 @@ Add new entries at the bottom of each section. Never delete a decision. Mark it 
 ### D-010: Installers do not log in
 **Decided:** login roles are Admin, Sales, Office Team, Project Managers. Installers and crews are records, not users. Work packages reach them by WhatsApp as secure, expiring, tokenised links (or attachments). Progress and punch-list updates are entered by PMs/Office.
 
-### D-011: One-time Jobber import, then a single cutover
+### D-011: One-time Jobber import, then a single cutover (PARTLY SUPERSEDED by D-028: Jobber and the CRM now run side by side until the CRM is complete; the import and retiring Jobber at the end still stand)
 **Decided:** no ongoing sync and no parallel run. The import is run once, at the very end (D-022), and de-duplicates. After cutover Jobber is retired.
 **Consequence:** what happens to quotes, jobs and invoices still open in Jobber on the switch day was not answered (the question was dropped). Default: finish them in Jobber, read-only afterwards. Revisit before cutover.
 
-### D-012: New CRM project; the live forms app stays untouched until cutover
+### D-012: New CRM project; the live forms app stays untouched until cutover (SUPERSEDED by D-026 on repo and backend; the rule not to modify the live app without the user's go-ahead still stands)
 **Decided:** the CRM is a new Next.js app on a new Convex deployment, in its own repo. The live forms app (`../forms`, Next.js 16 + Convex + Jobber push) is not modified until cutover. Its pricing, catalogue and on-site visit logic are copied across, not shared.
 **Why:** the forms app is live with the client and production changes need explicit go-ahead. Copying costs some duplication but nothing live can break.
 **Consequence:** at cutover a one-time script turns forms `projects` into `clients` + projects, and the forms start writing to the CRM instead of Jobber. Until then the forms keep creating clients, requests and quotes in Jobber. The CRM must not depend on the forms backend.
 
-### D-013: Single switch-over, UI/UX first
+### D-013: Single switch-over, UI/UX first (SUPERSEDED by D-027 on the single switch-over; UI-first inside each milestone still stands)
 **Decided:** one switch-over from Jobber at the end of Milestone 5, not a staged handover. Phases follow the PRD milestones (Phase N is Milestone N). Inside each milestone the UI/UX is designed and built first on sample data, then wired to Convex. The Jobber import and the connection to the forms app happen at the very end (D-022).
 **Why:** the user chose it. It keeps one clean cutover and lets the client see the whole product before any live data moves.
 **Consequence:** the PRD rule to release usable modules early (section 8, rules 1 and 2) is relaxed. `phases.md` follows the PRD milestones, UI-first within each. Records entered in Jobber meanwhile are picked up by the final import.
@@ -97,10 +97,11 @@ Add new entries at the bottom of each section. Never delete a decision. Mark it 
 **Why:** the user's instruction.
 
 ### D-021: What carries over from the forms app (by copying)
-**Decided:** the visit flow and change log (`visitSnapshots`, `visitRevisions`, `workAreas`, versioned visits), the pricing engine (catalogue, 2026 price list, area-size bands, homeowner/contractor rates, quote-line builder), consultation scheduling ideas, and short project codes. The Jobber push is dropped at cutover. The shared sales login is replaced by Clerk.
+**Decided:** the visit flow and change log (`visitSnapshots`, `visitRevisions`, `workAreas`, versioned visits), the pricing engine (catalogue, 2026 price list, area-size bands, homeowner/contractor rates, quote-line builder), consultation scheduling ideas, and short project codes. The Jobber push is dropped only when Jobber is ended, at the end (D-028). Staff log in to the CRM through Clerk; the forms app keeps its own sales login until the user approves changing it.
 **Why:** the forms app is production-proven and already encodes the client's pricing rules.
+**Note (D-026, D-029):** the backend is now shared, so copying pricing or visit logic into the same Convex deployment would create duplicate functions. Never edit a forms function in place. If a forms function can be reused as it is, call it. If the CRM needs a different behaviour, copy it under `convex/crm/` with its own name. Decide per module when it is built and log it here.
 
-### D-022: Jobber import deferred to the very end, done once
+### D-022: Jobber import deferred to the very end, done once (UNDER REVIEW: see D-027, D-028 and Q-021)
 **Decided:** no import tooling or import screen is built during development. The import is built and run once, at the end, in Milestone 5. Doing it earlier would mean re-importing every client added to Jobber in the meantime, so it is done once.
 **Status:** the user will confirm with their supervisor. Until then it is deferred.
 **Why:** the user's reasoning: Jobber keeps receiving new clients while the CRM is built.
@@ -127,11 +128,61 @@ Add new entries at the bottom of each section. Never delete a decision. Mark it 
 **Fonts and lines:** text is Inter (open source; the files the user supplied from Jobber's CDN). Headings use **Figtree** (open source, SIL OFL) because it matched Jobber Pro's proportions and weight best in a side-by-side test against the user's screenshot. Jobber Pro itself is proprietary and is not used or modified. Divider and border lines are darker (`#b8c2c7`). Main content side padding is 12px.
 **Open:** "Requests" and "Pipeline" are Jobber's names. How they map to the PRD's central project record (D-004) is for the next design step. Tasks, Materials and Crews screens will need another way in.
 
+### D-026: One repo (monorepo), one shared Convex backend
+**Decided:** the CRM and the forms app live in one git repo. The repo root is `Quality-First-Turf/` and holds `forms/` (the live app, moved in unchanged), `CRM/` (docs, mockups and, later, the Next.js app) and a root README. The two apps share one Convex backend so enquiries from the forms can create clients and projects in the CRM without a bridge.
+**Why:** the client is shifting from Jobber as milestones ship (D-027), so forms and CRM must exchange data from the first release.
+**Rules that follow:**
+- Schema changes are additive. Existing tables used by the forms (`projects`, `visitSnapshots`, `visitRevisions`, `workAreas`, `salesSessions`, `jobberConnections`) are not edited. CRM tables are new.
+- One `convex deploy` publishes everything, so a CRM change can break the live forms. Every production deploy needs the user's explicit go-ahead, per the forms app's own handoff rules.
+- The forms app and its Jobber push stay as they are until the user approves changing them.
+- Each app keeps its own `package.json` and tooling.
+**Open:** where the shared `convex/` folder lives (Q-020).
+
+### D-027: Ship per PRD milestone, replacing the single switch-over
+**Decided:** the client starts moving off Jobber as milestones are released, so each PRD milestone (Phase N = Milestone N) is built to completion on the real backend and shipped, in order: Milestone 2 (clients, import, user access), then 3, 4 and 5. "To completion" means a milestone is not shipped until its acceptance criteria in `docs/prd.md` pass.
+**Why:** the client's request, relayed by the user. It matches the PRD's own rules to release usable modules early.
+**Consequences:**
+- The mockups are for review only. Each milestone needs real Next.js, Convex, Clerk and production hosting before release.
+- Clients must be imported from Jobber for the Milestone 2 release (D-022 under review), then topped up by a final import for anything added to Jobber meanwhile.
+- Jobber stays in use for the modules not yet released, so for a while the same customer exists in both systems. Which system is the source of truth for each module must be stated at each release.
+- Enquiries from the forms must reach the CRM, which means changing the live forms app. That needs the user's explicit go-ahead.
+
+### D-028: Jobber keeps working in full until the CRM is complete
+**Decided:** Jobber, and everything connected to it (the forms app's Jobber push, the 10-minute consultation sync, the OAuth connection and its env vars), keeps working exactly as it does today until the CRM is finished. The CRM is built beside it on the same Convex deployment, and the team moves onto the CRM gradually. Only when the CRM is complete is the Jobber connection ended and the team fully on the CRM. No Jobber functionality is removed, disabled or repointed before then.
+**Why:** the user's plan (2026-11-04). The client always has a working system, and nothing is half-migrated.
+**Refines D-027:** milestones are still built to completion and released in order, but a release only adds CRM capability. It never removes anything from Jobber. "Complete" means all of Milestones 2 to 5 pass their acceptance criteria; confirm with the user when that point is near.
+**Consequences:**
+- The same customer can exist in both systems for a long time. Each release states which system is the source of truth for each module (D-027).
+- CRM work must not edit the forms app's Jobber code (`convex/jobber/`, `convex/projects/consultation.ts`, the Jobber crons and env vars).
+- Ending Jobber (disconnect, remove the push, sync and crons, retire the `JOBBER_*` env vars, point the forms at the CRM) is its own final task and needs the user's explicit go-ahead.
+- Import timing is still open (Q-021).
+
+### D-029: One shared Convex backend; CRM code in `convex/crm/` (location SUPERSEDED by D-030; the rules below still stand)
+**Decided:** one Convex backend serves both apps. It was first left inside `forms/` as a cautious default; the user then asked for it to sit beside the apps (D-030). CRM code goes in new subfolders, `convex/crm/` and below, with new table names, so function paths read `api.crm.clients.*`.
+**Rules:**
+- The single-file entry points are shared: `schema.ts` (all tables), `http.ts` (all routes), `crons.ts` (all jobs) and `convex.config.ts` (it lists the allowed env vars and installs components). CRM changes to them are additive only, never edits to existing forms entries.
+- `auth.config.ts` is new, for Clerk. The forms' sales login uses its own session tokens (`salesSessions`), not Convex auth, so adding Clerk doesn't change it. Check that again before adding it.
+- Day-to-day work runs against the **dev** deployment only. Before proposing any production deploy: typecheck and build both apps, and get the user's explicit go-ahead.
+- Both Vercel projects use the same `NEXT_PUBLIC_CONVEX_URL` (dev for local work, production for the live sites).
+
+### D-030: The shared `convex/` lives at the repo root, beside `forms/` and `CRM/`
+**Decided:** the user's idea (2026-11-04), implemented on branch `monorepo` as one revertible commit (`29ce591`). The layout is `Quality-First-Turf/{forms, CRM, convex}`.
+**Why:** neither app should own the shared backend, and the CRM should not import types from inside the forms app.
+**What changed:**
+- `forms/convex/` moved to `convex/`. No function, schema or behaviour changed.
+- The backend imported nine pure-TypeScript files from `forms/lib/` (`catalogue`, `discovery`, `errors`, `jobber-names`, `price-list`, `quote-lines`, `visits`, `zoned-time`, `us-states`). They moved to `convex/shared/` and the imports were rewritten (apps use `@/convex/shared/...`). Anything in `convex/shared/` must stay free of React, Next and browser-only code, and a change there affects the live forms app.
+- npm workspaces at the root (`forms` now, `CRM` when scaffolded). The lockfile is at the root; the backend's packages (`convex`, `@convex-dev/rate-limiter`) are root dependencies. Resolved versions of next, react, convex, the rate limiter and typescript are unchanged.
+- `forms/convex.json` points the Convex CLI at `../convex/`. `forms/tsconfig.json` maps `@/convex/*` to `../convex/*`. `forms/next.config.ts` sets `turbopack.root` and `outputFileTracingRoot` to the repo root.
+**Consequences:**
+- Vercel needs, per project, Root Directory set to the app folder and "Include source files outside of the Root Directory" enabled, with the install run from the repo root. The user does this in the dashboard.
+- The CRM app must be wired the same way when scaffolded (see the root `CLAUDE.md`).
+**Verified locally:** typecheck of `forms/` and `convex/`, lint, a production `next build`, and esbuild bundling of all 31 backend modules. **Not verified:** the Convex CLI (`npx convex dev` was refused on the machine used, "You don't have access to the selected project", so the user should run it once on the dev deployment) and any Vercel build. To undo: revert `29ce591` and run `npm install` inside `forms/`.
+
 ## Open Questions
 
 | ID | Question | Blocks | Owner |
 |----|----------|--------|-------|
-| Q-004 | Hosting for the Next.js app (Vercel assumed)? | Setup | Sarim |
+| ~~Q-004~~ | Resolved: Vercel, one project per app. Subdomains: `forms.qualityfirstturf.com` (forms app), `launchpad.qualityfirstturf.com` (CRM). | | |
 | Q-005 | Contract signing and completion sign-off: in-app e-signature or an external service? Client undecided. | Phase 3 contract flow, Phase 4 sign-off | Client (ask when blocked) |
 | Q-006 | Phone/SMS provider (Twilio assumed). WhatsApp Business account status and verification. | Phase 5 | Client (ask when blocked) |
 | Q-009 | Document generation: how quotes, work packages, invoices and sign-offs are produced (PDF from templates). | Phases 3 to 5 | Client |
@@ -141,9 +192,11 @@ Add new entries at the bottom of each section. Never delete a decision. Mark it 
 | Q-016 | Duplicate client rule (same email, phone, name + address). (B2.6) | Phase 5 import | Client |
 | ~~Q-017~~ | Resolved: colours sampled from the screenshots (D-019) | | |
 | Q-018 | The logo file. | Setup | User |
-| Q-019 | Supervisor to confirm that the Jobber import is deferred to the very end (D-022). | Phase 5 | User |
+| Q-019 | Supervisor to confirm that the Jobber import is deferred to the very end (D-022). See also Q-021. | Phase 5 | User |
+| ~~Q-020~~ | Resolved: the shared `convex/` is at the repo root (D-030). Still to confirm: the Convex CLI on the dev deployment and the Vercel settings. | | |
+| Q-021 | Which Jobber data must be in the CRM at the Milestone 2 release, and which system owns clients until Jobber is ended (D-028)? Supervisor to confirm the import timing (Q-019). | Milestone 2 release | User |
 
-Resolved: Q-001 (D-009), Q-002 (D-008, D-016), Q-003 (D-012), Q-007 (D-011), Q-008 (D-015), Q-011 (D-010), Q-012 (D-017), Q-013 (dropped, see D-011).
+Resolved: Q-001 (D-009), Q-002 (D-008, D-016), Q-003 (D-012, later reversed by D-026), Q-004 (Vercel), Q-007 (D-011), Q-008 (D-015), Q-011 (D-010), Q-012 (D-017), Q-013 (dropped, see D-011).
 
 ## Client inputs (PRD section 7)
 The question backlog is `client-questions-later.docx`. Status:

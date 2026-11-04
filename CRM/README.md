@@ -22,9 +22,10 @@ The original source is `docs/Quality First Turf – CRM Development PRD.pdf`. Su
 Open `mockups/index.html` in a browser (no build step). Plain HTML/CSS/JS on sample data: Home, Clients (with pagination), Client page, New/Edit client. They get converted to Next.js once approved.
 
 ## How it is being built
-- **New project.** A new Next.js app on a new Convex deployment. The live intake and on-site visit app in `../forms` is not touched until cutover. Its visit flow and pricing engine are copied across.
+- **Monorepo.** The git root is the folder above this one: `forms/` (the live intake and on-site visit app) and `CRM/` (this folder), sharing one Convex backend (D-026). The forms app is not changed without the user's go-ahead.
 - **UI first.** Inside each milestone the interface is built on sample data, step by step, before the backend is wired. Phase N is PRD Milestone N.
-- **Single switch-over.** The CRM replaces Jobber in one go once everything is built. Jobber data is pulled and imported once, at the very end (D-022).
+- **Ship per milestone, Jobber stays until the end.** Each PRD milestone is completed and released in order (D-027). Jobber keeps working in full until the whole CRM is complete, then it is ended (D-028). Jobber data is pulled by us and imported (timing under review, D-022).
+- **Hosting.** Vercel, one project per app. The CRM is served at `launchpad.qualityfirstturf.com`.
 
 ## Stack
 - **Frontend:** Next.js (App Router), TypeScript, Tailwind CSS, shadcn/ui
