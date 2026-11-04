@@ -1,0 +1,78 @@
+# CLAUDE.md
+
+Guidance for Claude Code in this repository: the Quality First Turf CRM, a Jobber replacement.
+
+## Read first
+- `docs/prd.md`: requirements. Source of truth for scope.
+- `docs/phases.md`: current plan and checklists. Update checkboxes as work completes.
+- `docs/decisions.md`: settled decisions and open questions. Check before choosing a design. Log new decisions there.
+- `docs/architecture.md`: directory layout and where things live.
+- `docs/client-answers.md`: what the client has told us, what is held, what is ours.
+
+If a task conflicts with a recorded decision, say so instead of silently working around it.
+
+## Current state
+UI-first, one step at a time. The Milestone 2 screens exist as plain HTML/CSS/JS mockups in `mockups/` (Home, Clients, Client page, New client) awaiting the user's approval (D-023). **No Next.js code is written until the user approves the mockups.** Nothing else is built until the user approves that step's design (D-020). No questions go to the client now; ask only when one blocks a specific piece of work (D-018).
+
+## How to work with this user
+- Go step by step. Settle one thing, then the next.
+- Do not build, scaffold or install while brainstorming.
+- The user dictates by text-to-speech, so "V" often means "B" (e.g. "V2.1" is B2.1). Read it as intended.
+- The user answers with decisions. Record them in `docs/decisions.md` and `docs/client-answers.md` as you go.
+- The user will send Jobber screenshots and the logo later. Treat the current layouts as provisional until then.
+
+## Skills
+Superpowers skills (from github.com/obra/superpowers) are installed in `.claude/skills/`. Use `brainstorming` before designing a feature, `writing-plans` before multi-step implementation, `test-driven-development` and `systematic-debugging` while building, and `verification-before-completion` before calling a phase done. The `unslop` skill (github.com/heydamir/unslop, CC BY 4.0, credit kept in its files) is also installed. Use it to polish finished screens for spacing, colour, copy and details. Do not let it redesign the look: the client wants a Jobber-like, minimalist interface, so its "one bright element" and visual-richness advice does not apply to the staff app. This file and `docs/decisions.md` take precedence over a skill where they conflict.
+
+## Stack
+Next.js (App Router) + TypeScript + Tailwind + shadcn/ui, Convex backend, Clerk auth. New repo and new Convex deployment (D-012). Verify the real file layout and scripts once scaffolded. Don't assume this file is current.
+
+## The live forms app (`../forms`)
+A separate, **live** customer-intake and on-site-visit app (Next.js 16, Convex, Jobber push) that the client already uses.
+- **Never modify it, deploy it, or touch its Convex or Jobber data without the user's explicit go-ahead.** Its own CLAUDE.md sets handoff rules.
+- Read it freely for reference. Copy what the CRM needs (visit flow, change log, pricing engine); don't import from it (D-012, D-021).
+- It stays connected to Jobber until the single cutover.
+
+## Non-negotiable architecture rules
+1. **One central record.** `opportunities` is the project record for its whole life (the UI says "Project"). Preplanning, Construction and Finance are `pipeline` + `stage` on that record. Never create a new project record at handoff. Child data (quotes, takeoffs, punch items, invoices, payments, documents) references the project ID.
+2. **No duplicated data.** Reference by ID. Don't copy client fields onto child records unless it's a deliberate, labelled snapshot (e.g. a sent quote's pricing).
+3. **Access control lives in Convex.** Every query and mutation checks the caller's roles, module permission and record assignment through the shared helper. Hiding things in the UI is never sufficient.
+4. **Everything is auditable.** Stage changes go through a single mutation that validates the transition, writes `stageHistory` (who, when, from, to) and triggers notifications/tasks. Never patch `stage` directly elsewhere.
+5. **Stage guards are server-side.** Closed Won needs signed contract + deposit (if applicable). Final construction stage needs resolved required punch items + customer sign-off. Finance entry needs construction sign-off.
+6. **Never lose data silently.** Imports and integration calls (Jobber, Google, SMS, WhatsApp) must report failures per row/call, keep the failed input, and be retryable.
+7. **Dashboards compute from real records.** No hard-coded or cached-by-hand numbers.
+8. **Formulas are data, not code.** Material calculations come from configurable formulas, evaluated by a safe parser. Never `eval` or `new Function`.
+
+## Terminology
+- The PRD's "Company" and "Contact" are one entity: a Jobber **client**, stored in `clients` (D-008). Don't create separate company/contact tables.
+- Client types: `homeowner`, `contractor`. The type comes from the customer form.
+- Three **businesses**: Quality First Turf, Quality First Turf Construction, Quality First Patios (D-016). Users can belong to several; a project belongs to one.
+- Login roles: Admin, Sales, Office Team, Project Managers. A user can hold several (D-014). Installers do not log in; they are records that receive work packages via secure links (D-010).
+- Pipelines and their exact stage names are in `docs/prd.md`. Use those names verbatim as constants in one place.
+- United States, all states: tax and time zone vary by job (D-017).
+
+## UI/UX direction (client requirement, D-019)
+- **Build only what the PRD describes (D-024).** Jobber has many features the client does not need. Check `docs/prd.md` before adding any screen, field, filter or button. The exceptions are the Jobber items the user chose to keep (D-025).
+- **Fonts and icons are Jobber's:** Inter for text and Figtree for headings (an open-source stand-in for Jobber Pro, which is proprietary and must not be shipped; see D-025), and the Atlantis icon set from `@jobber/design` (MIT). The icon file is `mockups/assets/icons.js`; keep its licence notice.
+- **Heavily inspired by Jobber's interface.** Left sidebar, top bar with search and a Create button, list and detail pages. Nav (D-025): Create, Home, Schedule, Clients, Requests, Quotes, Jobs, Invoices, Payments, Messages, Pipeline.
+- **Minimalist.** Little ornament, generous whitespace, no gradients, restrained shadows, thin borders. Detail goes on the detail page.
+- **Colours: mainly white, off-white, gray and black.** Define them as tokens once. Jobber's green `#388523` is the single accent (primary buttons, links, active tab). Sampled values live in `mockups/assets/styles.css`: shell `#eeece7`, headings `#032b3a`, body `#233d48`. Use other colour only where it carries meaning (status, errors). Don't use the forms app's forest-green/sand palette.
+- **Kanban/board view wherever it applies.** Every pipeline gets a board with a list toggle. Quotes and tasks get boards where it fits.
+- **Clients page** follows Jobber's section order. **Project page** tabs: Overview, Visit, Quotes, Files, Activity.
+- **Lists use pagination, never infinite scroll.** No separate mobile layout: below ~1100px the desktop view gets more compact (icon-rail nav, right-hand column below the main content).
+- **Phone-first:** Today/Schedule, Project Overview, Visit, Tasks, progress and punch list, customer sign-off. **Desktop-first:** boards, quotes, invoices, takeoff, crews, settings, import. Everything is responsive.
+- Searchable tables, one consistent form style, one consistent detail-page layout, skeletons instead of blank screens, large tap targets.
+- The UI is built first on sample data (D-013). Keep data access behind a thin layer so Convex replaces the samples without rewriting screens.
+
+## Conventions
+- TypeScript strict. No `any` without a comment saying why.
+- Convex: validators on all function args. Schema in `convex/schema.ts`. Index every field used in filters or lookups. Paginate lists.
+- Search/filter belongs in Convex indexes or search indexes, not client-side filtering of full tables.
+- Match surrounding code style, naming and comment density. Don't add speculative abstractions.
+- Secrets (Twilio, WhatsApp, Google, Clerk) go in env vars / Convex environment, never in client code or committed files.
+
+## Working agreements
+- Test each phase before calling it done. Pipeline transitions, permissions and the formula engine need automated tests.
+- Report blockers early; blocking client questions come from the backlog in `docs/client-questions-later.docx` (D-018).
+- Delivery dates in the PRD are ignored (D-005). Don't rush scope to hit them.
+- Don't commit or push unless asked.
