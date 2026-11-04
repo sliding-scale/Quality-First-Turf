@@ -30,7 +30,10 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: repoRoot,
     rules: {
+      // Only the app's own stylesheet goes through Tailwind. Running it on every
+      // .css also hit the generated next/font CSS and broke the font URL query.
       "*.css": {
+        condition: { path: /(^|\/)app\/globals\.css$/ },
         loaders: ["@tailwindcss/turbopack"],
         as: "*.css",
       },
