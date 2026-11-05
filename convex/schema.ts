@@ -183,4 +183,77 @@ export default defineSchema({
     oauthState: v.union(v.string(), v.null()),
     codeVerifier: v.union(v.string(), v.null()),
   }).index("by_singleton", ["singleton"]),
+
+  // ---------------------------------------------------------------------------------------------------------------
+  // CRM tables (convex/crm/). New names only; the forms tables above are not touched (CRM/CLAUDE.md rule 3).
+  // ---------------------------------------------------------------------------------------------------------------
+
+  /** The three businesses (D-016). A client and a project each belong to exactly one (D-031). */
+  businesses: defineTable({
+    name: v.string(),
+    slug: v.string(),
+  }).index("by_slug", ["slug"]),
+
+  /** A Jobber-style client: homeowner or contractor, in one business's list (D-008, D-031). */
+  clients: defineTable({
+    businessId: v.id("businesses"),
+    type: v.union(v.literal("homeowner"), v.literal("contractor")),
+    /** What the lists show: the company for a contractor that has one, otherwise the contact's name. */
+    name: v.string(),
+    contactName: v.string(),
+    company: v.string(),
+    phone: v.string(),
+    email: v.string(),
+    street1: v.string(),
+    street2: v.string(),
+    city: v.string(),
+    state: v.string(),
+    zip: v.string(),
+    /** The note typed on the client form. Later notes are in clientNotes. */
+    notes: v.string(),
+    /** Lead: no work won yet. Active: has won work. Archived: hidden by staff. Kept in step with the client's projects. */
+    status: v.union(v.literal("lead"), v.literal("active"), v.literal("archived")),
+    createdAt: v.number(),
+    lastActivityAt: v.number(),
+    /** Lower-cased `name`, so a list can be sorted by name without regard to case. */
+    nameKey: v.string(),
+    /** Search only: name, contact, company, phone, email and address in one string. Rebuilt on every save. */
+    searchText: v.string(),
+  })
+    .index("by_business_and_nameKey", ["businessId", "nameKey"])
+    .index("by_business_and_lastActivityAt", ["businessId", "lastActivityAt"])
+    // Used to tell whether a person who fills the customer form is already a client (D-040): same email, or same phone.
+    .index("by_business_and_email", ["businessId", "email"])
+    .index("by_business_and_phone", ["businessId", "phone"])
+    .searchIndex("search_text", { searchField: "searchText", filterFields: ["businessId"] }),
+
+  /** The central project record from enquiry to archive (rule 1). A "request" is one in the Sales pipeline (D-039). */
+  opportunities: defineTable({
+    businessId: v.id("businesses"),
+    clientId: v.id("clients"),
+    /** Short code staff see, such as 7KD-3QM. */
+    code: v.string(),
+    /** The service requested, such as "Turf installation". */
+    title: v.string(),
+    pipeline: v.union(v.literal("Sales"), v.literal("Preplanning")),
+    /** A stage name from convex/crm/lib/stages.ts. */
+    stage: v.string(),
+    requestedAt: v.number(),
+    owner: v.string(),
+    /** Search only, a deliberate labelled copy: client name, phone, email and address plus title, code and stage. */
+    searchText: v.string(),
+    /** The customer-form submission (a forms `projects` row) this project was created from, if any (D-040). */
+    sourceProjectId: v.optional(v.id("projects")),
+  })
+    .index("by_business_and_requestedAt", ["businessId", "requestedAt"])
+    .index("by_clientId", ["clientId"])
+    .index("by_sourceProjectId", ["sourceProjectId"])
+    .searchIndex("search_text", { searchField: "searchText", filterFields: ["businessId", "pipeline"] }),
+
+  /** Internal notes on a client, newest first. */
+  clientNotes: defineTable({
+    clientId: v.id("clients"),
+    text: v.string(),
+    author: v.string(),
+  }).index("by_clientId", ["clientId"]),
 });

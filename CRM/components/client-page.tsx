@@ -1,48 +1,67 @@
 "use client";
 
-/* Client page (PRD client profile): details, related projects, activity history, notes. */
+/* Client page (PRD client profile): details, related projects, activity history, notes. The client, its projects and its
+   notes come from the backend. The scheduled visits, the activity history and the two overview figures are still sample
+   content: the tables behind them arrive with the visit and activity work. */
 
+import { ConvexError } from "convex/values";
+import { useMutation } from "convex/react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { addNote, clientStatus, findClient, useAllClients, useSavedNotes } from "@/lib/clients";
-import { fullDate, money, shortCode } from "@/lib/format";
-import { PREPLANNING_STAGES, SALES_STAGES } from "@/lib/sample-data";
-import { useIsClient } from "@/lib/store";
+import { api } from "@/convex/_generated/api";
+import { CLIENT_STATUS_LABEL, CLIENT_TYPE_LABEL, SALES_STAGES } from "@/convex/crm/lib/stages";
+import { daysAgoFrom, useBusinesses, useClient, useClientNotes, useClientProjects, type ClientDoc } from "@/lib/clients";
+import { fullDate, money } from "@/lib/format";
 import { Icon } from "./icon";
-import { ClientSkeleton } from "./skeletons";
+import { ClientSkeleton, Sk } from "./skeletons";
 import { useUI } from "./ui-provider";
 
 type Tab = "info" | "activity";
 
 export function ClientPage({ id }: { id: string }) {
-  return useIsClient() ? <ClientView id={id} /> : <ClientSkeleton />;
+  const client = useClient(id);
+  if (client === undefined) return <ClientSkeleton />;
+  if (client === null) {
+    return (
+      <div className="empty-state">
+        <h2>Client not found</h2>
+        <p>This client does not exist, or it was removed.</p>
+        <Link className="btn primary" href="/clients">Back to clients</Link>
+      </div>
+    );
+  }
+  return <ClientView c={client} />;
 }
 
-function ClientView({ id }: { id: string }) {
-  const all = useAllClients();
-  const { dropdown, soon } = useUI();
+/** A stable number from an id, so the sample figures stay the same between page loads. */
+function hash(s: string): number {
+  let h = 0;
+  for (const ch of s) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return h;
+}
+
+const noteDate = (ms: number) => new Date(ms).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+
+function ClientView({ c }: { c: ClientDoc }) {
+  const { dropdown, soon, toast } = useUI();
+  const addNote = useMutation(api.crm.clients.addNote);
+  const businesses = useBusinesses();
+  const projects = useClientProjects(c._id);
+  const savedNotes = useClientNotes(c._id);
   const noteRef = useRef<HTMLTextAreaElement>(null);
   const [tab, setTab] = useState<Tab>(() => (location.hash === "#activity" ? "activity" : "info"));
-
-  // Same fallback as the approved mockup: an unknown id shows the first client.
-  const c = findClient(all, id) ?? all[0];
-  const saved = useSavedNotes(c.id);
 
   useEffect(() => {
     document.title = `${c.name} · Quality First Turf CRM`;
   }, [c.name]);
 
-  const code = shortCode(c.id);
-  // Sample figures, derived from the id so they stay the same between page loads.
-  const lifetime = c.id === 1001 ? 0 : ((c.id * 7919) % 24 + 3) * 900;
-  const balance = c.id % 5 === 0 ? ((c.id % 7) + 1) * 350 : 0;
+  const h = hash(c._id);
+  const lifetime = (h % 24 + 3) * 900;
+  const balance = h % 5 === 0 ? ((h % 7) + 1) * 350 : 0;
   const addr = [c.street1, c.street2, c.city, `${c.state} ${c.zip}`].filter(Boolean).join(", ");
-  const S = SALES_STAGES;
-  const P = PREPLANNING_STAGES;
-
-  // Related projects: one record per project, shown with the pipeline and stage it is in now.
-  const projects = [{ code, title: `${c.name} · ${c.city}`, pipeline: "Sales", stage: S[c.id % S.length], owner: "Sal", daysAgo: c.daysAgo + 2 }];
-  if (c.id % 3 === 0) projects.push({ code: shortCode(c.id + 500), title: `${c.name} · patio`, pipeline: "Preplanning", stage: P[c.id % P.length], owner: "May", daysAgo: c.daysAgo + 30 });
+  const businessName = businesses?.find((b) => b._id === c.businessId)?.name ?? "";
+  const code = projects?.find((p) => p.pipeline === "Sales")?.code ?? "";
+  const clientAge = daysAgoFrom(c.createdAt);
 
   const visits = [
     { daysAgo: -1, time: "9:00 AM", title: `Follow-up visit 1 · ${code}`, who: "Sal", done: false },
@@ -50,32 +69,46 @@ function ClientView({ id }: { id: string }) {
   ];
   const activity = [
     { i: "sms", t: `Text sent: appointment reminder for ${fullDate(-1, "9:00 AM")}`, by: "Sal", daysAgo: 2 },
-    { i: "stage", t: `Stage changed: ${S[0]} → ${S[1]}`, by: "Sal", daysAgo: 4 },
+    { i: "stage", t: `Stage changed: ${SALES_STAGES[0]} → ${SALES_STAGES[1]}`, by: "Sal", daysAgo: 4 },
     { i: "note", t: "Note added: customer wants a pet-friendly turf option", by: "Sal", daysAgo: 5 },
-    { i: "inbox", t: `Project ${code} created from the customer form`, by: "System", daysAgo: c.daysAgo + 2 },
-    { i: "contact", t: "Client created", by: "System", daysAgo: c.daysAgo + 2 },
+    { i: "inbox", t: `Project ${code} created from the customer form`, by: "System", daysAgo: clientAge },
+    { i: "contact", t: "Client created", by: "System", daysAgo: clientAge },
   ];
-  const notes = saved.concat(c.notes ? [{ t: c.notes, d: "From the client form" }] : []);
+  const notes = (savedNotes ?? []).map((n) => ({ t: n.text, d: `${n.author} · ${noteDate(n._creationTime)}` }));
+  if (c.notes) notes.push({ t: c.notes, d: "From the client form" });
 
   const pick = (t: Tab) => {
     setTab(t);
     history.replaceState(null, "", "#" + t);
   };
 
+  async function submitNote() {
+    const text = noteRef.current?.value.trim();
+    if (!text) return;
+    try {
+      await addNote({ clientId: c._id, text });
+      if (noteRef.current) noteRef.current.value = "";
+    } catch (e) {
+      toast(e instanceof ConvexError && typeof e.data === "string" ? e.data : "The note could not be saved.");
+    }
+  }
+
+  const statusClass = c.status === "lead" ? "lead" : c.status === "active" ? "active" : "draft";
+
   return (
     <div className="fade-in">
       <div className="client-head">
         <div className="left">
           <div className="who">
-            <span className="pill tag">{c.type}</span>
-            <span className={`pill tag ${clientStatus(c) === "Lead" ? "lead" : clientStatus(c) === "Active" ? "active" : "draft"}`}>{clientStatus(c)}</span>
+            <span className="pill tag">{CLIENT_TYPE_LABEL[c.type]}</span>
+            <span className={`pill tag ${statusClass}`}>{CLIENT_STATUS_LABEL[c.status]}</span>
             <Link href="/clients" className="btn link plain" style={{ marginLeft: 8 }}>
               <Icon name="chevleft" size={18} /> All clients
             </Link>
           </div>
           <div className="name-row">
             <h1>{c.name}</h1>
-            <Link className="btn" href={`/clients/${c.id}/edit`} aria-label="Edit client">
+            <Link className="btn" href={`/clients/${c._id}/edit`} aria-label="Edit client">
               <Icon name="pencil" size={22} />
             </Link>
           </div>
@@ -101,11 +134,11 @@ function ClientView({ id }: { id: string }) {
 
       <dl className="fields">
         <div className="f"><dt>Phone</dt><dd><a href={`tel:${c.phone}`}>{c.phone}</a></dd></div>
-        <div className="f"><dt>Client type</dt><dd>{c.type}</dd></div>
+        <div className="f"><dt>Client type</dt><dd>{CLIENT_TYPE_LABEL[c.type]}</dd></div>
         <div className="f"><dt>Email</dt><dd><a href={`mailto:${c.email}`}>{c.email}</a></dd></div>
         <div className="f"><dt>Company</dt><dd>{c.company || "None"}</dd></div>
         <div className="f"><dt>Address</dt><dd>{addr}</dd></div>
-        <div className="f"><dt>Business</dt><dd>{c.business}</dd></div>
+        <div className="f"><dt>Business</dt><dd>{businessName}</dd></div>
       </dl>
 
       <div className="tabs" role="tablist">
@@ -124,15 +157,23 @@ function ClientView({ id }: { id: string }) {
                     <colgroup><col style={{ width: "30%" }} /><col style={{ width: "14%" }} /><col style={{ width: "30%" }} /><col style={{ width: "11%" }} /><col style={{ width: "15%" }} /></colgroup>
                     <thead><tr><th>Project</th><th>Pipeline</th><th>Stage</th><th>Assigned</th><th>Created</th></tr></thead>
                     <tbody>
-                      {projects.map((p) => (
-                        <tr key={p.code}>
-                          <td><b style={{ color: "var(--ink)" }}>{p.title}</b><br /><span className="muted">{p.code}</span></td>
-                          <td>{p.pipeline}</td>
-                          <td><span className="pill stage-pill">{p.stage}</span></td>
-                          <td>{p.owner}</td>
-                          <td>{fullDate(p.daysAgo)}</td>
+                      {projects === undefined ? (
+                        <tr>
+                          <td><Sk w="70%" h={16} /></td><td><Sk w="60%" h={16} /></td><td><Sk w="80%" h={22} r={999} /></td><td><Sk w="50%" h={16} /></td><td><Sk w="70%" h={16} /></td>
                         </tr>
-                      ))}
+                      ) : projects.length ? (
+                        projects.map((p) => (
+                          <tr key={p._id}>
+                            <td><b style={{ color: "var(--ink)" }}>{c.name} · {p.title}</b><br /><span className="muted">{p.code}</span></td>
+                            <td>{p.pipeline}</td>
+                            <td><span className="pill stage-pill">{p.stage}</span></td>
+                            <td>{p.owner}</td>
+                            <td>{fullDate(daysAgoFrom(p.requestedAt))}</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr><td colSpan={5}><div className="empty" style={{ margin: "12px 0" }}>No projects yet.</div></td></tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -188,26 +229,21 @@ function ClientView({ id }: { id: string }) {
             <h3>Notes</h3>
             <div className="note-box">
               <textarea ref={noteRef} placeholder="Leave an internal note for yourself or a team member" aria-label="New note" />
-              <button
-                className="btn small"
-                type="button"
-                onClick={() => {
-                  const t = noteRef.current?.value.trim();
-                  if (!t) return;
-                  addNote(c.id, { t, d: "Sal · " + new Date().toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) });
-                  if (noteRef.current) noteRef.current.value = "";
-                }}
-              >
+              <button className="btn small" type="button" onClick={() => void submitNote()}>
                 Add note
               </button>
             </div>
             <div>
-              {notes.map((n, i) => (
-                <div className="note-item" key={i}>
-                  {n.t}
-                  <div className="d">{n.d}</div>
-                </div>
-              ))}
+              {savedNotes === undefined ? (
+                <div className="note-item"><Sk w="80%" h={14} /></div>
+              ) : (
+                notes.map((n, i) => (
+                  <div className="note-item" key={i}>
+                    {n.t}
+                    <div className="d">{n.d}</div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </aside>

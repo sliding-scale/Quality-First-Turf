@@ -1,4 +1,4 @@
-import { retailPrice } from "./price-list";
+import { retailPrice } from "./priceList";
 import {
   addOnsFor,
   grassService,
@@ -15,7 +15,7 @@ import {
  * Retail (RP) items covered by the 2026 price list use their real names. Contractor (CP) items,
  * and services the price list does not cover (SOD, Pavers and the rest), are still placeholders
  * whose names start with DUMMY so they are not mistaken for live items. Prices live in
- * `price-list.ts` and in Jobber; this file only decides the names.
+ * `priceList.ts` and in Jobber; this file only decides the names.
  */
 
 export type CatalogueMeasure = "square feet" | "linear feet" | "count";

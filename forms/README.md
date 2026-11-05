@@ -36,7 +36,7 @@ Copy `.env.example` to `.env.local` if you are not using `npx convex dev` to gen
 | Variable | Where | Purpose |
 |---|---|---|
 | `NEXT_PUBLIC_CONVEX_URL` | `.env.local` | Convex client URL (required) |
-| `CONVEX_DEPLOYMENT` | `.env.local` | Written by `npx convex dev` |
+| `CONVEX_DEPLOYMENT` | repo-root `.env.local` | Written by `npx convex dev`, run from the repo root. Not in `forms/` any more |
 | `SALES_EMAIL`, `SALES_PASSWORD` | Convex deployment | The one login every salesperson shares. If unset, nobody can sign in |
 | `JOBBER_CLIENT_ID`, `JOBBER_CLIENT_SECRET` | Convex deployment | Jobber OAuth app credentials |
 | `JOBBER_CONNECT_KEY` | Convex deployment | Secret required in `/jobber/connect?key=…` so only you can (re)connect Jobber |
@@ -78,8 +78,8 @@ convex/         schema, projects/ sales/ jobber/ modules, http routes (see conve
 | `npm run build` / `npm start` | Production build / serve |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | `tsc --noEmit` |
-| `npm run convex:dev` / `convex:deploy` | Convex dev watcher / deploy functions |
+| `npm run convex:dev` / `convex:deploy` | Run these from the repo root, not here: the Convex backend and its deployment setting are at the root |
 
 ## Deployment
 
-Deploy the Next.js app (e.g. Vercel) with `NEXT_PUBLIC_CONVEX_URL` pointing at the production deployment, and run `npm run convex:deploy` for the backend. Set the Convex variables above on the production deployment.
+Deploy the Next.js app (e.g. Vercel) with `NEXT_PUBLIC_CONVEX_URL` pointing at the production deployment, and run `npm run convex:deploy` (from the repo root) for the backend. Set the Convex variables above on the production deployment.

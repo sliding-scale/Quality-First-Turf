@@ -8,5 +8,15 @@
   "dependencies": {
     "@convex-dev/rate-limiter": "^0.4.2",
     "convex": "^1.47.0"
+  },
+  "devDependencies": {
+    "@edge-runtime/vm": "^5.0.0",
+    "@types/node": "^22.20.5",
+    "convex-test": "^0.0.67",
+    "vitest": "^5.1.0"
+  },
+  "scripts": {
+    "convex:dev": "convex dev",
+    "convex:deploy": "convex deploy"
   }
 }

@@ -45,11 +45,11 @@ PRD goal: Sales can begin transitioning away from Jobber. Companies and Contacts
 - [ ] Settings: users, roles (multi-role), the three businesses
 
 **Backend wiring**
-- [ ] Schema: `businesses`, `users` (roles array), `clients`, `activities`, `notes`
-- [ ] Clerk to Convex auth, user sync; Admin manages users and roles
-- [ ] Access helper: roles + module + record assignment enforced in every function (D-006, D-014)
-- [ ] Clients: create/edit/view, search, filter, notes, activity history; indexed and paginated (no client-count limit)
-- [ ] Swap the Clients screens from sample data to Convex
+- [~] Schema: `businesses`, `clients`, `opportunities`, `clientNotes` done (D-042); `users` (roles array) and `activities` still to do
+- [ ] **Next:** Clerk to Convex auth, user sync; Admin manages users and roles (D-044). Also: its own switch for seed data, a first-admin bootstrap, and the CRM sign-in screen
+- [~] Access helper: `requireStaff` is in every CRM function and fails closed (D-042); roles, modules and record assignment arrive with Clerk (D-006, D-014)
+- [~] Clients: create, edit, view, search, filters, notes, Related projects done; activity history still sample; paging is server-side over a bounded read (5,000 per business), see D-042
+- [x] Swap the Clients and Requests screens from sample data to Convex (dev deployment; first look at live data pending, D-042)
 
 **Exit:** PRD Milestone 2 acceptance criteria met: Clients fully usable and access restricted by permission. The Jobber import criterion follows D-022 and Q-021 (timing under review).
 
@@ -60,7 +60,7 @@ PRD goal: the complete sales workflow, from enquiry to approved contract.
 
 **UI/UX (sample data), steps 3.1 to 3.3**
 - [ ] 3.1 Projects: Sales pipeline board (9 stages) with list toggle; project page tabs Overview, Visit (four-step on-site flow, phone-first), Quotes, Files, Activity
-- [ ] Customer form to CRM (D-040): a submitted form creates a new client only if the person is unique (rule in Q-016), and always creates a request, i.e. a project at New Request. Needs the user's go-ahead before the live forms app is changed (D-028)
+- [x] Customer form to CRM (D-040, built on dev in D-045; not yet deployed to production): a submitted form creates a new client only if the person is unique (rule in Q-016), and always creates a request, i.e. a project at New Request. Needs the user's go-ahead before the live forms app is changed (D-028)
 - [ ] 3.2 Quotes: overview cards, quote builder (desktop-first), statuses, change requests and resubmissions
 - [ ] 3.3 Home, Schedule and Tasks: dashboard widgets, day/week/month calendar, Today view, personal tasks, Quick Create
 - [ ] Customer-facing: quote approval and contract signing (method undecided, Q-005)

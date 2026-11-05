@@ -1,4 +1,4 @@
-import { isUsState } from "./us-states";
+import { isUsState } from "./usStates";
 
 export const grassService = "Artificial Grass";
 

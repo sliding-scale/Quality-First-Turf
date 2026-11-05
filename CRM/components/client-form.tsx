@@ -1,40 +1,53 @@
 "use client";
 
-/* New / edit client form (PRD client fields). Saves to this browser's localStorage; sample data only.
+/* New / edit client form (PRD client fields). Saves to the backend (convex/crm/clients.ts).
    A new client starts in the business selected in the top bar (D-031).
    Validation (D-035): nothing is flagged until the user tries to submit. Then every invalid field turns red with its
    message, the first one is focused, and each clears as soon as it is corrected. */
 
+import { useMutation } from "convex/react";
+import { ConvexError } from "convex/values";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { US_STATES } from "@/convex/shared/us-states";
-import { currentBusiness, findClient, saveClient, useAllClients } from "@/lib/clients";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
+import { CLIENT_TYPES, CLIENT_TYPE_LABEL, type ClientType } from "@/convex/crm/lib/stages";
+import { US_STATES } from "@/convex/shared/usStates";
+import { useClient, useWorkspace, type BusinessDoc, type ClientDoc } from "@/lib/clients";
 import { cleanEmail, cleanName, cleanZip, formatPhone, phoneDigits } from "@/lib/fields";
-import { BUSINESSES, type Client, type ClientType } from "@/lib/sample-data";
-import { useIsClient } from "@/lib/store";
+import { EmptyBackend } from "./empty-backend";
 import { FormSkeleton } from "./skeletons";
 
 export function ClientForm({ editId }: { editId?: string }) {
-  return useIsClient() ? <Form editId={editId} /> : <FormSkeleton />;
+  const workspace = useWorkspace();
+  const client = useClient(editId);
+  if (workspace.state === "loading" || (editId !== undefined && client === undefined)) return <FormSkeleton />;
+  if (workspace.state === "empty") return <EmptyBackend />;
+  if (editId !== undefined && client === null) {
+    return (
+      <div className="empty-state">
+        <h2>Client not found</h2>
+        <p>This client does not exist, or it was removed.</p>
+        <Link className="btn primary" href="/clients">Back to clients</Link>
+      </div>
+    );
+  }
+  return <FormBody key={client?._id ?? "new"} editing={client ?? undefined} businesses={workspace.businesses} defaultBusiness={workspace.business._id} />;
 }
 
-function Form({ editId }: { editId?: string }) {
+function FormBody({ editing, businesses, defaultBusiness }: { editing?: ClientDoc; businesses: BusinessDoc[]; defaultBusiness: Id<"businesses"> }) {
   const router = useRouter();
-  const all = useAllClients();
-  const editing = editId ? findClient(all, editId) : undefined;
-  return <FormBody key={editing?.id ?? "new"} editing={editing} router={router} />;
-}
-
-function FormBody({ editing, router }: { editing?: Client; router: ReturnType<typeof useRouter> }) {
+  const create = useMutation(api.crm.clients.create);
+  const update = useMutation(api.crm.clients.update);
   const [firstDefault, ...restDefault] = editing ? editing.contactName.split(" ") : [""];
-  const [type, setType] = useState<ClientType>(editing?.type ?? "Homeowner");
+  const [type, setType] = useState<ClientType>(editing?.type ?? "homeowner");
   const [first, setFirst] = useState(editing ? firstDefault : "");
   const [last, setLast] = useState(editing ? restDefault.join(" ") : "");
   const [company, setCompany] = useState(editing?.company ?? "");
   const [phone, setPhone] = useState(formatPhone(editing?.phone ?? ""));
   const [email, setEmail] = useState(editing?.email ?? "");
-  const [business, setBusinessField] = useState(editing?.business ?? currentBusiness());
+  const [business, setBusinessField] = useState<Id<"businesses">>(editing?.businessId ?? defaultBusiness);
   const [street1, setStreet1] = useState(editing?.street1 ?? "");
   const [street2, setStreet2] = useState(editing?.street2 ?? "");
   const [city, setCity] = useState(editing?.city ?? "");
@@ -42,6 +55,8 @@ function FormBody({ editing, router }: { editing?: Client; router: ReturnType<ty
   const [zip, setZip] = useState(editing?.zip ?? "");
   const [notes, setNotes] = useState(editing?.notes ?? "");
   const [attempted, setAttempted] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [serverError, setServerError] = useState("");
 
   const firstRef = useRef<HTMLInputElement>(null);
   const phoneRef = useRef<HTMLInputElement>(null);
@@ -66,36 +81,29 @@ function FormBody({ editing, router }: { editing?: Client; router: ReturnType<ty
     zip: attempted && problems.zip,
   };
 
-  function submit(e: FormEvent) {
+  async function submit(e: FormEvent) {
     e.preventDefault();
     setAttempted(true);
     if (problems.name || problems.phone || problems.email || problems.zip) {
       (problems.name ? firstRef : problems.phone ? phoneRef : problems.email ? emailRef : zipRef).current?.focus();
       return;
     }
-    const f = first.trim();
-    const l = last.trim();
-    const co = company.trim();
-    const contactName = [f, l].filter(Boolean).join(" ") || co;
-    const client: Client = {
-      id: editing ? editing.id : 5000 + Math.floor(Math.random() * 90000),
-      name: type === "Contractor" && co ? co : contactName,
-      contactName,
-      company: co,
-      type,
-      phone: phone.trim(),
-      email: email.trim(),
-      business,
-      street1: street1.trim(),
-      street2: street2.trim(),
-      city: city.trim(),
-      state: state.trim().toUpperCase(),
-      zip: zip.trim(),
-      notes: notes.trim(),
-      daysAgo: 0,
-    };
-    saveClient(client);
-    router.push(editing ? `/clients/${client.id}` : `/clients?saved=${client.id}`);
+    setSaving(true);
+    setServerError("");
+    try {
+      // The backend checks every field again with the same rules, and works out the display name itself.
+      const payload = { businessId: business, type, first, last, company, phone, email, street1, street2, city, state, zip, notes };
+      if (editing) {
+        await update({ id: editing._id, ...payload });
+        router.push(`/clients/${editing._id}`);
+      } else {
+        const id = await create(payload);
+        router.push(`/clients?saved=${id}`);
+      }
+    } catch (err) {
+      setServerError(err instanceof ConvexError && typeof err.data === "string" ? err.data : "The client could not be saved. Try again.");
+      setSaving(false);
+    }
   }
 
   return (
@@ -108,10 +116,10 @@ function FormBody({ editing, router }: { editing?: Client; router: ReturnType<ty
           <div className="field">
             <label>Client type</label>
             <div className="seg-radio" role="radiogroup" aria-label="Client type">
-              {(["Homeowner", "Contractor"] as const).map((t) => (
+              {CLIENT_TYPES.map((t) => (
                 <label key={t}>
                   <input type="radio" name="type" value={t} checked={type === t} onChange={() => setType(t)} />
-                  <span>{t}</span>
+                  <span>{CLIENT_TYPE_LABEL[t]}</span>
                 </label>
               ))}
             </div>
@@ -143,9 +151,9 @@ function FormBody({ editing, router }: { editing?: Client; router: ReturnType<ty
           </div>
           <div className="field">
             <label htmlFor="business">Business</label>
-            <select id="business" name="business" value={business} onChange={(e) => setBusinessField(e.target.value)}>
-              {BUSINESSES.map((b) => (
-                <option key={b}>{b}</option>
+            <select id="business" name="business" value={business} onChange={(e) => setBusinessField(e.target.value as Id<"businesses">)}>
+              {businesses.map((b) => (
+                <option key={b._id} value={b._id}>{b.name}</option>
               ))}
             </select>
           </div>
@@ -184,10 +192,12 @@ function FormBody({ editing, router }: { editing?: Client; router: ReturnType<ty
         </div>
       </section>
 
+      {serverError && <div className="form-error" role="alert">{serverError}</div>}
+
       <div className="form-actions">
         <div className="inner">
-          <Link className="btn plain" href={editing ? `/clients/${editing.id}` : "/clients"}>Cancel</Link>
-          <div className="right"><button className="btn primary" type="submit">Save client</button></div>
+          <Link className="btn plain" href={editing ? `/clients/${editing._id}` : "/clients"}>Cancel</Link>
+          <div className="right"><button className="btn primary" type="submit" disabled={saving}>{saving ? "Saving…" : "Save client"}</button></div>
         </div>
       </div>
     </form>

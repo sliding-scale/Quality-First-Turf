@@ -1,7 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import { salespersonName } from "../sales/accounts";
 import { contactProblems, type ContactFields } from "../shared/discovery";
-import { planQuoteLines } from "../shared/quote-lines";
+import { planQuoteLines } from "../shared/quoteLines";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { internalMutation, mutation, type MutationCtx } from "../_generated/server";
@@ -206,6 +206,10 @@ export const create = mutation({
     for (const workArea of args.workAreas ?? []) {
       await ctx.db.insert("workAreas", { projectId, ...workArea });
     }
+
+    // The CRM also records every submission (D-040): the client if new, and a request. It runs as its own step after this
+    // one is saved, so nothing that goes wrong there can stop the form or the Jobber push.
+    await ctx.scheduler.runAfter(0, internal.crm.intake.recordSubmission, { projectId });
 
     return projectId;
   },

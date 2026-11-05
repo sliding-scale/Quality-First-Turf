@@ -3,7 +3,7 @@ import { internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
 import type { ActionCtx } from "../_generated/server";
 import { action, internalAction, internalMutation, internalQuery } from "../_generated/server";
-import { clockFromMinutes, minutesFromDayStart, overlaps, zonedToInstant, zonedWallClock } from "../shared/zoned-time";
+import { clockFromMinutes, minutesFromDayStart, overlaps, zonedToInstant, zonedWallClock } from "../shared/zonedTime";
 import { createRequest, jobberGraphql } from "../jobber/client";
 import { consultationValidator } from "../schema";
 import { salespersonName } from "../sales/accounts";

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Figtree } from "next/font/google";
 import localFont from "next/font/local";
+import { ConvexClientProvider } from "@/components/convex-provider";
 import { Shell } from "@/components/shell";
 import "./globals.css";
 
@@ -33,7 +34,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: railScript }} />
       </head>
       <body>
-        <Shell>{children}</Shell>
+        <ConvexClientProvider>
+          <Shell>{children}</Shell>
+        </ConvexClientProvider>
       </body>
     </html>
   );

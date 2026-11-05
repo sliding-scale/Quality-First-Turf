@@ -19,7 +19,7 @@ Brainstorming and design. No application code yet. The UI/UX is being designed f
 The original source is `docs/Quality First Turf – CRM Development PRD.pdf`. Superpowers skills are installed in `.claude/skills/`.
 
 ## The app
-Next.js 16 on sample data (D-033): Home, Clients (search, filters, sorting, pagination, CSV export, one list per business), Client page, New/Edit client. Run `npm install` once at the repo root, then `npm run dev` in this folder. New and edited clients and notes are kept in the browser's localStorage until Convex is wired. Convex, Clerk and access control are not wired yet.
+Next.js 16 on sample data (D-033): Home, Clients (search, filters, sorting, pagination, CSV export, one list per business), Client page, New/Edit client. Run `npm install` once at the repo root, then `npm run dev` in this folder. New and edited clients and notes are kept in the browser's localStorage until Convex is wired. Clerk and role-based access are not wired yet.
 
 | Route | Screen |
 |-------|--------|
@@ -28,6 +28,15 @@ Next.js 16 on sample data (D-033): Home, Clients (search, filters, sorting, pagi
 | `/clients/new` | New client |
 | `/clients/[id]` | Client page |
 | `/clients/[id]/edit` | Edit client |
+| `/requests` | Requests list |
+
+### Running it against the dev backend
+The Clients and Requests screens use the shared Convex backend (D-042). The backend only answers signed-in staff, and sign-in (Clerk) is the next step, so until then these screens show a "sign-in is needed" message. That is expected, not a setup problem. If you ever want to look at them on dev before sign-in exists, this is the optional, dev-only shortcut (from the **repo root**; never on production):
+```
+npx convex env set CRM_ALLOW_ANONYMOUS_DEV true   # opens the CRM functions on dev until sign-in exists
+npx convex run crm/seed:run                       # loads the sample businesses, clients and projects
+```
+Then, in `CRM/`, make sure `.env.local` has `NEXT_PUBLIC_CONVEX_URL` (the dev deployment's URL) and run `npm run dev`. `npm test` runs the backend tests in memory. Never set that variable on production: without it the CRM functions reject every call.
 
 ## How it is being built
 - **Monorepo.** The git root is the folder above this one: `forms/` (the live intake and on-site visit app) and `CRM/` (this folder), sharing one Convex backend (D-026). The forms app is not changed without the user's go-ahead.

@@ -138,10 +138,11 @@ Installer (no login) ──> /wp/[token] ──> Convex query validating an expi
 | Table | Notes |
 |-------|-------|
 | `users` | Synced from Clerk. `roles` (array, a user can hold several), module permissions. Login roles only |
-| `businesses` | The three businesses: name, domain, mailboxes, document branding |
+| `businesses` | The three businesses: name and slug today; domain, mailboxes and document branding later. **Built (D-042)** |
 | `clients` | Jobber clients. `businessId` (each business has its own client list, indexed, D-031), `type` homeowner or contractor (from the customer form), business details, addresses, Jobber ID for dedupe |
 | `visitSnapshots`, `visitRevisions`, `workAreas` | On-site visit history, change log and measured areas (carried over from the forms app) |
-| `opportunities` | The central record. `clientId`, `pipeline`, `stage`, `assignedTo`, property, services, measurements |
+| `opportunities` | The central record. `businessId`, `clientId`, `pipeline`, `stage`, `owner`, `code`, `title`, `requestedAt`, a search-only text copy, and `sourceProjectId` (the customer-form submission it came from, D-045). Property, services and measurements come later. **Built (D-042)**; a "request" is one in the Sales pipeline (D-039) |
+| `clientNotes` | Internal notes on a client, newest first. **Built (D-042)** |
 | `stageHistory` | Append-only: opportunity, pipeline, from, to, user, timestamp, reason |
 | `activities` | Append-only audit and notes, tied to client and/or opportunity |
 | `quotes`, `quoteLineItems` | Linked to opportunity and client |

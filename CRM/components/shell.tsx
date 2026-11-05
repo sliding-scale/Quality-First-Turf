@@ -5,10 +5,10 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { setBusiness, useBusiness } from "@/lib/clients";
-import { BUSINESSES } from "@/lib/sample-data";
+import { setBusiness, useWorkspace } from "@/lib/clients";
 import { useStoredString, writeItem } from "@/lib/store";
 import { Icon } from "./icon";
+import { ErrorBoundary } from "./error-boundary";
 import { UIProvider, useUI } from "./ui-provider";
 
 type NavItem =
@@ -41,11 +41,35 @@ export function Shell({ children }: { children: ReactNode }) {
   );
 }
 
+/** The business switcher. It asks the backend, so it sits behind an error boundary: if the backend says no, the rest of the app still shows. */
+function Brand() {
+  const { dropdown } = useUI();
+  const workspace = useWorkspace();
+  return (
+    <button
+      type="button"
+      className="brand"
+      aria-label="Switch business"
+      onClick={(e) => {
+        if (workspace.state !== "ready") return;
+        const current = workspace.business._id;
+        dropdown(
+          e.currentTarget,
+          workspace.businesses.map((b) => ({ label: b.name, checked: b._id === current, onSelect: () => setBusiness(b._id) })),
+        );
+      }}
+    >
+      <span className="brand-mark">Q</span>
+      <span className="brand-name">{workspace.state === "ready" ? workspace.business.name : workspace.state === "loading" ? <span className="sk sk-inline" style={{ width: 130, height: 16 }} /> : "Quality First Turf"}</span>
+      <Icon name="chevdown" size={16} />
+    </button>
+  );
+}
+
 function ShellInner({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { soon, dropdown, toggleCreate, createOpen } = useUI();
-  const business = useBusiness();
+  const { soon, toggleCreate, createOpen } = useUI();
   const rail = useStoredString(RAIL_KEY, "0") === "1";
   const [search, setSearch] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
@@ -79,21 +103,9 @@ function ShellInner({ children }: { children: ReactNode }) {
   return (
     <div className="app">
       <header className="topbar">
-        <button
-          type="button"
-          className="brand"
-          aria-label="Switch business"
-          onClick={(e) =>
-            dropdown(
-              e.currentTarget,
-              BUSINESSES.map((b) => ({ label: b, checked: b === business, onSelect: () => setBusiness(b) })),
-            )
-          }
-        >
-          <span className="brand-mark">Q</span>
-          <span className="brand-name">{business}</span>
-          <Icon name="chevdown" size={16} />
-        </button>
+        <ErrorBoundary fallback={<span className="brand"><span className="brand-mark">Q</span><span className="brand-name">Quality First Turf</span></span>}>
+          <Brand />
+        </ErrorBoundary>
         <span className="grow" />
         <form
           className="search"

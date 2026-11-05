@@ -8,7 +8,7 @@ import {
   services,
   type DiscoveryState,
 } from "@/convex/shared/discovery";
-import { planQuoteLines } from "@/convex/shared/quote-lines";
+import { planQuoteLines } from "@/convex/shared/quoteLines";
 import { isServicePhotos, servicePhotosIndex, SITE_PHOTOS_LABEL, type VisitArea } from "@/lib/visit-areas";
 
 type CheckInput = {

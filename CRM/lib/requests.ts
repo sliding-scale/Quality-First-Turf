@@ -1,58 +1,30 @@
 "use client";
 
-/* Requests (D-039). A request is NOT its own record: it is a project in the Sales pipeline, seen through its early
-   stages. The status below is derived from the project's stage, so moving the project moves the request.
-   Today the projects are sample ones, one per client, matching the Related projects table on the client page. */
+/* Requests (D-039). A request is NOT its own record: it is a project in the Sales pipeline, seen through its stage. The
+   backend (convex/crm/requests.ts) works out the status; this file only asks for it. */
 
-import { useMemo } from "react";
-import { useBusinessClients } from "./clients";
-import { shortCode } from "./format";
-import { SALES_STAGES, type Client } from "./sample-data";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
+import type { RequestStatus } from "@/convex/crm/lib/stages";
+import { startOfToday, useKept } from "./clients";
 
-export type RequestStatus = "New" | "Overdue" | "Consultation" | "Converted" | "Lost";
-export const REQUEST_STATUSES: RequestStatus[] = ["New", "Overdue", "Consultation", "Converted", "Lost"];
+export { OVERDUE_AFTER_DAYS, REQUEST_STATUSES, type RequestStatus } from "@/convex/crm/lib/stages";
 
-/** A New Request still untouched after this many days counts as Overdue. Our assumption; the PRD gives no number. */
-export const OVERDUE_AFTER_DAYS = 21;
-
-const SERVICES = ["Turf installation", "Putting green", "Patio pavers", "Fire pit and patio", "Turf for pets", "Drainage and base prep"];
-
-export type RequestRow = {
-  id: number;
-  client: Client;
-  title: string;
-  code: string;
-  stage: string;
-  status: RequestStatus;
-  /** Days since the request came in. */
-  daysAgo: number;
-  property: string;
+export type RequestFilters = {
+  status: "All" | RequestStatus;
+  /** Inclusive range of request dates, in ms. null is open-ended. */
+  from: number | null;
+  to: number | null;
+  search: string;
+  sortKey: "client" | "title" | "requestedAt" | "status";
+  dir: "asc" | "desc";
 };
 
-export function statusFor(stageIndex: number, daysAgo: number): RequestStatus {
-  if (stageIndex === 0) return daysAgo > OVERDUE_AFTER_DAYS ? "Overdue" : "New";
-  if (stageIndex <= 2) return "Consultation"; // Schedule Onsite Consultation, Onsite Consultation
-  if (SALES_STAGES[stageIndex] === "Closed Lost") return "Lost";
-  return "Converted"; // quoting, proposal, contract, Closed Won: the request became a real project
+export function useRequestList(businessId: Id<"businesses">, filters: RequestFilters, page: number, size: number) {
+  return useKept(useQuery(api.crm.requests.list, { businessId, ...filters, today: startOfToday(), page, size }));
 }
 
-export function toRequest(c: Client): RequestRow {
-  const stageIndex = c.id % SALES_STAGES.length; // same rule as the client page
-  const daysAgo = c.daysAgo + 2;
-  return {
-    id: c.id,
-    client: c,
-    title: SERVICES[c.id % SERVICES.length],
-    code: shortCode(c.id),
-    stage: SALES_STAGES[stageIndex],
-    status: statusFor(stageIndex, daysAgo),
-    daysAgo,
-    property: c.street1 ? `${c.street1}, ${c.city}, ${c.state} ${c.zip}` : "",
-  };
-}
-
-/** The selected business's requests. */
-export function useRequests(): RequestRow[] {
-  const clients = useBusinessClients();
-  return useMemo(() => clients.map(toRequest), [clients]);
+export function useRequestStats(businessId: Id<"businesses">) {
+  return useKept(useQuery(api.crm.requests.stats, { businessId, today: startOfToday() }));
 }

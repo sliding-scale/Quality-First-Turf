@@ -11,6 +11,8 @@ const app = defineApp({
     SALES_PASSWORD: v.optional(v.string()),
     SALES_NAME: v.optional(v.string()),
     SALES_ACCOUNTS: v.optional(v.string()),
+    // CRM: set to "true" on the DEV deployment only, until Clerk sign-in exists. Unset means every CRM call is rejected.
+    CRM_ALLOW_ANONYMOUS_DEV: v.optional(v.string()),
   },
 });
 

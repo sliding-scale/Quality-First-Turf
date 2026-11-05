@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { planQuoteLines } from "../shared/quote-lines";
+import { planQuoteLines } from "../shared/quoteLines";
 import { internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
 import type { ActionCtx } from "../_generated/server";
@@ -18,7 +18,7 @@ import {
   removeDraftLines,
   type DraftLine,
 } from "../jobber/client";
-import { jobberKey } from "../shared/jobber-names";
+import { jobberKey } from "../shared/jobberNames";
 import { rateLimiter } from "../rateLimits";
 import { projectStatus } from "../schema";
 

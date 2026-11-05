@@ -19,15 +19,3 @@ export function fullDate(daysAgo: number, time?: string, today: Date = new Date(
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) + (time ? ", " + time : "");
 }
 
-const CODE = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
-
-/** A short project code derived from an id, e.g. "7KD-3QM". */
-export function shortCode(id: number | string): string {
-  let n = Number(id) * 7919;
-  let s = "";
-  for (let i = 0; i < 6; i++) {
-    s += CODE[n % CODE.length];
-    n = Math.floor(n / CODE.length) + 17;
-  }
-  return s.slice(0, 3) + "-" + s.slice(3);
-}
