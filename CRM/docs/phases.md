@@ -6,7 +6,7 @@ Delivery dates in the PRD are ignored ([D-005](decisions.md)). The client moves 
 
 **Method inside every milestone:** UI/UX first on sample data, then wire it to Convex. Each step is agreed with the user before it is built ([D-020](decisions.md)). Status key: `[ ]` todo, `[~]` in progress, `[x]` done.
 
-Current position: **Milestone 2 UI mockups** are built as plain HTML/CSS/JS in `mockups/` and waiting for the user's approval (D-023). Next.js is not started.
+Current position: **Milestone 2 UI** is built in Next.js on sample data (D-033), converted from the approved mockups, which are removed. Next: wire it to Convex (backend wiring below).
 
 ---
 
@@ -37,9 +37,9 @@ Not a PRD milestone, but everything depends on it.
 ## Phase 2 (PRD Milestone 2): CRM Foundation: Clients
 PRD goal: Sales can begin transitioning away from Jobber. Companies and Contacts are one Clients module (D-008).
 
-**UI/UX (sample data), step 2.1.** Built first as HTML/CSS/JS mockups in `mockups/` (D-023): Home, Clients list with pagination, Client page, New/Edit client. After approval they are converted to Next.js.
+**UI/UX (sample data), step 2.1.** Built first as HTML/CSS/JS mockups (D-023), then converted to Next.js (D-033): Home, Clients list with pagination, Client page, New/Edit client.
 - [ ] App shell: sidebar (Create, Home, Schedule, Clients, Requests, Quotes, Jobs, Invoices, Payments, Messages, Pipeline; D-025), top bar with search
-- [ ] Clients list: search, Homeowner/Contractor filter
+- [ ] Clients list: search, Homeowner/Contractor filter, scoped to the selected business (D-031)
 - [ ] Client page in Jobber's section order (provisional until screenshots); mobile tabs Client, Work, Notes
 - [ ] Add/edit client form (fields follow the customer form, D-017)
 - [ ] Settings: users, roles (multi-role), the three businesses
@@ -60,6 +60,7 @@ PRD goal: the complete sales workflow, from enquiry to approved contract.
 
 **UI/UX (sample data), steps 3.1 to 3.3**
 - [ ] 3.1 Projects: Sales pipeline board (9 stages) with list toggle; project page tabs Overview, Visit (four-step on-site flow, phone-first), Quotes, Files, Activity
+- [ ] Customer form to CRM (D-040): a submitted form creates a new client only if the person is unique (rule in Q-016), and always creates a request, i.e. a project at New Request. Needs the user's go-ahead before the live forms app is changed (D-028)
 - [ ] 3.2 Quotes: overview cards, quote builder (desktop-first), statuses, change requests and resubmissions
 - [ ] 3.3 Home, Schedule and Tasks: dashboard widgets, day/week/month calendar, Today view, personal tasks, Quick Create
 - [ ] Customer-facing: quote approval and contract signing (method undecided, Q-005)

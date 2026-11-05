@@ -18,8 +18,16 @@ Brainstorming and design. No application code yet. The UI/UX is being designed f
 
 The original source is `docs/Quality First Turf – CRM Development PRD.pdf`. Superpowers skills are installed in `.claude/skills/`.
 
-## Mockups
-Open `mockups/index.html` in a browser (no build step). Plain HTML/CSS/JS on sample data: Home, Clients (with pagination), Client page, New/Edit client. They get converted to Next.js once approved.
+## The app
+Next.js 16 on sample data (D-033): Home, Clients (search, filters, sorting, pagination, CSV export, one list per business), Client page, New/Edit client. Run `npm install` once at the repo root, then `npm run dev` in this folder. New and edited clients and notes are kept in the browser's localStorage until Convex is wired. Convex, Clerk and access control are not wired yet.
+
+| Route | Screen |
+|-------|--------|
+| `/` | Home |
+| `/clients` | Clients list |
+| `/clients/new` | New client |
+| `/clients/[id]` | Client page |
+| `/clients/[id]/edit` | Edit client |
 
 ## How it is being built
 - **Monorepo.** The git root is the folder above this one: `forms/` (the live intake and on-site visit app) and `CRM/` (this folder), sharing one Convex backend (D-026). The forms app is not changed without the user's go-ahead.

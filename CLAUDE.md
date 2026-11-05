@@ -8,11 +8,11 @@ Two apps, one git repo, **one shared Convex deployment**:
 | Folder | App | Status | Domain (Vercel, one project each) |
 | --- | --- | --- | --- |
 | `forms/` | Customer intake and on-site visit app. Next.js 16, Convex, Jobber push. | **Live**, used by the client | `forms.qualityfirstturf.com` |
-| `CRM/` | The CRM that will replace Jobber. | Docs and HTML mockups only; no code yet | `launchpad.qualityfirstturf.com` |
+| `CRM/` | The CRM that will replace Jobber. | Next.js app on sample data (Milestone 2 screens); Convex not wired yet | `launchpad.qualityfirstturf.com` |
 
 The Convex backend lives in `convex/` at the repo root, a sibling of `forms/` and `CRM/`, and serves both apps (D-026, D-030). Domain logic that both the backend and the apps use (catalogue, price list, quote lines, discovery rules, visit and time helpers, US states) lives in `convex/shared/`; apps import it as `@/convex/shared/...`. Hosting is Vercel, one project per app, both pointing at the same Convex deployment through `NEXT_PUBLIC_CONVEX_URL`. The git remote is `github.com/sliding-scale/Quality-FIrst-Turf`.
 
-**Tooling.** The root `package.json` uses npm workspaces (currently `forms`) and holds the backend's packages (`convex`, `@convex-dev/rate-limiter`). The lockfile is at the root. Run `npm install` once at the repo root, not inside an app. Each app keeps its own `package.json`, scripts and env files. Convex CLI commands (`npx convex dev`, etc.) run from an app folder, today `forms/`: `forms/convex.json` points the CLI at `../convex/` and `forms/.env.local` holds `CONVEX_DEPLOYMENT`. When the CRM app is scaffolded: add `"CRM"` to the root `workspaces`, give it a `convex.json` with `{"functions": "../convex/"}`, the same `@/convex/*` alias in its `tsconfig.json`, `turbopack.root` and `outputFileTracingRoot` set to the repo root in its `next.config.ts` (copy `forms/next.config.ts`), and a `.env.local` pointing at the same deployment.
+**Tooling.** The root `package.json` uses npm workspaces (`forms` and `CRM`) and holds the backend's packages (`convex`, `@convex-dev/rate-limiter`). The lockfile is at the root. Run `npm install` once at the repo root, not inside an app. Each app keeps its own `package.json`, scripts and env files. Convex CLI commands (`npx convex dev`, etc.) run from an app folder, today `forms/`: `forms/convex.json` points the CLI at `../convex/` and `forms/.env.local` holds `CONVEX_DEPLOYMENT`. `CRM/` is set up the same way: in the root `workspaces`, with a `convex.json` of `{"functions": "../convex/"}`, the `@/convex/*` alias in its `tsconfig.json`, and `turbopack.root` and `outputFileTracingRoot` set to the repo root in its `next.config.ts`. It has no `.env.local` yet because it does not use Convex yet; when it does, point it at the dev deployment, the same as `forms/.env.local`.
 
 ## The plan (decided by the user)
 - Jobber keeps working **in full** until the CRM is completely built. Nothing is removed, disabled or repointed in Jobber or in the forms' Jobber code before then (D-028).
@@ -42,9 +42,8 @@ This is the user's standing rule, from the live handoff. After any change to `fo
 1. Run `npx convex deploy` so production gets the change. Code that is only on the dev deployment is not live.
 2. Delete test data from Convex (projects, work areas, sessions, uploaded photos made while testing).
 3. Delete test data from Jobber (clients, requests, quotes, assessments).
-4. Check that Jobber is the client's official account, not the personal testing one.
 
-Why: at handoff the Jobber connection was left on the personal testing account and Convex was not moved to production, which cost the client's trust. Changes that touch only `CRM/` docs or mockups don't need the reminder. If unsure, include it.
+Why: at handoff the Jobber connection was left on the personal testing account and Convex was not moved to production, which cost the client's trust. Changes that touch only `CRM/` docs and `CRM/` app code that touches nothing shared don't need the reminder. If unsure, include it.
 
 ## Git
 Branch `monorepo` holds the restructure: forms moved into `forms/` (`201de5c`, pure renames), `CRM/` added (`aefc543`), the Convex backend and shared domain code moved to the repo root with npm workspaces (`29ce591`, revertible on its own), `.next/` ignored (`3eff6e6`). It is **not merged and not pushed**. Before it reaches `master` or GitHub, the Vercel settings in rule 7 above must be in place, or the forms build will break. The user's pending docs changes in `forms/docs/` (several deleted and untracked files, including `forms/docs/project-status.md`, which `forms/CLAUDE.md` still points to) are uncommitted and are the user's to sort out. Don't commit, push or merge without being asked. Commit messages end with the attribution line from the session instructions.

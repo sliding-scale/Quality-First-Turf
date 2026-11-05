@@ -1,6 +1,6 @@
 # Architecture
 
-Planned layout. Nothing is scaffolded yet, so adjust this file when the real structure diverges. Stack: Next.js (App Router), TypeScript, Tailwind, shadcn/ui, Convex, Clerk. It lives in a monorepo with the forms app and one shared Convex backend (D-026). The repo root is `Quality-First-Turf/`: `forms/` (live app) and `CRM/` (docs, mockups, later the CRM app). Where `convex/` lives is open (Q-020). The tree below shows the CRM app only. The UI is built first on sample data, behind the `src/data/` layer.
+Planned layout. The Next.js app is scaffolded with the Milestone 2 screens on sample data (D-033): `app/` (routes: `/`, `/clients`, `/clients/new`, `/clients/[id]`, `/clients/[id]/edit`), `components/` (shell, UI provider, one component per screen), `lib/` (`clients.ts` is the single data layer, `sample-data.ts`, `store.ts`, `format.ts`, `icons-data.ts`). The tree below is the plan; adjust it when the real structure diverges. Stack: Next.js (App Router), TypeScript, Tailwind, shadcn/ui, Convex, Clerk. It lives in a monorepo with the forms app and one shared Convex backend (D-026). The repo root is `Quality-First-Turf/`: `forms/` (live app) and `CRM/` (docs and the CRM app). Where `convex/` lives is open (Q-020). The tree below shows the CRM app only. The UI is built first on sample data, behind the `src/data/` layer.
 
 ## How this tree maps onto the shared backend (D-029, D-030)
 There is **one** Convex backend for both apps, at `convex/` in the repo root (a sibling of `forms/` and `CRM/`). The `convex/` folder in the tree below is the CRM's *share* of it, not a second folder:
@@ -139,7 +139,7 @@ Installer (no login) ──> /wp/[token] ──> Convex query validating an expi
 |-------|-------|
 | `users` | Synced from Clerk. `roles` (array, a user can hold several), module permissions. Login roles only |
 | `businesses` | The three businesses: name, domain, mailboxes, document branding |
-| `clients` | Jobber clients. `type` homeowner or contractor (from the customer form), business details, addresses, Jobber ID for dedupe |
+| `clients` | Jobber clients. `businessId` (each business has its own client list, indexed, D-031), `type` homeowner or contractor (from the customer form), business details, addresses, Jobber ID for dedupe |
 | `visitSnapshots`, `visitRevisions`, `workAreas` | On-site visit history, change log and measured areas (carried over from the forms app) |
 | `opportunities` | The central record. `clientId`, `pipeline`, `stage`, `assignedTo`, property, services, measurements |
 | `stageHistory` | Append-only: opportunity, pipeline, from, to, user, timestamp, reason |

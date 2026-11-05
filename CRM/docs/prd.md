@@ -6,7 +6,7 @@
 > "Multiple company entities" means three businesses: Quality First Turf, Quality First Turf Construction, Quality First Patios (D-016).
 > Per [D-005](decisions.md), the delivery dates in the PDF are ignored. Milestones are treated as ordered phases only.
 > Assumption stated in the PRD: **"company" in this document means a "client" from Jobber.**
-> Decided: Companies and Contacts are merged into one **Clients** module (D-008), so read 2.1 and 2.2 together. Installers do not log in (D-010). Jobber is replaced by a one-time import (D-011).
+> Decided: Companies and Contacts are merged into one **Clients** module (D-008), written as section 2.1 below (the PDF's 2.1 and 2.2), and each business has its own client list (D-031). Sections 2.2 and 2.3 below are the PDF's 2.3 and 2.4. Installers do not log in (D-010). Jobber is replaced by a one-time import (D-011).
 
 ## Product Objective
 
@@ -22,37 +22,38 @@ The system must support multiple company entities, individual team accounts, rol
 
 **Objective:** build the foundational CRM modules so the Sales team can begin transitioning away from Jobber.
 
-### 2.1 Companies Module
+### 2.1 Clients Module
+> The PDF lists a Companies module (2.1) and a Contacts module (2.2). They are the same thing, a Jobber client, so they are one **Clients** module in the Clients tab (D-008). Each business has its own client list (D-031).
+
+Two client types: **Homeowners** and **Contractors**.
+
 Users must be able to:
-- Create, edit and view companies.
-- Maintain multiple company entities.
-- Store company name and business details.
-- Associate customers and projects with companies.
-- Search and filter companies.
+- Create, edit and view clients.
+- Store company name and business details where applicable (mainly contractors).
+- Associate projects with clients.
+- Search and filter clients.
 
-### 2.2 Contacts Module
-Two contact types: **Homeowners** and **Contractors**.
+Each client profile contains: name, email, phone number, address, client type, company name (where applicable), the business it belongs to, related projects, activity history, notes.
 
-Each contact profile contains: name, email, phone number, address, contact type, associated company (where applicable), related projects, activity history, notes.
+Each of the three businesses has its own list of clients. The Clients tab shows only the clients of the business currently selected in the business switcher. A client belongs to one business.
 
-Users must be able to create, edit, view, search and filter contacts.
-
-### 2.3 Data Import
-- Import existing contacts and companies from Jobber exports.
+### 2.2 Data Import
+- Import existing clients (contacts and companies) from Jobber exports.
 - Map available fields to the new CRM structure.
 - Prevent duplicate records.
 - Preserve available customer and company relationships.
+- Place each imported client in its business's list.
 
-### 2.4 User Access
+### 2.3 User Access
 - User authentication.
 - Basic roles and permissions.
 - Admin can manage users.
 - Restrict records based on assigned permissions.
 
 ### Acceptance Criteria
-- Contacts and Companies modules are fully usable.
-- Existing Jobber contact and company records can be imported.
-- Contacts can be associated with companies.
+- The Clients module is fully usable (homeowners and contractors, company name where applicable).
+- Existing Jobber client records can be imported.
+- Each business has its own client list.
 - Sales users can manage their customer records without relying on Jobber for these functions.
 
 ---
@@ -67,7 +68,8 @@ Dynamic summaries for: new leads, approved leads, pending quotes, jobs awaiting 
 Dashboard figures must be derived from actual CRM records.
 
 ### 3.2 Quick Create
-Quick actions to: open customer intake forms, add a customer, create a quote, create a job, create an invoice.
+Quick actions to: add a customer, create a quote, create a job, create an invoice.
+> The PDF also lists "open customer intake forms". Removed from the Create menu at the user's request (D-032).
 
 ### 3.3 Sales Pipeline
 Stages, in order:
@@ -288,7 +290,7 @@ Role-based and record-level permissions. Required user groups: **Admin, Sales, O
 ## 6. Shared System Requirements (all milestones)
 
 ### Central Data Structure
-Connected records for: Companies, Contacts, Users, Opportunities / Projects, Activities and Notes, Tasks, Calendar Events, Quotes, Jobs, Site Plans and Documents, Materials and Takeoffs, Installer Work Packages, Invoices, Payments.
+Connected records for: Clients (the PDF's Companies and Contacts), Users, Opportunities / Projects, Activities and Notes, Tasks, Calendar Events, Quotes, Jobs, Site Plans and Documents, Materials and Takeoffs, Installer Work Packages, Invoices, Payments.
 
 Every record must have the necessary relationships and ownership information.
 
@@ -301,7 +303,7 @@ Every record must have the necessary relationships and ownership information.
 - Prevent invalid stage transitions where business rules require validation.
 
 ### Search & Filtering
-Search and relevant filters across Contacts, Companies, Opportunities, Quotes, Jobs, Invoices. **Jobs must be filterable by company.**
+Search and relevant filters across Clients, Opportunities, Quotes, Jobs, Invoices. **Jobs must be filterable by client** (the PDF says company). Client lists are scoped to the selected business (D-031).
 
 ### UI / UX
 Clean, familiar interface inspired by Jobber. Dashboard summaries, searchable tables, pipeline/board views, calendar views, quick-create actions, consistent forms and detail pages, responsive desktop and mobile layouts.
@@ -311,7 +313,7 @@ Clean, familiar interface inspired by Jobber. Dashboard summaries, searchable ta
 ## 7. Required Client Inputs & Dependencies
 
 From Quality First Turf:
-1. Jobber exports for existing contacts and companies.
+1. Jobber exports for existing clients (contacts and companies).
 2. Google Workspace Super Admin and DNS access.
 3. Confirmation of email accounts, aliases and shared mailboxes.
 4. Google Drive access and storage details.
@@ -328,7 +330,7 @@ Third-party subscriptions, API fees and provider verification are external depen
 
 1. Build and release functional modules milestone by milestone.
 2. Do not wait until the entire CRM is finished to make completed modules usable.
-3. Contacts and Companies must be ready for Sales to use first (the source gives a date; ignored per D-005).
+3. Clients (the PDF's Contacts and Companies) must be ready for Sales to use first (the source gives a date; ignored per D-005).
 4. All pipelines must use the same central project record.
 5. Avoid duplicate data and disconnected modules.
 6. Make stage changes, ownership and activity history auditable.

@@ -36,7 +36,7 @@ Add new entries at the bottom of each section. Never delete a decision. Mark it 
 ### D-008: Companies and Contacts are one entity (`clients`)
 **Decided:** every Jobber client is one record in a `clients` table. The PRD's separate Companies and Contacts modules are merged into a single Clients module. A client has a `type` (homeowner | contractor) and optional business details. Projects reference `clientId`.
 **Why:** companies and contacts are both Jobber clients, so two tables would model one concept twice and complicate the import.
-**Consequence:** "contacts associated with companies" is satisfied by the client record itself. "Jobs filterable by company" becomes "filterable by client".
+**Consequence:** "contacts associated with companies" is satisfied by the client record itself. "Jobs filterable by company" becomes "filterable by client". `prd.md` now carries one Clients Module section instead of two (D-031). Clients are listed per business (D-031).
 
 ### D-009: Milestone 1 is already done
 **Decided:** the PRD starts at Milestone 2. Milestone 1 covered the Google Workspace, DNS and email set-up and is complete, so those client inputs are closed.
@@ -107,7 +107,7 @@ Add new entries at the bottom of each section. Never delete a decision. Mark it 
 **Why:** the user's reasoning: Jobber keeps receiving new clients while the CRM is built.
 **Consequence:** Milestone 2's import acceptance criterion is satisfied at the end. Sample data stands in for clients until then.
 
-### D-023: Plain HTML/CSS/JS mockups first, then Next.js
+### D-023: Plain HTML/CSS/JS mockups first, then Next.js (DONE: converted in D-033, mockups removed)
 **Decided:** before any Next.js code, the Phase 2 screens are built as static HTML, CSS and plain JavaScript mockups in `mockups/`, on sample data. The user approves them, then they are converted to Next.js.
 **Why:** the user's instruction. A mockup is quicker to change and review.
 **Screens covered (from the Jobber screenshots):** Home, Clients list, Client page (Client information, Communication, Files and media), New/Edit client form.
@@ -126,7 +126,7 @@ Add new entries at the bottom of each section. Never delete a decision. Mark it 
 ### D-025: Sidebar and some Jobber items restored (user's call)
 **Decided:** the sidebar is exactly: Create, Home, Schedule, Clients, Requests, Quotes, Jobs, Invoices, Payments, Messages, Pipeline. Tasks, Materials, Crews and Settings are not in the sidebar (Settings stays reachable from the top bar). The Clients page stat cards (new leads, new clients, total clients), the client page Overview card (lifetime value, current balance) and the Home content removed earlier (appointment stats, Visit/Employee toggle, grouped appointments, status pills, View Schedule, the extra workflow lines) are back. On Home, the My tasks card was then replaced by My messages (texts and WhatsApp, which the PRD logs against the client and user). The Create button opens Jobber's icon-row popover (Client, Request, Quote, Job, Invoice, each in its workflow colour), plus an Intake form item because the PRD's Quick Create lists it. This relaxes D-024 for those items only; everything else Jobber-only stays out.
 **Fonts and lines:** text is Inter (open source; the files the user supplied from Jobber's CDN). Headings use **Figtree** (open source, SIL OFL) because it matched Jobber Pro's proportions and weight best in a side-by-side test against the user's screenshot. Jobber Pro itself is proprietary and is not used or modified. Divider and border lines are darker (`#b8c2c7`). Main content side padding is 12px.
-**Open:** "Requests" and "Pipeline" are Jobber's names. How they map to the PRD's central project record (D-004) is for the next design step. Tasks, Materials and Crews screens will need another way in.
+**Open:** "Pipeline" is Jobber's name and still needs mapping to the PRD's central project record (D-004). Requests is answered in D-039. Tasks, Materials and Crews screens will need another way in.
 
 ### D-026: One repo (monorepo), one shared Convex backend
 **Decided:** the CRM and the forms app live in one git repo. The repo root is `Quality-First-Turf/` and holds `forms/` (the live app, moved in unchanged), `CRM/` (docs, mockups and, later, the Next.js app) and a root README. The two apps share one Convex backend so enquiries from the forms can create clients and projects in the CRM without a bridge.
@@ -178,6 +178,74 @@ Add new entries at the bottom of each section. Never delete a decision. Mark it 
 - The CRM app must be wired the same way when scaffolded (see the root `CLAUDE.md`).
 **Verified locally:** typecheck of `forms/` and `convex/`, lint, a production `next build`, and esbuild bundling of all 31 backend modules. **Not verified:** the Convex CLI (`npx convex dev` was refused on the machine used, "You don't have access to the selected project", so the user should run it once on the dev deployment) and any Vercel build. To undo: revert `29ce591` and run `npm install` inside `forms/`.
 
+### D-031: Each business has its own client list
+**Decided (user, 2026-11-04):** a client belongs to exactly one of the three businesses, and the Clients tab shows only the clients of the business selected in the top-bar switcher. Switching business changes the list, the stat cards and the CSV export. A new client starts in the selected business. The PRD's Companies and Contacts modules, already merged by D-008, are now written as one "Clients Module" (section 2.1) in `prd.md`, with the data-import and user-access sections renumbered 2.2 and 2.3.
+**Why:** the three businesses are run separately (D-016), so their customers should not mix.
+**Consequence:** `clients` carries `businessId` with an index on it, and every client query filters by it (and by the caller's business access, D-014). A person who is a customer of two businesses is two client records, one per business. This closes the "can a client have projects with several" half of Q-015 for clients. Projects follow their client's business, which still fits "a project belongs to one business" (D-016). The Jobber import (D-022) must place each client in a business, so a business-assignment rule is needed there.
+**Implementation:** `useBusinessClients()` in `lib/clients.ts` scopes the list and stat cards; the switcher updates the list without a reload.
+
+### D-032: "Intake form" removed from the Create menu
+**Decided (user, 2026-11-04):** the Create menu is Client, Request, Quote, Job, Invoice. The "Intake form" item (added in D-025 because the PDF's Quick Create lists "open customer intake forms") is removed from the Create menu. The forms app stays a separate live app (D-026); the CRM does not link to it from Create for now.
+**Why:** the user did not know what it was for and asked for it to go.
+
+### D-033: Milestone 2 screens converted from the mockups to Next.js
+**Decided (user, 2026-11-04):** the approved mockups were recreated as the CRM's Next.js app, to look and behave exactly the same, and the `mockups/` folder was deleted (it stays in git history).
+**What was built:** the CRM is an npm workspace (`CRM` added to the root `workspaces`, `convex.json`, the `@/convex/*` alias, `turbopack.root` and `outputFileTracingRoot` set as in the root CLAUDE.md). Screens: Home, Clients list, New client, Client page, Edit client. The stylesheet is the mockup CSS unchanged (`app/globals.css`). All client data goes through `lib/clients.ts`, so Convex can replace it (D-013).
+**Differences from the mockups:** clean routes instead of `client.html?id=` (`/clients/[id]`, `/clients/new`, `/clients/[id]/edit`); the business switcher updates the list in place instead of reloading; "X is not built yet." replaces "X is not part of this mockup yet."; the sort state is on the column header (`aria-sort`) instead of the button; Inter and Figtree load through `next/font`.
+**Not wired yet:** Convex, Clerk, access control, `.env.local` (not needed until data moves to Convex; it must point at the dev deployment). Sample data, new clients and notes live in the browser's localStorage.
+**Verified:** typecheck, lint and `next build` pass; headless-Chrome screenshots of the four screens against the mockups differ by 8 to 77 pixels out of 1.44 million (anti-aliasing); scripted checks passed for the business switch, Create popover, filter, sort, search, pagination controls, notes, edit prefill, form validation and save, sidebar collapse, and the top-bar search. No browser-console errors.
+
+### D-034: Skeleton loaders everywhere (rule)
+**Decided (user, 2026-11-05):** every screen, list, table, card, panel and form that waits for data, a route or the browser shows a skeleton loader shaped like the real content. This is a standing rule for all CRM UI, including every screen built later.
+**What was built:** components/skeletons.tsx with a Sk block and one skeleton each for Home, Clients, Client page and the client form; they are the fallback while a page hydrates and the loading.tsx for /clients, /clients/new, /clients/[id] and /clients/[id]/edit. The animation is a soft pulse (no gradients, D-019) and stops under prefers-reduced-motion.
+**How to apply:** a new screen is not done until its skeleton exists. When data moves to Convex, show the skeleton while a query is loading (undefined). The forms app is not covered; it is live and is not edited without the user's go-ahead.
+### D-035: Three UI rules: hover feedback, fixed table columns, red invalid fields
+**Decided (user, 2026-11-05):** standing rules for all CRM UI, current and future screens (full wording in `CRM/CLAUDE.md`).
+1. **Hover feedback on buttons.** Everything clickable changes on hover and on press; disabled controls do not.
+2. **Fixed table column widths.** `table-layout: fixed` plus a `<colgroup>` on every table; columns do not resize with content, search or filters.
+3. **Invalid fields turn red when the user tries to submit,** with a message, focus on the first one, and clearing as each is corrected.
+**What was changed to meet them:** hover and press styles added for chips, tabs, toggles, sort headers, radio options, the primary and link buttons, inputs and the current page button; the pencil (edit) button's hover was being overridden and is fixed. The clients list, the related-projects table, the visits table and the Clients skeleton now have a `<colgroup>`; the clients list is single-line with ellipsis and full text in `title`. The client form now flags every invalid field (first name, last name and company together for the "enter a name" rule, phone, email) only after the first submit attempt, and clears each as it is fixed.
+**Not changed:** which fields are validated. ZIP and state are still unchecked; add rules there when the client's data requirements are known.
+### D-036: "More Actions" menu on Clients (Import, Export, Merge); 10 rows per page
+**Decided (user, 2026-11-05, from a Jobber screenshot):** the Clients header is the green **New Client** button and an outlined **More Actions** button (dots icon) that opens a menu: **Import Clients**, **Export Clients**, **Merge Clients**. The separate Export button is gone; Export Clients does the CSV export as before. The Clients list now defaults to **10 rows per page** (10, 25, 50, 100 remain choices).
+**Conflicts with earlier decisions, resolved by the user's request:** D-024 removed "merge clients" because the PRD does not mention it, and D-022 defers the Jobber import to the end. The menu entries exist now, but **Import and Merge are not built**: they show "not built yet." until their own steps are designed. Export works. Merge is not in the PRD, so its behaviour (which record wins, how history and projects move) needs a design step before it is built.
+**Details:** `Import` and `Merge` icons are drawn in `lib/icons-extra.ts` (Atlantis has no equivalents in our icon table); the menu uses the `actions` variant of the dropdown.
+
+### D-037: Smooth animations everywhere things change (rule)
+**Decided (user, 2026-11-05):** state changes and anything displayed, collapsed or expanded animates; this is a standing rule (`CRM/CLAUDE.md`).
+**Built:** the sidebar collapse eases the column from 188px to 64px in about 260 ms while the labels fade and the arrow turns; the Create popover and dropdown menus pop in and out, with the Create icons staggering in; toasts slide in and out; pages, tab panels, table rows, notes and error messages fade or rise in; hover, press and focus colours ease. Exit animations keep the element mounted for 140 ms before it unmounts. Reduced-motion users get none.
+**Verified:** the sidebar width, the popover opacity while opening and closing, and the toast removal were sampled frame by frame in headless Chrome.
+
+### D-038: Input rules and the state dropdown
+**Decided (user, 2026-11-05):** fields stop wrong characters instead of only complaining afterwards. Phone: digits only, auto-formatted as `(951) 555-0178` (a leading 1 or +1 is dropped; pasted text is cleaned). ZIP: digits only, five maximum, must be five on submit. First name, last name and city: letters, spaces, apostrophes, periods and hyphens only. Email: no spaces. State: a dropdown of all states and DC from the shared `US_STATES` list (the value stored is the two-letter code).
+**Where:** `lib/fields.ts` and `components/client-form.tsx`. Red-on-submit (D-035) is unchanged and now also covers ZIP; the phone message reads "Enter a 10-digit phone number."
+**Not done:** the client list and client page do not reformat old data; sample phone numbers are already in this format.
+### D-039: Requests screen, built on trial (answers the open question in D-025)
+**Decided (user, 2026-11-05, from a Jobber screenshot):** build a Requests screen now. The user had no specific need for it beyond being able to look at "all the requests and only the requests", and chose to build it and **remove it later if the client does not like it**. The user opted out of the design questions.
+**Design (my calls, each correctable):**
+- **A request is not a record.** It is a Sales-pipeline project seen through its early stages (rule 1 of `CRM/CLAUDE.md` holds: one central project record). The Requests status is derived from the project's stage: New Request is **New** (or **Overdue** after 21 days, my assumption, the PRD gives no number); Schedule Onsite Consultation and Onsite Consultation are **Consultation**; Quote Draft onward is **Converted**; Closed Lost is **Lost**. Moving the project moves the request. "Converted" is therefore not an action, only a stage the project reaches.
+- **Layout follows Jobber's:** Overview card (counts by status), New requests (past 30 days) and Conversion rate cards with a change against the previous 30 days (computed, not typed in), All requests table (Client, Title, Property, Contact, Requested, Status) with Status and Date filters, search, sorting, pagination (10 rows), and a More Actions menu with Export Requests.
+- **Left out, not in the PRD (D-024):** the promo card, Customize Form, Share or Embed.
+- **Row click** opens the client page (the project page belongs to Milestone 3). **New Request** and Create > Request show "not built yet."; a request is created by the customer form or by adding a project, both later.
+**Overlap to watch:** the Pipeline tab (Milestone 3) will show the same early-stage projects as a board. If the client sees Requests as redundant, delete it.
+**To remove it:** delete `app/requests/`, `components/requests-page.tsx`, `lib/requests.ts`, `RequestsSkeleton` in `components/skeletons.tsx`, the `/requests` link on the Requests item in `components/shell.tsx` (it goes back to "not built yet", or drop the item), and the `requests (D-039)` block at the end of `app/globals.css`. Nothing else depends on it.
+**Sample data:** one sample project per client, using the same stage rule as the client page, so a request and the client's Related projects table always agree. Sample project ages were moved from 8 to 2 days so recent requests exist.
+### D-040: What happens when a customer fills in the form
+**Decided (user, 2026-11-05):** a submitted customer form does two things.
+1. **The client.** If the person is a unique client, a new client is created. If they are already a client, no second client is made.
+2. **The request.** A request is created either way.
+**How this fits the model (my reading, correctable):** "a request is created" means a new project is created in the Sales pipeline at the first stage, **New Request** (D-004, D-039), linked to the client by `clientId`. It then shows up on the Requests screen as **New**. A returning client gets a new project, not a new client. The form's requested services, measurements and photos go on that project, and the activity log records "Project created from the customer form".
+**Where it lives:** the Milestone 3 enquiry flow. The forms app still creates clients, requests and quotes in Jobber, untouched, until the CRM is complete (D-028). Changing the live forms app to write to the CRM needs the user's explicit go-ahead, and the CRM must not depend on the forms backend (D-011). Nothing is built for this yet; the Requests screen and the client list run on sample data.
+**Still open, needed before it is built (Q-016):** what makes a client "unique". My proposal: the same email, or the same phone number (digits only), **within the same business** (clients are per business, D-031), and otherwise a new client. The form belongs to Quality First Turf today, so it creates clients and requests in that business. A name and address match on its own would only be flagged for staff, not merged automatically, because merging wrongly is worse than a duplicate.
+### D-041: Filter dropdowns (searchable status, date range), client status, clickable Overview
+**Decided (user, 2026-11-05, from Jobber screenshots):**
+- **Requests, Status filter:** a search box ("Search statuses"), then All and the five statuses (Consultation, Converted, Lost, New, Overdue), each with a coloured dot and a count, a tick on the selected one, in a scrolling list.
+- **Requests, Date filter:** a "Date range" field over the list All, Last week, Last 30 days, Last month, This month, This year, Last 12 months, Custom range. Custom range expands (animated) into From and To dates and an Apply button; Apply turns both red if both are empty or the start is after the end (D-035).
+- **Clients, Status filter:** a search box ("Search status"), then All, **Leads and Active** (the default, ticked), Leads, Active, Archived.
+- **Requests Overview card:** every status in it (all five, from the same list as the filter) is a button. Clicking one sets the Status filter to it and scrolls to the table. The stat cards on Requests are more compact.
+**Relaxes D-024:** D-024 removed client status. Client status is back, as a filter and a pill on the client page. **Lead** = no work won yet; **Active** = a won sales project or a project in Preplanning or later; **Archived** = hidden by staff. Lead and Active are derived from the client's projects, so they will change on their own as projects move. **Archived is a flag with no Archive button yet** (not built); a few sample clients are archived so the filter has data. The Clients stat cards leave out archived clients, and "New leads" now counts real leads.
+**My calls:** "Last week" means the previous calendar week, Sunday to Saturday; "Last month" the previous calendar month; "Last 30 days" and "Last 12 months" are rolling. Date ranges are tested against how long ago the request came in.
+**Built as:** a general `popover` in the UI provider (animated in and out like the other menus) with `FilterMenu` and `DateRangeMenu` in `components/filter-menus.tsx` and the range rules in `lib/dates.ts`. Open one with `useUI().popover(anchor, render, { className })`.
 ## Open Questions
 
 | ID | Question | Blocks | Owner |
@@ -188,8 +256,8 @@ Add new entries at the bottom of each section. Never delete a decision. Mark it 
 | Q-009 | Document generation: how quotes, work packages, invoices and sign-offs are produced (PDF from templates). | Phases 3 to 5 | Client |
 | Q-010 | Google integration depth: Calendar read-only or two-way? Drive for files, or Convex storage? Drive is being merged into office@ in Workspace. | Phase 3 | Client |
 | Q-014 | Roles of Sal, May and Robert (guess: Sal Admin and Sales, May Office Team, Robert Project Manager). Not asked yet. | Phase 2 roles | Client |
-| Q-015 | What differs between the three businesses on quotes and invoices; can a client have projects with several? (B1.3) | Phase 2 schema | Client |
-| Q-016 | Duplicate client rule (same email, phone, name + address). (B2.6) | Phase 5 import | Client |
+| Q-015 | What differs between the three businesses on quotes and invoices? (B1.3) Clients are per business (D-031). | Phase 2 schema | Client |
+| Q-016 | Duplicate client rule: what makes a client unique (same email, phone, name + address). Needed for the form flow (D-040) and the import. Proposal in D-040. (B2.6) | Milestone 3 form flow, Phase 5 import | User, then client |
 | ~~Q-017~~ | Resolved: colours sampled from the screenshots (D-019) | | |
 | Q-018 | The logo file. | Setup | User |
 | Q-019 | Supervisor to confirm that the Jobber import is deferred to the very end (D-022). See also Q-021. | Phase 5 | User |

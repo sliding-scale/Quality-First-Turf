@@ -5,6 +5,6 @@ Monorepo for the Quality First Turf projects. Each app is self-contained, with i
 | Folder | What it is | Domain |
 | --- | --- | --- |
 | [`forms/`](forms) | The **live** customer-intake and on-site-visit app (Next.js, Convex, Jobber push). Has its own `CLAUDE.md` with handoff rules. | `forms.qualityfirstturf.com` |
-| [`CRM/`](CRM) | The CRM that will replace Jobber. Docs and mockups so far; no code scaffolded yet. | `launchpad.qualityfirstturf.com` |
+| [`CRM/`](CRM) | The CRM that will replace Jobber. Next.js app on sample data (Milestone 2 screens); Convex not wired yet. | `launchpad.qualityfirstturf.com` |
 
 Jobber keeps working in full until the CRM is complete. See [`CLAUDE.md`](CLAUDE.md) for the plan and the rules for working here, and [`CRM/docs/decisions.md`](CRM/docs/decisions.md) for the decisions behind it.

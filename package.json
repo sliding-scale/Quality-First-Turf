@@ -2,7 +2,8 @@
   "name": "quality-first-turf",
   "private": true,
   "workspaces": [
-    "forms"
+    "forms",
+    "CRM"
   ],
   "dependencies": {
     "@convex-dev/rate-limiter": "^0.4.2",

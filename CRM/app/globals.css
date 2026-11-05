@@ -1,15 +1,5 @@
-/* Headings: Figtree (open source, SIL OFL), the closest match to Jobber's heading font. Text: Inter, files from Jobber's CDN (Inter is open source). */
-@import url("https://fonts.googleapis.com/css2?family=Figtree:wght@700;800&display=swap");
-@font-face { font-family: "Inter"; font-style: normal; font-weight: 400; font-display: swap;
-  src: url("fonts/inter-v3-regular.woff2") format("woff2"), url("fonts/inter-v3-regular.woff") format("woff"); }
-@font-face { font-family: "Inter"; font-style: italic; font-weight: 400; font-display: swap;
-  src: url("fonts/inter-v3-italic.woff2") format("woff2"), url("fonts/inter-v3-italic.woff") format("woff"); }
-@font-face { font-family: "Inter"; font-style: normal; font-weight: 700; font-display: swap;
-  src: url("fonts/inter-v3-700.woff2") format("woff2"), url("fonts/inter-v3-700.woff") format("woff"); }
-@font-face { font-family: "Inter"; font-style: italic; font-weight: 700; font-display: swap;
-  src: url("fonts/inter-v3-700italic.woff2") format("woff2"), url("fonts/inter-v3-700italic.woff") format("woff"); }
-
-/* QFT CRM mockup. Plain CSS. Colours sampled from Jobber screenshots. */
+/* Quality First Turf CRM. Plain CSS, carried over unchanged from the approved mockups. Colours sampled from Jobber screenshots.
+   Headings: Figtree (open source, SIL OFL), the closest match to Jobber's heading font. Text: Inter (open source). Both load through next/font in layout.tsx. */
 :root {
   --shell: #eeece7;
   --shell-2: #dcdad5;
@@ -31,7 +21,7 @@
   --navy: #225c8c;
   --radius: 10px;
   --fs: 15px;
-  --display: Figtree, Helvetica, Arial, sans-serif;
+  --display: var(--font-figtree), Figtree, Helvetica, Arial, sans-serif;
   --pad: 24px;
   --padx: var(--pad);
 }
@@ -40,7 +30,7 @@
 html, body { height: 100%; }
 body {
   margin: 0;
-  font-family: Inter, Helvetica, Arial, sans-serif;
+  font-family: var(--font-inter), Inter, Helvetica, Arial, sans-serif;
   font-size: var(--fs);
   line-height: 1.4;
   color: var(--text);
@@ -77,7 +67,7 @@ input, select, textarea { font: inherit; color: var(--text); }
 .icon-btn:hover { background: rgba(0, 0, 0, 0.06); }
 .icon-btn .badge { position: absolute; top: 2px; right: 0; min-width: 18px; height: 18px; border-radius: 9px; background: #d4351c; color: #fff; font-size: 11px; font-weight: 700; display: grid; place-items: center; padding: 0 4px; }
 
-.sidebar { overflow-y: auto; padding: 6px 8px 10px; display: flex; flex-direction: column; }
+.sidebar { overflow-y: auto; overflow-x: hidden; padding: 6px 8px 10px; display: flex; flex-direction: column; }
 .nav { display: flex; flex-direction: column; gap: 2px; flex: 1; }
 .nav .item { display: flex; align-items: center; gap: 12px; padding: 9px 12px; border: 0; border-radius: 8px; background: none; color: var(--ink); font-weight: 600; text-decoration: none; width: 100%; text-align: left; }
 .nav .item:hover { background: rgba(0, 0, 0, 0.05); }
@@ -90,9 +80,9 @@ input, select, textarea { font: inherit; color: var(--text); }
 
 .main { background: var(--white); border-top-left-radius: 10px; overflow: auto; padding: var(--pad) var(--padx) 56px; min-width: 0; }
 .page { max-width: none; }
-body.rail .app { grid-template-columns: 64px minmax(0, 1fr); }
-body.rail .nav .label, body.rail .collapse .label { display: none; }
-body.rail .nav .item, body.rail .collapse { justify-content: center; padding: 10px 0; }
+.rail .app { grid-template-columns: 64px minmax(0, 1fr); }
+/* Collapsed: the column narrows and the labels fade (animated, D-037). Icons keep their x position, which is already the centre of the 64px rail. */
+.rail .nav .label, .rail .collapse .label { opacity: 0; }
 
 /* ---------- shared components ---------- */
 .page-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
@@ -355,3 +345,151 @@ body.rail .nav .item, body.rail .collapse { justify-content: center; padding: 10
 .cp-item { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 78px; padding: 8px 10px; border: 0; border-radius: 8px; background: none; color: var(--c); text-decoration: none; font-weight: 600; }
 .cp-item span { color: var(--ink); font-size: 14px; }
 .cp-item:hover { background: var(--chip); }
+
+/* ---------- skeleton loaders (D-034) ---------- */
+.sk { display: block; background: var(--shell-2); border-radius: 6px; animation: sk-pulse 1.4s ease-in-out infinite alternate; }
+@keyframes sk-pulse { from { opacity: 0.6; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .sk { animation: none; opacity: 0.8; } }
+
+/* ---------- rules (D-035) ---------- */
+
+/* 1. Hover and press feedback on everything clickable. Disabled controls get none. */
+.btn:active { background: var(--chip); }
+.btn.primary:active { background: #245a16; }
+.btn.dark:hover { background: #172f39; }
+.btn.link:hover { color: var(--green-dark); }
+.btn.link.plain:hover { color: var(--green); }
+.btn:disabled, .btn[aria-disabled="true"] { opacity: 0.5; cursor: default; pointer-events: none; }
+.client-head .name-row .btn:hover { background: rgba(0, 0, 0, 0.06); }
+.chip:hover { background: #d0cec9; }
+.chip.outline:hover { background: #f6f8f8; }
+.tab:hover { color: var(--ink); border-bottom-color: var(--line); }
+.tab.active:hover { border-bottom-color: var(--green); }
+.seg button:not(.on):hover { background: rgba(0, 0, 0, 0.06); }
+.table th button:hover { text-decoration: underline; }
+.seg-radio label:hover input:not(:checked) + span { background: var(--chip); }
+.acc > button:hover { background: rgba(0, 0, 0, 0.04); }
+.pager .pg.current:hover { background: var(--green-dark); }
+.field input:hover:not(:focus), .field select:hover:not(:focus), .field textarea:hover:not(:focus),
+.searchbox input:hover:not(:focus), .pager select:hover { border-color: var(--muted); }
+
+/* 2. Tables have fixed column widths: <table class="table"> with a <colgroup>. Columns never resize with their content.
+   Long text wraps; add class "single" for one-line rows that cut off with an ellipsis (put the full text in title). */
+.table { table-layout: fixed; }
+.table td, .table th { overflow-wrap: anywhere; }
+.table.single td, .table.single th { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.table.single td > div { overflow: hidden; text-overflow: ellipsis; }
+.stage-pill { white-space: normal; height: auto; min-height: 24px; padding-top: 3px; padding-bottom: 3px; border-radius: 12px; }
+#tbl { min-width: 1170px; }
+
+/* 3. Invalid fields turn red when the user tries to submit (and stay red until they are fixed). */
+.field.bad label { color: #b3261e; }
+.field.bad input, .field.bad select, .field.bad textarea { border-color: #b3261e; background: #fdf3f2; }
+.field.bad input:focus, .field.bad select:focus, .field.bad textarea:focus { outline-color: #b3261e; border-color: #b3261e; }
+.field.bad input:hover:not(:focus), .field.bad select:hover:not(:focus), .field.bad textarea:hover:not(:focus) { border-color: #b3261e; }
+
+/* ---------- motion (D-037) ----------
+   Everything that appears, disappears, expands or changes state animates. 120 to 250 ms, ease-out in, ease-in out.
+   Reduced-motion users get none of it (last rule). */
+
+/* State changes: colour, background, border and opacity ease instead of snapping. */
+.btn, .chip, .tab, .icon-btn, .brand, .nav .item, .collapse, .menu button, .menu a, .pager .pg, .seg button, .cp-item,
+.table tbody tr.click, .table th button, .field input, .field select, .field textarea, .searchbox input, .pager select,
+.seg-radio span, .acc > button, .msgrow, .xcircle {
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+
+/* Sidebar collapse and expand: the column width eases and the labels fade. */
+.app { transition: grid-template-columns 0.26s cubic-bezier(0.4, 0, 0.2, 1); }
+.nav .label, .collapse .label { transition: opacity 0.18s ease; }
+.collapse .ic { transition: transform 0.26s cubic-bezier(0.4, 0, 0.2, 1); }
+.rail .collapse .ic { transform: rotate(180deg); }
+.nav .item.open .xcircle { animation: spin-in 0.2s ease-out; }
+
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes rise-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes pop-in { from { opacity: 0; transform: translateY(-6px) scale(0.97); } to { opacity: 1; transform: none; } }
+@keyframes pop-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(-6px) scale(0.97); } }
+@keyframes cp-in { from { opacity: 0; transform: translate(-10px, -50%) scale(0.96); } to { opacity: 1; transform: translate(0, -50%); } }
+@keyframes cp-out { from { opacity: 1; transform: translate(0, -50%); } to { opacity: 0; transform: translate(-10px, -50%) scale(0.96); } }
+@keyframes cp-item-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes toast-in { from { opacity: 0; transform: translate(-50%, 14px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@keyframes toast-out { from { opacity: 1; transform: translate(-50%, 0); } to { opacity: 0; transform: translate(-50%, 14px); } }
+@keyframes spin-in { from { transform: rotate(-90deg) scale(0.6); } to { transform: none; } }
+
+/* Dropdown menus and the Create popover open and close with a short pop. */
+.menu { animation: pop-in 0.16s ease-out both; }
+.menu.closing { animation: pop-out 0.14s ease-in both; pointer-events: none; }
+.create-pop { animation: cp-in 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.create-pop.closing { animation: cp-out 0.14s ease-in both; pointer-events: none; }
+.create-pop .cp-item { animation: cp-item-in 0.22s ease-out both; animation-delay: calc(var(--n, 0) * 35ms + 40ms); }
+.create-pop.closing .cp-item { animation: none; }
+.toast { animation: toast-in 0.22s ease-out both; }
+.toast.leaving { animation: toast-out 0.22s ease-in both; }
+
+/* Content: pages and tab panels fade in; new rows, notes and error messages rise in. */
+.fade-in { animation: fade-in 0.22s ease-out both; }
+.table tbody tr { animation: fade-in 0.2s ease-out both; }
+.note-item { animation: rise-in 0.22s ease-out both; }
+.field.bad .err { animation: rise-in 0.18s ease-out both; }
+.menu.actions { min-width: 230px; border-radius: 12px; padding: 8px; box-shadow: 0 8px 28px rgba(3, 43, 58, 0.16); }
+.menu.actions button { padding: 12px 14px; gap: 14px; font-weight: 600; font-size: 16px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; animation-delay: 0ms !important; transition-duration: 0.01ms !important; }
+}
+
+/* ---------- requests (D-039) ---------- */
+.pill.consult { background: #fbeeda; color: var(--orange); }
+.pill.consult .dot { background: var(--orange); }
+.pill.overdue .dot { background: var(--red); }
+.pill.active .dot { background: var(--green); }
+.kpi .delta.down { background: var(--red-soft); color: var(--red); }
+.ov { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 7px; color: var(--text); font-size: 14px; }
+.ov li { display: flex; align-items: center; gap: 9px; }
+.ov .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.table th.num button { margin-left: auto; }
+
+/* ---------- filter popovers (D-041) ---------- */
+.menu.panel { padding: 0; }
+.menu.filter { min-width: 250px; border-radius: 12px; overflow: hidden; }
+.menu-search { display: block; width: 100%; height: 56px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; padding: 0 18px; background: #fff; outline: 0; font: inherit; color: var(--ink); transition: border-color 0.15s ease; }
+.menu-search::placeholder { color: var(--muted); }
+.menu-search:focus { border-bottom-color: var(--green); }
+.menu-list { max-height: 270px; overflow-y: auto; padding: 4px 0; scrollbar-width: thin; scrollbar-color: #9aa6ac transparent; }
+.menu.filter .opt { display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px 18px; border: 0; border-radius: 0; background: none; text-align: left; color: var(--ink); font-weight: 600; }
+.menu.filter .opt:hover { background: var(--chip); }
+.menu.filter .opt .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.menu.filter .opt .tick { margin-left: auto; flex: none; }
+.menu-empty { padding: 16px 18px; color: var(--muted); }
+
+.menu.daterange { width: 300px; padding: 12px; border-radius: 12px; }
+.dr-field { display: flex; align-items: center; justify-content: space-between; border: 2px solid var(--ink); border-radius: 8px; padding: 8px 14px; color: var(--ink); }
+.dr-field .dr-label { display: block; font-size: 13px; color: var(--muted); }
+.dr-field .dr-value { display: block; font-size: 16px; }
+.dr-list { margin-top: 6px; border: 1px solid var(--line); border-radius: 8px; padding: 4px 0; box-shadow: 0 4px 12px rgba(3, 43, 58, 0.12); overflow: hidden; }
+.menu.daterange .dr-opt { display: block; width: 100%; padding: 6px 14px; border: 0; border-radius: 0; background: none; text-align: left; color: var(--ink); font-weight: 400; font-size: 16px; }
+.menu.daterange .dr-opt:hover { background: var(--chip); }
+.menu.daterange .dr-opt.on { background: #1a64d3; color: #fff; }
+.dr-custom { display: grid; grid-template-rows: 0fr; margin-top: 0; transition: grid-template-rows 0.22s ease, margin-top 0.22s ease; }
+.dr-custom.open { grid-template-rows: 1fr; margin-top: 12px; }
+.dr-custom > div { overflow: hidden; min-height: 0; }
+.dr-err { min-height: 0; color: #b3261e; font-size: 13px; margin-top: 6px; }
+.dr-err:empty { display: none; }
+.dr-apply { width: 100%; margin-top: 12px; }
+.menu.daterange .field input { height: 40px; padding: 0 8px; }
+
+/* Overview rows are buttons: click one to filter the list to that status (D-041). */
+.ov-item { display: flex; align-items: center; gap: 9px; width: calc(100% + 12px); margin: 0 -6px; padding: 4px 6px; border: 0; border-radius: 6px; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; transition: background-color 0.15s ease, color 0.15s ease; }
+.ov-item:hover { background: var(--chip); color: var(--ink); }
+.ov-item:active { background: var(--shell-2); }
+.ov-item[aria-pressed="true"] { color: var(--ink); font-weight: 700; }
+.ov-item .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+
+/* Compact stat cards (Requests): less padding, numbers at the bottom, tight status rows. */
+.kpis.compact { margin-bottom: 20px; }
+.kpis.compact .kpi { display: flex; flex-direction: column; padding: 12px 16px; }
+.kpis.compact .kpi .h { font-size: 16px; }
+.kpis.compact .kpi .n { margin-top: auto; padding-top: 6px; font-size: 28px; line-height: 1.1; }
+.kpis.compact .ov { gap: 0; margin-top: 6px; }
+.kpis.compact .ov-item { padding: 2px 6px; }
