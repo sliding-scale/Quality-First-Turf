@@ -17,11 +17,22 @@ import { US_STATES } from "@/convex/shared/usStates";
 import { useClient, useWorkspace, type BusinessDoc, type ClientDoc } from "@/lib/clients";
 import { cleanEmail, cleanName, cleanZip, formatPhone, phoneDigits } from "@/lib/fields";
 import { EmptyBackend } from "./empty-backend";
+import { useStaff } from "./staff-context";
 import { FormSkeleton } from "./skeletons";
 
 export function ClientForm({ editId }: { editId?: string }) {
   const workspace = useWorkspace();
+  const { canEdit } = useStaff();
   const client = useClient(editId);
+  if (!canEdit) {
+    return (
+      <div className="empty-state">
+        <h2>Your role can view clients but not change them</h2>
+        <p>Ask an Admin if you need to add or edit clients.</p>
+        <Link className="btn primary" href="/clients">Back to clients</Link>
+      </div>
+    );
+  }
   if (workspace.state === "loading" || (editId !== undefined && client === undefined)) return <FormSkeleton />;
   if (workspace.state === "empty") return <EmptyBackend />;
   if (editId !== undefined && client === null) {

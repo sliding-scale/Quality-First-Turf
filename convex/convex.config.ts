@@ -11,8 +11,11 @@ const app = defineApp({
     SALES_PASSWORD: v.optional(v.string()),
     SALES_NAME: v.optional(v.string()),
     SALES_ACCOUNTS: v.optional(v.string()),
-    // CRM: set to "true" on the DEV deployment only, until Clerk sign-in exists. Unset means every CRM call is rejected.
-    CRM_ALLOW_ANONYMOUS_DEV: v.optional(v.string()),
+    // CRM (D-046). Comma-separated emails that become Admin on their first sign-in. This is how the first Admin exists;
+    // after that, Admins invite everyone else in the CRM. Set on each deployment, never kept in code.
+    CRM_BOOTSTRAP_ADMIN_EMAILS: v.optional(v.string()),
+    // CRM: set to "true" on the DEV deployment only, to allow loading sample data. Unset means seeding is refused.
+    CRM_ALLOW_SAMPLE_DATA: v.optional(v.string()),
   },
 });
 

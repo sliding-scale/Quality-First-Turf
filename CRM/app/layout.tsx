@@ -1,8 +1,8 @@
+import { ClerkProvider } from "@clerk/nextjs";
+import { ui } from "@clerk/ui";
 import type { Metadata } from "next";
 import { Figtree } from "next/font/google";
 import localFont from "next/font/local";
-import { ConvexClientProvider } from "@/components/convex-provider";
-import { Shell } from "@/components/shell";
 import "./globals.css";
 
 // Headings: Figtree (open source), the closest match to Jobber's heading font.
@@ -27,6 +27,19 @@ export const metadata: Metadata = {
 // Sets the collapsed-sidebar class before first paint so the page does not jump.
 const railScript = `try{if(localStorage.getItem("qft-mock-rail")==="1")document.documentElement.classList.add("rail")}catch(e){}`;
 
+// Wording for Clerk's forms, matching Jobber's login: floating labels with no placeholder text, "OR", and "Log In With Google".
+const localization = {
+  socialButtonsBlockButton: "Log In With {{provider|titleize}}",
+  dividerText: "OR",
+  formFieldLabel__emailAddress: "Email address*",
+  formFieldLabel__emailAddress_username: "Email address*",
+  formFieldLabel__password: "Password*",
+  formFieldAction__forgotPassword: "Forgot password?",
+  formFieldInputPlaceholder__emailAddress: "",
+  formFieldInputPlaceholder__emailAddress_username: "",
+  formFieldInputPlaceholder__password: "",
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${figtree.variable} ${inter.variable}`} suppressHydrationWarning>
@@ -34,9 +47,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: railScript }} />
       </head>
       <body>
-        <ConvexClientProvider>
-          <Shell>{children}</Shell>
-        </ConvexClientProvider>
+        {/* ui pins the version of Clerk's forms, so the CSS in app/globals.css that targets their class names only changes when we upgrade @clerk/ui. */}
+        <ClerkProvider ui={ui} localization={localization} afterSignOutUrl="/sign-in">
+          {children}
+        </ClerkProvider>
       </body>
     </html>
   );

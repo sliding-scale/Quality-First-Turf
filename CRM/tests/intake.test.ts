@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { api, internal } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import schema from "../../convex/schema";
+import { adminOf } from "./helpers";
 
 const modules = import.meta.glob(["../../convex/**/*.ts", "../../convex/**/*.js", "!../../convex/**/*.d.ts", "!../../convex/node_modules/**"]);
 const today = new Date().setHours(0, 0, 0, 0);
@@ -32,7 +33,7 @@ async function submit(t: ReturnType<typeof setup>, patch: Partial<typeof submiss
 }
 
 async function business(t: ReturnType<typeof setup>) {
-  const list = await t.withIdentity({ name: "Sal" }).query(api.crm.businesses.list, {});
+  const list = await (await adminOf(t)).query(api.crm.businesses.list, {});
   return list.find((b) => b.slug === "quality-first-turf");
 }
 
@@ -43,7 +44,7 @@ describe("customer form -> CRM (D-040)", () => {
   it("a new person becomes a client, and their submission becomes a request", async () => {
     const t = setup();
     const projectId = await submit(t);
-    const staff = t.withIdentity({ name: "Sal" });
+    const staff = (await adminOf(t));
     const qft = (await business(t))!;
 
     // The form's own record is exactly as before.
@@ -69,7 +70,7 @@ describe("customer form -> CRM (D-040)", () => {
     await submit(t);
     await submit(t, { firstName: "Maya", lastName: "Patel-Smith", email: "MAYA.PATEL@example.com", phone: "9515550000" }); // same email, other case
     await submit(t, { email: "other@example.com", phone: "951-555-0199" }); // same phone, other email
-    const staff = t.withIdentity({ name: "Sal" });
+    const staff = (await adminOf(t));
     const qft = (await business(t))!;
     expect((await staff.query(api.crm.clients.list, { businessId: qft._id, ...listArgs })).total).toBe(1);
     expect((await staff.query(api.crm.requests.list, { businessId: qft._id, ...requestArgs })).total).toBe(3);
@@ -80,7 +81,7 @@ describe("customer form -> CRM (D-040)", () => {
     await submit(t);
     await submit(t, { firstName: "Leo", lastName: "Chen", email: "leo@example.com", phone: "(760) 555-0111" });
     const qft = (await business(t))!;
-    const clients = await t.withIdentity({ name: "Sal" }).query(api.crm.clients.list, { businessId: qft._id, ...listArgs });
+    const clients = await (await adminOf(t)).query(api.crm.clients.list, { businessId: qft._id, ...listArgs });
     expect(clients.rows.map((c) => c.name).sort()).toEqual(["Leo Chen", "Maya Patel"]);
   });
 
@@ -88,7 +89,7 @@ describe("customer form -> CRM (D-040)", () => {
     const t = setup();
     await submit(t, { answers: [{ question: "Customer type", value: "Contractor" }] });
     const qft = (await business(t))!;
-    const clients = await t.withIdentity({ name: "Sal" }).query(api.crm.clients.list, { businessId: qft._id, ...listArgs });
+    const clients = await (await adminOf(t)).query(api.crm.clients.list, { businessId: qft._id, ...listArgs });
     expect(clients.rows[0].type).toBe("contractor");
   });
 
@@ -96,7 +97,7 @@ describe("customer form -> CRM (D-040)", () => {
     const t = setup();
     await submit(t);
     const qft = (await business(t))!;
-    const staff = t.withIdentity({ name: "Sal" });
+    const staff = (await adminOf(t));
     const clientId = (await staff.query(api.crm.clients.list, { businessId: qft._id, ...listArgs })).rows[0]._id;
     await t.run((ctx) => ctx.db.patch(clientId, { status: "archived", street1: "Changed by staff" }));
     await submit(t, { street1: "A different street" });
@@ -109,7 +110,7 @@ describe("customer form -> CRM (D-040)", () => {
     const projectId = await submit(t);
     await t.mutation(internal.crm.intake.recordSubmission, { projectId });
     const qft = (await business(t))!;
-    expect((await t.withIdentity({ name: "Sal" }).query(api.crm.requests.list, { businessId: qft._id, ...requestArgs })).total).toBe(1);
+    expect((await (await adminOf(t)).query(api.crm.requests.list, { businessId: qft._id, ...requestArgs })).total).toBe(1);
   });
 
   it("the CRM step is separate from saving the form: the submission is saved first, the CRM follows", async () => {
@@ -153,7 +154,7 @@ describe("customer form -> CRM (D-040)", () => {
     await t.mutation(internal.crm.intake.backfill, {}); // a second run adds nothing
     await t.finishAllScheduledFunctions(vi.runAllTimers);
     const qft = (await business(t))!;
-    const staff = t.withIdentity({ name: "Sal" });
+    const staff = (await adminOf(t));
     expect((await staff.query(api.crm.requests.list, { businessId: qft._id, ...requestArgs })).total).toBe(3);
     expect((await staff.query(api.crm.clients.list, { businessId: qft._id, ...listArgs })).total).toBe(2); // a@ appears twice
   });

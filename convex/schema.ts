@@ -250,6 +250,25 @@ export default defineSchema({
     .index("by_sourceProjectId", ["sourceProjectId"])
     .searchIndex("search_text", { searchField: "searchText", filterFields: ["businessId", "pipeline"] }),
 
+  /** Staff who can sign in to the CRM (D-046). Invite-only: a row exists first (invited), and the person claims it on their first
+   *  sign-in with the same verified email. Signing up in Clerk alone gives no access. */
+  users: defineTable({
+    /** Lower-case, and unique among users. */
+    email: v.string(),
+    name: v.string(),
+    /** A user can hold several roles (D-014). Installers do not log in (D-010). */
+    roles: v.array(v.union(v.literal("admin"), v.literal("sales"), v.literal("office"), v.literal("pm"))),
+    /** The businesses they can work in (D-016, D-031). An Admin sees all of them whatever this says. */
+    businessIds: v.array(v.id("businesses")),
+    status: v.union(v.literal("invited"), v.literal("active"), v.literal("deactivated")),
+    /** Clerk's stable identity for this person, set when they first sign in. */
+    tokenIdentifier: v.optional(v.string()),
+    invitedBy: v.optional(v.string()),
+    lastSignInAt: v.optional(v.number()),
+  })
+    .index("by_email", ["email"])
+    .index("by_tokenIdentifier", ["tokenIdentifier"]),
+
   /** Internal notes on a client, newest first. */
   clientNotes: defineTable({
     clientId: v.id("clients"),

@@ -42,12 +42,12 @@ PRD goal: Sales can begin transitioning away from Jobber. Companies and Contacts
 - [ ] Clients list: search, Homeowner/Contractor filter, scoped to the selected business (D-031)
 - [ ] Client page in Jobber's section order (provisional until screenshots); mobile tabs Client, Work, Notes
 - [ ] Add/edit client form (fields follow the customer form, D-017)
-- [ ] Settings: users, roles (multi-role), the three businesses
+- [~] Settings: users and roles (multi-role) done (D-046); the three businesses' own settings screen still to do
 
 **Backend wiring**
 - [~] Schema: `businesses`, `clients`, `opportunities`, `clientNotes` done (D-042); `users` (roles array) and `activities` still to do
-- [ ] **Next:** Clerk to Convex auth, user sync; Admin manages users and roles (D-044). Also: its own switch for seed data, a first-admin bootstrap, and the CRM sign-in screen
-- [~] Access helper: `requireStaff` is in every CRM function and fails closed (D-042); roles, modules and record assignment arrive with Clerk (D-006, D-014)
+- [x] Clerk to Convex auth, invite-only users, first Admin, Admin manages users and roles, the CRM sign-in screen, its own seed switch (D-046, built on dev; needs the Clerk dashboard step and the Convex variable, see the CRM README; production needs its own Clerk instance)
+- [x] Access helper: signed in, active, role and business checked in every CRM function (D-046). Module permissions beyond edit versus view and record assignment come later (D-006)
 - [~] Clients: create, edit, view, search, filters, notes, Related projects done; activity history still sample; paging is server-side over a bounded read (5,000 per business), see D-042
 - [x] Swap the Clients and Requests screens from sample data to Convex (dev deployment; first look at live data pending, D-042)
 

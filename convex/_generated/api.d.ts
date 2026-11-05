@@ -20,6 +20,7 @@ import type * as crm_projects from "../crm/projects.js";
 import type * as crm_requests from "../crm/requests.js";
 import type * as crm_sampleData from "../crm/sampleData.js";
 import type * as crm_seed from "../crm/seed.js";
+import type * as crm_users from "../crm/users.js";
 import type * as crons from "../crons.js";
 import type * as http from "../http.js";
 import type * as jobber_client from "../jobber/client.js";
@@ -69,6 +70,7 @@ declare const fullApi: ApiFromModules<{
   "crm/requests": typeof crm_requests;
   "crm/sampleData": typeof crm_sampleData;
   "crm/seed": typeof crm_seed;
+  "crm/users": typeof crm_users;
   crons: typeof crons;
   http: typeof http;
   "jobber/client": typeof jobber_client;

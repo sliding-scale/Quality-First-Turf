@@ -9,10 +9,10 @@ import { BUSINESS_NAMES, SAMPLE_SERVICES, generateSampleClients } from "./sample
 /* Dev sample data. Run from a terminal against the DEV deployment:
      npx convex run crm/seed:run        loads 98 sample clients and their projects (does nothing if businesses exist)
      npx convex run crm/seed:reset      deletes every CRM row (businesses, clients, projects, notes)
-   Both refuse to run unless CRM_ALLOW_ANONYMOUS_DEV is "true", which only the dev deployment sets. */
+   Both refuse to run unless CRM_ALLOW_SAMPLE_DATA is "true", which only the dev deployment sets. */
 
 function devOnly() {
-  if (env.CRM_ALLOW_ANONYMOUS_DEV !== "true") throw new ConvexError("Sample data can only be loaded on the dev deployment.");
+  if (env.CRM_ALLOW_SAMPLE_DATA !== "true") throw new ConvexError("Sample data can only be loaded on the dev deployment.");
 }
 
 export const run = internalMutation({

@@ -501,3 +501,107 @@ input, select, textarea { font: inherit; color: var(--text); }
 .empty-state code { background: var(--chip); border-radius: 6px; padding: 2px 6px; font-size: 13px; }
 .form-error { margin: 0 0 16px; padding: 12px 14px; border: 1px solid #b3261e; border-radius: 8px; background: #fdf3f2; color: #b3261e; animation: rise-in 0.18s ease-out both; }
 .sk-inline { display: inline-block; vertical-align: middle; }
+
+/* ---------- sign-in, sign-up and the access gate (D-046) ---------- */
+.auth-page { position: fixed; inset: 0; background: #ffffff; overflow: auto; }
+.auth-col { width: 328px; max-width: calc(100% - 32px); margin: 0 auto; padding: 110px 0 60px; animation: fade-in 0.25s ease-out both; }
+/* A few px of room each side, so the fields (which Clerk draws 1px wider than its column) are never clipped. */
+.auth-signin { padding: 0 4px; }
+.auth-logo { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 40px; text-decoration: none; }
+.auth-logo .brand-mark { width: 44px; height: 44px; border-radius: 10px; font-size: 20px; }
+.auth-wordmark { font-family: var(--display); font-weight: 800; font-size: 21px; letter-spacing: 0.03em; text-transform: uppercase; color: var(--ink); white-space: nowrap; }
+/* Clerk's blocks, rearranged to match Jobber's login. These use Clerk's stable cl-* class names. */
+.auth-page .cl-main { display: flex; flex-direction: column; }
+.auth-page .cl-formButtonPrimary { background-image: none !important; }
+/* Clerk keeps the password field hidden on the first step (so browsers can autofill it). Show it, like Jobber does. */
+.auth-signin .cl-formFieldRow__password { position: static !important; opacity: 1 !important; height: auto !important; pointer-events: auto !important; }
+.auth-signin .cl-formFieldRow__password .cl-formField { height: auto !important; }
+/* Room for the floating labels (they sit on the top border) and for 1px borders that Clerk's wrappers would otherwise clip. */
+.auth-page .cl-formFieldRow { padding-top: 10px; }
+.auth-signin .cl-formFieldRow__password { margin-top: 12px; }
+/* Clear, even borders (Clerk's own are a faint shadow that gets clipped). */
+/* border-box, so the padding and border sit inside the column instead of pushing the field past its edges (which got them clipped). */
+.auth-page .cl-formFieldInput { box-sizing: border-box !important; width: 100% !important; height: 50px !important; padding: 0 14px !important; border: 1px solid #8e9ba3 !important; box-shadow: none !important; }
+.auth-page .cl-rootBox, .auth-page .cl-cardBox, .auth-page .cl-card, .auth-page .cl-main, .auth-page .cl-form, .auth-page .cl-formFieldRow, .auth-page .cl-formField { overflow: visible !important; }
+/* No Google, no divider, no "Last used" badge, no sign-up prompt (D-047). Hidden here as well as in the styling object, in case Clerk renders them again. */
+.auth-page .cl-socialButtonsRoot, .auth-page .cl-dividerRow, .auth-page .cl-footer, .auth-page [class*="lastAuthenticationStrategy"] { display: none !important; }
+.auth-page .cl-formFieldInput, .auth-page .cl-formFieldInputGroup, .auth-page div:has(> input.cl-formFieldInput) { height: 50px !important; min-height: 50px !important; box-sizing: border-box; }
+.auth-page .cl-formFieldInput:hover { border-color: var(--muted) !important; }
+.auth-page .cl-formFieldInput:focus { border-color: var(--ink) !important; box-shadow: 0 0 0 1px var(--ink) !important; }
+
+/* The button says "Log In" (Clerk's wording is "Continue"). Clerk uses the button's ::before and ::after for its own shine, so those are replaced. */
+.auth-signin .cl-formButtonPrimary { display: flex !important; align-items: center; justify-content: center; font-size: 0 !important; background-color: var(--green) !important; box-shadow: none !important; }
+.auth-signin .cl-formButtonPrimary:hover { background-color: var(--green-dark) !important; }
+.auth-signin .cl-formButtonPrimary::before { display: none !important; }
+.auth-signin .cl-formButtonPrimary::after { content: "Log In" !important; position: static !important; inset: auto !important; width: auto !important; height: auto !important; background: none !important; opacity: 1 !important; font-size: 17px; font-weight: 700; color: #fff; }
+.auth-note { text-align: center; color: var(--muted); font-size: 13px; margin: 14px 0 0; }
+.gate-page { position: fixed; inset: 0; background: var(--shell); display: grid; place-items: center; padding: 16px; }
+.gate-card { width: 100%; max-width: 420px; background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 28px; animation: fade-in 0.22s ease-out both; }
+.gate-card h1 { font-size: 24px; margin: 18px 0 8px; }
+.gate-card p { margin: 0 0 12px; }
+
+/* ---------- users screen and expanding panels (D-046) ---------- */
+.expand { display: grid; grid-template-rows: 0fr; margin-bottom: 0; transition: grid-template-rows 0.26s ease, margin-bottom 0.26s ease; }
+.expand.open { grid-template-rows: 1fr; margin-bottom: 20px; }
+.expand > div { overflow: hidden; min-height: 0; }
+.user-form { padding: 20px 22px; display: flex; flex-direction: column; gap: 16px; max-width: 760px; }
+.user-form h3 { font-size: 20px; margin: 0; }
+.user-form p { margin: -8px 0 0; }
+.checkgroup { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.checkgroup legend { font-size: 13px; color: var(--muted); padding: 0; margin-bottom: 8px; }
+.checkgroup .err { color: #b3261e; font-size: 13px; display: none; }
+.checkgroup.bad legend { color: #b3261e; }
+.checkgroup.bad .err { display: block; animation: rise-in 0.18s ease-out both; }
+.checkgroup:disabled { opacity: 0.6; }
+.checkline { cursor: pointer; }
+.user-form-actions { display: flex; justify-content: flex-end; gap: 10px; }
+/* Settings menu (gear icon), laid out like Jobber's (D-049). */
+.menu.account { width: 290px; padding: 0; border-radius: 12px; box-shadow: 0 8px 28px rgba(3, 43, 58, 0.18); }
+.acct-head { display: flex; align-items: center; gap: 14px; padding: 18px 18px 14px; }
+.acct-avatar { flex: none; width: 40px; height: 40px; border-radius: 6px; background: var(--ink); color: #fff; border: 2px solid var(--ink); box-shadow: inset 0 0 0 2px #fff; display: grid; place-items: center; font-weight: 700; font-size: 14px; }
+.acct-who { min-width: 0; }
+.acct-name { font-family: var(--display); font-weight: 700; font-size: 17px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acct-email { color: var(--muted); font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acct-roles { color: var(--muted); font-size: 12px; margin-top: 2px; }
+.acct-list { padding: 6px 8px 8px; display: flex; flex-direction: column; }
+.menu.account .acct-item { display: block; width: 100%; padding: 12px 10px; border: 0; border-radius: 8px; background: none; text-align: left; color: var(--ink); font-weight: 600; font-size: 16px; text-decoration: none; cursor: pointer; transition: background-color 0.15s ease; }
+.menu.account .acct-item:hover { background: var(--chip); }
+.acct-divider { height: 1px; background: var(--line); margin: 8px 10px; }
+.gate-detail { font-size: 12px; word-break: break-word; }
+
+/* ---------- Settings pages and Manage Team, laid out like Jobber's (D-050) ---------- */
+.settings { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+.settings-main { min-width: 0; }
+.settings-nav h2 { font-size: 24px; margin: 6px 0 26px; }
+.settings-nav .group { margin-bottom: 26px; }
+.settings-nav .group-title { font-size: 12px; font-weight: 800; letter-spacing: 0.02em; color: var(--ink); text-transform: uppercase; margin-bottom: 8px; }
+.settings-nav a, .settings-nav button { display: block; padding: 5px 0; border: 0; background: none; text-align: left; color: var(--text); font-size: 15px; text-decoration: none; cursor: pointer; transition: color 0.15s ease; }
+.settings-nav a:hover, .settings-nav button:hover { color: var(--green); }
+.settings-nav a.active { color: var(--green); font-weight: 700; }
+@media (max-width: 1100px) { .settings { grid-template-columns: minmax(0, 1fr); gap: 16px; } }
+
+.team-intro { margin: 0 0 18px; font-size: 17px; color: var(--text); }
+.count-chip { display: inline-flex; align-items: center; height: 40px; padding: 0 16px; border-radius: 8px; background: var(--shell); color: var(--ink); white-space: nowrap; }
+.count-chip b { font-weight: 800; margin-right: 4px; }
+.searchbox.wide { width: 100%; margin-top: 4px; }
+.searchbox.wide input { height: 52px; border-radius: 10px; }
+.searchbox.wide .ic { top: 15px; }
+.team-count { font-size: 16px; margin: 26px 0 12px; }
+.table-card { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: #fff; }
+.team-table { min-width: 930px; }
+.team-table th { padding: 18px 16px; }
+.team-table td { padding: 16px; }
+.team-table tbody tr:last-child td { border-bottom: 0; }
+.member { display: flex; align-items: center; gap: 12px; }
+.avatar-sm { flex: none; width: 34px; height: 34px; border-radius: 50%; background: var(--ink); color: #fff; display: grid; place-items: center; font-size: 12px; font-weight: 700; }
+.member-name { border: 0; background: none; padding: 0; text-align: left; color: var(--green); font-weight: 500; font-size: inherit; cursor: pointer; transition: color 0.15s ease; }
+.member-name:hover { color: var(--green-dark); text-decoration: underline; }
+.dots-btn { width: 40px; padding: 0; color: var(--ink); border-color: transparent; background: none; }
+.dots-btn:hover { background: var(--chip); }
+.team-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 16px; border-top: 1px solid var(--line); color: var(--text); }
+.team-foot .right { display: flex; align-items: center; gap: 10px; }
+.team-foot select { height: 42px; border: 1px solid var(--line); border-radius: 8px; padding: 0 10px; background: #fff; transition: border-color 0.15s ease; }
+.team-foot select:hover { border-color: var(--muted); }
+.sq { width: 42px; height: 42px; border: 1px solid var(--line); border-radius: 8px; background: #fff; display: grid; place-items: center; color: var(--ink); transition: background-color 0.15s ease; }
+.sq:hover:not(:disabled) { background: var(--chip); }
+.sq:disabled { opacity: 0.35; cursor: default; }

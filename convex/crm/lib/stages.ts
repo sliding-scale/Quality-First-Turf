@@ -25,6 +25,13 @@ export const PREPLANNING_STAGES = [
   "Ready for Construction / Installs Scheduled",
 ] as const;
 
+/** Login roles (D-014: a person can hold several). Installers do not log in (D-010). */
+export const ROLES = ["admin", "sales", "office", "pm"] as const;
+export type Role = (typeof ROLES)[number];
+export const ROLE_LABEL: Record<Role, string> = { admin: "Admin", sales: "Sales", office: "Office Team", pm: "Project Manager" };
+/** Roles that may add and change clients, requests and notes. Project Managers can look but not change, for now (D-046). */
+export const EDIT_ROLES: readonly Role[] = ["admin", "sales", "office"];
+
 export const PIPELINES = ["Sales", "Preplanning"] as const;
 export type Pipeline = (typeof PIPELINES)[number];
 

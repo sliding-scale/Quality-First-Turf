@@ -8,6 +8,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { setBusiness, useWorkspace } from "@/lib/clients";
 import { useStoredString, writeItem } from "@/lib/store";
 import { Icon } from "./icon";
+import { AccountMenu } from "./account-menu";
 import { ErrorBoundary } from "./error-boundary";
 import { UIProvider, useUI } from "./ui-provider";
 
@@ -69,7 +70,7 @@ function Brand() {
 function ShellInner({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { soon, toggleCreate, createOpen } = useUI();
+  const { soon, popover, toggleCreate, createOpen } = useUI();
   const rail = useStoredString(RAIL_KEY, "0") === "1";
   const [search, setSearch] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
@@ -132,7 +133,13 @@ function ShellInner({ children }: { children: ReactNode }) {
           <Icon name="bell" size={24} />
           <span className="badge">3</span>
         </button>
-        <button className="icon-btn" type="button" aria-label="Settings" onClick={() => soon("Settings")}>
+        <button
+          className="icon-btn"
+          type="button"
+          aria-label="Settings and account"
+          aria-haspopup="menu"
+          onClick={(e) => popover(e.currentTarget, (close) => <AccountMenu close={close} />, { className: "account", alignRight: true })}
+        >
           <Icon name="sliders" size={24} />
         </button>
       </header>

@@ -31,12 +31,12 @@ Next.js 16 on sample data (D-033): Home, Clients (search, filters, sorting, pagi
 | `/requests` | Requests list |
 
 ### Running it against the dev backend
-The Clients and Requests screens use the shared Convex backend (D-042). The backend only answers signed-in staff, and sign-in (Clerk) is the next step, so until then these screens show a "sign-in is needed" message. That is expected, not a setup problem. If you ever want to look at them on dev before sign-in exists, this is the optional, dev-only shortcut (from the **repo root**; never on production):
-```
-npx convex env set CRM_ALLOW_ANONYMOUS_DEV true   # opens the CRM functions on dev until sign-in exists
-npx convex run crm/seed:run                       # loads the sample businesses, clients and projects
-```
-Then, in `CRM/`, make sure `.env.local` has `NEXT_PUBLIC_CONVEX_URL` (the dev deployment's URL) and run `npm run dev`. `npm test` runs the backend tests in memory. Never set that variable on production: without it the CRM functions reject every call.
+The CRM signs people in with Clerk (the same Clerk application as the forms, dev instance) and only answers staff who have been invited (D-046). One-time setup:
+1. **Clerk dashboard:** create the "convex" token template (Integrations > Convex, or JWT templates > New > Convex), and create the first user: **admin@qualityfirstturf.com** with a password (Users > Create user). Sign-ups are switched off in the instance, so people are added there. Each person needs **both**: a user in Clerk, and an invite in the CRM's Users screen with the same email. The Clerk token template named "convex" must include `"email": "{{user.primary_email_address}}"`.
+2. **Convex dev deployment**, from the **repo root**: `npx convex env set CLERK_JWT_ISSUER_DOMAIN https://content-malamute-2463.clerk.accounts.dev`, then let `npx convex dev` push again (restart it, or run `npx convex dev --once`), because the auth setting is read when code is pushed.
+3. `CRM/.env.local` already holds the Clerk keys (copied from the forms' file) and `NEXT_PUBLIC_CONVEX_URL`. Run `npm run dev` in `CRM/`, open /sign-in and log in as admin@qualityfirstturf.com. That address becomes Admin automatically; open Settings (top bar) > Users to invite everyone else.
+4. Optional sample data: `npx convex env set CRM_ALLOW_SAMPLE_DATA true`, `npx convex run crm/seed:run`, then `npx convex env remove CRM_ALLOW_SAMPLE_DATA`.
+`npm test` runs the backend tests in memory (42 of them). Production needs its own Clerk instance (new keys and DNS) and the same two Convex variables before the CRM can be used there; until then it rejects every call.
 
 ## How it is being built
 - **Monorepo.** The git root is the folder above this one: `forms/` (the live intake and on-site visit app) and `CRM/` (this folder), sharing one Convex backend (D-026). The forms app is not changed without the user's go-ahead.

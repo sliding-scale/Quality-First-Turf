@@ -3,6 +3,15 @@
 import { ICONS, type IconDef } from "./icons-data";
 
 export const EXTRA_ICONS: Record<string, IconDef> = {
+  // Replaces the table's "sort" glyph: the copy in the Atlantis table draws overlapping arrows and a bar, which turns into a blob at
+  // the 16px size used in column headers. This is a plain pair of chevrons, up and down, the same shape Jobber shows.
+  sort: {
+    vb: "0 0 24 24",
+    paths: [
+      { d: "M7.5 10 12 5.5 16.5 10", stroke: true },
+      { d: "M7.5 14 12 18.5 16.5 14", stroke: true },
+    ],
+  },
   // Import is Export turned half a turn: the arrow points into the box instead of out of it.
   import: {
     vb: "0 0 24 24",

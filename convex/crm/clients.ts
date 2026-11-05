@@ -1,7 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { mutation, query, type QueryCtx } from "../_generated/server";
-import { requireStaff } from "./lib/access";
+import { canSee, requireBusiness, requireEditor, requireStaff } from "./lib/access";
 import { clientInputFields, clientSearchText, normalizeClientInput, opportunitySearchText } from "./lib/clientInput";
 import { DAY_MS, matchesClientStatusFilter, type ClientStatusFilter } from "./lib/stages";
 
@@ -61,7 +61,7 @@ async function matching(ctx: QueryCtx, a: FilterArgs) {
 export const list = query({
   args: { ...filterArgs, page: v.number(), size: v.number() },
   handler: async (ctx, args) => {
-    await requireStaff(ctx);
+    await requireBusiness(ctx, args.businessId);
     const { rows, capped } = await matching(ctx, args);
     const size = Math.min(Math.max(Math.floor(args.size), 1), 100);
     const pages = Math.max(1, Math.ceil(rows.length / size));
@@ -74,7 +74,7 @@ export const list = query({
 export const exportRows = query({
   args: filterArgs,
   handler: async (ctx, args) => {
-    await requireStaff(ctx);
+    await requireBusiness(ctx, args.businessId);
     return (await matching(ctx, args)).rows;
   },
 });
@@ -83,7 +83,7 @@ export const exportRows = query({
 export const stats = query({
   args: { businessId: v.id("businesses"), today: v.number() },
   handler: async (ctx, args) => {
-    await requireStaff(ctx);
+    await requireBusiness(ctx, args.businessId);
     const docs = await ctx.db
       .query("clients")
       .withIndex("by_business_and_lastActivityAt", (q) => q.eq("businessId", args.businessId))
@@ -107,16 +107,18 @@ export const stats = query({
 export const get = query({
   args: { id: v.string() },
   handler: async (ctx, args) => {
-    await requireStaff(ctx);
+    const staff = await requireStaff(ctx);
     const id = ctx.db.normalizeId("clients", args.id);
-    return id === null ? null : await ctx.db.get(id);
+    const client = id === null ? null : await ctx.db.get(id);
+    // A client in a business the person does not belong to looks the same as one that does not exist.
+    return client && canSee(staff, client.businessId) ? client : null;
   },
 });
 
 export const create = mutation({
   args: { businessId: v.id("businesses"), ...clientInputFields },
   handler: async (ctx, args) => {
-    await requireStaff(ctx);
+    await requireEditor(ctx, args.businessId);
     if ((await ctx.db.get(args.businessId)) === null) throw new ConvexError("That business does not exist.");
     const { businessId, first, last, ...rest } = args;
     const fields = normalizeClientInput({ ...rest, first, last });
@@ -135,9 +137,11 @@ export const create = mutation({
 export const update = mutation({
   args: { id: v.id("clients"), businessId: v.id("businesses"), ...clientInputFields },
   handler: async (ctx, args) => {
-    await requireStaff(ctx);
     const existing = await ctx.db.get(args.id);
     if (existing === null) throw new ConvexError("That client no longer exists.");
+    // Changing a client needs the editor role in its business, and moving it needs the same in the business it goes to.
+    await requireEditor(ctx, existing.businessId);
+    await requireEditor(ctx, args.businessId);
     if ((await ctx.db.get(args.businessId)) === null) throw new ConvexError("That business does not exist.");
     const { id, businessId, first, last, ...rest } = args;
     const fields = normalizeClientInput({ ...rest, first, last });
@@ -155,7 +159,9 @@ export const update = mutation({
 export const notes = query({
   args: { clientId: v.id("clients") },
   handler: async (ctx, args) => {
-    await requireStaff(ctx);
+    const client = await ctx.db.get(args.clientId);
+    if (client === null) return [];
+    await requireBusiness(ctx, client.businessId);
     return await ctx.db.query("clientNotes").withIndex("by_clientId", (q) => q.eq("clientId", args.clientId)).order("desc").take(100);
   },
 });
@@ -163,11 +169,12 @@ export const notes = query({
 export const addNote = mutation({
   args: { clientId: v.id("clients"), text: v.string() },
   handler: async (ctx, args) => {
-    const staff = await requireStaff(ctx);
+    const client = await ctx.db.get(args.clientId);
+    if (client === null) throw new ConvexError("That client no longer exists.");
+    const staff = await requireEditor(ctx, client.businessId);
     const text = args.text.trim();
     if (!text) throw new ConvexError("Write a note first.");
     if (text.length > 2000) throw new ConvexError("Notes can be up to 2,000 characters.");
-    if ((await ctx.db.get(args.clientId)) === null) throw new ConvexError("That client no longer exists.");
     return await ctx.db.insert("clientNotes", { clientId: args.clientId, text, author: staff.name });
   },
 });

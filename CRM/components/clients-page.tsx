@@ -11,6 +11,7 @@ import { api } from "@/convex/_generated/api";
 import { CLIENT_STATUS_FILTERS, CLIENT_TYPE_LABEL, type ClientStatusFilter } from "@/convex/crm/lib/stages";
 import { daysAgoFrom, useClientList, useClientStats, useWorkspace, type BusinessDoc } from "@/lib/clients";
 import { dayLabel } from "@/lib/format";
+import { useStaff } from "./staff-context";
 import { EmptyBackend } from "./empty-backend";
 import { FilterMenu } from "./filter-menus";
 import { Icon } from "./icon";
@@ -42,6 +43,7 @@ function change(now: number, before: number) {
 function Clients({ business, initialQuery, saved }: { business: BusinessDoc; initialQuery: string; saved: boolean }) {
   const router = useRouter();
   const convex = useConvex();
+  const { canEdit } = useStaff();
   const { dropdown, popover, toast, soon } = useUI();
   const [q, setQ] = useState(initialQuery);
   const [search, setSearch] = useState(initialQuery); // what the server is asked, a moment after typing stops
@@ -116,7 +118,7 @@ function Clients({ business, initialQuery, saved }: { business: BusinessDoc; ini
       <div className="page-head">
         <h1>Clients</h1>
         <div className="actions">
-          <Link className="btn primary" href="/clients/new">New Client</Link>
+          {canEdit && <Link className="btn primary" href="/clients/new">New Client</Link>}
           <button
             className="btn"
             type="button"

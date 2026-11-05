@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { query, type QueryCtx } from "../_generated/server";
-import { requireStaff } from "./lib/access";
+import { requireBusiness } from "./lib/access";
 import { DAY_MS, REQUEST_STATUSES, requestStatus, type RequestStatus } from "./lib/stages";
 
 /* Requests (D-039): not a table. A request is a Sales-pipeline project (`opportunities`) seen through its stage, and its
@@ -113,7 +113,7 @@ async function matching(ctx: QueryCtx, a: FilterArgs) {
 export const list = query({
   args: { ...filterArgs, page: v.number(), size: v.number() },
   handler: async (ctx, args) => {
-    await requireStaff(ctx);
+    await requireBusiness(ctx, args.businessId);
     const { rows, capped } = await matching(ctx, args);
     const size = Math.min(Math.max(Math.floor(args.size), 1), 100);
     const pages = Math.max(1, Math.ceil(rows.length / size));
@@ -125,7 +125,7 @@ export const list = query({
 export const exportRows = query({
   args: filterArgs,
   handler: async (ctx, args) => {
-    await requireStaff(ctx);
+    await requireBusiness(ctx, args.businessId);
     return (await matching(ctx, args)).rows;
   },
 });
@@ -134,7 +134,7 @@ export const exportRows = query({
 export const stats = query({
   args: { businessId: v.id("businesses"), today: v.number() },
   handler: async (ctx, args) => {
-    await requireStaff(ctx);
+    await requireBusiness(ctx, args.businessId);
     const docs = await loadSales(ctx, { businessId: args.businessId, from: null, to: null, search: "" });
     const counts = Object.fromEntries(REQUEST_STATUSES.map((s) => [s, 0])) as Record<RequestStatus, number>;
     const since = args.today - 30 * DAY_MS;

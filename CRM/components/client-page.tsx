@@ -12,6 +12,7 @@ import { api } from "@/convex/_generated/api";
 import { CLIENT_STATUS_LABEL, CLIENT_TYPE_LABEL, SALES_STAGES } from "@/convex/crm/lib/stages";
 import { daysAgoFrom, useBusinesses, useClient, useClientNotes, useClientProjects, type ClientDoc } from "@/lib/clients";
 import { fullDate, money } from "@/lib/format";
+import { useStaff } from "./staff-context";
 import { Icon } from "./icon";
 import { ClientSkeleton, Sk } from "./skeletons";
 import { useUI } from "./ui-provider";
@@ -43,6 +44,7 @@ function hash(s: string): number {
 const noteDate = (ms: number) => new Date(ms).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 
 function ClientView({ c }: { c: ClientDoc }) {
+  const { canEdit } = useStaff();
   const { dropdown, soon, toast } = useUI();
   const addNote = useMutation(api.crm.clients.addNote);
   const businesses = useBusinesses();
@@ -108,9 +110,11 @@ function ClientView({ c }: { c: ClientDoc }) {
           </div>
           <div className="name-row">
             <h1>{c.name}</h1>
-            <Link className="btn" href={`/clients/${c._id}/edit`} aria-label="Edit client">
-              <Icon name="pencil" size={22} />
-            </Link>
+            {canEdit && (
+              <Link className="btn" href={`/clients/${c._id}/edit`} aria-label="Edit client">
+                <Icon name="pencil" size={22} />
+              </Link>
+            )}
           </div>
         </div>
         <div className="page-head" style={{ margin: 0 }}>
@@ -227,12 +231,14 @@ function ClientView({ c }: { c: ClientDoc }) {
           </div>
           <div className="card">
             <h3>Notes</h3>
-            <div className="note-box">
-              <textarea ref={noteRef} placeholder="Leave an internal note for yourself or a team member" aria-label="New note" />
-              <button className="btn small" type="button" onClick={() => void submitNote()}>
-                Add note
-              </button>
-            </div>
+            {canEdit && (
+              <div className="note-box">
+                <textarea ref={noteRef} placeholder="Leave an internal note for yourself or a team member" aria-label="New note" />
+                <button className="btn small" type="button" onClick={() => void submitNote()}>
+                  Add note
+                </button>
+              </div>
+            )}
             <div>
               {savedNotes === undefined ? (
                 <div className="note-item"><Sk w="80%" h={14} /></div>

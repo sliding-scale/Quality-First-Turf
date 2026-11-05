@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { api, internal } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import schema from "../../convex/schema";
+import { adminOf } from "./helpers";
 
 const modules = import.meta.glob(["../../convex/**/*.ts", "../../convex/**/*.js", "!../../convex/**/*.d.ts", "!../../convex/node_modules/**"]);
 const DAY = 24 * 60 * 60 * 1000;
@@ -14,28 +15,17 @@ const listArgs = { status: "Leads and Active", type: "All", search: "", sortKey:
 const requestArgs = { status: "All", from: null, to: null, search: "", sortKey: "requestedAt", dir: "desc", today, page: 1, size: 10 } as const;
 
 async function seeded() {
-  process.env.CRM_ALLOW_ANONYMOUS_DEV = "true";
-  const t = convexTest(schema, modules);
-  await t.mutation(internal.crm.seed.run, {});
+  process.env.CRM_ALLOW_SAMPLE_DATA = "true";
+  const base = convexTest(schema, modules);
+  await base.mutation(internal.crm.seed.run, {});
+  const t = await adminOf(base);
   const businesses = await t.query(api.crm.businesses.list, {});
-  return { t, businesses, qft: businesses[0]._id, patios: businesses[2]._id };
+  return { t, base, businesses, qft: businesses[0]._id, patios: businesses[2]._id };
 }
 
-describe("access", () => {
-  it("rejects every call when the dev switch is off and nobody is signed in", async () => {
-    delete process.env.CRM_ALLOW_ANONYMOUS_DEV;
-    const t = convexTest(schema, modules);
-    await expect(t.query(api.crm.businesses.list, {})).rejects.toThrow(/Not signed in/);
-  });
-
-  it("lets a signed-in user through with the switch off", async () => {
-    delete process.env.CRM_ALLOW_ANONYMOUS_DEV;
-    const t = convexTest(schema, modules);
-    await expect(t.withIdentity({ name: "Sal" }).query(api.crm.businesses.list, {})).resolves.toEqual([]);
-  });
-
-  it("refuses to load sample data unless the switch is on", async () => {
-    delete process.env.CRM_ALLOW_ANONYMOUS_DEV;
+describe("seed switch", () => {
+  it("refuses to load sample data unless the dev switch is on", async () => {
+    delete process.env.CRM_ALLOW_SAMPLE_DATA;
     const t = convexTest(schema, modules);
     await expect(t.mutation(internal.crm.seed.run, {})).rejects.toThrow(/dev deployment/);
   });

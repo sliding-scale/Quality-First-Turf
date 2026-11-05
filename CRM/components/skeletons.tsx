@@ -297,3 +297,51 @@ export function RequestsSkeleton() {
     </Busy>
   );
 }
+
+export function UsersSkeleton() {
+  return (
+    <Busy>
+      <div className="page-head">
+        <h1>Manage team</h1>
+        <div className="actions">
+          <Sk w={110} h={40} r={8} />
+          <Sk w={160} h={38} r={8} />
+        </div>
+      </div>
+      <Sk w="70%" h={18} style={{ marginBottom: 22 }} />
+      <div className="tabs"><span className="tab" style={{ padding: "12px 8px" }}><Sk w={50} h={18} /></span></div>
+      <Sk h={52} r={10} />
+      <h3 className="team-count"><Sk w={160} h={18} /></h3>
+      <div className="table-card">
+        <div className="table-wrap">
+          <table className="table team-table">
+            <colgroup>
+              <col style={{ width: 230 }} />
+              <col style={{ width: 140 }} />
+              <col style={{ width: 230 }} />
+              <col style={{ width: 170 }} />
+              <col style={{ width: 110 }} />
+              <col style={{ width: 60 }} />
+            </colgroup>
+            <thead>
+              <tr><th>Name</th><th>Role</th><th>Businesses</th><th>Last Active</th><th>Status</th><th /></tr>
+            </thead>
+            <tbody>
+              {range(4).map((i) => (
+                <tr key={i}>
+                  <td><div className="member"><Sk w={34} h={34} r={999} /><Sk w="60%" h={16} /></div></td>
+                  <td><Sk w="60%" h={16} /></td>
+                  <td><Sk w="75%" h={16} /></td>
+                  <td><Sk w="80%" h={16} /></td>
+                  <td><Sk w={74} h={22} r={999} /></td>
+                  <td><Sk w={28} h={28} r={8} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="team-foot"><Sk w={160} h={16} /><Sk w={260} h={42} r={8} /></div>
+      </div>
+    </Busy>
+  );
+}

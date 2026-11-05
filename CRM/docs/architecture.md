@@ -137,7 +137,7 @@ Installer (no login) ──> /wp/[token] ──> Convex query validating an expi
 
 | Table | Notes |
 |-------|-------|
-| `users` | Synced from Clerk. `roles` (array, a user can hold several), module permissions. Login roles only |
+| `users` | Invite-only staff (D-046): `email`, `name`, `roles` (array, a user can hold several), `businessIds`, `status` (invited, active, deactivated), `tokenIdentifier` (Clerk's identity, set when they first log in). Login roles only. **Built** |
 | `businesses` | The three businesses: name and slug today; domain, mailboxes and document branding later. **Built (D-042)** |
 | `clients` | Jobber clients. `businessId` (each business has its own client list, indexed, D-031), `type` homeowner or contractor (from the customer form), business details, addresses, Jobber ID for dedupe |
 | `visitSnapshots`, `visitRevisions`, `workAreas` | On-site visit history, change log and measured areas (carried over from the forms app) |
