@@ -12,17 +12,17 @@ import { api } from "@/convex/_generated/api";
 import { getTokenInfo } from "./convex-provider";
 import { StaffProvider } from "./staff-context";
 
-export function AccessGate({ children }: { children: ReactNode }) {
+/** `waiting` is what shows while sign-in is being confirmed; a page can pass its own so the screen does not change look half-way. */
+export function AccessGate({ children, waiting }: { children: ReactNode; waiting?: ReactNode }) {
+  const wait = waiting ?? <Waiting />;
   return (
     <>
-      <AuthLoading>
-        <Waiting />
-      </AuthLoading>
+      <AuthLoading>{wait}</AuthLoading>
       <Unauthenticated>
-        <NotAccepted />
+        <NotAccepted waiting={wait} />
       </Unauthenticated>
       <Authenticated>
-        <StaffGate>{children}</StaffGate>
+        <StaffGate waiting={wait}>{children}</StaffGate>
       </Authenticated>
     </>
   );
@@ -33,9 +33,9 @@ export function AccessGate({ children }: { children: ReactNode }) {
  * signed in, Convex refused the token. Sending them to the sign-in page would bounce straight back (Clerk redirects signed-in people
  * away from it), looping forever, so explain instead.
  */
-function NotAccepted() {
+function NotAccepted({ waiting }: { waiting: ReactNode }) {
   const { isLoaded, isSignedIn } = useAuth();
-  if (!isLoaded) return <Waiting />;
+  if (!isLoaded) return <>{waiting}</>;
   if (!isSignedIn) return <RedirectToSignIn />;
   const t = getTokenInfo();
   return (
@@ -75,7 +75,7 @@ function Waiting() {
   );
 }
 
-function StaffGate({ children }: { children: ReactNode }) {
+function StaffGate({ children, waiting }: { children: ReactNode; waiting: ReactNode }) {
   const me = useQuery(api.crm.users.me, {});
   const claim = useMutation(api.crm.users.claim);
   const [claimed, setClaimed] = useState<"active" | "deactivated" | "none" | "noEmail" | "unverified" | "error" | null>(null);
@@ -101,7 +101,7 @@ function StaffGate({ children }: { children: ReactNode }) {
   }, [me?.state, claim]);
 
   if (me === undefined || me.state === "signedOut" || (me.state === "unclaimed" && claimed === null) || (me.state === "unclaimed" && claimed === "active")) {
-    return <Waiting />;
+    return <>{waiting}</>;
   }
   if (me.state === "active") return <StaffProvider value={me.user}>{children}</StaffProvider>;
 

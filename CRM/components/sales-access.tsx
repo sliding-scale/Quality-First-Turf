@@ -2,26 +2,35 @@
 
 /* The CRM's half of the sales-form sign-in (D-053). The person is already signed in with Clerk and checked by the access gate when
    this renders. It asks the backend for a one-time code (which only an active Sales or Admin user gets) and sends them back to the
-   sales form with it. The other page signs them out of the CRM too, when they sign out of the sales form. */
+   sales form with it. The other page signs them out of the CRM too, when they sign out of the sales form. Both look like the sales
+   form's own sign-in screen (dark card, lime heading), so the person does not see two different apps while they are passed along. */
 
 import { useClerk } from "@clerk/nextjs";
 import { useMutation } from "convex/react";
 import { ConvexError } from "convex/values";
+import Image from "next/image";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { api } from "@/convex/_generated/api";
 import { salesFormOrigin, salesFormPath } from "@/lib/sales-form";
 
-function Waiting({ title }: { title: string }) {
+function Card({ lead, children, busy }: { lead: string; children?: ReactNode; busy?: boolean }) {
   return (
-    <div className="gate-page welcome-page" role="status" aria-busy="true">
-      <div className="welcome">
-        <h1>{title}</h1>
-        <p>One moment…</p>
-        <div className="welcome-bar" aria-hidden="true"><span /></div>
+    <div className="sa-page">
+      <div className="sa-card" role={busy ? "status" : undefined} aria-busy={busy}>
+        <Image className="sa-logo" src="/brand/logo-mark.png" alt="Quality First Turf" width={771} height={605} priority />
+        <h1>Welcome Back</h1>
+        <p className="sa-lead">{lead}</p>
+        {busy && <span className="sa-spin" aria-hidden="true" />}
+        {children}
       </div>
     </div>
   );
+}
+
+/** What shows while the CRM is still confirming who is signing in. */
+export function SalesAccessWaiting() {
+  return <Card lead="Signing you in…" busy />;
 }
 
 export function SalesAccess() {
@@ -47,26 +56,20 @@ export function SalesAccess() {
 
   if (origin === null) {
     return (
-      <div className="gate-page">
-        <div className="gate-card" role="alert">
-          <h1>That link is not valid</h1>
-          <p>This page opens the sales form after you sign in. Start from the sales form and choose Sign In.</p>
-        </div>
-      </div>
+      <Card lead="This page opens the sales form after you sign in.">
+        <p className="sa-alert" role="alert">That link is not valid. Start from the sales form and choose Sign In.</p>
+      </Card>
     );
   }
   if (error !== null) {
     return (
-      <div className="gate-page">
-        <div className="gate-card" role="alert">
-          <h1>Could not open the sales form</h1>
-          <p>{error}</p>
-          <button type="button" className="btn primary" onClick={() => void signOut({ redirectUrl: "/sign-in" })}>Use a different account</button>
-        </div>
-      </div>
+      <Card lead="Sign in with your Quality First Turf account to open your projects.">
+        <p className="sa-alert" role="alert">{error}</p>
+        <button type="button" className="sa-button" onClick={() => void signOut({ redirectUrl: "/sign-in" })}>Use a different account</button>
+      </Card>
     );
   }
-  return <Waiting title="Opening the sales form" />;
+  return <Card lead="Opening the sales form…" busy />;
 }
 
 export function SalesSignOut() {
@@ -82,5 +85,5 @@ export function SalesSignOut() {
     void signOut().finally(() => window.location.replace(origin ? origin + "/visit" : "/sign-in"));
   }, [origin, signOut]);
 
-  return <Waiting title="Signing you out" />;
+  return <Card lead="Signing you out…" busy />;
 }

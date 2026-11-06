@@ -632,6 +632,21 @@ input, select, textarea { font: inherit; color: var(--text); }
 @keyframes modal-in { from { opacity: 0; transform: translateY(10px) scale(0.98); } to { opacity: 1; transform: none; } }
 @keyframes modal-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(10px) scale(0.98); } }
 @media (prefers-reduced-motion: reduce) { .modal-back, .modal, .modal-back.leaving, .modal-back.leaving .modal { animation: none; } }
+/* The sales-form hand-off pages (/sales-access): the sales form's own sign-in look, ported from forms (.sales-login). */
+.sa-page { position: fixed; inset: 0; z-index: 50; overflow: auto; display: flex; align-items: center; justify-content: center; padding: 48px 24px; background: #18201a; color: #f4f6f1; font-family: var(--font-inter), Inter, Helvetica, Arial, sans-serif; }
+.sa-card { width: min(580px, 100%); margin: auto; padding: 40px 42px 36px; border: 1px solid rgb(56 72 61 / 90%); border-radius: 16px; background: rgb(23 31 25 / 94%); box-shadow: 0 22px 50px rgb(9 40 33 / 16%); animation: sa-in 560ms cubic-bezier(0.16, 1, 0.3, 1) both; text-align: center; }
+.sa-logo { display: block; width: auto; height: 96px; margin: 0 auto 16px; padding: 8px 10px; border-radius: 16px; background: #123526; }
+.sa-card h1 { margin: 0; color: #d7f33c; font-family: Georgia, "Iowan Old Style", "Palatino Linotype", Palatino, serif; font-size: 40px; font-weight: 500; letter-spacing: -0.02em; line-height: 1.15; text-wrap: balance; }
+.sa-lead { max-width: 34rem; margin: 12px auto 0; color: #b4bfb4; font-size: 1rem; font-weight: 450; line-height: 1.55; }
+.sa-spin { display: block; width: 34px; height: 34px; margin: 26px auto 4px; box-sizing: border-box; border: 3px solid #323f35; border-top-color: #d7f33c; border-radius: 50%; animation: auth-spin 0.8s linear infinite; }
+.sa-alert { margin: 16px 0 0; padding: 12px 14px; border-radius: 9px; background: #251714; color: #ff8a80; font-size: 0.9rem; line-height: 1.4; text-align: left; }
+.sa-button { display: flex; align-items: center; justify-content: center; width: 100%; height: 54px; margin-top: 22px; padding: 0 20px; border: 0; border-radius: 999px; background: #d7f33c; color: #0b0f0c; font: inherit; font-size: 1.05rem; font-weight: 600; letter-spacing: 0.01em; cursor: pointer; transition: background 180ms cubic-bezier(0.16, 1, 0.3, 1); }
+.sa-button:hover { background: #e6f870; }
+.sa-button:active { background: #c9e42f; }
+.sa-button:focus-visible { outline: 2px solid #34503d; outline-offset: 3px; }
+@keyframes sa-in { from { opacity: 0; transform: translateY(12px); filter: blur(8px); } to { opacity: 1; transform: none; filter: none; } }
+@media (max-width: 639px) { .sa-logo { height: 80px; } .sa-page { align-items: flex-start; padding: 28px 18px 36px; } .sa-card { padding: 24px; } .sa-card h1 { font-size: 32px; } }
+@media (prefers-reduced-motion: reduce) { .sa-card { animation: none; } .sa-spin { animation-duration: 2.4s; } }
 .welcome-page { background: #fff; }
 .welcome { width: 100%; max-width: 280px; text-align: center; animation: fade-in 0.35s ease-out both; }
 .welcome h1 { font-size: 28px; margin: 0 0 8px; }
