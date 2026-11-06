@@ -1,6 +1,7 @@
 import { SignIn } from "@clerk/nextjs";
 import type { Metadata } from "next";
 import { signInAppearance } from "@/components/clerk-appearance";
+import { ForgotPasswordLink } from "@/components/forgot-password-link";
 
 export const metadata: Metadata = { title: "Log in" };
 
@@ -8,7 +9,15 @@ export const metadata: Metadata = { title: "Log in" };
 export default function Page() {
   return (
     <div className="auth-signin">
+      {/* Shown until Clerk's form has drawn itself (see .auth-skel in globals.css), so the page never opens on just the note below. */}
+      <div className="auth-skel" role="status" aria-busy="true">
+        <span className="sr">Loading the sign-in form…</span>
+        <span className="sk" style={{ height: 50, borderRadius: 6 }} />
+        <span className="sk" style={{ height: 50, borderRadius: 6, marginTop: 22 }} />
+        <span className="sk" style={{ height: 52, borderRadius: 6, marginTop: 22 }} />
+      </div>
       <SignIn appearance={signInAppearance} fallbackRedirectUrl="/" />
+      <ForgotPasswordLink />
       <p className="auth-note">Access is by invitation. Ask an Admin if you need an account.</p>
     </div>
   );
