@@ -87,6 +87,19 @@ function StaffGate({ children }: { children: ReactNode }) {
     }
   }, [me?.state, claimed, claim]);
 
+  // A person who is already linked never goes through the claim above, so their "last sign-in" would stay at the first one. Record it
+  // once per browser session: `claim` on a known person only stamps the time.
+  useEffect(() => {
+    if (me?.state !== "active") return;
+    try {
+      if (sessionStorage.getItem("qft-seen")) return;
+      sessionStorage.setItem("qft-seen", "1");
+    } catch {
+      // Storage blocked: it just records on every load.
+    }
+    claim().catch(() => {});
+  }, [me?.state, claim]);
+
   if (me === undefined || me.state === "signedOut" || (me.state === "unclaimed" && claimed === null) || (me.state === "unclaimed" && claimed === "active")) {
     return <Waiting />;
   }
