@@ -19,6 +19,7 @@ import { cleanEmail, cleanName, cleanZip, formatPhone, phoneDigits } from "@/lib
 import { EmptyBackend } from "./empty-backend";
 import { useStaff } from "./staff-context";
 import { FormSkeleton } from "./skeletons";
+import { useUI } from "./ui-provider";
 
 export function ClientForm({ editId }: { editId?: string }) {
   const workspace = useWorkspace();
@@ -49,6 +50,7 @@ export function ClientForm({ editId }: { editId?: string }) {
 
 function FormBody({ editing, businesses, defaultBusiness }: { editing?: ClientDoc; businesses: BusinessDoc[]; defaultBusiness: Id<"businesses"> }) {
   const router = useRouter();
+  const { toast } = useUI();
   const create = useMutation(api.crm.clients.create);
   const update = useMutation(api.crm.clients.update);
   const [firstDefault, ...restDefault] = editing ? editing.contactName.split(" ") : [""];
@@ -92,8 +94,8 @@ function FormBody({ editing, businesses, defaultBusiness }: { editing?: ClientDo
     zip: attempted && problems.zip,
   };
 
-  async function submit(e: FormEvent) {
-    e.preventDefault();
+  async function submit(e: FormEvent | null, another = false) {
+    e?.preventDefault();
     setAttempted(true);
     if (problems.name || problems.phone || problems.email || problems.zip) {
       (problems.name ? firstRef : problems.phone ? phoneRef : problems.email ? emailRef : zipRef).current?.focus();
@@ -107,6 +109,16 @@ function FormBody({ editing, businesses, defaultBusiness }: { editing?: ClientDo
       if (editing) {
         await update({ id: editing._id, ...payload });
         router.push(`/clients/${editing._id}`);
+      } else if (another) {
+        await create(payload);
+        // Stay on a blank form. The type and the business stay as they were, since the next client is usually alike.
+        setFirst(""); setLast(""); setCompany(""); setPhone(""); setEmail("");
+        setStreet1(""); setStreet2(""); setCity(""); setState(""); setZip(""); setNotes("");
+        setAttempted(false);
+        setSaving(false);
+        toast("Client saved");
+        firstRef.current?.focus();
+        document.getElementById("main")?.scrollTo({ top: 0 });
       } else {
         const id = await create(payload);
         router.push(`/clients?saved=${id}`);
@@ -118,14 +130,17 @@ function FormBody({ editing, businesses, defaultBusiness }: { editing?: ClientDo
   }
 
   return (
-    <form className="form-wrap fade-in" noValidate onSubmit={submit}>
+    <form className="form-wrap fade-in" noValidate onSubmit={(e) => void submit(e)}>
       <h1>{editing ? "Edit Client" : "New Client"}</h1>
 
       <section className="fsec">
-        <div><h3>Contact details</h3><p>The main point of contact for this client.</p></div>
+        <div>
+          <h3>Primary contact details</h3>
+          <p>Provide the main point of contact to ensure smooth communication and reliable client records.</p>
+        </div>
         <div className="fields-col">
-          <div className="field">
-            <label>Client type</label>
+          <div className="jwrap">
+            <div className="jlabel">Client type</div>
             <div className="seg-radio" role="radiogroup" aria-label="Client type">
               {CLIENT_TYPES.map((t) => (
                 <label key={t}>
@@ -135,62 +150,107 @@ function FormBody({ editing, businesses, defaultBusiness }: { editing?: ClientDo
               ))}
             </div>
           </div>
-          <div className="frow">
-            <div className={`field${bad.name ? " bad" : ""}`}>
-              <label htmlFor="first">First name</label>
-              <input id="first" name="first" autoComplete="off" ref={firstRef} aria-invalid={bad.name} value={first} onChange={(e) => setFirst(cleanName(e.target.value))} />
+
+          <div className={`jwrap${bad.name ? " bad" : ""}`}>
+            <div className="jgroup">
+              <div className="jrow two">
+                <label className="fl">
+                  <input id="first" name="first" autoComplete="off" placeholder=" " ref={firstRef} aria-invalid={bad.name} aria-describedby="name-err" value={first} onChange={(e) => setFirst(cleanName(e.target.value))} />
+                  <span>First name</span>
+                </label>
+                <label className="fl">
+                  <input id="last" name="last" autoComplete="off" placeholder=" " aria-invalid={bad.name} aria-describedby="name-err" value={last} onChange={(e) => setLast(cleanName(e.target.value))} />
+                  <span>Last name</span>
+                </label>
+              </div>
+              <div className="jrow">
+                <label className="fl">
+                  <input id="company" name="company" autoComplete="off" placeholder=" " aria-invalid={bad.name} aria-describedby="name-err" value={company} onChange={(e) => setCompany(e.target.value)} />
+                  <span>Company name</span>
+                </label>
+              </div>
             </div>
-            <div className={`field${bad.name ? " bad" : ""}`}>
-              <label htmlFor="last">Last name</label>
-              <input id="last" name="last" autoComplete="off" aria-invalid={bad.name} value={last} onChange={(e) => setLast(cleanName(e.target.value))} />
+            <div className="err" id="name-err" role={bad.name ? "alert" : undefined}>Enter a first name, last name or company name.</div>
+          </div>
+
+          <div className="jtitle">Communication</div>
+          <div className={`jwrap${bad.phone ? " bad" : ""}`}>
+            <div className="jgroup">
+              <label className="fl">
+                <input id="phone" name="phone" type="tel" inputMode="tel" autoComplete="tel" maxLength={14} placeholder=" " ref={phoneRef} aria-invalid={bad.phone} aria-describedby="phone-err" value={phone} onChange={(e) => setPhone(formatPhone(e.target.value))} />
+                <span>Phone number</span>
+              </label>
             </div>
-          </div>
-          <div className={`field${bad.name ? " bad" : ""}`}>
-            <label htmlFor="company">Company name (where applicable)</label>
-            <input id="company" name="company" autoComplete="off" aria-invalid={bad.name} aria-describedby="company-err" value={company} onChange={(e) => setCompany(e.target.value)} />
-            <div className="err" id="company-err" role={bad.name ? "alert" : undefined}>Enter a first name, last name or company name.</div>
-          </div>
-          <div className={`field${bad.phone ? " bad" : ""}`}>
-            <label htmlFor="phone">Phone number</label>
-            <input id="phone" name="phone" type="tel" inputMode="tel" autoComplete="tel" maxLength={14} placeholder="(555) 123-4567" ref={phoneRef} aria-invalid={bad.phone} aria-describedby="phone-err" value={phone} onChange={(e) => setPhone(formatPhone(e.target.value))} />
             <div className="err" id="phone-err" role={bad.phone ? "alert" : undefined}>Enter a 10-digit phone number.</div>
           </div>
-          <div className={`field${bad.email ? " bad" : ""}`}>
-            <label htmlFor="email">Email</label>
-            <input id="email" name="email" type="email" placeholder="jane@example.com" ref={emailRef} aria-invalid={bad.email} aria-describedby="email-err" value={email} onChange={(e) => setEmail(cleanEmail(e.target.value))} />
+          <div className={`jwrap${bad.email ? " bad" : ""}`}>
+            <div className="jgroup">
+              <label className="fl">
+                <input id="email" name="email" type="email" placeholder=" " ref={emailRef} aria-invalid={bad.email} aria-describedby="email-err" value={email} onChange={(e) => setEmail(cleanEmail(e.target.value))} />
+                <span>Email</span>
+              </label>
+            </div>
             <div className="err" id="email-err" role={bad.email ? "alert" : undefined}>Enter a valid email address.</div>
           </div>
-          <div className="field">
-            <label htmlFor="business">Business</label>
-            <select id="business" name="business" value={business} onChange={(e) => setBusinessField(e.target.value as Id<"businesses">)}>
-              {businesses.map((b) => (
-                <option key={b._id} value={b._id}>{b.name}</option>
-              ))}
-            </select>
+
+          <div className="jtitle">Business</div>
+          <div className="jwrap">
+            <div className="jgroup">
+              <label className="fl up">
+                <select id="business" name="business" value={business} onChange={(e) => setBusinessField(e.target.value as Id<"businesses">)}>
+                  {businesses.map((b) => (
+                    <option key={b._id} value={b._id}>{b.name}</option>
+                  ))}
+                </select>
+                <span>Business</span>
+              </label>
+            </div>
           </div>
         </div>
       </section>
 
       <section className="fsec">
-        <div><h3>Address</h3><p>The property address for this client.</p></div>
+        <div>
+          <h3>Property address</h3>
+          <p>Enter the primary service address for this client.</p>
+        </div>
         <div className="fields-col">
-          <div className="field"><label htmlFor="street1">Street 1</label><input id="street1" name="street1" autoComplete="off" value={street1} onChange={(e) => setStreet1(e.target.value)} /></div>
-          <div className="field"><label htmlFor="street2">Street 2</label><input id="street2" name="street2" autoComplete="off" value={street2} onChange={(e) => setStreet2(e.target.value)} /></div>
-          <div className="frow">
-            <div className="field"><label htmlFor="city">City</label><input id="city" name="city" autoComplete="off" value={city} onChange={(e) => setCity(cleanName(e.target.value))} /></div>
-            <div className="field">
-              <label htmlFor="state">State</label>
-              <select id="state" name="state" autoComplete="address-level1" value={state} onChange={(e) => setState(e.target.value)}>
-                <option value="">Select a state</option>
-                {US_STATES.map((st) => (
-                  <option key={st.abbr} value={st.abbr}>{st.name}</option>
-                ))}
-              </select>
+          <div className={`jwrap${bad.zip ? " bad" : ""}`}>
+            <div className="jgroup">
+              <div className="jrow">
+                <label className="fl">
+                  <input id="street1" name="street1" autoComplete="off" placeholder=" " value={street1} onChange={(e) => setStreet1(e.target.value)} />
+                  <span>Street 1</span>
+                </label>
+              </div>
+              <div className="jrow">
+                <label className="fl">
+                  <input id="street2" name="street2" autoComplete="off" placeholder=" " value={street2} onChange={(e) => setStreet2(e.target.value)} />
+                  <span>Street 2</span>
+                </label>
+              </div>
+              <div className="jrow two">
+                <label className="fl">
+                  <input id="city" name="city" autoComplete="off" placeholder=" " value={city} onChange={(e) => setCity(cleanName(e.target.value))} />
+                  <span>City</span>
+                </label>
+                <label className="fl up">
+                  <select id="state" name="state" autoComplete="address-level1" value={state} onChange={(e) => setState(e.target.value)}>
+                    <option value="">Select a state</option>
+                    {US_STATES.map((st) => (
+                      <option key={st.abbr} value={st.abbr}>{st.name}</option>
+                    ))}
+                  </select>
+                  <span>State</span>
+                </label>
+              </div>
+              <div className="jrow">
+                <label className="fl">
+                  <input id="zip" name="zip" inputMode="numeric" autoComplete="postal-code" maxLength={5} placeholder=" " ref={zipRef} aria-invalid={bad.zip} aria-describedby="zip-err" value={zip} onChange={(e) => setZip(cleanZip(e.target.value))} />
+                  <span>ZIP code</span>
+                </label>
+              </div>
             </div>
-          </div>
-          <div className={`field${bad.zip ? " bad" : ""}`} style={{ maxWidth: 240 }}>
-            <label htmlFor="zip">ZIP code</label>
-            <input id="zip" name="zip" inputMode="numeric" autoComplete="postal-code" maxLength={5} placeholder="92592" ref={zipRef} aria-invalid={bad.zip} aria-describedby="zip-err" value={zip} onChange={(e) => setZip(cleanZip(e.target.value))} />
             <div className="err" id="zip-err" role={bad.zip ? "alert" : undefined}>Enter a 5-digit ZIP code.</div>
           </div>
         </div>
@@ -199,7 +259,14 @@ function FormBody({ editing, businesses, defaultBusiness }: { editing?: ClientDo
       <section className="fsec">
         <div><h3>Notes</h3><p>Internal notes about this client.</p></div>
         <div className="fields-col">
-          <div className="field"><label htmlFor="notes">Notes</label><textarea id="notes" name="notes" value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
+          <div className="jwrap">
+            <div className="jgroup">
+              <label className="fl">
+                <textarea id="notes" name="notes" placeholder=" " value={notes} onChange={(e) => setNotes(e.target.value)} />
+                <span>Notes</span>
+              </label>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -208,7 +275,10 @@ function FormBody({ editing, businesses, defaultBusiness }: { editing?: ClientDo
       <div className="form-actions">
         <div className="inner">
           <Link className="btn plain" href={editing ? `/clients/${editing._id}` : "/clients"}>Cancel</Link>
-          <div className="right"><button className="btn primary" type="submit" disabled={saving}>{saving ? "Saving…" : "Save client"}</button></div>
+          <div className="right">
+            {!editing && <button className="btn" type="button" disabled={saving} onClick={() => void submit(null, true)}>Save and Create Another</button>}
+            <button className="btn primary" type="submit" disabled={saving}>{saving ? "Saving…" : "Save client"}</button>
+          </div>
         </div>
       </div>
     </form>

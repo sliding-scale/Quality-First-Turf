@@ -2,6 +2,7 @@
 
 /* The shared shell: top bar, sidebar, and the scrolling main area every page sits in. */
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -42,6 +43,12 @@ export function Shell({ children }: { children: ReactNode }) {
   );
 }
 
+/** The Quality First Turf logo for that business; the other businesses keep the plain "Q" tile until they have a logo of their own. */
+function BrandMark({ turf }: { turf: boolean }) {
+  if (!turf) return <span className="brand-mark">Q</span>;
+  return <Image className="brand-logo" src="/brand/logo-full.png" alt="" width={39} height={30} priority />;
+}
+
 /** The business switcher. It asks the backend, so it sits behind an error boundary: if the backend says no, the rest of the app still shows. */
 function Brand() {
   const { dropdown } = useUI();
@@ -60,7 +67,7 @@ function Brand() {
         );
       }}
     >
-      <span className="brand-mark">Q</span>
+      <BrandMark turf={workspace.state === "ready" ? workspace.business.slug === "quality-first-turf" : workspace.state !== "empty"} />
       <span className="brand-name">{workspace.state === "ready" ? workspace.business.name : workspace.state === "loading" ? <span className="sk sk-inline" style={{ width: 130, height: 16 }} /> : "Quality First Turf"}</span>
       <Icon name="chevdown" size={16} />
     </button>
@@ -104,7 +111,7 @@ function ShellInner({ children }: { children: ReactNode }) {
   return (
     <div className="app">
       <header className="topbar">
-        <ErrorBoundary fallback={<span className="brand"><span className="brand-mark">Q</span><span className="brand-name">Quality First Turf</span></span>}>
+        <ErrorBoundary fallback={<span className="brand"><BrandMark turf /><span className="brand-name">Quality First Turf</span></span>}>
           <Brand />
         </ErrorBoundary>
         <span className="grow" />

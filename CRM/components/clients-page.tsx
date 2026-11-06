@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import { CLIENT_STATUS_FILTERS, CLIENT_TYPE_LABEL, type ClientStatusFilter } from "@/convex/crm/lib/stages";
 import { daysAgoFrom, useClientList, useClientStats, useWorkspace, type BusinessDoc } from "@/lib/clients";
 import { dayLabel } from "@/lib/format";
@@ -16,8 +17,11 @@ import { EmptyBackend } from "./empty-backend";
 import { FilterMenu } from "./filter-menus";
 import { Icon } from "./icon";
 import { ClientsSkeleton } from "./skeletons";
+import { Checkbox } from "./checkbox";
+import { DeleteClientsDialog } from "./delete-clients-dialog";
 import { useUI } from "./ui-provider";
 
+const NO_ROWS: Set<string> = new Set();
 type SortKey = "name" | "lastActivity";
 type TypeFilter = "All" | "homeowner" | "contractor";
 const TYPES: { value: TypeFilter; label: string }[] = [
@@ -52,6 +56,14 @@ function Clients({ business, initialQuery, saved }: { business: BusinessDoc; ini
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "lastActivity", dir: "desc" });
   const [page, setPage] = useState(1);
   const [size, setSize] = useState(10);
+  const [deleting, setDeleting] = useState<Id<"clients">[] | null>(null);
+
+  // A selection belongs to the rows on screen: it is remembered with the page, size, filter, search and sort it was made under,
+  // and stops counting as soon as any of them changes.
+  const scope = `${page}|${size}|${status}|${type}|${search}|${sort.key}|${sort.dir}`;
+  const [picked, setPicked] = useState<{ scope: string; ids: Set<string> }>({ scope, ids: new Set() });
+  const selected = picked.scope === scope ? picked.ids : NO_ROWS;
+  const setSelected = (ids: Set<string>) => setPicked({ scope, ids });
 
   useEffect(() => {
     if (saved) toast("Client saved");
@@ -112,6 +124,16 @@ function Clients({ business, initialQuery, saved }: { business: BusinessDoc; ini
   }
 
   const today = new Date();
+
+  const pageIds = rows.map((c) => c._id as string);
+  const pickedOnPage = pageIds.filter((id) => selected.has(id)).length;
+  const allPicked = pageIds.length > 0 && pickedOnPage === pageIds.length;
+  const toggleRow = (id: string) => {
+    const next = new Set(selected);
+    if (!next.delete(id)) next.add(id);
+    setSelected(next);
+  };
+  const toggleAll = () => setSelected(allPicked ? new Set() : new Set(pageIds));
 
   return (
     <div className="fade-in">
@@ -204,7 +226,7 @@ function Clients({ business, initialQuery, saved }: { business: BusinessDoc; ini
       </div>
 
       <div className="table-wrap">
-        <table className="table single" id="tbl">
+        <table className={`table single uniform${selected.size > 0 ? " selecting" : ""}`} id="tbl">
           <colgroup>
             <col style={{ width: 240 }} />
             <col style={{ width: 140 }} />
@@ -214,14 +236,36 @@ function Clients({ business, initialQuery, saved }: { business: BusinessDoc; ini
             <col style={{ width: 140 }} />
           </colgroup>
           <thead>
-            <tr>
-              <th aria-sort={ariaSort("name")}>{sortHead("name", "Name")}</th>
-              <th>Phone</th>
-              <th>Email</th>
-              <th>Address</th>
-              <th>Type</th>
-              <th aria-sort={ariaSort("lastActivity")}>{sortHead("lastActivity", "Last Activity")}</th>
-            </tr>
+            {selected.size > 0 ? (
+              <tr className="selbar">
+                <th colSpan={6}>
+                  <div className="selbar-in">
+                    <Checkbox state={allPicked ? true : "mixed"} label="Deselect all" onChange={() => setSelected(new Set())} />
+                    <span className="selcount">{selected.size} selected</span>
+                    <button type="button" className="linkbtn" onClick={() => setSelected(new Set())}>Deselect All</button>
+                    {canEdit && (
+                      <button type="button" className="icon-btn" aria-label={`Delete ${selected.size === 1 ? "client" : "clients"}`} title="Delete" onClick={() => setDeleting([...selected] as Id<"clients">[])}>
+                        <Icon name="trash" size={22} />
+                      </button>
+                    )}
+                  </div>
+                </th>
+              </tr>
+            ) : (
+              <tr>
+                <th aria-sort={ariaSort("name")}>
+                  <div className="name-cell">
+                    <Checkbox state={false} label="Select all clients on this page" onChange={toggleAll} disabled={rows.length === 0} />
+                    {sortHead("name", "Name")}
+                  </div>
+                </th>
+                <th>Phone</th>
+                <th>Email</th>
+                <th>Address</th>
+                <th>Type</th>
+                <th aria-sort={ariaSort("lastActivity")}>{sortHead("lastActivity", "Last Activity")}</th>
+              </tr>
+            )}
           </thead>
           <tbody>
             {rows.length ? (
@@ -229,10 +273,15 @@ function Clients({ business, initialQuery, saved }: { business: BusinessDoc; ini
                 const addr = c.street1 ? `${c.street1}, ${c.city}, ${c.state} ${c.zip}` : "";
                 const sub = c.company && c.name !== c.company ? c.company : c.company ? `Contact: ${c.contactName}` : "";
                 return (
-                  <tr key={c._id} className="click" onClick={() => router.push(`/clients/${c._id}`)}>
+                  <tr key={c._id} className={`click${selected.has(c._id) ? " picked" : ""}`} onClick={() => router.push(`/clients/${c._id}`)}>
                     <td>
-                      <div className="strong" title={c.name}>{c.name}</div>
-                      {sub && <div className="sub" title={sub}>{sub}</div>}
+                      <div className="name-cell">
+                        <Checkbox rowBox state={selected.has(c._id)} label={`Select ${c.name}`} onChange={() => toggleRow(c._id)} />
+                        <div className="name-text">
+                          <div className="strong" title={c.name}>{c.name}</div>
+                          {sub && <div className="sub" title={sub}>{sub}</div>}
+                        </div>
+                      </div>
                     </td>
                     <td>{c.phone}</td>
                     <td title={c.email}>{c.email}</td>
@@ -252,6 +301,17 @@ function Clients({ business, initialQuery, saved }: { business: BusinessDoc; ini
           </tbody>
         </table>
       </div>
+
+      {deleting && (
+        <DeleteClientsDialog
+          ids={deleting}
+          onClose={() => setDeleting(null)}
+          onDeleted={(n) => {
+            setSelected(new Set());
+            toast(`Deleted ${n} client${n === 1 ? "" : "s"}`);
+          }}
+        />
+      )}
 
       <div className="pager">
         <div className="left">

@@ -3,6 +3,16 @@
 import { ICONS, type IconDef } from "./icons-data";
 
 export const EXTRA_ICONS: Record<string, IconDef> = {
+  // Bin with a lid, as on Jobber's selection bar and delete menu.
+  trash: {
+    vb: "0 0 24 24",
+    paths: [
+      { d: "M4 6.5h16", stroke: true },
+      { d: "M9.5 6.5V4.5h5v2", stroke: true },
+      { d: "M6.5 6.5 7.4 19a1.5 1.5 0 0 0 1.5 1.4h6.2a1.5 1.5 0 0 0 1.5-1.4l.9-12.5", stroke: true },
+      { d: "M10 10.5v6M14 10.5v6", stroke: true },
+    ],
+  },
   // Replaces the table's "sort" glyph: the copy in the Atlantis table draws overlapping arrows and a bar, which turns into a blob at
   // the 16px size used in column headers. This is a plain pair of chevrons, up and down, the same shape Jobber shows.
   sort: {

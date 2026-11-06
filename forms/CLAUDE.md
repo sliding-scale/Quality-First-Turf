@@ -18,8 +18,6 @@ Quality First Turf has been handed off to the client. Mistakes now reach a real 
 
 **After EVERY change you make, end your final message with this reminder to the user:**
 
-1. Run `npx convex deploy` so production gets the change. Code that is only on the dev deployment is not live.
-2. Delete test data from Convex (projects, work areas, sessions, uploaded photos made while testing).
-3. Delete test data from Jobber (clients, requests, quotes, assessments).
+Run `npx convex deploy` so production gets the change. Code that is only on the dev deployment is not live. (The older reminders to delete test data from Convex and from Jobber were dropped by the user on 2026-11-06.)
 
-Why: at handoff the Jobber connection was left on the personal testing account and Convex was not moved to production, which cost the client's trust. Never run `npx convex deploy`, or touch production data, without the user's explicit go-ahead.
+Why: at handoff the Convex backend was not on production, which cost the client's trust. Never run `npx convex deploy`, or touch production data, without the user's explicit go-ahead.

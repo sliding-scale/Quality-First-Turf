@@ -5,11 +5,11 @@
    check on every call, so this is about showing the right screen, not about security. */
 
 import { RedirectToSignIn, SignOutButton, useAuth } from "@clerk/nextjs";
+import Image from "next/image";
 import { Authenticated, AuthLoading, Unauthenticated, useMutation, useQuery } from "convex/react";
 import { useEffect, useState, type ReactNode } from "react";
 import { api } from "@/convex/_generated/api";
 import { getTokenInfo } from "./convex-provider";
-import { Sk } from "./skeletons";
 import { StaffProvider } from "./staff-context";
 
 export function AccessGate({ children }: { children: ReactNode }) {
@@ -41,7 +41,7 @@ function NotAccepted() {
   return (
     <div className="gate-page">
       <div className="gate-card" role="alert">
-        <span className="brand-mark">Q</span>
+        <Image src="/brand/logo-full.png" alt="Quality First Turf" width={96} height={75} style={{ display: "block", marginBottom: 18 }} />
         <h1>Your sign-in was not accepted</h1>
         <p>You are logged in with Clerk, but the CRM backend refused your sign-in token, so it cannot load anything for you.</p>
         <p className="muted gate-detail">
@@ -62,16 +62,14 @@ function NotAccepted() {
   );
 }
 
-/** A quiet full-page placeholder (skeleton, D-034) while the sign-in is being confirmed. */
+/** A welcome screen with a loading bar while the sign-in is being confirmed. */
 function Waiting() {
   return (
-    <div className="gate-page" role="status" aria-busy="true">
-      <span className="sr">Signing you in…</span>
-      <div className="gate-card">
-        <Sk w={44} h={44} r={8} />
-        <Sk w="70%" h={22} style={{ marginTop: 18 }} />
-        <Sk w="90%" h={14} style={{ marginTop: 14 }} />
-        <Sk w="60%" h={14} style={{ marginTop: 8 }} />
+    <div className="gate-page welcome-page" role="status" aria-busy="true">
+      <div className="welcome">
+        <h1>Welcome back</h1>
+        <p>Getting everything ready for you…</p>
+        <div className="welcome-bar" aria-hidden="true"><span /></div>
       </div>
     </div>
   );
@@ -99,7 +97,7 @@ function StaffGate({ children }: { children: ReactNode }) {
   return (
     <div className="gate-page">
       <div className="gate-card" role="alert">
-        <span className="brand-mark">Q</span>
+        <Image src="/brand/logo-full.png" alt="Quality First Turf" width={96} height={75} style={{ display: "block", marginBottom: 18 }} />
         <h1>{off ? "Your access is turned off" : "You do not have access yet"}</h1>
         {off ? (
           <p>An Admin has turned off access for this account. Ask an Admin if you think that is a mistake.</p>

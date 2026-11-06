@@ -40,11 +40,9 @@ Full reasoning and the numbered decisions are in `CRM/docs/decisions.md`. The bu
 
 ## After every change: remind the user
 This is the user's standing rule, from the live handoff. After any change to `forms/`, to the shared `convex/` folder, or to deploy, env or hosting configuration, end your final message with:
-1. Run `npx convex deploy` so production gets the change. Code that is only on the dev deployment is not live.
-2. Delete test data from Convex (projects, work areas, sessions, uploaded photos made while testing).
-3. Delete test data from Jobber (clients, requests, quotes, assessments).
+Run `npx convex deploy` so production gets the change. Code that is only on the dev deployment is not live. (The older reminders to delete test data from Convex and from Jobber were dropped by the user on 2026-11-06.)
 
-Why: at handoff the Jobber connection was left on the personal testing account and Convex was not moved to production, which cost the client's trust. Changes that touch only `CRM/` docs and `CRM/` app code that touches nothing shared don't need the reminder. If unsure, include it.
+Why: at handoff the Convex backend was not on production, which cost the client's trust. Changes that touch only `CRM/` docs and `CRM/` app code that touches nothing shared don't need the reminder. If unsure, include it.
 
 ## Git
 Branch `monorepo` holds the restructure: forms moved into `forms/` (`201de5c`, pure renames), `CRM/` added (`aefc543`), the Convex backend and shared domain code moved to the repo root with npm workspaces (`29ce591`, revertible on its own), `.next/` ignored (`3eff6e6`). It is **not merged and not pushed**. Before it reaches `master` or GitHub, the Vercel settings in rule 7 above must be in place, or the forms build will break. The user's pending docs changes in `forms/docs/` (several deleted and untracked files, including `forms/docs/project-status.md`, which `forms/CLAUDE.md` still points to) are uncommitted and are the user's to sort out. Don't commit, push or merge without being asked. Commit messages end with the attribution line from the session instructions.

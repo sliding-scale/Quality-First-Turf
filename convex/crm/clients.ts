@@ -53,6 +53,11 @@ async function matching(ctx: QueryCtx, a: FilterArgs) {
         .withIndex(a.sortKey === "name" ? "by_business_and_nameKey" : "by_business_and_lastActivityAt", (q) => q.eq("businessId", a.businessId))
         .order(a.dir)
         .take(MAX_CLIENTS);
+  // Clients with the same last activity (such as a batch imported on one day) come out by name, not in whatever order they were stored.
+  if (!text && a.sortKey === "lastActivity") {
+    const sign = a.dir === "asc" ? 1 : -1;
+    docs.sort((x, y) => sign * (x.lastActivityAt - y.lastActivityAt) || x.nameKey.localeCompare(y.nameKey));
+  }
   const rows = docs.filter((c) => matchesClientStatusFilter(c.status, a.status) && (a.type === "All" || c.type === a.type));
   return { rows, capped: docs.length >= MAX_CLIENTS };
 }
@@ -153,6 +158,62 @@ export const update = mutation({
       await ctx.db.patch(p._id, { businessId, searchText: opportunitySearchText(fields, p) });
     }
     return id;
+  },
+});
+
+/* Deleting clients (D-054). The dialog first asks what would go with them, shows each item as a tick box, and only enables
+   Delete once every box is ticked. The server does not rely on that: `remove` deletes exactly what `deletePreview` counted. */
+
+const MAX_DELETE = 100;
+const MAX_RELATED = 500;
+
+async function related(ctx: QueryCtx, clientId: Id<"clients">) {
+  const projects = await ctx.db.query("opportunities").withIndex("by_clientId", (q) => q.eq("clientId", clientId)).take(MAX_RELATED + 1);
+  const notes = await ctx.db.query("clientNotes").withIndex("by_clientId", (q) => q.eq("clientId", clientId)).take(MAX_RELATED + 1);
+  return { projects, notes };
+}
+
+/** What deleting these clients would also delete: their projects and their notes. Nothing is changed. */
+export const deletePreview = query({
+  args: { ids: v.array(v.id("clients")) },
+  handler: async (ctx, args) => {
+    if (args.ids.length > MAX_DELETE) throw new ConvexError(`Delete up to ${MAX_DELETE} clients at a time.`);
+    let projects = 0;
+    let notes = 0;
+    const names: string[] = [];
+    for (const id of args.ids) {
+      const client = await ctx.db.get(id);
+      if (client === null) continue;
+      await requireEditor(ctx, client.businessId);
+      const r = await related(ctx, id);
+      projects += r.projects.length;
+      notes += r.notes.length;
+      names.push(client.name);
+    }
+    return { names, projects, notes };
+  },
+});
+
+/** Deletes the clients with their projects and notes. All or nothing: one transaction. */
+export const remove = mutation({
+  args: { ids: v.array(v.id("clients")) },
+  handler: async (ctx, args) => {
+    if (args.ids.length > MAX_DELETE) throw new ConvexError(`Delete up to ${MAX_DELETE} clients at a time.`);
+    let deleted = 0;
+    for (const id of new Set(args.ids)) {
+      const client = await ctx.db.get(id);
+      if (client === null) continue;
+      await requireEditor(ctx, client.businessId);
+      const r = await related(ctx, id);
+      if (r.projects.length > MAX_RELATED || r.notes.length > MAX_RELATED) {
+        throw new ConvexError(`${client.name} has too much attached to delete in one go. Archive it instead.`);
+      }
+      for (const p of r.projects) await ctx.db.delete(p._id);
+      for (const n of r.notes) await ctx.db.delete(n._id);
+      await ctx.db.delete(id);
+      deleted += 1;
+    }
+    return deleted;
   },
 });
 

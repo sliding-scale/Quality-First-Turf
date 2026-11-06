@@ -173,6 +173,13 @@ export default defineSchema({
   })
     .index("by_token", ["token"])
     .index("by_expiresAt", ["expiresAt"]),
+  /** One-time codes the CRM hands to the sales form after a Clerk sign-in (D-053). Stored hashed, single use, gone within a minute. */
+  salesHandoffs: defineTable({
+    code: v.string(),
+    email: v.string(),
+    name: v.string(),
+    expiresAt: v.number(),
+  }).index("by_code", ["code"]),
   jobberConnections: defineTable({
     singleton: v.literal("default"),
     refreshToken: v.union(v.string(), v.null()),

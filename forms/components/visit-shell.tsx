@@ -17,6 +17,7 @@ import {
 } from "react";
 import { api } from "@/convex/_generated/api";
 import { SalesLogin } from "@/components/sales-login";
+import { crmUrl } from "@/lib/crm-url";
 import { RetryNextImage } from "@/components/ui/retry-image";
 import { serviceLabel } from "@/convex/shared/discovery";
 import { formatShortCode, normalizeShortCode } from "@/convex/shared/errors";
@@ -92,7 +93,7 @@ function ProjectSidebar({
   activeCode: string | null;
 }) {
   const endSession = useMutation(api.sales.mutations.end);
-  const data = useQuery(api.projects.queries.listForSales, { sessionToken: token });
+  const data =useQuery(api.projects.queries.listForSales, { sessionToken: token });
   const me = useQuery(api.sales.queries.me, { sessionToken: token });
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<StatusFilter>("all");
@@ -131,6 +132,9 @@ function ProjectSidebar({
       await endSession({ sessionToken: token });
     } finally {
       signOut();
+      // Also end the CRM sign-in, or the Sign In button would sign this person straight back in on a shared device.
+      const out = crmUrl("/sales-access/signout?return=" + encodeURIComponent(window.location.origin));
+      if (out !== null) window.location.assign(out);
     }
   }
 

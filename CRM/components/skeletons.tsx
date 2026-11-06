@@ -111,7 +111,7 @@ export function ClientsSkeleton() {
       </div>
 
       <div className="table-wrap">
-        <table className="table single" id="tbl">
+        <table className="table single uniform" id="tbl">
           <colgroup>
             <col style={{ width: 240 }} />
             <col style={{ width: 140 }} />
@@ -121,12 +121,12 @@ export function ClientsSkeleton() {
             <col style={{ width: 140 }} />
           </colgroup>
           <thead>
-            <tr><th>Name</th><th>Phone</th><th>Email</th><th>Address</th><th>Type</th><th>Last Activity</th></tr>
+            <tr><th><div className="name-cell"><Sk w={22} h={22} r={4} />Name</div></th><th>Phone</th><th>Email</th><th>Address</th><th>Type</th><th>Last Activity</th></tr>
           </thead>
           <tbody>
             {range(10).map((i) => (
               <tr key={i}>
-                <td><Sk w="70%" h={16} /></td>
+                <td><div className="name-cell"><Sk w={22} h={22} r={4} /><Sk w="60%" h={16} /></div></td>
                 <td><Sk w={110} h={16} /></td>
                 <td><Sk w="80%" h={16} /></td>
                 <td><Sk w="85%" h={16} /></td>
@@ -195,10 +195,17 @@ export function ClientSkeleton() {
 }
 
 export function FormSkeleton() {
-  const field = (key: number, label = 70) => (
-    <div className="field" key={key}>
-      <Sk w={label} h={14} />
-      <Sk h={46} r={8} />
+  // One cell of a joined field group: a short label line inside a 50px box, like the real fields.
+  const cell = (key: number, w = 90) => (
+    <div className="fl" key={key} style={{ height: 50, padding: "16px 16px 0" }}>
+      <Sk w={w} h={14} />
+    </div>
+  );
+  const group = (rows: number[][]) => (
+    <div className="jgroup">
+      {rows.map((r, i) => (
+        <div className={`jrow${r.length > 1 ? " two" : ""}`} key={i}>{r.map((w, j) => cell(j, w))}</div>
+      ))}
     </div>
   );
   return (
@@ -206,28 +213,24 @@ export function FormSkeleton() {
       <div className="form-wrap">
         <h1><Sk w={220} h={34} /></h1>
         <section className="fsec">
-          <div><Sk w={150} h={20} /><Sk w={220} h={13} style={{ marginTop: 10 }} /></div>
+          <div><Sk w={190} h={20} /><Sk w={230} h={13} style={{ marginTop: 10 }} /><Sk w={180} h={13} style={{ marginTop: 6 }} /></div>
           <div className="fields-col">
-            <div className="field"><Sk w={80} h={14} /><Sk w={230} h={44} r={8} /></div>
-            <div className="frow">{field(0, 80)}{field(1, 80)}</div>
-            {field(2, 190)}
-            {field(3, 110)}
-            {field(4, 40)}
-            {field(5, 60)}
+            <div className="jwrap"><Sk w={70} h={13} /><Sk w={230} h={44} r={8} /></div>
+            {group([[80, 80], [110]])}
+            <Sk w={110} h={18} />
+            {group([[100]])}
+            {group([[60]])}
+            <Sk w={70} h={18} />
+            {group([[70]])}
           </div>
         </section>
         <section className="fsec">
-          <div><Sk w={100} h={20} /><Sk w={200} h={13} style={{ marginTop: 10 }} /></div>
-          <div className="fields-col">
-            {field(0)}
-            {field(1)}
-            <div className="frow">{field(2, 40)}{field(3, 40)}</div>
-            {field(4, 70)}
-          </div>
+          <div><Sk w={150} h={20} /><Sk w={220} h={13} style={{ marginTop: 10 }} /></div>
+          <div className="fields-col">{group([[70], [70], [40, 40], [70]])}</div>
         </section>
         <section className="fsec">
           <div><Sk w={70} h={20} /><Sk w={190} h={13} style={{ marginTop: 10 }} /></div>
-          <div className="fields-col"><div className="field"><Sk w={50} h={14} /><Sk h={90} r={8} /></div></div>
+          <div className="fields-col"><div className="jgroup"><div className="fl" style={{ height: 110, padding: "16px 16px 0" }}><Sk w={50} h={14} /></div></div></div>
         </section>
       </div>
     </Busy>

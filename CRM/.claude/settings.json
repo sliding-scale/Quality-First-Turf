@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "osascript -e 'display notification \"Claude Code needs you\" with title \"Claude Code\"'"
+          }
+        ]
+      }
+    ]
+  }
+}

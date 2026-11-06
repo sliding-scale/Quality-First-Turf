@@ -6,8 +6,9 @@ import { clerkMiddleware } from "@clerk/nextjs/server";
 // their role and their business (convex/crm/lib/access.ts).
 export default clerkMiddleware(async (auth, request) => {
   const path = request.nextUrl.pathname;
-  const isSignIn = path === "/sign-in" || path.startsWith("/sign-in/");
-  if (!isSignIn) await auth.protect();
+  // The sign-in page is open, and so is the sales-form sign-out page (it only ends the session and returns to an allowed address).
+  const isOpen = path === "/sign-in" || path.startsWith("/sign-in/") || path === "/sales-access/signout";
+  if (!isOpen) await auth.protect();
 });
 
 export const config = {
