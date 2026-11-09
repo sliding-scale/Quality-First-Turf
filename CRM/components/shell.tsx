@@ -96,7 +96,7 @@ function Brand() {
 function ShellInner({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { soon, popover, toggleCreate, createOpen } = useUI();
+  const { popover, toggleCreate, createOpen } = useUI();
   const staff = useStaff();
   const nav = staff.isAdmin ? [...NAV, ...ADMIN_NAV] : NAV;
   const mobile = useIsMobile();
@@ -182,10 +182,10 @@ function ShellInner({ children }: { children: ReactNode }) {
             onChange={(e) => setSearch(e.target.value)}
           />
         </form>
-        <button className="icon-btn" type="button" aria-label="Messages" onClick={() => soon("Messages")}>
+        <button className="icon-btn" type="button" aria-label="Messages" disabled>
           <Icon name="message" size={24} />
         </button>
-        <button className="icon-btn" type="button" aria-label="Notifications" onClick={() => soon("Notifications")}>
+        <button className="icon-btn" type="button" aria-label="Notifications" disabled>
           <Icon name="bell" size={24} />
         </button>
         <button
@@ -250,18 +250,9 @@ function ShellInner({ children }: { children: ReactNode }) {
               );
             }
             return (
-              <a
-                key={n.key}
-                className="item soon"
-                href="#"
-                title={n.label}
-                onClick={(e) => {
-                  e.preventDefault();
-                  soon(n.label);
-                }}
-              >
+              <span key={n.key} className="item soon" aria-disabled="true" title={`${n.label} is not available yet`}>
                 {inner}
-              </a>
+              </span>
             );
           })}
         </div>

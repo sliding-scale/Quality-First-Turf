@@ -92,3 +92,28 @@
 .cj-tiles span { display: grid; place-items: center; aspect-ratio: 1.15; border-radius: 6px; background: #eef1f2; color: #b4bec4; }
 @media (max-width: 1100px) { .cj-cols { grid-template-columns: minmax(0, 1fr); } .cj-fields { grid-template-columns: 1fr; gap: 0; } .cj-tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 @media (max-width: 700px) { .cj-fields .f, .cj-fields2 .f { grid-template-columns: 110px minmax(0, 1fr); } .cj-name h1 { font-size: 28px; } .cj-strip { flex-wrap: wrap; } .cj-strip > span { border-left: 0; padding-left: 0; flex-basis: 100%; order: 3; } }
+
+/* Anything that is not built yet is greyed out and cannot be chosen (2026-11-09). */
+button:disabled, .btn:disabled, .icon-btn:disabled, .cj-link:disabled, .cj-plus:disabled, .cj-iconbtn:disabled { opacity: 0.4; cursor: not-allowed; }
+button:disabled:hover, .btn:disabled:hover, .icon-btn:disabled:hover, .cj-plus:disabled:hover, .cj-iconbtn:disabled:hover { background-color: inherit; text-decoration: inherit; }
+.btn.primary:disabled:hover { background-color: var(--green); }
+.cj-plus:disabled:hover, .cj-iconbtn:disabled:hover { background: none; }
+.cj-link:disabled { text-decoration: underline; }
+.menu button:disabled, .menu button:disabled:hover, .cp-item:disabled, .acct-item:disabled { opacity: 0.4; cursor: not-allowed; background: none; }
+.nav .item.soon, .nav .item[aria-disabled="true"] { opacity: 0.4; cursor: not-allowed; pointer-events: auto; }
+.nav .item.soon:hover { background: none; }
+.msgrow[aria-disabled="true"] { opacity: 0.55; cursor: not-allowed; }
+.msgrow[aria-disabled="true"]:hover { background: none; }
+[data-tip]:disabled:hover::after, [data-tip]:disabled:hover::before { display: none; }
+
+/* The right-hand column runs the full height of the page, beside the header, with a fold-away button at its top (as in Jobber). */
+.cj-cols { align-items: start; }
+.cj-cols.wide { grid-template-columns: minmax(0, 1fr) 40px; }
+.cj-aside { position: sticky; top: 0; }
+.cj-collapse { align-self: flex-end; display: inline-grid; place-items: center; width: 40px; height: 40px; padding: 0; border: 0; border-radius: 8px; background: none; color: var(--ink); cursor: pointer; transition: background-color 0.15s ease; }
+.cj-collapse:hover { background: #eeece7; }
+.cj-aside .cj-side h3 { line-height: 1.25; }
+
+/* Selecting a row swaps the header for the "N selected" bar; it keeps the header's height so the table does not move. */
+.table.jb thead tr.selbar th { height: 48px; padding: 0; border-bottom: 2px solid #dadfe2; }
+.table.jb .selbar-in { height: 46px; padding: 0 8px; box-sizing: border-box; }

@@ -7,7 +7,6 @@ import { useClerk } from "@clerk/nextjs";
 import Link from "next/link";
 import { ROLE_LABEL } from "@/convex/crm/lib/stages";
 import { useStaff } from "./staff-context";
-import { useUI } from "./ui-provider";
 
 const initials = (name: string) =>
   name
@@ -21,7 +20,6 @@ const initials = (name: string) =>
 export function AccountMenu({ close }: { close: () => void }) {
   const staff = useStaff();
   const clerk = useClerk();
-  const { soon } = useUI();
 
   return (
     <>
@@ -40,7 +38,7 @@ export function AccountMenu({ close }: { close: () => void }) {
             Settings
           </Link>
         ) : (
-          <button type="button" role="menuitem" className="acct-item" onClick={() => { close(); soon("Settings"); }}>
+          <button type="button" role="menuitem" className="acct-item" disabled>
             Settings
           </button>
         )}

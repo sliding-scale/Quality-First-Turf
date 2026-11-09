@@ -10,7 +10,7 @@ import { Icon } from "./icon";
 
 /** One row in a dropdown, or a line between groups, or a small heading over a group (as in Jobber's quote menu). */
 export type MenuItem =
-  | { label: string; icon?: string; /** A colour for the icon (a green hammer, say). */ iconColor?: string; /** Red text and icon, for deleting. */ danger?: boolean; checked?: boolean; onSelect?: () => void }
+  | { label: string; icon?: string; /** A colour for the icon (a green hammer, say). */ iconColor?: string; /** Red text and icon, for deleting. */ danger?: boolean; checked?: boolean; /** Not available yet: shown greyed and cannot be chosen. */ disabled?: boolean; onSelect?: () => void }
   | { divider: true }
   | { heading: string };
 
@@ -135,7 +135,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
       {children}
       {menu?.kind === "dropdown" && createPortal(<Dropdown ref={menuRef} state={menu} closing={closing} onClose={closeMenu} />, document.body)}
       {menu?.kind === "popover" && createPortal(<Popover ref={menuRef} state={menu} closing={closing} onClose={closeMenu} />, document.body)}
-      {menu?.kind === "create" && createPortal(<CreatePopover ref={menuRef} anchor={menu.anchor} closing={closing} onClose={closeMenu} soon={soon} />, document.body)}
+      {menu?.kind === "create" && createPortal(<CreatePopover ref={menuRef} anchor={menu.anchor} closing={closing} onClose={closeMenu} />, document.body)}
       {toastMsg && createPortal(<div className={`toast${toastLeaving ? " leaving" : ""}`} role="status">{toastMsg.msg}</div>, document.body)}
     </Ctx.Provider>
   );
@@ -195,6 +195,7 @@ function Dropdown({ state, closing, onClose, ref }: { state: DropdownState; clos
             type="button"
             role="menuitem"
             className={it.danger ? "danger" : undefined}
+            disabled={it.disabled}
             {...(it.checked !== undefined ? { "aria-checked": it.checked } : {})}
             onClick={() => {
               onClose();
@@ -212,7 +213,7 @@ function Dropdown({ state, closing, onClose, ref }: { state: DropdownState; clos
 }
 
 /* Create: a horizontal row of coloured icons beside the sidebar button, like Jobber. */
-function CreatePopover({ anchor, closing, onClose, soon, ref }: { anchor: HTMLElement; closing: boolean; onClose: () => void; soon: (what?: string) => void; ref: Ref<HTMLDivElement> }) {
+function CreatePopover({ anchor, closing, onClose, ref }: { anchor: HTMLElement; closing: boolean; onClose: () => void; ref: Ref<HTMLDivElement> }) {
   const node = useRef<HTMLDivElement | null>(null);
 
   useLayoutEffect(() => {
@@ -245,10 +246,7 @@ function CreatePopover({ anchor, closing, onClose, soon, ref }: { anchor: HTMLEl
             className="cp-item"
             role="menuitem"
             style={style}
-            onClick={() => {
-              onClose();
-              soon(i.soon);
-            }}
+            disabled
           >
             {inner}
           </button>

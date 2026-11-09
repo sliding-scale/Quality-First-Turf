@@ -6,12 +6,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useStaff } from "./staff-context";
-import { useUI } from "./ui-provider";
 
 export function SettingsNav() {
   const pathname = usePathname();
   const staff = useStaff();
-  const { soon } = useUI();
 
   return (
     <nav className="settings-nav" aria-label="Settings">
@@ -20,7 +18,7 @@ export function SettingsNav() {
         <>
           <div className="group">
             <div className="group-title">Business management</div>
-            <button type="button" onClick={() => soon("Business settings")}>Businesses</button>
+            <button type="button" disabled>Businesses</button>
           </div>
           <div className="group">
             <div className="group-title">Team organization</div>

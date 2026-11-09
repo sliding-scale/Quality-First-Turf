@@ -7,7 +7,6 @@ import { money0 } from "@/lib/format";
 import { useIsClient } from "@/lib/store";
 import { Icon } from "./icon";
 import { HomeSkeleton } from "./skeletons";
-import { useUI } from "./ui-provider";
 
 type Card = { bar: string; icon: string; name: string; big: number | string; label: string; lines: [string, number | string][] };
 
@@ -77,7 +76,6 @@ export function HomePage() {
 }
 
 function Home() {
-  const { soon } = useUI();
   const [mode, setMode] = useState<"Visit" | "Employee">("Visit");
   const now = new Date();
   const hour = now.getHours();
@@ -120,16 +118,7 @@ function Home() {
               <div className="stat"><div className="k">Completed</div><div className="v">{count("completed")}</div></div>
               <div className="stat"><div className="k">Overdue</div><div className="v">0</div></div>
               <div className="stat"><div className="k">Remaining</div><div className="v">{count("upcoming") + count("active")}</div></div>
-              <a
-                className="btn"
-                href="#"
-                onClick={(e) => {
-                  e.preventDefault();
-                  soon("Schedule");
-                }}
-              >
-                View Schedule
-              </a>
+              <button type="button" className="btn" disabled>View Schedule</button>
             </div>
             <div className="seg" role="tablist">
               <button type="button" className={mode === "Visit" ? "on" : ""} onClick={() => setMode("Visit")}>Visit</button>
@@ -157,15 +146,7 @@ function Home() {
           <h2 className="section-title">My messages</h2>
           <div className="card list-card">
             {MESSAGES.map((m) => (
-              <a
-                key={m.who}
-                className={`msgrow${m.unread ? " unread" : ""}`}
-                href="#"
-                onClick={(e) => {
-                  e.preventDefault();
-                  soon("Messages");
-                }}
-              >
+              <div key={m.who} className={`msgrow${m.unread ? " unread" : ""}`} aria-disabled="true">
                 <span className="dot-u" />
                 <div className="m">
                   <div className="top">
@@ -175,7 +156,7 @@ function Home() {
                   <div className="s">{m.t}</div>
                   <span className="pill tag">{m.ch}</span>
                 </div>
-              </a>
+              </div>
             ))}
           </div>
           <h2 className="section-title" style={{ marginTop: 0 }}>Upcoming consultations</h2>

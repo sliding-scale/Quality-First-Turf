@@ -45,7 +45,7 @@ function Clients({ business, initialQuery, saved }: { business: BusinessDoc; ini
   const convex = useConvex();
   const archive = useMutation(api.crm.clients.archive);
   const { canEdit } = useStaff();
-  const { dropdown, popover, toast, soon } = useUI();
+  const { dropdown, popover, toast } = useUI();
   const [q, setQ] = useState(initialQuery);
   const [search, setSearch] = useState(initialQuery); // what the server is asked, a moment after typing stops
   const [tags, setTags] = useState<string[]>([]);
@@ -165,9 +165,9 @@ function Clients({ business, initialQuery, saved }: { business: BusinessDoc; ini
               dropdown(
                 e.currentTarget,
                 [
-                  { label: "Import Clients", icon: "import", onSelect: () => soon("Importing clients") },
+                  { label: "Import Clients", icon: "import", disabled: true },
                   { label: "Export Clients", icon: "export", onSelect: () => void exportCsv() },
-                  { label: "Merge Clients", icon: "merge", onSelect: () => soon("Merging clients") },
+                  { label: "Merge Clients", icon: "merge", disabled: true },
                 ],
                 { alignRight: true, variant: "actions" },
               )

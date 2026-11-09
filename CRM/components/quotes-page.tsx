@@ -50,7 +50,7 @@ function Delta({ value }: { value: number | null }) {
 function Quotes({ business, initialQuery }: { business: BusinessDoc; initialQuery: string }) {
   const router = useRouter();
   const convex = useConvex();
-  const { dropdown, popover, toast, soon } = useUI();
+  const { dropdown, popover, toast } = useUI();
   const [q, setQ] = useState(initialQuery);
   const [search, setSearch] = useState(initialQuery); // what the server is asked, a moment after typing stops
   const [status, setStatus] = useState<"All" | QuoteStatus>("All");
@@ -119,7 +119,7 @@ function Quotes({ business, initialQuery }: { business: BusinessDoc; initialQuer
       <div className="page-head">
         <h1>Quotes</h1>
         <div className="actions">
-          <button className="btn primary" type="button" onClick={() => soon("Creating quotes")}>New Quote</button>
+          <button className="btn primary" type="button" disabled>New Quote</button>
           <button
             className="btn"
             type="button"

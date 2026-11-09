@@ -11,7 +11,6 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { CLIENT_TAGS } from "@/convex/crm/lib/stages";
 import { Checkbox } from "./checkbox";
 import { Icon } from "./icon";
-import { useUI } from "./ui-provider";
 
 const EXIT_MS = 160; // keep in step with modal-out in globals.css
 
@@ -156,7 +155,6 @@ export function EditTagsDialog({ client, onClose, onSaved }: { client: { _id: Id
 /** Jobber's Send email pop-up. Sending needs the email connection (Google Workspace, PRD 5.3), which is not built yet, so Send Email says so
  *  and keeps what was typed. */
 export function SendEmailDialog({ client, onClose }: { client: { name: string; email: string }; onClose: () => void }) {
-  const { soon } = useUI();
   const [to, setTo] = useState(client.email ? [client.email] : []);
   const [copy, setCopy] = useState(false);
   return (
@@ -185,7 +183,7 @@ export function SendEmailDialog({ client, onClose }: { client: { name: string; e
             <div className="cd-mail-side">
               <b>Attachments</b>
               <div className="cd-drop">
-                <button type="button" className="btn small" onClick={() => soon("Attachments")}>Select</button>
+                <button type="button" className="btn small" disabled>Select</button>
                 <span>Select or drag files here to upload</span>
               </div>
               <span className="cd-hint">You&apos;ve attached 0.00 MB of the 19.00 MB limit.</span>
@@ -194,7 +192,7 @@ export function SendEmailDialog({ client, onClose }: { client: { name: string; e
           </div>
           <div className="modal-foot">
             <button type="button" className="btn plain" onClick={close}>Cancel</button>
-            <button type="button" className="btn primary" onClick={() => soon("Sending email")}>Send Email</button>
+            <button type="button" className="btn primary" disabled>Send Email</button>
           </div>
         </>
       )}

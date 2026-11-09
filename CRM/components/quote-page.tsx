@@ -42,7 +42,7 @@ const SIDE_KEY = "qft-quote-notes-closed";
 
 function QuoteView({ q }: { q: Quote }) {
   const router = useRouter();
-  const { dropdown, soon, toast } = useUI();
+  const { dropdown, toast } = useUI();
   const { canEdit } = useStaff();
   const [deleting, setDeleting] = useState(false);
   // The quote's photos, in the order they appear on the page; clicking one opens the viewer on it.
@@ -75,7 +75,7 @@ function QuoteView({ q }: { q: Quote }) {
 
   // Jobber's More menu. Sending, converting and signing wait for later steps; printing and deleting work now. A role that can only look gets
   // only the items that do not change anything.
-  const later = (label: string, icon: string, what: string, extra: object = {}): MenuItem => ({ label, icon, onSelect: () => soon(what), ...extra });
+  const later = (label: string, icon: string, what: string, extra: object = {}): MenuItem => ({ label, icon, disabled: true, ...extra });
   const rule: MenuItem = { divider: true };
   const moreItems: MenuItem[] = [
     ...(canEdit
@@ -90,7 +90,6 @@ function QuoteView({ q }: { q: Quote }) {
     { label: "View client", onSelect: () => router.push(`/clients/${c.id}`) },
     ...(canEdit ? [{ label: "Edit client", onSelect: () => router.push(`/clients/${c.id}/edit`) } as MenuItem] : []),
   ];
-  const editing = (what: string) => () => soon(what);
 
   return (
     <div className="quote-shell fade-in">
@@ -106,13 +105,13 @@ function QuoteView({ q }: { q: Quote }) {
               </Link>
             </div>
             <div className="qh-actions">
-              <button type="button" className="icon-btn" aria-label="View activity" title="View activity" onClick={editing("Quote history")}>
+              <button type="button" className="icon-btn" aria-label="View activity" title="View activity" disabled>
                 <Icon name="history" size={24} />
               </button>
               <button className="btn more-btn" type="button" aria-label="More" aria-haspopup="menu" onClick={(e) => dropdown(e.currentTarget, moreItems, { alignRight: true, variant: "actions" })}>
                 <Icon name="more" size={24} /><span className="lbl">More</span>
               </button>
-              <button className="btn primary" type="button" onClick={editing("Creating quotes")}>
+              <button className="btn primary" type="button" disabled>
                 <Icon name="duplicate" size={24} />Create Similar Quote
               </button>
             </div>
@@ -120,7 +119,7 @@ function QuoteView({ q }: { q: Quote }) {
           <div className="quote-title-row">
             <h1>{q.title}</h1>
             {canEdit && (
-              <button type="button" className="icon-btn" aria-label="Edit quote details" title="Edit quote details" onClick={editing("Editing quotes")}>
+              <button type="button" className="icon-btn" aria-label="Edit quote details" title="Edit quote details" disabled>
                 <Icon name="pencil" size={24} />
               </button>
             )}
@@ -158,7 +157,7 @@ function QuoteView({ q }: { q: Quote }) {
           <section className="card panel quote-section">
             <div className="ph">
               <h3>Introduction</h3>
-              {canEdit && <button type="button" className="icon-btn" aria-label="Edit introduction" onClick={editing("Editing quotes")}><Icon name="pencil" size={24} /></button>}
+              {canEdit && <button type="button" className="icon-btn" aria-label="Edit introduction" disabled><Icon name="pencil" size={24} /></button>}
             </div>
             <div className="qs-body">
               {q.introImageUrl && (
@@ -177,7 +176,7 @@ function QuoteView({ q }: { q: Quote }) {
           <section className="card panel quote-section">
             <div className="ph">
               <h3>Product / Service</h3>
-              {canEdit && <button type="button" className="icon-btn" aria-label="Edit products and services" onClick={editing("Editing quotes")}><Icon name="pencil" size={24} /></button>}
+              {canEdit && <button type="button" className="icon-btn" aria-label="Edit products and services" disabled><Icon name="pencil" size={24} /></button>}
             </div>
             <div className="qs-body flush">
               <table className="table quote-lines">
@@ -280,7 +279,7 @@ function QuoteView({ q }: { q: Quote }) {
           <section className="card quote-notes">
             <div className="qn-head">
               <h3>Notes</h3>
-              <button type="button" className="btn square" aria-label="Add a note" onClick={() => soon("Adding notes to quotes")}>
+              <button type="button" className="btn square" aria-label="Add a note" disabled>
                 <Icon name="plus" size={20} />
               </button>
             </div>
@@ -294,7 +293,7 @@ function QuoteView({ q }: { q: Quote }) {
                       <div className="muted">{quoteDateTime(n.createdAt)}</div>
                     </div>
                     {canEdit && (
-                      <button type="button" className="icon-btn" aria-label="Edit note" onClick={editing("Editing notes on quotes")}><Icon name="pencil" size={24} /></button>
+                      <button type="button" className="icon-btn" aria-label="Edit note" disabled><Icon name="pencil" size={24} /></button>
                     )}
                   </div>
                   <p>{n.text}</p>

@@ -54,7 +54,7 @@ const propertyLine = (p: { street1: string; street2: string; city: string; state
 function ClientView({ c }: { c: ClientDoc }) {
   const { canEdit } = useStaff();
   const router = useRouter();
-  const { dropdown, soon, toast } = useUI();
+  const { dropdown, toast } = useUI();
   const archive = useMutation(api.crm.clients.archive);
   const [tab, setTab] = useState<Tab>(() => {
     const t = new URLSearchParams(location.search).get("tab");
@@ -63,6 +63,8 @@ function ClientView({ c }: { c: ClientDoc }) {
   const [tagging, setTagging] = useState(false);
   const [emailing, setEmailing] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  // Jobber's right-hand column runs the full height of the page, beside the header too, and folds away with the button at its top.
+  const [sideOpen, setSideOpen] = useState(true);
 
   useEffect(() => {
     document.title = `${c.name} · Quality First Turf CRM`;
@@ -84,7 +86,8 @@ function ClientView({ c }: { c: ClientDoc }) {
   const tags = c.tags ?? [];
 
   return (
-    <div className="fade-in cj">
+    <div className={`fade-in cj cj-cols${sideOpen ? "" : " wide"}`}>
+      <div className="cj-main">
       <div className="cj-top">
         <div className="cj-who">
           <Icon name="contact" size={22} />
@@ -122,7 +125,7 @@ function ClientView({ c }: { c: ClientDoc }) {
             onClick={(e) =>
               dropdown(
                 e.currentTarget,
-                [["Request", "inbox"], ["Quote", "quote"], ["Job", "hammer"], ["Invoice", "receipt"]].map(([l, ic]) => ({ label: l, icon: ic, onSelect: () => soon(l + "s") })),
+                [["Request", "inbox"], ["Quote", "quote"], ["Job", "hammer"], ["Invoice", "receipt"]].map(([l, ic]) => ({ label: l, icon: ic, disabled: true })),
                 { alignRight: true },
               )
             }
@@ -158,8 +161,6 @@ function ClientView({ c }: { c: ClientDoc }) {
         </dl>
       </div>
 
-      <div className="cj-cols">
-        <div className="cj-main">
           <div className="cj-tabs" role="tablist">
             <button className={`cj-tab${tab === "info" ? " active" : ""}`} role="tab" aria-selected={tab === "info"} onClick={() => pick("info")}>Client information</button>
             <button className={`cj-tab${tab === "communication" ? " active" : ""}`} role="tab" aria-selected={tab === "communication"} onClick={() => pick("communication")}>Communication</button>
@@ -169,16 +170,16 @@ function ClientView({ c }: { c: ClientDoc }) {
           <div key={tab} className="fade-in cj-stack">
             {tab === "info" && (
               <>
-                <PropertiesCard properties={properties} canEdit={canEdit} soon={soon} />
-                <ContactsCard contacts={c.contacts ?? []} soon={soon} />
-                <WorkOverview clientId={c._id} soon={soon} />
-                <BillingCard billing={c.billing ?? []} balanceCents={c.balanceCents ?? 0} soon={soon} />
+                <PropertiesCard properties={properties} canEdit={canEdit} />
+                <ContactsCard contacts={c.contacts ?? []} />
+                <WorkOverview clientId={c._id} />
+                <BillingCard billing={c.billing ?? []} balanceCents={c.balanceCents ?? 0} />
                 <div className="cj-strip">
                   <Icon name="card" size={22} />
                   <span><b>Payment methods</b> - Saved payment methods will appear here once Jobber Payments is set up</span>
-                  <button type="button" className="cj-link" onClick={() => soon("Payments")}>Set up Jobber Payments</button>
+                  <button type="button" className="cj-link" disabled>Set up Jobber Payments</button>
                 </div>
-                <ScheduleCard items={c.scheduleItems ?? []} soon={soon} />
+                <ScheduleCard items={c.scheduleItems ?? []} />
               </>
             )}
             {tab === "communication" && (
@@ -209,6 +210,11 @@ function ClientView({ c }: { c: ClientDoc }) {
         </div>
 
         <aside className="cj-aside">
+          <button type="button" className="cj-collapse" aria-label={sideOpen ? "Hide the side panel" : "Show the side panel"} aria-expanded={sideOpen} data-tip={sideOpen ? "Hide panel" : "Show panel"} onClick={() => setSideOpen((o) => !o)}>
+            <Icon name="panel" size={24} />
+          </button>
+          {sideOpen && (
+          <>
           <section className="cj-side">
             <h3>Overview</h3>
             <div className="cj-big">{money(c.lifetimeValueCents ?? 0)}<small>Lifetime value</small></div>
@@ -219,7 +225,7 @@ function ClientView({ c }: { c: ClientDoc }) {
             <div className="cj-side-head">
               <h3>Tags</h3>
               {canEdit && (
-                <button type="button" className="cj-iconbtn" aria-label="Edit tags" data-tip="Edit tags" onClick={() => setTagging(true)}>
+                <button type="button" className={tags.length ? "cj-iconbtn" : "cj-plus"} aria-label="Edit tags" data-tip="Edit tags" onClick={() => setTagging(true)}>
                   <Icon name={tags.length ? "pencil" : "plus"} size={22} />
                 </button>
               )}
@@ -242,8 +248,9 @@ function ClientView({ c }: { c: ClientDoc }) {
           )}
 
           <NotesCard clientId={c._id} canEdit={canEdit} />
+          </>
+          )}
         </aside>
-      </div>
 
       {tagging && <EditTagsDialog client={c} onClose={() => setTagging(false)} onSaved={() => toast("Tags saved")} />}
       {emailing && <SendEmailDialog client={c} onClose={() => setEmailing(false)} />}
@@ -254,15 +261,13 @@ function ClientView({ c }: { c: ClientDoc }) {
   );
 }
 
-type Soon = (what?: string) => void;
-
-function PropertiesCard({ properties, canEdit, soon }: { properties: NonNullable<ClientDoc["properties"]>; canEdit: boolean; soon: Soon }) {
+function PropertiesCard({ properties, canEdit }: { properties: NonNullable<ClientDoc["properties"]>; canEdit: boolean }) {
   if (!properties.length) {
     return (
       <div className="cj-strip">
         <Icon name="pin" size={22} />
         <span><b>Properties</b> - Add properties so you can organize work by location</span>
-        <button type="button" className="cj-link" onClick={() => soon("Properties")}>Add Property</button>
+        <button type="button" className="cj-link" disabled>Add Property</button>
       </div>
     );
   }
@@ -270,7 +275,7 @@ function PropertiesCard({ properties, canEdit, soon }: { properties: NonNullable
     <section className="cj-card">
       <div className="cj-card-head">
         <h3>Properties</h3>
-        {canEdit && <button type="button" className="cj-plus" aria-label="Add property" data-tip="Add property" onClick={() => soon("Properties")}><Icon name="plus" size={22} /></button>}
+        {canEdit && <button type="button" className="cj-plus" aria-label="Add property" data-tip="Add property" disabled><Icon name="plus" size={22} /></button>}
       </div>
       {properties.map((p, i) => (
         <div className="cj-prop" key={i}>
@@ -278,7 +283,7 @@ function PropertiesCard({ properties, canEdit, soon }: { properties: NonNullable
             <b>{propertyLine(p)}</b>
             <span>
               <a className="cj-iconbtn" aria-label="Open in maps" data-tip="View on map" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(propertyLine(p))}`} target="_blank" rel="noopener noreferrer"><Icon name="pin" size={22} /></a>
-              {canEdit && <button type="button" className="cj-iconbtn" aria-label="Edit property" data-tip="Edit property" onClick={() => soon("Editing properties")}><Icon name="pencil" size={22} /></button>}
+              {canEdit && <button type="button" className="cj-iconbtn" aria-label="Edit property" data-tip="Edit property" disabled><Icon name="pencil" size={22} /></button>}
             </span>
           </div>
           <dl className="cj-fields2">
@@ -291,13 +296,13 @@ function PropertiesCard({ properties, canEdit, soon }: { properties: NonNullable
   );
 }
 
-function ContactsCard({ contacts, soon }: { contacts: NonNullable<ClientDoc["contacts"]>; soon: Soon }) {
+function ContactsCard({ contacts }: { contacts: NonNullable<ClientDoc["contacts"]> }) {
   if (!contacts.length) {
     return (
       <div className="cj-strip">
         <Icon name="contact" size={22} />
         <span><b>Contacts</b> - Add contacts to keep track of everyone you communicate with</span>
-        <button type="button" className="cj-link" onClick={() => soon("Contacts")}>Add Contact</button>
+        <button type="button" className="cj-link" disabled>Add Contact</button>
       </div>
     );
   }
@@ -305,7 +310,7 @@ function ContactsCard({ contacts, soon }: { contacts: NonNullable<ClientDoc["con
     <section className="cj-card">
       <div className="cj-card-head">
         <h3>Contacts</h3>
-        <button type="button" className="cj-plus" aria-label="Add contact" data-tip="Add contact" onClick={() => soon("Contacts")}><Icon name="plus" size={22} /></button>
+        <button type="button" className="cj-plus" aria-label="Add contact" data-tip="Add contact" disabled><Icon name="plus" size={22} /></button>
       </div>
       <table className="table cj-table">
         <colgroup><col style={{ width: "30%" }} /><col style={{ width: "25%" }} /><col style={{ width: "40%" }} /><col style={{ width: "5%" }} /></colgroup>
@@ -316,7 +321,7 @@ function ContactsCard({ contacts, soon }: { contacts: NonNullable<ClientDoc["con
               <td><b>{p.name}</b>{p.role && <div>{p.role}</div>}</td>
               <td>{p.phone && <a href={`tel:${p.phone}`}>{p.phone}</a>}</td>
               <td>{p.email && <a href={`mailto:${p.email}`}>{p.email}</a>}</td>
-              <td><button type="button" className="cj-iconbtn" aria-label="More actions" onClick={() => soon("Contacts")}><Icon name="more" size={22} /></button></td>
+              <td><button type="button" className="cj-iconbtn" aria-label="More actions" disabled><Icon name="more" size={22} /></button></td>
             </tr>
           ))}
         </tbody>
@@ -334,7 +339,7 @@ const KINDS: { key: Kind; label: string; icon: string; color: string }[] = [
 ];
 
 /** Requests and quotes of the client, as in Jobber: "Status | Active" until a type is picked, which shows all statuses of that type. */
-function WorkOverview({ clientId, soon }: { clientId: Id<"clients">; soon: Soon }) {
+function WorkOverview({ clientId }: { clientId: Id<"clients"> }) {
   const projects = useClientProjects(clientId);
   const quotes = useQuery(api.crm.quotes.byClient, { clientId });
   const [kind, setKind] = useState<Kind | null>(null);
@@ -356,7 +361,7 @@ function WorkOverview({ clientId, soon }: { clientId: Id<"clients">; soon: Soon 
     <section className="cj-card">
       <div className="cj-card-head">
         <h3>Work overview</h3>
-        <button type="button" className="cj-plus" aria-label="Create work" data-tip="Create" onClick={() => soon("Creating work")}><Icon name="plus" size={22} /></button>
+        <button type="button" className="cj-plus" aria-label="Create work" data-tip="Create" disabled><Icon name="plus" size={22} /></button>
       </div>
       <div className="cj-chips">
         <span className="chip cj-status">Status<span className="sep" /><b>{kind ? "All" : "Active"}</b></span>
@@ -396,13 +401,13 @@ function WorkOverview({ clientId, soon }: { clientId: Id<"clients">; soon: Soon 
   );
 }
 
-function BillingCard({ billing, balanceCents, soon }: { billing: NonNullable<ClientDoc["billing"]>; balanceCents: number; soon: Soon }) {
+function BillingCard({ billing, balanceCents }: { billing: NonNullable<ClientDoc["billing"]>; balanceCents: number }) {
   if (!billing.length) {
     return (
       <div className="cj-strip">
         <Icon name="receipt" size={22} />
         <span><b>Billing</b> - Bill this client to see billing history</span>
-        <button type="button" className="cj-link" onClick={() => soon("Billing")}>Add Billing Information</button>
+        <button type="button" className="cj-link" disabled>Add Billing Information</button>
       </div>
     );
   }
@@ -410,7 +415,7 @@ function BillingCard({ billing, balanceCents, soon }: { billing: NonNullable<Cli
     <section className="cj-card">
       <div className="cj-card-head">
         <h3>Billing</h3>
-        <button type="button" className="cj-plus" aria-label="Add billing information" data-tip="Add billing" onClick={() => soon("Billing")}><Icon name="plus" size={22} /></button>
+        <button type="button" className="cj-plus" aria-label="Add billing information" data-tip="Add billing" disabled><Icon name="plus" size={22} /></button>
       </div>
       <table className="table cj-table">
         <colgroup><col style={{ width: "25%" }} /><col style={{ width: "25%" }} /><col style={{ width: "25%" }} /><col style={{ width: "25%" }} /></colgroup>
@@ -431,13 +436,13 @@ function BillingCard({ billing, balanceCents, soon }: { billing: NonNullable<Cli
   );
 }
 
-function ScheduleCard({ items, soon }: { items: NonNullable<ClientDoc["scheduleItems"]>; soon: Soon }) {
+function ScheduleCard({ items }: { items: NonNullable<ClientDoc["scheduleItems"]> }) {
   if (!items.length) {
     return (
       <div className="cj-strip">
         <Icon name="calendar" size={22} />
         <span><b>Client schedule</b> - Scheduled client tasks and events appear here</span>
-        <button type="button" className="cj-link" onClick={() => soon("Scheduling")}>Add</button>
+        <button type="button" className="cj-link" disabled>Add</button>
       </div>
     );
   }
@@ -445,7 +450,7 @@ function ScheduleCard({ items, soon }: { items: NonNullable<ClientDoc["scheduleI
     <section className="cj-card">
       <div className="cj-card-head">
         <h3>Client schedule</h3>
-        <button type="button" className="cj-plus" aria-label="Add to the schedule" data-tip="Add" onClick={() => soon("Scheduling")}><Icon name="plus" size={22} /></button>
+        <button type="button" className="cj-plus" aria-label="Add to the schedule" data-tip="Add" disabled><Icon name="plus" size={22} /></button>
       </div>
       <div className="cj-chips">
         <span className="chip cj-status">Type<span className="sep" /><b>All</b></span>
@@ -465,7 +470,7 @@ function ScheduleCard({ items, soon }: { items: NonNullable<ClientDoc["scheduleI
               </td>
               <td>{s.title}</td>
               <td className={s.assigned === "Unassigned" ? "cj-unassigned" : undefined}>{s.assigned}</td>
-              <td><button type="button" className="cj-iconbtn" aria-label="More actions" onClick={() => soon("Scheduling")}><Icon name="more" size={22} /></button></td>
+              <td><button type="button" className="cj-iconbtn" aria-label="More actions" disabled><Icon name="more" size={22} /></button></td>
             </tr>
           ))}
         </tbody>

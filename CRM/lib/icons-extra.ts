@@ -87,4 +87,9 @@ export const EXTRA_ICONS: Record<string, IconDef> = {
     vb: "0 0 24 24",
     paths: [{ d: "M14 3h7v7h-2V6.4l-8.3 8.3-1.4-1.4L17.6 5H14V3ZM5 5h6v2H5v12h12v-6h2v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" }],
   },
+  // The side-panel toggle at the top of the client page's right column.
+  panel: {
+    vb: "0 0 24 24",
+    paths: [{ d: "M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Zm1 2v10h9V7H5Zm11 0v10h3V7h-3Z" }],
+  },
 };

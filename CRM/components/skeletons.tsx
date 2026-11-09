@@ -142,7 +142,8 @@ export function ClientsSkeleton() {
 export function ClientSkeleton() {
   return (
     <Busy>
-      <div className="cj">
+      <div className="cj cj-cols">
+        <div className="cj-main">
         <div className="cj-top">
           <div className="cj-who"><Sk w={22} h={22} r={11} /><Sk w={70} h={24} r={12} /></div>
           <div className="cj-actions"><Sk w={40} h={40} r={8} /><Sk w={40} h={40} r={8} /><Sk w={98} h={40} r={8} /></div>
@@ -152,8 +153,6 @@ export function ClientSkeleton() {
           <dl>{range(2).map((i) => <div className="f" key={i}><dt><Sk w={90} h={16} /></dt><dd><Sk w="55%" h={16} /></dd></div>)}</dl>
           <dl>{range(3).map((i) => <div className="f" key={i}><dt><Sk w={100} h={16} /></dt><dd><Sk w="50%" h={16} /></dd></div>)}</dl>
         </div>
-        <div className="cj-cols">
-          <div className="cj-main">
             <div className="cj-tabs">
               <span className="cj-tab"><Sk w={120} h={18} /></span>
               <span className="cj-tab"><Sk w={100} h={18} /></span>
@@ -174,7 +173,6 @@ export function ClientSkeleton() {
             <section className="cj-side"><Sk w={60} h={20} /><Sk h={120} r={8} style={{ marginTop: 14 }} /></section>
           </aside>
         </div>
-      </div>
     </Busy>
   );
 }

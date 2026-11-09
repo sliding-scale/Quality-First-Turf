@@ -53,7 +53,7 @@ function bounds(range: DateRange): { from: number | null; to: number | null } {
 function Requests({ business, initialQuery }: { business: BusinessDoc; initialQuery: string }) {
   const router = useRouter();
   const convex = useConvex();
-  const { dropdown, popover, toast, soon } = useUI();
+  const { dropdown, popover, toast } = useUI();
   const [q, setQ] = useState(initialQuery);
   const [search, setSearch] = useState(initialQuery); // what the server is asked, a moment after typing stops
   const [status, setStatus] = useState<"All" | RequestStatus>("All");
@@ -132,7 +132,7 @@ function Requests({ business, initialQuery }: { business: BusinessDoc; initialQu
       <div className="page-head">
         <h1>Requests</h1>
         <div className="actions">
-          <button className="btn primary" type="button" onClick={() => soon("Creating requests")}>New Request</button>
+          <button className="btn primary" type="button" disabled>New Request</button>
           <button
             className="btn"
             type="button"
