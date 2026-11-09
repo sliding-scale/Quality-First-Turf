@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { Figtree } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
+import "./client-page.css";
 
 // Headings: Figtree (open source), the closest match to Jobber's heading font.
 const figtree = Figtree({ variable: "--font-figtree", subsets: ["latin"], weight: ["700", "800"], display: "swap" });

@@ -54,3 +54,47 @@ export const alignWithJobber = internalMutation({
     return { changed };
   },
 });
+
+/* Fills in what Jobber's client page shows for imported clients (2026-11-09, D-060): every phone and email with its label, the
+   properties with their custom fields, the contacts, billing, schedule and last message, and the balance figures. Applies exactly what
+   it is given to the clients named, and only to clients of the business.
+     npx convex run crm/clientImport:applyJobberDetails "$(cat payload.json)" */
+const phoneV = v.object({ number: v.string(), description: v.string() });
+const emailV = v.object({ address: v.string(), description: v.string() });
+const propertyV = v.object({ street1: v.string(), street2: v.string(), city: v.string(), state: v.string(), zip: v.string(), country: v.string(), lawnSize: v.string(), lockedGate: v.boolean() });
+const contactV = v.object({ name: v.string(), role: v.string(), phone: v.string(), email: v.string() });
+const billingV = v.object({ kind: v.string(), appliedTo: v.string(), at: v.number(), cents: v.number() });
+const scheduleV = v.object({ kind: v.string(), title: v.string(), at: v.number(), status: v.string(), assigned: v.string() });
+
+export const applyJobberDetails = internalMutation({
+  args: {
+    businessSlug: v.string(),
+    updates: v.array(v.object({
+      id: v.id("clients"),
+      isCompany: v.boolean(),
+      firstName: v.string(),
+      lastName: v.string(),
+      phones: v.array(phoneV),
+      emails: v.array(emailV),
+      properties: v.array(propertyV),
+      contacts: v.optional(v.array(contactV)),
+      billing: v.optional(v.array(billingV)),
+      scheduleItems: v.optional(v.array(scheduleV)),
+      lastCommunication: v.optional(v.object({ at: v.number(), text: v.string() })),
+      lifetimeValueCents: v.optional(v.number()),
+      balanceCents: v.optional(v.number()),
+    })),
+  },
+  handler: async (ctx, args) => {
+    const business = await ctx.db.query("businesses").filter((q) => q.eq(q.field("slug"), args.businessSlug)).first();
+    if (!business) throw new ConvexError(`No business with the slug "${args.businessSlug}".`);
+    let changed = 0;
+    for (const { id, ...fields } of args.updates) {
+      const c = await ctx.db.get(id);
+      if (c === null || c.businessId !== business._id) throw new ConvexError(`Client ${id} is not in ${args.businessSlug}.`);
+      await ctx.db.patch(id, fields);
+      changed += 1;
+    }
+    return { changed };
+  },
+});

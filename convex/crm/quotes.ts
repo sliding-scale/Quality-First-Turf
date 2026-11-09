@@ -195,6 +195,20 @@ export const stats = query({
   },
 });
 
+/** A client's quotes, newest first, for the Work overview card on the client page. */
+export const byClient = query({
+  args: { clientId: v.id("clients") },
+  handler: async (ctx, args) => {
+    const client = await ctx.db.get(args.clientId);
+    if (client === null) return [];
+    await requireBusiness(ctx, client.businessId);
+    const rows = await ctx.db.query("quotes").withIndex("by_clientId", (q) => q.eq("clientId", args.clientId)).take(100);
+    return rows
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .map((q) => ({ _id: q._id, number: q.number, title: q.title, status: q.status, createdAt: q.createdAt, totalCents: q.totalCents }));
+  },
+});
+
 /** One quote with everything on its page, or null if it does not exist (or belongs to a business the caller cannot see). */
 export const get = query({
   args: { id: v.id("quotes") },

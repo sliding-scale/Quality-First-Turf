@@ -222,6 +222,34 @@ export default defineSchema({
     status: v.union(v.literal("lead"), v.literal("active"), v.literal("archived")),
     createdAt: v.number(),
     lastActivityAt: v.number(),
+    /* What Jobber's client page shows (copied from Jobber on 2026-11-09, D-060). All optional: a client made in the CRM has only the
+       basic fields above until someone adds more. */
+    isCompany: v.optional(v.boolean()),
+    firstName: v.optional(v.string()),
+    lastName: v.optional(v.string()),
+    /** Every phone number, shown as "Main phone", "Other phone"... The first is the same as `phone`. */
+    phones: v.optional(v.array(v.object({ number: v.string(), description: v.string() }))),
+    emails: v.optional(v.array(v.object({ address: v.string(), description: v.string() }))),
+    /** Properties (service addresses). The first is the same address as street1..zip above. */
+    properties: v.optional(v.array(v.object({
+      street1: v.string(),
+      street2: v.string(),
+      city: v.string(),
+      state: v.string(),
+      zip: v.string(),
+      country: v.string(),
+      lawnSize: v.string(),
+      lockedGate: v.boolean(),
+    }))),
+    /** Other people at a company client (the Contacts card). */
+    contacts: v.optional(v.array(v.object({ name: v.string(), role: v.string(), phone: v.string(), email: v.string() }))),
+    /** The Billing card: deposits and payments taken, in whole cents (a deposit is negative against the balance). */
+    billing: v.optional(v.array(v.object({ kind: v.string(), appliedTo: v.string(), at: v.number(), cents: v.number() }))),
+    /** The Client schedule card. */
+    scheduleItems: v.optional(v.array(v.object({ kind: v.string(), title: v.string(), at: v.number(), status: v.string(), assigned: v.string() }))),
+    lastCommunication: v.optional(v.object({ at: v.number(), text: v.string() })),
+    lifetimeValueCents: v.optional(v.number()),
+    balanceCents: v.optional(v.number()),
     /** Jobber-style tags (Company, Homeowner, Partner Contractor, Sub-Contractor), shown in the list's Tags column. Older rows have none. */
     tags: v.optional(v.array(v.string())),
     /** Lower-cased `name`, so a list can be sorted by name without regard to case. */

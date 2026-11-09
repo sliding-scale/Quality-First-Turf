@@ -256,7 +256,7 @@ function Clients({ business, initialQuery, saved }: { business: BusinessDoc; ini
                     <span className="selcount">{selected.size} selected</span>
                     <button type="button" className="linkbtn" onClick={() => setSelected(new Set())}>Deselect All</button>
                     {canEdit && (
-                      <button type="button" className="icon-btn" aria-label={`Delete ${selected.size === 1 ? "client" : "clients"}`} title="Delete" onClick={() => setDeleting([...selected] as Id<"clients">[])}>
+                      <button type="button" className="icon-btn" aria-label={`Delete ${selected.size === 1 ? "client" : "clients"}`} data-tip="Delete" onClick={() => setDeleting([...selected] as Id<"clients">[])}>
                         <Icon name="trash" size={22} />
                       </button>
                     )}
@@ -302,16 +302,16 @@ function Clients({ business, initialQuery, saved }: { business: BusinessDoc; ini
                       {dayLabel(daysAgoFrom(c.lastActivityAt), today)}
                       <div className={`jb-actions${pinned === c._id ? " pinned" : ""}`} onClick={(e) => e.stopPropagation()}>
                         {canEdit && (
-                          <button type="button" aria-label={`Edit tags for ${c.name}`} title="Edit tags" onClick={() => setTagging(c)}><Icon name="tag" size={22} /></button>
+                          <button type="button" aria-label={`Edit tags for ${c.name}`} data-tip="Tag" onClick={() => setTagging(c)}><Icon name="tag" size={22} /></button>
                         )}
                         {c.email && (
-                          <button type="button" aria-label={`Send email to ${c.name}`} title="Send email" onClick={() => setEmailing(c)}><Icon name="mail" size={22} /></button>
+                          <button type="button" aria-label={`Send email to ${c.name}`} data-tip="Email" onClick={() => setEmailing(c)}><Icon name="mail" size={22} /></button>
                         )}
                         <button
                           type="button"
                           aria-label={`More actions for ${c.name}`}
                           aria-haspopup="menu"
-                          title="More actions"
+                          data-tip="More actions"
                           onClick={(e) => {
                             setPinned(c._id);
                             dropdown(

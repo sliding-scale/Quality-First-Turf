@@ -142,51 +142,38 @@ export function ClientsSkeleton() {
 export function ClientSkeleton() {
   return (
     <Busy>
-      <div className="client-head">
-        <div className="left">
-          <div className="who"><Sk w={88} h={22} r={999} /></div>
-          <div className="name-row"><Sk w={320} h={34} /></div>
+      <div className="cj">
+        <div className="cj-top">
+          <div className="cj-who"><Sk w={22} h={22} r={11} /><Sk w={70} h={24} r={12} /></div>
+          <div className="cj-actions"><Sk w={40} h={40} r={8} /><Sk w={40} h={40} r={8} /><Sk w={98} h={40} r={8} /></div>
         </div>
-        <Sk w={98} h={38} r={8} />
-      </div>
-
-      <dl className="fields">
-        {range(6).map((i) => (
-          <div className="f" key={i}><dt><Sk w={70} h={16} /></dt><dd><Sk w="65%" h={16} /></dd></div>
-        ))}
-      </dl>
-
-      <div className="tabs">
-        <span className="tab" style={{ padding: "12px 8px" }}><Sk w={130} h={18} /></span>
-        <span className="tab" style={{ padding: "12px 8px" }}><Sk w={60} h={18} /></span>
-      </div>
-
-      <div className="layout-2col">
-        <div className="main-col">
-          {range(2).map((i) => (
-            <section className="card panel" key={i}>
-              <div className="ph"><Sk w={180} h={24} /></div>
-              <div className="pad">
-                {range(2).map((j) => (
-                  <div key={j} style={{ padding: "10px 0" }}><Sk w="60%" h={16} /><Sk w="30%" h={14} style={{ marginTop: 6 }} /></div>
-                ))}
-              </div>
-            </section>
-          ))}
+        <div className="cj-name"><Sk w={420} h={38} /></div>
+        <div className="cj-fields">
+          <dl>{range(2).map((i) => <div className="f" key={i}><dt><Sk w={90} h={16} /></dt><dd><Sk w="55%" h={16} /></dd></div>)}</dl>
+          <dl>{range(3).map((i) => <div className="f" key={i}><dt><Sk w={100} h={16} /></dt><dd><Sk w="50%" h={16} /></dd></div>)}</dl>
         </div>
-        <aside className="aside">
-          <div className="card">
-            <Sk w={100} h={20} />
-            <Sk w={130} h={28} style={{ marginTop: 14 }} />
-            <Sk w={90} h={13} style={{ marginTop: 6 }} />
-            <Sk w={130} h={28} style={{ marginTop: 14 }} />
-            <Sk w={100} h={13} style={{ marginTop: 6 }} />
+        <div className="cj-cols">
+          <div className="cj-main">
+            <div className="cj-tabs">
+              <span className="cj-tab"><Sk w={120} h={18} /></span>
+              <span className="cj-tab"><Sk w={100} h={18} /></span>
+              <span className="cj-tab"><Sk w={110} h={18} /></span>
+            </div>
+            <div className="cj-stack">
+              {range(3).map((i) => (
+                <section className="cj-card" key={i}>
+                  <div className="cj-card-head"><Sk w={160} h={24} /><Sk w={40} h={40} r={8} /></div>
+                  <div style={{ padding: "0 16px 16px" }}><Sk w="60%" h={16} /><Sk w="30%" h={14} style={{ marginTop: 8 }} /></div>
+                </section>
+              ))}
+            </div>
           </div>
-          <div className="card">
-            <Sk w={70} h={20} />
-            <Sk h={110} r={10} style={{ marginTop: 12 }} />
-          </div>
-        </aside>
+          <aside className="cj-aside">
+            <section className="cj-side"><Sk w={90} h={20} /><Sk w={110} h={26} style={{ marginTop: 14 }} /><Sk w={110} h={26} style={{ marginTop: 14 }} /></section>
+            <section className="cj-side"><Sk w={60} h={20} /><Sk w={90} h={24} r={12} style={{ marginTop: 14 }} /></section>
+            <section className="cj-side"><Sk w={60} h={20} /><Sk h={120} r={8} style={{ marginTop: 14 }} /></section>
+          </aside>
+        </div>
       </div>
     </Busy>
   );

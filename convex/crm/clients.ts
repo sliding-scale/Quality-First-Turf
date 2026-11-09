@@ -160,7 +160,12 @@ export const update = mutation({
     if ((await ctx.db.get(args.businessId)) === null) throw new ConvexError("That business does not exist.");
     const { id, businessId, first, last, ...rest } = args;
     const fields = normalizeClientInput({ ...rest, first, last });
-    await ctx.db.patch(id, { businessId, ...fields, lastActivityAt: Date.now(), searchText: clientSearchText(fields) });
+    // The first phone and email on the client page follow the form's single phone and email; any others are kept as they were.
+    const phones = (existing.phones ?? []).slice(fields.phone ? 0 : 1);
+    if (fields.phone) phones[0] = { number: fields.phone, description: existing.phones?.[0]?.description ?? "Main" };
+    const emails = (existing.emails ?? []).slice(fields.email ? 0 : 1);
+    if (fields.email) emails[0] = { address: fields.email, description: existing.emails?.[0]?.description ?? "Main" };
+    await ctx.db.patch(id, { businessId, ...fields, ...(existing.phones || fields.phone ? { phones } : {}), ...(existing.emails || fields.email ? { emails } : {}), lastActivityAt: Date.now(), searchText: clientSearchText(fields) });
 
     // Projects follow their client's business (D-031), and their search copy of the client's details is rebuilt.
     const projects = await ctx.db.query("opportunities").withIndex("by_clientId", (q) => q.eq("clientId", id)).take(200);
