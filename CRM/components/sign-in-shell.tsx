@@ -33,7 +33,21 @@ export function SignInShell({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <div className="auth-signin" ref={ref} data-busy={busy ? "true" : undefined} aria-busy={busy}>
+    <div
+      className="auth-signin"
+      ref={ref}
+      data-busy={busy ? "true" : undefined}
+      aria-busy={busy}
+      onKeyDown={(e) => {
+        // Tab from the email box always lands in the password box, whatever Clerk has redrawn in between.
+        const t = e.target as HTMLElement;
+        if (e.key !== "Tab" || e.shiftKey || !(t instanceof HTMLInputElement) || t.name !== "identifier") return;
+        const password = ref.current?.querySelector<HTMLInputElement>("input[name='password']");
+        if (!password) return;
+        e.preventDefault();
+        password.focus();
+      }}
+    >
       {children}
     </div>
   );

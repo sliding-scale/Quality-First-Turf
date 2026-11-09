@@ -36,7 +36,7 @@ export function AccessGate({ children, waiting }: { children: ReactNode; waiting
 function NotAccepted({ waiting }: { waiting: ReactNode }) {
   const { isLoaded, isSignedIn } = useAuth();
   if (!isLoaded) return <>{waiting}</>;
-  if (!isSignedIn) return <RedirectToSignIn />;
+  if (!isSignedIn) return <><Leaving /><RedirectToSignIn /></>;
   const t = getTokenInfo();
   return (
     <div className="gate-page">
@@ -75,6 +75,18 @@ function Waiting() {
   );
 }
 
+/** Shown while someone is being logged out (or sent to the sign-in page), so "Welcome back" never appears for a person who is leaving. */
+function Leaving() {
+  return (
+    <div className="gate-page welcome-page" role="status" aria-busy="true">
+      <div className="welcome">
+        <h1>Logging out…</h1>
+        <div className="welcome-bar" aria-hidden="true"><span /></div>
+      </div>
+    </div>
+  );
+}
+
 function StaffGate({ children, waiting }: { children: ReactNode; waiting: ReactNode }) {
   const me = useQuery(api.crm.users.me, {});
   const claim = useMutation(api.crm.users.claim);
@@ -100,7 +112,8 @@ function StaffGate({ children, waiting }: { children: ReactNode; waiting: ReactN
     claim().catch(() => {});
   }, [me?.state, claim]);
 
-  if (me === undefined || me.state === "signedOut" || (me.state === "unclaimed" && claimed === null) || (me.state === "unclaimed" && claimed === "active")) {
+  if (me?.state === "signedOut") return <Leaving />;
+  if (me === undefined || (me.state === "unclaimed" && claimed === null) || (me.state === "unclaimed" && claimed === "active")) {
     return <>{waiting}</>;
   }
   if (me.state === "active") return <StaffProvider value={me.user}>{children}</StaffProvider>;

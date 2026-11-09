@@ -28,8 +28,8 @@ export function HomeSkeleton() {
       </div>
 
       <h2 className="section-title" style={{ marginTop: 0 }}>Workflow</h2>
-      <div className="wf-grid">
-        {range(4).map((i) => (
+      <div className="wf-grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+        {range(2).map((i) => (
           <div className="wf-card" key={i} style={{ "--bar": "var(--line)" } as CSSProperties}>
             <div className="top"><Sk w={90} h={16} /></div>
             <Sk w={70} h={40} />
@@ -38,46 +38,6 @@ export function HomeSkeleton() {
             <div className="ln"><Sk w="50%" h={14} /></div>
           </div>
         ))}
-      </div>
-
-      <div className="home-grid">
-        <div className="col">
-          <h2 className="section-title">Today&apos;s appointments</h2>
-          <div className="card">
-            <div className="stats">
-              {range(5).map((i) => (
-                <div className="stat" key={i}>
-                  <Sk w={50} h={13} />
-                  <Sk w={36} h={30} style={{ marginTop: 6 }} />
-                </div>
-              ))}
-            </div>
-            {range(3).map((i) => (
-              <div className="appt" key={i}>
-                <Sk w={84} h={16} />
-                <div className="t"><Sk w="55%" h={16} /><Sk w="35%" h={14} style={{ marginTop: 6 }} /></div>
-                <Sk w={84} h={24} r={999} />
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="col aside">
-          <h2 className="section-title">My messages</h2>
-          <div className="card list-card">
-            {range(4).map((i) => (
-              <div className="msgrow" key={i}>
-                <span className="dot-u" />
-                <div className="m"><Sk w="45%" h={16} /><Sk w="90%" h={14} style={{ margin: "8px 0" }} /><Sk w={56} h={22} r={999} /></div>
-              </div>
-            ))}
-          </div>
-          <h2 className="section-title" style={{ marginTop: 0 }}>Upcoming consultations</h2>
-          <div className="card list-card">
-            {range(3).map((i) => (
-              <div className="task" key={i}><div style={{ flex: 1 }}><Sk w="50%" h={16} /><Sk w="75%" h={13} style={{ marginTop: 6 }} /></div></div>
-            ))}
-          </div>
-        </div>
       </div>
     </Busy>
   );

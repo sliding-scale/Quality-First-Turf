@@ -1,17 +1,16 @@
 "use client";
 
-/* Client page (PRD client profile): details, related projects, activity history, notes. The client, its projects and its
-   notes come from the backend. The scheduled visits, the activity history and the two overview figures are still sample
-   content: the tables behind them arrive with the visit and activity work. */
+/* Client page (PRD client profile): details, related projects, activity history, notes. All of it comes from the backend. The scheduled
+   visits, the overview figures and invented history were removed: they return when the visit and finance work is built. */
 
 import { ConvexError } from "convex/values";
 import { useMutation } from "convex/react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/convex/_generated/api";
-import { CLIENT_STATUS_LABEL, CLIENT_TYPE_LABEL, SALES_STAGES } from "@/convex/crm/lib/stages";
+import { CLIENT_STATUS_LABEL, CLIENT_TYPE_LABEL } from "@/convex/crm/lib/stages";
 import { daysAgoFrom, useBusinesses, useClient, useClientNotes, useClientProjects, type ClientDoc } from "@/lib/clients";
-import { fullDate, money } from "@/lib/format";
+import { fullDate } from "@/lib/format";
 import { useStaff } from "./staff-context";
 import { Icon } from "./icon";
 import { ClientSkeleton, Sk } from "./skeletons";
@@ -34,13 +33,6 @@ export function ClientPage({ id }: { id: string }) {
   return <ClientView c={client} />;
 }
 
-/** A stable number from an id, so the sample figures stay the same between page loads. */
-function hash(s: string): number {
-  let h = 0;
-  for (const ch of s) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  return h;
-}
-
 const noteDate = (ms: number) => new Date(ms).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 
 function ClientView({ c }: { c: ClientDoc }) {
@@ -57,23 +49,13 @@ function ClientView({ c }: { c: ClientDoc }) {
     document.title = `${c.name} · Quality First Turf CRM`;
   }, [c.name]);
 
-  const h = hash(c._id);
-  const lifetime = (h % 24 + 3) * 900;
-  const balance = h % 5 === 0 ? ((h % 7) + 1) * 350 : 0;
   const addr = [c.street1, c.street2, c.city, `${c.state} ${c.zip}`].filter(Boolean).join(", ");
   const businessName = businesses?.find((b) => b._id === c.businessId)?.name ?? "";
-  const code = projects?.find((p) => p.pipeline === "Sales")?.code ?? "";
   const clientAge = daysAgoFrom(c.createdAt);
 
-  const visits = [
-    { daysAgo: -1, time: "9:00 AM", title: `Follow-up visit 1 · ${code}`, who: "Sal", done: false },
-    { daysAgo: 2, time: "9:00 AM", title: `Onsite consultation · ${code}`, who: "Sal", done: true },
-  ];
+  // Only things that really happened: the client being added, and each request or project created for them.
   const activity = [
-    { i: "sms", t: `Text sent: appointment reminder for ${fullDate(-1, "9:00 AM")}`, by: "Sal", daysAgo: 2 },
-    { i: "stage", t: `Stage changed: ${SALES_STAGES[0]} → ${SALES_STAGES[1]}`, by: "Sal", daysAgo: 4 },
-    { i: "note", t: "Note added: customer wants a pet-friendly turf option", by: "Sal", daysAgo: 5 },
-    { i: "inbox", t: `Project ${code} created from the customer form`, by: "System", daysAgo: clientAge },
+    ...(projects ?? []).map((p) => ({ i: "inbox", t: `Project ${p.code} created`, by: p.owner || "System", daysAgo: daysAgoFrom(p.requestedAt) })),
     { i: "contact", t: "Client created", by: "System", daysAgo: clientAge },
   ];
   const notes = (savedNotes ?? []).map((n) => ({ t: n.text, d: `${n.author} · ${noteDate(n._creationTime)}` }));
@@ -183,27 +165,6 @@ function ClientView({ c }: { c: ClientDoc }) {
                 </div>
               </section>
 
-              <section className="card panel">
-                <div className="ph"><h3>Scheduled visits</h3></div>
-                <div className="table-wrap">
-                  <table className="table">
-                    <colgroup><col style={{ width: "34%" }} /><col style={{ width: "46%" }} /><col style={{ width: "20%" }} /></colgroup>
-                    <thead><tr><th>Schedule</th><th>Title</th><th>Assigned</th></tr></thead>
-                    <tbody>
-                      {visits.map((v) => (
-                        <tr key={v.title}>
-                          <td>
-                            <b style={{ color: "var(--ink)" }}>{fullDate(v.daysAgo, v.time)}</b>
-                            {v.done && <><br /><span className="muted">Completed</span></>}
-                          </td>
-                          <td>{v.title}</td>
-                          <td>{v.who}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </section>
             </>
           ) : (
             <section className="card panel">
@@ -224,11 +185,6 @@ function ClientView({ c }: { c: ClientDoc }) {
         </div>
 
         <aside className="aside">
-          <div className="card">
-            <h3>Overview</h3>
-            <div className="amt">{money(lifetime)}<small>Lifetime value</small></div>
-            <div className="amt">{money(balance)}<small>Current balance</small></div>
-          </div>
           <div className="card">
             <h3>Notes</h3>
             {canEdit && (

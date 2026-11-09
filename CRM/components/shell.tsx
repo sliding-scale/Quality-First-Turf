@@ -187,7 +187,6 @@ function ShellInner({ children }: { children: ReactNode }) {
         </button>
         <button className="icon-btn" type="button" aria-label="Notifications" onClick={() => soon("Notifications")}>
           <Icon name="bell" size={24} />
-          <span className="badge">3</span>
         </button>
         <button
           className="icon-btn"
