@@ -4,7 +4,7 @@ import { mutation, query, type QueryCtx } from "../_generated/server";
 import { canSee, requireBusiness, requireEditor, requireStaff } from "./lib/access";
 import { deleteQuote } from "./lib/quoteData";
 import { clientInputFields, clientSearchText, normalizeClientInput, opportunitySearchText } from "./lib/clientInput";
-import { DAY_MS, matchesClientStatusFilter, type ClientStatusFilter } from "./lib/stages";
+import { CLIENT_TAGS, DAY_MS, matchesClientStatusFilter, type ClientStatusFilter } from "./lib/stages";
 
 /* Clients (D-008, D-031): one list per business. Lists are filtered, sorted, counted and cut into a page here, on the
    server, over a bounded read of at most MAX_CLIENTS rows of one business. If a business ever passes that, the list says
@@ -28,6 +28,8 @@ const filterArgs = {
   status: statusFilter,
   type: typeFilter,
   search: v.string(),
+  /** Only clients with at least one of these tags; empty or left out means every client. */
+  tags: v.optional(v.array(v.string())),
   sortKey,
   dir: direction,
 };
@@ -37,6 +39,7 @@ type FilterArgs = {
   status: ClientStatusFilter;
   type: "All" | "homeowner" | "contractor";
   search: string;
+  tags?: string[];
   sortKey: "name" | "lastActivity";
   dir: "asc" | "desc";
 };
@@ -59,7 +62,7 @@ async function matching(ctx: QueryCtx, a: FilterArgs) {
     const sign = a.dir === "asc" ? 1 : -1;
     docs.sort((x, y) => sign * (x.lastActivityAt - y.lastActivityAt) || x.nameKey.localeCompare(y.nameKey));
   }
-  const rows = docs.filter((c) => matchesClientStatusFilter(c.status, a.status) && (a.type === "All" || c.type === a.type));
+  const rows = docs.filter((c) => matchesClientStatusFilter(c.status, a.status) && (a.type === "All" || c.type === a.type) && (!a.tags?.length || a.tags.some((t) => c.tags?.includes(t))));
   return { rows, capped: docs.length >= MAX_CLIENTS };
 }
 
@@ -100,12 +103,17 @@ export const stats = query({
     const before = args.today - 60 * DAY_MS;
     const recent = live.filter((c) => c.createdAt >= since);
     const earlier = live.filter((c) => c.createdAt >= before && c.createdAt < since);
+    // Like Jobber, a new "lead" is a new client nobody has quoted yet (imported clients are all Active, so the status alone cannot tell).
+    const quoted = async (c: Doc<"clients">) => (await ctx.db.query("quotes").withIndex("by_clientId", (q) => q.eq("clientId", c._id)).first()) !== null;
+    const leads = async (list: Doc<"clients">[]) => (await Promise.all(list.map(async (c) => ((await quoted(c)) ? 0 : 1)))).reduce<number>((n, x) => n + x, 0);
     return {
-      newLeads: recent.filter((c) => c.status === "lead").length,
-      newLeadsBefore: earlier.filter((c) => c.status === "lead").length,
+      newLeads: await leads(recent),
+      newLeadsBefore: await leads(earlier),
       newClients: recent.length,
       newClientsBefore: earlier.length,
       total: live.length,
+      // "Total new clients, year to date" (Jobber's third card).
+      newThisYear: live.filter((c) => c.createdAt >= new Date(new Date(args.today).getFullYear(), 0, 1).getTime()).length,
     };
   },
 });
@@ -133,6 +141,7 @@ export const create = mutation({
       businessId,
       ...fields,
       status: "lead",
+      tags: fields.type === "homeowner" ? ["Homeowner"] : fields.company ? ["Company"] : [],
       createdAt: now,
       lastActivityAt: now,
       searchText: clientSearchText(fields),
@@ -159,6 +168,38 @@ export const update = mutation({
       await ctx.db.patch(p._id, { businessId, searchText: opportunitySearchText(fields, p) });
     }
     return id;
+  },
+});
+
+/** Replaces a client's tags (the Edit tags pop-up on the list). Unknown tags are refused. */
+export const setTags = mutation({
+  args: { id: v.id("clients"), tags: v.array(v.string()) },
+  handler: async (ctx, args) => {
+    const client = await ctx.db.get(args.id);
+    if (client === null) throw new ConvexError("That client no longer exists.");
+    await requireEditor(ctx, client.businessId);
+    const known: readonly string[] = CLIENT_TAGS;
+    const tags = [...new Set(args.tags)];
+    if (tags.some((t) => !known.includes(t))) throw new ConvexError("One of those tags does not exist.");
+    await ctx.db.patch(args.id, { tags });
+    return tags;
+  },
+});
+
+/** Archives clients (the list's three-dot menu). They stay in the database and show under the Archived status filter. */
+export const archive = mutation({
+  args: { ids: v.array(v.id("clients")) },
+  handler: async (ctx, args) => {
+    if (args.ids.length > 100) throw new ConvexError("Archive up to 100 clients at a time.");
+    let archived = 0;
+    for (const id of new Set(args.ids)) {
+      const client = await ctx.db.get(id);
+      if (client === null || client.status === "archived") continue;
+      await requireEditor(ctx, client.businessId);
+      await ctx.db.patch(id, { status: "archived" });
+      archived += 1;
+    }
+    return archived;
   },
 });
 

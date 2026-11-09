@@ -68,6 +68,7 @@ export function setBusiness(id: Id<"businesses">) {
 export type ClientFilters = {
   status: ClientStatusFilter;
   type: "All" | "homeowner" | "contractor";
+  tags?: string[];
   search: string;
   sortKey: "name" | "lastActivity";
   dir: "asc" | "desc";

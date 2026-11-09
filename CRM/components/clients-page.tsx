@@ -3,13 +3,13 @@
 /* Clients list: search, Status and Type filters, sorting, pagination, CSV export. Everything is done by the backend
    (convex/crm/clients.ts) for the business selected in the top bar (D-031); this file only asks and shows. */
 
-import { useConvex } from "convex/react";
+import { useConvex, useMutation } from "convex/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { CLIENT_STATUS_FILTERS, CLIENT_TYPE_LABEL, type ClientStatusFilter } from "@/convex/crm/lib/stages";
+import { CLIENT_STATUS_FILTERS, CLIENT_STATUS_LABEL, CLIENT_TYPE_LABEL, type ClientStatusFilter } from "@/convex/crm/lib/stages";
 import { daysAgoFrom, useClientList, useClientStats, useWorkspace, type BusinessDoc } from "@/lib/clients";
 import { dayLabel } from "@/lib/format";
 import { useStaff } from "./staff-context";
@@ -19,16 +19,12 @@ import { Icon } from "./icon";
 import { ClientsSkeleton } from "./skeletons";
 import { Checkbox } from "./checkbox";
 import { DeleteClientsDialog } from "./delete-clients-dialog";
+import { EditTagsDialog, SendEmailDialog, TagFilter } from "./client-dialogs";
 import { useUI } from "./ui-provider";
 
 const NO_ROWS: Set<string> = new Set();
 type SortKey = "name" | "lastActivity";
-type TypeFilter = "All" | "homeowner" | "contractor";
-const TYPES: { value: TypeFilter; label: string }[] = [
-  { value: "All", label: "All" },
-  { value: "homeowner", label: "Homeowner" },
-  { value: "contractor", label: "Contractor" },
-];
+type ClientRow = NonNullable<ReturnType<typeof useClientList>>["rows"][number];
 
 export function ClientsPage({ initialQuery, saved }: { initialQuery: string; saved: boolean }) {
   const workspace = useWorkspace();
@@ -41,26 +37,37 @@ export function ClientsPage({ initialQuery, saved }: { initialQuery: string; sav
 function change(now: number, before: number) {
   if (before <= 0) return null;
   const pct = Math.round(((now - before) / before) * 100);
-  return <span className={`delta${pct >= 0 ? "" : " down"}`}>{pct >= 0 ? "↑" : "↓"} {Math.abs(pct)}%</span>;
+  return <span className={`delta${pct >= 0 ? "" : " down"}`}>{pct >= 0 ? "↑" : "↓"} {Math.abs(pct).toLocaleString("en-US")}%</span>;
 }
 
 function Clients({ business, initialQuery, saved }: { business: BusinessDoc; initialQuery: string; saved: boolean }) {
   const router = useRouter();
   const convex = useConvex();
+  const archive = useMutation(api.crm.clients.archive);
   const { canEdit } = useStaff();
   const { dropdown, popover, toast, soon } = useUI();
   const [q, setQ] = useState(initialQuery);
   const [search, setSearch] = useState(initialQuery); // what the server is asked, a moment after typing stops
-  const [type, setType] = useState<TypeFilter>("All");
+  const [tags, setTags] = useState<string[]>([]);
   const [status, setStatus] = useState<ClientStatusFilter>("Leads and Active");
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "lastActivity", dir: "desc" });
   const [page, setPage] = useState(1);
   const [size, setSize] = useState(10);
   const [deleting, setDeleting] = useState<Id<"clients">[] | null>(null);
+  const [tagging, setTagging] = useState<ClientRow | null>(null);
+  const [emailing, setEmailing] = useState<ClientRow | null>(null);
+  // The row whose three-dot menu is open keeps its action pop-up on screen while the pointer is over the menu.
+  const [pinned, setPinned] = useState<string | null>(null);
+  useEffect(() => {
+    if (!pinned) return;
+    const off = () => setTimeout(() => setPinned(null), 0);
+    document.addEventListener("mousedown", off, true);
+    return () => document.removeEventListener("mousedown", off, true);
+  }, [pinned]);
 
   // A selection belongs to the rows on screen: it is remembered with the page, size, filter, search and sort it was made under,
   // and stops counting as soon as any of them changes.
-  const scope = `${page}|${size}|${status}|${type}|${search}|${sort.key}|${sort.dir}`;
+  const scope = `${page}|${size}|${status}|${tags.join(",")}|${search}|${sort.key}|${sort.dir}`;
   const [picked, setPicked] = useState<{ scope: string; ids: Set<string> }>({ scope, ids: new Set() });
   const selected = picked.scope === scope ? picked.ids : NO_ROWS;
   const setSelected = (ids: Set<string>) => setPicked({ scope, ids });
@@ -76,7 +83,7 @@ function Clients({ business, initialQuery, saved }: { business: BusinessDoc; ini
     return () => clearTimeout(t);
   }, [q]);
 
-  const filters = { status, type, search, sortKey: sort.key, dir: sort.dir };
+  const filters = { status, type: "All" as const, tags, search, sortKey: sort.key, dir: sort.dir };
   const data = useClientList(business._id, filters, page, size);
   const stats = useClientStats(business._id);
 
@@ -92,7 +99,7 @@ function Clients({ business, initialQuery, saved }: { business: BusinessDoc; ini
   const kpis: [string, string, number, React.ReactNode][] = [
     ["New leads", "Past 30 days", stats.newLeads, change(stats.newLeads, stats.newLeadsBefore)],
     ["New clients", "Past 30 days", stats.newClients, change(stats.newClients, stats.newClientsBefore)],
-    ["Total clients", "All time", stats.total, null],
+    ["Total new clients", "Year to date", stats.newThisYear, null],
   ];
 
   const goTo = (n: number) => {
@@ -106,6 +113,15 @@ function Clients({ business, initialQuery, saved }: { business: BusinessDoc; ini
       {label} <span className="s"><Icon name="sort" size={16} /></span>
     </button>
   );
+
+  async function archiveClient(id: Id<"clients">, name: string) {
+    try {
+      await archive({ ids: [id] });
+      toast(`${name} archived`);
+    } catch {
+      toast("The client could not be archived.");
+    }
+  }
 
   async function exportCsv() {
     const all = await convex.query(api.crm.clients.exportRows, { businessId: business._id, ...filters });
@@ -179,12 +195,21 @@ function Clients({ business, initialQuery, saved }: { business: BusinessDoc; ini
       </div>
 
       <div className="list-head">
-        <h2>All clients</h2>
-        <span className="muted">({total} client{total === 1 ? "" : "s"})</span>
+        <h2>Filtered clients</h2>
+        <span className="muted">({total} result{total === 1 ? "" : "s"})</span>
       </div>
 
       <div className="toolbar">
         <div className="chips">
+          <button
+            className="chip outline"
+            type="button"
+            onClick={(e) =>
+              popover(e.currentTarget, () => <TagFilter initial={tags} onChange={(t) => { setTags(t); setPage(1); }} />, { className: "filter" })
+            }
+          >
+            {tags.length ? `Tag | ${tags.join(", ")}` : "Filter by tag"} <Icon name="plus" size={16} />
+          </button>
           <button
             className="chip"
             type="button"
@@ -206,18 +231,6 @@ function Clients({ business, initialQuery, saved }: { business: BusinessDoc; ini
           >
             Status<span className="sep" /><b>{status}</b>
           </button>
-          <button
-            className="chip"
-            type="button"
-            onClick={(e) =>
-              dropdown(
-                e.currentTarget,
-                TYPES.map((o) => ({ label: o.label, checked: type === o.value, onSelect: () => { setType(o.value); setPage(1); } })),
-              )
-            }
-          >
-            Type<span className="sep" /><b>{TYPES.find((o) => o.value === type)?.label}</b>
-          </button>
         </div>
         <div className="searchbox">
           <span><Icon name="search" size={20} /></span>
@@ -226,19 +239,18 @@ function Clients({ business, initialQuery, saved }: { business: BusinessDoc; ini
       </div>
 
       <div className="table-wrap">
-        <table className={`table single uniform${selected.size > 0 ? " selecting" : ""}`} id="tbl">
+        <table className={`table single uniform jb${selected.size > 0 ? " selecting" : ""}`} id="tbl">
           <colgroup>
-            <col style={{ width: 240 }} />
-            <col style={{ width: 140 }} />
-            <col style={{ width: 240 }} />
-            <col style={{ width: 300 }} />
-            <col style={{ width: 110 }} />
-            <col style={{ width: 140 }} />
+            <col />
+            <col />
+            <col />
+            <col />
+            <col />
           </colgroup>
           <thead>
             {selected.size > 0 ? (
               <tr className="selbar">
-                <th colSpan={6}>
+                <th colSpan={5}>
                   <div className="selbar-in">
                     <Checkbox state={allPicked ? true : "mixed"} label="Deselect all" onChange={() => setSelected(new Set())} />
                     <span className="selcount">{selected.size} selected</span>
@@ -259,10 +271,9 @@ function Clients({ business, initialQuery, saved }: { business: BusinessDoc; ini
                     {sortHead("name", "Name")}
                   </div>
                 </th>
-                <th>Phone</th>
-                <th>Email</th>
                 <th>Address</th>
-                <th>Type</th>
+                <th>Tags</th>
+                <th>Status</th>
                 <th aria-sort={ariaSort("lastActivity")}>{sortHead("lastActivity", "Last Activity")}</th>
               </tr>
             )}
@@ -270,8 +281,9 @@ function Clients({ business, initialQuery, saved }: { business: BusinessDoc; ini
           <tbody>
             {rows.length ? (
               rows.map((c) => {
-                const addr = c.street1 ? `${c.street1}, ${c.city}, ${c.state} ${c.zip}` : "";
-                const sub = c.company && c.name !== c.company ? c.company : c.company ? `Contact: ${c.contactName}` : "";
+                const addr = [[c.street1, c.street2].filter(Boolean).join(" "), c.city, [c.state, c.zip].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+                // The second line is the company when the name is a person, else the contact when the name is the company.
+                const sub = c.company && c.company !== c.name ? c.company : c.contactName && c.contactName !== c.name ? c.contactName : "";
                 return (
                   <tr key={c._id} className={`click${selected.has(c._id) ? " picked" : ""}`} onClick={() => router.push(`/clients/${c._id}`)}>
                     <td>
@@ -283,17 +295,46 @@ function Clients({ business, initialQuery, saved }: { business: BusinessDoc; ini
                         </div>
                       </div>
                     </td>
-                    <td>{c.phone}</td>
-                    <td title={c.email}>{c.email}</td>
                     <td title={addr}>{addr}</td>
-                    <td><span className="pill tag">{CLIENT_TYPE_LABEL[c.type]}</span></td>
-                    <td>{dayLabel(daysAgoFrom(c.lastActivityAt), today)}</td>
+                    <td>{(c.tags ?? []).map((t) => <span key={t} className="jb-tag">{t}</span>)}</td>
+                    <td><span className={`pill jb-status ${c.status === "active" ? "active" : c.status === "lead" ? "lead" : "draft"}`}><span className="dot" />{CLIENT_STATUS_LABEL[c.status]}</span></td>
+                    <td className="jb-last">
+                      {dayLabel(daysAgoFrom(c.lastActivityAt), today)}
+                      <div className={`jb-actions${pinned === c._id ? " pinned" : ""}`} onClick={(e) => e.stopPropagation()}>
+                        {canEdit && (
+                          <button type="button" aria-label={`Edit tags for ${c.name}`} title="Edit tags" onClick={() => setTagging(c)}><Icon name="tag" size={22} /></button>
+                        )}
+                        {c.email && (
+                          <button type="button" aria-label={`Send email to ${c.name}`} title="Send email" onClick={() => setEmailing(c)}><Icon name="mail" size={22} /></button>
+                        )}
+                        <button
+                          type="button"
+                          aria-label={`More actions for ${c.name}`}
+                          aria-haspopup="menu"
+                          title="More actions"
+                          onClick={(e) => {
+                            setPinned(c._id);
+                            dropdown(
+                              e.currentTarget,
+                              [
+                                ...(canEdit && c.status !== "archived" ? [{ label: "Archive", onSelect: () => void archiveClient(c._id, c.name) }] : []),
+                                ...(canEdit ? [{ label: "Delete", danger: true, onSelect: () => setDeleting([c._id]) }] : []),
+                                { label: "Open in New Tab", icon: "newtab", onSelect: () => window.open(`/clients/${c._id}`, "_blank", "noopener") },
+                              ],
+                              { alignRight: true },
+                            );
+                          }}
+                        >
+                          <Icon name="more" size={22} />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 );
               })
             ) : (
               <tr>
-                <td colSpan={6}>
+                <td colSpan={5}>
                   <div className="empty" style={{ margin: "20px 0" }}>No clients match these filters.</div>
                 </td>
               </tr>
@@ -302,6 +343,8 @@ function Clients({ business, initialQuery, saved }: { business: BusinessDoc; ini
         </table>
       </div>
 
+      {tagging && <EditTagsDialog client={tagging} onClose={() => setTagging(null)} onSaved={() => toast("Tags saved")} />}
+      {emailing && <SendEmailDialog client={emailing} onClose={() => setEmailing(null)} />}
       {deleting && (
         <DeleteClientsDialog
           ids={deleting}

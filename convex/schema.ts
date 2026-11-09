@@ -222,6 +222,8 @@ export default defineSchema({
     status: v.union(v.literal("lead"), v.literal("active"), v.literal("archived")),
     createdAt: v.number(),
     lastActivityAt: v.number(),
+    /** Jobber-style tags (Company, Homeowner, Partner Contractor, Sub-Contractor), shown in the list's Tags column. Older rows have none. */
+    tags: v.optional(v.array(v.string())),
     /** Lower-cased `name`, so a list can be sorted by name without regard to case. */
     nameKey: v.string(),
     /** Search only: name, contact, company, phone, email and address in one string. Rebuilt on every save. */

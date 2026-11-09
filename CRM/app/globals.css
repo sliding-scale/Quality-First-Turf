@@ -975,3 +975,53 @@ span.member-name { color: var(--muted); cursor: default; }
 }
 @media (prefers-reduced-motion: reduce) { .viewer-back, .viewer-back.leaving, .viewer-stage img { animation: none; } }
 @media print { .viewer-back { display: none !important; } }
+
+/* Clients list, matched to Jobber's (checked in the browser 2026-11-09): five columns on a 12-part grid (3, 3, 3, 1, 2), 48px header with a
+   2px rule, 57px rows with a 1px rule, a beige hover, and a small action card on the right of the hovered row. */
+/* Column widths follow Jobber's 12-part grid (3, 3, 3, 1, 2) with 24px gaps after its 36px name gutter, worked out for a 1670px table; the last column takes the rest. */
+.table.jb col:nth-child(1) { width: 26.1%; }
+.table.jb col:nth-child(2), .table.jb col:nth-child(3) { width: 24.7%; }
+.table.jb col:nth-child(4) { width: 8.25%; }
+.table.jb th { height: 48px; padding: 8px 12px; border-bottom: 2px solid #dadfe2; font-weight: 400; color: var(--text); }
+.table.jb th:first-child, .table.jb td:first-child { padding-left: 8px; }
+.table.jb th:last-child, .table.jb td:last-child { padding-right: 8px; }
+.table.jb th button { font-weight: 400; color: var(--text); }
+.table.jb td { padding: 8px 12px; border-bottom: 1px solid #dadfe2; color: var(--text); }
+.table.jb .name-cell { gap: 8px; }
+.table.jb .strong { color: var(--text); line-height: 1.25; }
+.table.jb .sub { color: var(--text); line-height: 1.5; }
+.table.jb tbody tr.click:hover { background: #eeece7; }
+.table.jb tbody tr.picked, .table.jb tbody tr.picked:hover { background: #f1f7ef; }
+.jb-tag { display: inline-flex; align-items: center; height: 24px; padding: 0 10px; margin-right: 6px; border-radius: 16px; background: #eef1f2; color: var(--ink); font-size: 12px; line-height: 1; }
+.pill.jb-status { height: 24px; padding: 0 10px 0 8px; border-radius: 12px; font-size: 12px; font-weight: 400; }
+.table.jb .pill.active { background: #e7f0e5; color: #1a430f; }
+.table.jb td.jb-last { position: relative; overflow: visible; }
+.table.jb td.jb-last > .jb-actions { position: absolute; top: -22px; right: 0; display: none; gap: 2px; overflow: visible; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1), 0 4px 12px rgba(0, 0, 0, 0.05); z-index: 6; }
+.table.jb tbody tr:hover .jb-actions, .table.jb .jb-actions.pinned, .table.jb .jb-actions:focus-within { display: flex; animation: fade-in 0.12s ease-out both; }
+.jb-actions button { width: 40px; height: 40px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 8px; background: none; color: var(--ink); cursor: pointer; transition: background-color 0.15s ease; }
+.jb-actions button:hover { background: #eeece7; }
+.jb-actions button:active { background: #e3e1da; }
+.menu button.danger { color: #b3261e; }
+/* Edit tags and Send email pop-ups. */
+.cd-modal .modal-head h2 { font-size: 22px; }
+.cd-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 22px; }
+.cd-select-wrap { position: relative; }
+.tagpick-pop { top: calc(100% + 6px); left: 0; z-index: 5; min-width: 240px; }
+.tagpick-count { display: flex; justify-content: space-between; align-items: center; padding: 10px 18px 4px; color: var(--muted); font-size: 14px; }
+.cd-chip { gap: 6px; padding-right: 8px; cursor: default; }
+.cd-chip button { display: grid; place-items: center; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 50%; background: #fff; color: var(--ink); cursor: pointer; }
+.cd-chip button:hover { background: #d9d6cf; }
+.cd-mail { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 24px; margin-top: 22px; }
+.cd-mail-main { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.cd-to { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 48px; padding: 6px 10px; border: 1px solid #8e9ba3; border-radius: 8px; }
+.cd-to-label { color: var(--muted); font-size: 14px; margin-right: 4px; }
+.cd-input { width: 100%; border: 1px solid #8e9ba3; border-radius: 8px; padding: 14px 12px; font: inherit; color: var(--text); background: #fff; }
+.cd-input:focus { outline: 2px solid var(--green); border-color: var(--green); }
+.cd-message { min-height: 190px; resize: vertical; }
+.cd-hint { color: var(--muted); font-size: 12px; margin: 0; }
+.cd-mail-side { display: flex; flex-direction: column; gap: 10px; }
+.cd-drop { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 18px 10px; border: 1px dashed var(--line); border-radius: 8px; font-size: 13px; color: var(--muted); text-align: center; }
+.cd-meter { height: 6px; border-radius: 3px; background: var(--line); }
+@media (max-width: 700px) { .cd-mail { grid-template-columns: 1fr; } }
+.tagpick-count { white-space: nowrap; gap: 12px; }
+.menu.filter .tagpick-list .opt { font-weight: 400; padding: 12px 18px; }

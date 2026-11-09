@@ -78,4 +78,13 @@ export const EXTRA_ICONS: Record<string, IconDef> = {
       { d: "M17 8.5 20.5 12 17 15.5", stroke: true },
     ],
   },
+  // The tag icon on a client row (copied from Jobber), and an open-in-new-tab arrow for its menu.
+  tag: {
+    vb: "0 0 24 24",
+    paths: [{ d: "M2 7a2 2 0 0 1 2-2h11.809a2 2 0 0 1 1.506.685l4.364 5S22 11 22 12s-.32 1.315-.32 1.315l-4.365 5A2 2 0 0 1 15.81 19H4a2 2 0 0 1-2-2V7Zm13.809 0H4v10h11.809l4.364-5-4.364-5Z" }],
+  },
+  newtab: {
+    vb: "0 0 24 24",
+    paths: [{ d: "M14 3h7v7h-2V6.4l-8.3 8.3-1.4-1.4L17.6 5H14V3ZM5 5h6v2H5v12h12v-6h2v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" }],
+  },
 };

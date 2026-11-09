@@ -44,6 +44,9 @@ export type ClientStatus = (typeof CLIENT_STATUSES)[number];
 export const CLIENT_STATUS_LABEL: Record<ClientStatus, string> = { lead: "Lead", active: "Active", archived: "Archived" };
 
 /** The Clients list's Status filter (D-041). */
+/** The tags a client can carry, as in Jobber. */
+export const CLIENT_TAGS = ["Company", "Homeowner", "Partner Contractor", "Sub-Contractor"] as const;
+
 export const CLIENT_STATUS_FILTERS = ["All", "Leads and Active", "Leads", "Active", "Archived"] as const;
 export type ClientStatusFilter = (typeof CLIENT_STATUS_FILTERS)[number];
 
