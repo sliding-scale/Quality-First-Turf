@@ -10,6 +10,7 @@
 
 import type * as crm_businesses from "../crm/businesses.js";
 import type * as crm_clerkWebhook from "../crm/clerkWebhook.js";
+import type * as crm_clientImport from "../crm/clientImport.js";
 import type * as crm_clients from "../crm/clients.js";
 import type * as crm_intake from "../crm/intake.js";
 import type * as crm_invitations from "../crm/invitations.js";
@@ -68,6 +69,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   "crm/businesses": typeof crm_businesses;
   "crm/clerkWebhook": typeof crm_clerkWebhook;
+  "crm/clientImport": typeof crm_clientImport;
   "crm/clients": typeof crm_clients;
   "crm/intake": typeof crm_intake;
   "crm/invitations": typeof crm_invitations;

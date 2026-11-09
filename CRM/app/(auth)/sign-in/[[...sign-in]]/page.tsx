@@ -17,7 +17,7 @@ export default function Page() {
         <span className="sk" style={{ height: 50, borderRadius: 6, marginTop: 22 }} />
         <span className="sk" style={{ height: 52, borderRadius: 6, marginTop: 22 }} />
       </div>
-      <SignIn appearance={signInAppearance} fallbackRedirectUrl="/" />
+      <SignIn appearance={signInAppearance} fallbackRedirectUrl="/home" />
       <ForgotPasswordLink />
       <p className="auth-note">Access is by invitation. Ask an Admin if you need an account.</p>
     </SignInShell>

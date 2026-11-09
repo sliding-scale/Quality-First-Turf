@@ -81,7 +81,7 @@ export function UsersPage() {
       <div className="empty-state">
         <h2>Only Admins can manage the team</h2>
         <p>Ask an Admin if you need someone added or changed.</p>
-        <Link className="btn primary" href="/">Back to home</Link>
+        <Link className="btn primary" href="/home">Back to home</Link>
       </div>
     );
   }

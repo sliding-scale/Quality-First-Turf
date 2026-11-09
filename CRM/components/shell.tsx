@@ -20,7 +20,7 @@ type NavItem =
 
 const NAV: NavItem[] = [
   { key: "create", label: "Create", icon: "circle-plus", create: true },
-  { key: "home", label: "Home", icon: "home", href: "/" },
+  { key: "home", label: "Home", icon: "home", href: "/home" },
   { key: "schedule", label: "Schedule", icon: "calendar" },
   { divider: true },
   { key: "clients", label: "Clients", icon: "contact", href: "/clients" },
@@ -108,7 +108,7 @@ function ShellInner({ children }: { children: ReactNode }) {
   const searchRef = useRef<HTMLInputElement>(null);
   const mainRef = useRef<HTMLElement>(null);
 
-  const active = pathname === "/" ? "home" : pathname.startsWith("/clients") ? "clients" : pathname.startsWith("/requests") ? "requests" : pathname.startsWith("/quotes") ? "quotes" : pathname.startsWith("/settings/users") ? "team" : "";
+  const active = pathname === "/home" || pathname === "/" ? "home" : pathname.startsWith("/clients") ? "clients" : pathname.startsWith("/requests") ? "requests" : pathname.startsWith("/quotes") ? "quotes" : pathname.startsWith("/settings/users") ? "team" : "";
 
   // The collapsed sidebar is a class on <html>, so a small script in layout.tsx can set it before first paint.
   useEffect(() => {

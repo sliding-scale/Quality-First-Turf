@@ -38,7 +38,7 @@ export default async function Page({
         <h1>Create your password</h1>
         <p>You have been invited to the Quality First Turf CRM. Choose a password to finish and you will be logged in.</p>
       </div>
-      <SignUp appearance={signInAppearance} path="/accept-invite" routing="path" signInUrl="/sign-in" fallbackRedirectUrl="/" />
+      <SignUp appearance={signInAppearance} path="/accept-invite" routing="path" signInUrl="/sign-in" fallbackRedirectUrl="/home" />
     </div>
   );
 }

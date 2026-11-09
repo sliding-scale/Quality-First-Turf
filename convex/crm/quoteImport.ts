@@ -1,6 +1,6 @@
 import { ConvexError, v } from "convex/values";
 import type { Id } from "../_generated/dataModel";
-import { internalMutation } from "../_generated/server";
+import { internalMutation, internalQuery } from "../_generated/server";
 import { quoteTotals } from "./lib/quoteMath";
 
 /* Putting an existing quote into the CRM, such as one made in Jobber before the CRM had a quote builder (D-056). Internal: it can only
@@ -128,5 +128,15 @@ export const attachSignature = internalMutation({
     if (quote.signatureImageId && quote.signatureImageId !== args.signatureImageId) await ctx.storage.delete(quote.signatureImageId);
     await ctx.db.patch(quote._id, { signatureImageId: args.signatureImageId });
     return quote._id;
+  },
+});
+
+/** Temporary download addresses for files in this deployment's storage, so they can be copied to another deployment (for example dev to prod). */
+export const fileUrls = internalQuery({
+  args: { ids: v.array(v.id("_storage")) },
+  handler: async (ctx, args) => {
+    const urls: Record<string, string | null> = {};
+    for (const id of args.ids) urls[id] = await ctx.storage.getUrl(id);
+    return urls;
   },
 });

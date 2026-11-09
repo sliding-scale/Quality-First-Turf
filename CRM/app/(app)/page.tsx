@@ -1,8 +1,6 @@
-import type { Metadata } from "next";
-import { HomePage } from "@/components/home-page";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = { title: "Home" };
-
+/** Home lives at /home (as in Jobber). The bare address still works and goes there. */
 export default function Page() {
-  return <HomePage />;
+  redirect("/home");
 }
