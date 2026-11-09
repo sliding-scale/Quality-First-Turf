@@ -1,12 +1,13 @@
 "use client";
 
-/* Manage team (PRD 2.4, D-046, D-050), laid out like Jobber's: title with a count and the Invite button, a Users tab, a search box,
-   and a table of people with sortable columns, a status pill and a "Showing 1-3 of 3 items" footer. Admins invite staff, choose
-   their roles and businesses, and turn access off. Access is invite-only: a person added here can log in with that email; anyone
-   else who signs up gets nothing. The backend refuses everyone but Admins, so hiding this from others is only for tidiness.
+/* Manage team (PRD 2.4, D-046, D-050, D-055), laid out like Jobber's: title with a count and the Invite button, a Users tab, a search
+   box, and a table of people with sortable columns, a status pill and a "Showing 1-3 of 3 items" footer. Admins invite staff (Clerk
+   emails them a link that works for 7 days), choose their roles and businesses, turn access off, and cancel, re-send, delete or restore.
+   Access is invite-only: a person added here can log in with that email; anyone else who signs up gets nothing. The backend refuses
+   everyone but Admins, so hiding this from others is only for tidiness.
    Left out from Jobber: seats, billing, the Crews tab, the promo cards (not in the PRD, D-024). */
 
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { ConvexError } from "convex/values";
 import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
@@ -16,6 +17,7 @@ import { ROLE_LABEL, ROLES, type Role } from "@/convex/crm/lib/stages";
 import { useBusinesses, useKept } from "@/lib/clients";
 import { cleanEmail, cleanName } from "@/lib/fields";
 import { Icon } from "./icon";
+import { DeleteMemberDialog } from "./delete-member-dialog";
 import { UsersSkeleton } from "./skeletons";
 import { useStaff } from "./staff-context";
 import { useUI } from "./ui-provider";
@@ -26,8 +28,19 @@ type SortKey = "name" | "roles" | "lastActive" | "status";
 const STATUS_PILL: Record<UserDoc["status"], { label: string; cls: string }> = {
   invited: { label: "Invited", cls: "lead" },
   active: { label: "Active", cls: "active" },
+  expired: { label: "Expired", cls: "overdue" },
   deactivated: { label: "Turned off", cls: "draft" },
+  deleted: { label: "Deleted", cls: "draft" },
 };
+
+const day = (ms: number) => new Date(ms).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+
+/** What the status pill's hover text says: when an invitation runs out, or that it already has. */
+function statusHint(u: UserDoc) {
+  if (u.status === "invited" && u.invitationExpiresAt) return `Invitation link works until ${day(u.invitationExpiresAt)}`;
+  if (u.status === "expired") return "The invitation link no longer works. Send a new one.";
+  return undefined;
+}
 
 const initials = (name: string) =>
   name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase() || "?";
@@ -44,6 +57,10 @@ export function UsersPage() {
   const { dropdown, toast } = useUI();
   const businesses = useBusinesses();
   const update = useMutation(api.crm.users.update);
+  const resend = useAction(api.crm.invitations.resend);
+  const cancel = useAction(api.crm.invitations.cancel);
+  const [deleting, setDeleting] = useState<UserDoc | null>(null);
+  const [showDeleted, setShowDeleted] = useState(false);
   const [q, setQ] = useState("");
   const [search, setSearch] = useState(""); // what the server is asked, a moment after typing stops
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "name", dir: "asc" });
@@ -57,7 +74,7 @@ export function UsersPage() {
     return () => clearTimeout(t);
   }, [q]);
 
-  const data = useKept(useQuery(api.crm.users.list, staff.isAdmin ? { search, sortKey: sort.key, dir: sort.dir, page, size } : "skip"));
+  const data = useKept(useQuery(api.crm.users.list, staff.isAdmin ? { search, sortKey: sort.key, dir: sort.dir, page, size, includeDeleted: showDeleted } : "skip"));
 
   if (!staff.isAdmin) {
     return (
@@ -87,12 +104,55 @@ export function UsersPage() {
     </button>
   );
 
+  const problem = (e: unknown, fallback: string) => toast(e instanceof ConvexError && typeof e.data === "string" ? e.data : fallback);
+
   async function setAccess(u: UserDoc, active: boolean) {
     try {
       await update({ id: u._id, active, name: u.name, roles: u.roles, businessIds: u.businessIds });
     } catch (e) {
-      toast(e instanceof ConvexError && typeof e.data === "string" ? e.data : "That could not be changed.");
+      problem(e, "That could not be changed.");
     }
+  }
+
+  async function sendAgain(u: UserDoc) {
+    try {
+      const r = await resend({ id: u._id, origin: window.location.origin });
+      toast(announce(u.email, r));
+    } catch (e) {
+      problem(e, "The invitation could not be sent. Try again.");
+    }
+  }
+
+  async function cancelInvite(u: UserDoc) {
+    try {
+      await cancel({ id: u._id });
+      toast(`The invitation to ${u.email} was cancelled.`);
+    } catch (e) {
+      problem(e, "The invitation could not be cancelled. Try again.");
+    }
+  }
+
+  /** The menu for one row: what can be done depends on where the person is (invited, expired, active or turned off). */
+  function menuFor(u: UserDoc) {
+    const edit = { label: "Edit", onSelect: () => setEditing(u) };
+    const remove = { label: "Delete", onSelect: () => setDeleting(u) };
+    if (u.status === "deleted") return [{ label: "Restore (send new invitation)", onSelect: () => void sendAgain(u) }];
+    if (u.status === "invited" && !u.tokenIdentifier) {
+      return [
+        { label: "Send invitation again", onSelect: () => void sendAgain(u) },
+        { label: "Cancel invitation", onSelect: () => void cancelInvite(u) },
+        edit,
+        remove,
+      ];
+    }
+    if (u.status === "expired") return [{ label: "Send new invitation", onSelect: () => void sendAgain(u) }, edit, remove];
+    return [
+      edit,
+      u.status === "deactivated"
+        ? { label: "Turn on access", onSelect: () => void setAccess(u, true) }
+        : { label: "Turn off access", onSelect: () => void setAccess(u, false) },
+      remove,
+    ];
   }
 
   return (
@@ -117,7 +177,10 @@ export function UsersPage() {
               key={editing === "new" ? "new" : editing._id}
               user={editing === "new" ? null : editing}
               businesses={businesses}
-              onDone={() => setEditing(null)}
+              onDone={(message) => {
+                setEditing(null);
+                if (message) toast(message);
+              }}
             />
           )}
         </div>
@@ -132,7 +195,13 @@ export function UsersPage() {
         <input type="search" placeholder="Search team members" aria-label="Search team members" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
       </div>
 
-      <h3 className="team-count">Team members ({data.total})</h3>
+      <div className="team-count-row">
+        <h3 className="team-count">Team members ({data.total})</h3>
+        <label className="checkline show-deleted">
+          <input type="checkbox" checked={showDeleted} onChange={(e) => { setShowDeleted(e.target.checked); setPage(1); }} />
+          Show deleted
+        </label>
+      </div>
 
       <div className="table-card">
         <div className="table-wrap">
@@ -160,35 +229,24 @@ export function UsersPage() {
                 data.rows.map((u) => {
                   const pill = STATUS_PILL[u.status];
                   return (
-                    <tr key={u._id}>
+                    <tr key={u._id} className={u.status === "deleted" ? "is-deleted" : undefined}>
                       <td>
                         <div className="member">
                           <span className="avatar-sm" aria-hidden="true">{initials(u.name)}</span>
-                          <button type="button" className="member-name" onClick={() => setEditing(u)}>{u.name}</button>
+                          {u.status === "deleted" ? <span className="member-name">{u.name}</span> : <button type="button" className="member-name" onClick={() => setEditing(u)}>{u.name}</button>}
                         </div>
                       </td>
                       <td>{u.roles.map((r) => ROLE_LABEL[r]).join(", ")}</td>
                       <td>{u.roles.includes("admin") ? "All businesses" : u.businessIds.map(businessName).join(", ")}</td>
                       <td>{lastActive(u.lastSignInAt)}</td>
-                      <td><span className={`pill tag ${pill.cls}`}><span className="dot" />{pill.label}</span></td>
+                      <td><span className={`pill tag ${pill.cls}`} title={statusHint(u)}><span className="dot" />{pill.label}</span></td>
                       <td>
                         <button
                           type="button"
                           className="btn dots-btn"
                           aria-label={`Actions for ${u.name}`}
                           aria-haspopup="menu"
-                          onClick={(e) =>
-                            dropdown(
-                              e.currentTarget,
-                              [
-                                { label: "Edit", onSelect: () => setEditing(u) },
-                                u.status === "deactivated"
-                                  ? { label: "Turn on access", onSelect: () => void setAccess(u, true) }
-                                  : { label: "Turn off access", onSelect: () => void setAccess(u, false) },
-                              ],
-                              { alignRight: true },
-                            )
-                          }
+                          onClick={(e) => dropdown(e.currentTarget, menuFor(u), { alignRight: true })}
                         >
                           <Icon name="more" size={22} />
                         </button>
@@ -224,12 +282,29 @@ export function UsersPage() {
           </div>
         </div>
       </div>
+
+      {deleting && (
+        <DeleteMemberDialog
+          // A new dialog for each person, so ticks never carry over.
+          key={deleting._id}
+          user={deleting}
+          onClose={() => setDeleting(null)}
+          onDeleted={(name) => toast(`${name} was deleted.`)}
+        />
+      )}
     </div>
   );
 }
 
-function UserForm({ user, businesses, onDone }: { user: UserDoc | null; businesses: Doc<"businesses">[]; onDone: () => void }) {
-  const invite = useMutation(api.crm.users.invite);
+/** The toast after an invitation: sent, or (when Clerk already has a login for that email) why no email went out. */
+function announce(email: string, r: { sent: true; expiresAt: number } | { sent: false; reason: "hasAccount" }) {
+  return r.sent
+    ? `Invitation sent to ${email}. The link works until ${day(r.expiresAt)}.`
+    : `${email} already has a login, so no email was sent. They can sign in with it.`;
+}
+
+function UserForm({ user, businesses, onDone }: { user: UserDoc | null; businesses: Doc<"businesses">[]; onDone: (message?: string) => void }) {
+  const invite = useAction(api.crm.invitations.send);
   const update = useMutation(api.crm.users.update);
   const [name, setName] = useState(user?.name ?? "");
   const [email, setEmail] = useState(user?.email ?? "");
@@ -268,9 +343,13 @@ function UserForm({ user, businesses, onDone }: { user: UserDoc | null; business
     setSaving(true);
     setServerError("");
     try {
-      if (user) await update({ id: user._id, active, name, roles, businessIds: isAdmin ? [] : businessIds });
-      else await invite({ email, name, roles, businessIds: isAdmin ? [] : businessIds });
-      onDone();
+      if (user) {
+        await update({ id: user._id, active, name, roles, businessIds: isAdmin ? [] : businessIds });
+        onDone();
+      } else {
+        const sent = await invite({ email, name, roles, businessIds: isAdmin ? [] : businessIds, origin: window.location.origin });
+        onDone(announce(email.trim().toLowerCase(), sent));
+      }
     } catch (err) {
       setServerError(err instanceof ConvexError && typeof err.data === "string" ? err.data : "That could not be saved. Try again.");
       setSaving(false);
@@ -281,7 +360,7 @@ function UserForm({ user, businesses, onDone }: { user: UserDoc | null; business
     <form className="card user-form" noValidate onSubmit={submit}>
       <h3>{user ? `Edit ${user.name}` : "Invite a team member"}</h3>
       <p className="muted">
-        {user ? "Changes apply the next time they load a page." : "They can then log in with this email. Nobody gets in without being added here, and they also need a login in Clerk."}
+        {user ? "Changes apply the next time they load a page." : "We email them a link to create their password and log in. The link works for 7 days. Nobody gets in without being added here."}
       </p>
       <div className="frow">
         <div className={`field${bad.name ? " bad" : ""}`}>
@@ -328,8 +407,8 @@ function UserForm({ user, businesses, onDone }: { user: UserDoc | null; business
 
       {serverError && <div className="form-error" role="alert">{serverError}</div>}
       <div className="user-form-actions">
-        <button type="button" className="btn plain" onClick={onDone}>Cancel</button>
-        <button type="submit" className="btn primary" disabled={saving}>{saving ? "Saving…" : user ? "Save changes" : "Send invite"}</button>
+        <button type="button" className="btn plain" onClick={() => onDone()}>Cancel</button>
+        <button type="submit" className="btn primary" disabled={saving}>{saving ? (user ? "Saving…" : "Sending…") : user ? "Save changes" : "Send invite"}</button>
       </div>
     </form>
   );

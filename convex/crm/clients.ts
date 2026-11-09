@@ -2,6 +2,7 @@ import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { mutation, query, type QueryCtx } from "../_generated/server";
 import { canSee, requireBusiness, requireEditor, requireStaff } from "./lib/access";
+import { deleteQuote } from "./lib/quoteData";
 import { clientInputFields, clientSearchText, normalizeClientInput, opportunitySearchText } from "./lib/clientInput";
 import { DAY_MS, matchesClientStatusFilter, type ClientStatusFilter } from "./lib/stages";
 
@@ -170,16 +171,18 @@ const MAX_RELATED = 500;
 async function related(ctx: QueryCtx, clientId: Id<"clients">) {
   const projects = await ctx.db.query("opportunities").withIndex("by_clientId", (q) => q.eq("clientId", clientId)).take(MAX_RELATED + 1);
   const notes = await ctx.db.query("clientNotes").withIndex("by_clientId", (q) => q.eq("clientId", clientId)).take(MAX_RELATED + 1);
-  return { projects, notes };
+  const quotes = await ctx.db.query("quotes").withIndex("by_clientId", (q) => q.eq("clientId", clientId)).take(MAX_RELATED + 1);
+  return { projects, notes, quotes };
 }
 
-/** What deleting these clients would also delete: their projects and their notes. Nothing is changed. */
+/** What deleting these clients would also delete: their projects, quotes and notes. Nothing is changed. */
 export const deletePreview = query({
   args: { ids: v.array(v.id("clients")) },
   handler: async (ctx, args) => {
     if (args.ids.length > MAX_DELETE) throw new ConvexError(`Delete up to ${MAX_DELETE} clients at a time.`);
     let projects = 0;
     let notes = 0;
+    let quotes = 0;
     const names: string[] = [];
     for (const id of args.ids) {
       const client = await ctx.db.get(id);
@@ -188,9 +191,10 @@ export const deletePreview = query({
       const r = await related(ctx, id);
       projects += r.projects.length;
       notes += r.notes.length;
+      quotes += r.quotes.length;
       names.push(client.name);
     }
-    return { names, projects, notes };
+    return { names, projects, notes, quotes };
   },
 });
 
@@ -205,11 +209,12 @@ export const remove = mutation({
       if (client === null) continue;
       await requireEditor(ctx, client.businessId);
       const r = await related(ctx, id);
-      if (r.projects.length > MAX_RELATED || r.notes.length > MAX_RELATED) {
+      if (r.projects.length > MAX_RELATED || r.notes.length > MAX_RELATED || r.quotes.length > MAX_RELATED) {
         throw new ConvexError(`${client.name} has too much attached to delete in one go. Archive it instead.`);
       }
       for (const p of r.projects) await ctx.db.delete(p._id);
       for (const n of r.notes) await ctx.db.delete(n._id);
+      for (const q of r.quotes) await deleteQuote(ctx, q);
       await ctx.db.delete(id);
       deleted += 1;
     }

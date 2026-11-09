@@ -9,14 +9,22 @@
  */
 
 import type * as crm_businesses from "../crm/businesses.js";
+import type * as crm_clerkWebhook from "../crm/clerkWebhook.js";
 import type * as crm_clients from "../crm/clients.js";
 import type * as crm_intake from "../crm/intake.js";
+import type * as crm_invitations from "../crm/invitations.js";
 import type * as crm_lib_access from "../crm/lib/access.js";
+import type * as crm_lib_clerk from "../crm/lib/clerk.js";
 import type * as crm_lib_clientInput from "../crm/lib/clientInput.js";
 import type * as crm_lib_codes from "../crm/lib/codes.js";
 import type * as crm_lib_fields from "../crm/lib/fields.js";
+import type * as crm_lib_quoteData from "../crm/lib/quoteData.js";
+import type * as crm_lib_quoteMath from "../crm/lib/quoteMath.js";
 import type * as crm_lib_stages from "../crm/lib/stages.js";
+import type * as crm_lib_svix from "../crm/lib/svix.js";
 import type * as crm_projects from "../crm/projects.js";
+import type * as crm_quoteImport from "../crm/quoteImport.js";
+import type * as crm_quotes from "../crm/quotes.js";
 import type * as crm_requests from "../crm/requests.js";
 import type * as crm_sampleData from "../crm/sampleData.js";
 import type * as crm_seed from "../crm/seed.js";
@@ -59,14 +67,22 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   "crm/businesses": typeof crm_businesses;
+  "crm/clerkWebhook": typeof crm_clerkWebhook;
   "crm/clients": typeof crm_clients;
   "crm/intake": typeof crm_intake;
+  "crm/invitations": typeof crm_invitations;
   "crm/lib/access": typeof crm_lib_access;
+  "crm/lib/clerk": typeof crm_lib_clerk;
   "crm/lib/clientInput": typeof crm_lib_clientInput;
   "crm/lib/codes": typeof crm_lib_codes;
   "crm/lib/fields": typeof crm_lib_fields;
+  "crm/lib/quoteData": typeof crm_lib_quoteData;
+  "crm/lib/quoteMath": typeof crm_lib_quoteMath;
   "crm/lib/stages": typeof crm_lib_stages;
+  "crm/lib/svix": typeof crm_lib_svix;
   "crm/projects": typeof crm_projects;
+  "crm/quoteImport": typeof crm_quoteImport;
+  "crm/quotes": typeof crm_quotes;
   "crm/requests": typeof crm_requests;
   "crm/sampleData": typeof crm_sampleData;
   "crm/seed": typeof crm_seed;

@@ -41,6 +41,7 @@ export function DeleteClientsDialog({ ids, onClose, onDeleted }: { ids: Id<"clie
   const items = preview
     ? [
         preview.projects > 0 ? { key: "projects", label: plural(preview.projects, "project") } : null,
+        preview.quotes > 0 ? { key: "quotes", label: plural(preview.quotes, "quote") } : null,
         preview.notes > 0 ? { key: "notes", label: plural(preview.notes, "note") } : null,
       ].filter((x): x is { key: string; label: string } => x !== null)
     : [];

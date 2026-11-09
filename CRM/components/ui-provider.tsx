@@ -8,7 +8,11 @@ import { createContext, useCallback, useContext, useEffect, useLayoutEffect, use
 import { createPortal } from "react-dom";
 import { Icon } from "./icon";
 
-export type MenuItem = { label: string; icon?: string; checked?: boolean; onSelect?: () => void };
+/** One row in a dropdown, or a line between groups, or a small heading over a group (as in Jobber's quote menu). */
+export type MenuItem =
+  | { label: string; icon?: string; /** A colour for the icon (a green hammer, say). */ iconColor?: string; /** Red text and icon, for deleting. */ danger?: boolean; checked?: boolean; onSelect?: () => void }
+  | { divider: true }
+  | { heading: string };
 
 type DropdownState = { kind: "dropdown"; anchor: HTMLElement; items: MenuItem[]; alignRight: boolean; variant?: "actions" };
 type PopoverState = { kind: "popover"; anchor: HTMLElement; render: (close: () => void) => ReactNode; className: string; alignRight: boolean };
@@ -182,22 +186,27 @@ function Dropdown({ state, closing, onClose, ref }: { state: DropdownState; clos
   const actions = state.variant === "actions";
   return (
     <div className={`menu${actions ? " actions" : ""}${closing ? " closing" : ""}`} role="menu" ref={useMergedRef(node, ref)}>
-      {state.items.map((it) => (
-        <button
-          key={it.label}
-          type="button"
-          role="menuitem"
-          {...(it.checked !== undefined ? { "aria-checked": it.checked } : {})}
-          onClick={() => {
-            onClose();
-            it.onSelect?.();
-          }}
-        >
-          {it.checked !== undefined && <span className="check">{it.checked && <Icon name="check" size={16} />}</span>}
-          {it.icon && <Icon name={it.icon} size={actions ? 22 : 18} />}
-          <span>{it.label}</span>
-        </button>
-      ))}
+      {state.items.map((it, n) => {
+        if ("divider" in it) return <div key={n} className="menu-rule" role="separator" />;
+        if ("heading" in it) return <div key={n} className="menu-heading" role="presentation">{it.heading}</div>;
+        return (
+          <button
+            key={it.label}
+            type="button"
+            role="menuitem"
+            className={it.danger ? "danger" : undefined}
+            {...(it.checked !== undefined ? { "aria-checked": it.checked } : {})}
+            onClick={() => {
+              onClose();
+              it.onSelect?.();
+            }}
+          >
+            {it.checked !== undefined && <span className="check">{it.checked && <Icon name="check" size={16} />}</span>}
+            {it.icon && <span className="mi" style={it.iconColor ? { color: it.iconColor } : undefined}><Icon name={it.icon} size={actions ? 24 : 18} /></span>}
+            <span>{it.label}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }

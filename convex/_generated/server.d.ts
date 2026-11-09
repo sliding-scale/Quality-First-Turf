@@ -30,7 +30,10 @@ import type { DataModel } from "./dataModel.js";
 type Env = {
   readonly CONVEX_CLOUD_URL: string;
   readonly CONVEX_SITE_URL: string;
+  readonly CLERK_SECRET_KEY: string | undefined;
+  readonly CLERK_WEBHOOK_SECRET: string | undefined;
   readonly CRM_ALLOW_SAMPLE_DATA: string | undefined;
+  readonly CRM_APP_URL: string | undefined;
   readonly CRM_BOOTSTRAP_ADMIN_EMAILS: string | undefined;
   readonly JOBBER_CLIENT_ID: string | undefined;
   readonly JOBBER_CLIENT_SECRET: string | undefined;

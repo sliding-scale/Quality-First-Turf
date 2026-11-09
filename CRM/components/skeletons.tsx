@@ -348,3 +348,123 @@ export function UsersSkeleton() {
     </Busy>
   );
 }
+
+/** The Quotes list (D-056): the same layout as the page, with the four figure cards. */
+export function QuotesSkeleton() {
+  return (
+    <Busy>
+      <div className="page-head">
+        <h1>Quotes</h1>
+        <div className="actions">
+          <Sk w={110} h={38} r={8} />
+          <Sk w={152} h={38} r={8} />
+        </div>
+      </div>
+
+      <div className="kpis compact four">
+        <div className="card kpi">
+          <div className="h"><Sk w={90} h={18} /></div>
+          <div style={{ display: "grid", gap: 9, marginTop: 16 }}>
+            {range(4).map((i) => (<Sk key={i} w={`${72 - i * 6}%`} h={14} />))}
+          </div>
+        </div>
+        {range(3).map((i) => (
+          <div className="card kpi" key={i}>
+            <div className="h"><Sk w={130} h={18} /></div>
+            <div className="s"><Sk w={80} h={13} /></div>
+            <div className="n"><Sk w={64} h={30} /></div>
+          </div>
+        ))}
+      </div>
+
+      <div className="list-head"><h2>All quotes</h2></div>
+      <div className="toolbar">
+        <div className="chips"><Sk w={118} h={38} r={999} /><Sk w={150} h={38} r={999} /><Sk w={170} h={38} r={999} /></div>
+        <Sk w={280} h={44} r={8} style={{ maxWidth: "100%" }} />
+      </div>
+
+      <div className="table-wrap">
+        <table className="table single" id="tbl">
+          <colgroup>
+            <col style={{ width: 250 }} />
+            <col style={{ width: 260 }} />
+            <col style={{ width: 280 }} />
+            <col style={{ width: 130 }} />
+            <col style={{ width: 150 }} />
+            <col style={{ width: 120 }} />
+          </colgroup>
+          <thead>
+            <tr><th>Client</th><th>Quote number</th><th>Property</th><th>Created</th><th>Status</th><th className="num">Total</th></tr>
+          </thead>
+          <tbody>
+            {range(8).map((i) => (
+              <tr key={i}>
+                <td><Sk w="70%" h={16} /></td>
+                <td><Sk w="65%" h={16} /></td>
+                <td><Sk w="85%" h={16} /></td>
+                <td><Sk w={80} h={16} /></td>
+                <td><Sk w={96} h={24} r={999} /></td>
+                <td className="num"><Sk w={70} h={16} style={{ marginLeft: "auto" }} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Busy>
+  );
+}
+
+/** One quote (D-056): the head, the client and facts, a few sections and the notes column. */
+export function QuoteSkeleton() {
+  return (
+    <Busy>
+      <div className="quote-shell">
+        <div className="quote-scroll">
+          <div className="quote-head">
+            <div className="qh-row">
+              <div className="who"><Sk w={96} h={22} r={999} /></div>
+              <div className="qh-actions"><Sk w={40} h={40} r={8} /><Sk w={92} h={40} r={8} /><Sk w={210} h={40} r={8} /></div>
+            </div>
+            <div className="quote-title-row"><h1><Sk w={420} h={36} /></h1></div>
+          </div>
+          <div className="main-col">
+          <div className="quote-top">
+            <section className="card quote-client">
+              <Sk w="70%" h={22} />
+              <Sk w={110} h={14} style={{ marginTop: 18 }} />
+              <Sk w="60%" h={16} style={{ marginTop: 8 }} />
+              <Sk w="50%" h={16} style={{ marginTop: 6 }} />
+              <Sk w="45%" h={16} style={{ marginTop: 18 }} />
+            </section>
+            <dl className="quote-facts">
+              {range(7).map((i) => (
+                <div className="f" key={i}><dt><Sk w={90} h={16} /></dt><dd><Sk w="45%" h={16} /></dd></div>
+              ))}
+            </dl>
+          </div>
+          {range(2).map((i) => (
+            <section className="card panel quote-section" key={i}>
+              <div className="ph"><Sk w={190} h={24} /></div>
+              <div className="qs-body">
+                <Sk h={i === 0 ? 220 : 90} r={10} />
+                <Sk w="40%" h={18} style={{ marginTop: 16 }} />
+                <Sk w="70%" h={14} style={{ marginTop: 8 }} />
+              </div>
+            </section>
+          ))}
+          </div>
+        </div>
+        <aside className="quote-side" aria-hidden="true">
+          <div className="quote-side-inner">
+            <section className="card quote-notes">
+              <Sk w={80} h={24} />
+              <Sk w="60%" h={16} style={{ marginTop: 18 }} />
+              <Sk w="85%" h={14} style={{ marginTop: 10 }} />
+              <Sk w={64} h={64} r={8} style={{ marginTop: 12 }} />
+            </section>
+          </div>
+        </aside>
+      </div>
+    </Busy>
+  );
+}

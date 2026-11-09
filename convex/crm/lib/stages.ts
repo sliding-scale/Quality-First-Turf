@@ -73,3 +73,9 @@ export function requestStatus(stage: string, requestedAt: number, now: number): 
   if (stage === "Closed Lost") return "Lost";
   return "Converted"; // quoting, proposal, contract, Closed Won: the request became a real project
 }
+
+/** Quote statuses (D-056), in the order Jobber lists them. Stored on the quote, unlike a request's. */
+export const QUOTE_STATUSES = ["Draft", "Awaiting response", "Changes requested", "Approved", "Converted", "Archived"] as const;
+export type QuoteStatus = (typeof QUOTE_STATUSES)[number];
+/** The four that the Overview card counts; Converted and Archived are not "open" any more. */
+export const QUOTE_OPEN_STATUSES = ["Draft", "Awaiting response", "Changes requested", "Approved"] as const;

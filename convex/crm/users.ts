@@ -1,12 +1,14 @@
 import { ConvexError, v } from "convex/values";
 import type { Doc } from "../_generated/dataModel";
-import { env, mutation, query, type QueryCtx } from "../_generated/server";
+import { internal } from "../_generated/api";
+import { env, internalMutation, internalQuery, mutation, query, type MutationCtx, type QueryCtx } from "../_generated/server";
 import { requireAdmin } from "./lib/access";
 import { cleanEmail, cleanName, isValidEmail } from "./lib/fields";
 import { ROLE_LABEL } from "./lib/stages";
 
-/* Users and sign-in (D-046). Invite-only: an Admin adds a person's email, roles and businesses; the person then signs in
-   through Clerk and claims that row by their verified email. Someone who signs up in Clerk without an invite gets nothing. */
+/* Users and sign-in (D-046, D-055). Invite-only: an Admin adds a person's email, roles and businesses and Clerk emails them an
+   invitation (convex/crm/invitations.ts); the person creates a password, is signed in, and claims that row by their verified email.
+   Someone who signs up in Clerk without an invite gets nothing. */
 
 /** The first Admin exists without an invite. This address always works, and CRM_BOOTSTRAP_ADMIN_EMAILS can add more. */
 const FIRST_ADMIN = "admin@qualityfirstturf.com";
@@ -84,7 +86,13 @@ export const claim = mutation({
     const isFirstAdmin = bootstrapAdmins().includes(email);
 
     if (row) {
-      if (row.status === "deactivated") return "deactivated";
+      if (row.status === "deactivated" || row.status === "deleted") return "deactivated";
+      // An invitation that ran out or was cancelled gives nothing, even to someone who already has a Clerk login with this email.
+      if (row.status === "expired") return "none";
+      if (row.status === "invited" && row.invitationExpiresAt !== undefined && now > row.invitationExpiresAt) {
+        await ctx.db.patch(row._id, { status: "expired" });
+        return "none";
+      }
       if (row.tokenIdentifier && row.tokenIdentifier !== identity.tokenIdentifier) return "none"; // already claimed by another Clerk account
       await ctx.db.patch(row._id, {
         tokenIdentifier: identity.tokenIdentifier,
@@ -107,7 +115,7 @@ export const claim = mutation({
 });
 
 const sortKey = v.union(v.literal("name"), v.literal("roles"), v.literal("lastActive"), v.literal("status"));
-const STATUS_ORDER = { active: 0, invited: 1, deactivated: 2 } as const;
+const STATUS_ORDER = { active: 0, invited: 1, expired: 2, deactivated: 3, deleted: 4 } as const;
 
 /**
  * One page of everyone who has been invited or has signed in, for the Manage Team screen. Admins only. Searched, sorted,
@@ -120,11 +128,13 @@ export const list = query({
     dir: v.optional(v.union(v.literal("asc"), v.literal("desc"))),
     page: v.optional(v.number()),
     size: v.optional(v.number()),
+    /** Deleted people are kept but hidden, unless asked for (D-057). */
+    includeDeleted: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
     const needle = (args.search ?? "").trim().toLowerCase();
-    const all = await ctx.db.query("users").take(500);
+    const all = (await ctx.db.query("users").take(500)).filter((u) => args.includeDeleted || u.status !== "deleted");
     const rows = needle ? all.filter((u) => u.name.toLowerCase().includes(needle) || u.email.includes(needle)) : all;
 
     const key = args.sortKey ?? "name";
@@ -143,7 +153,7 @@ export const list = query({
   },
 });
 
-const userFields = {
+export const userFields = {
   name: v.string(),
   roles: v.array(role),
   businessIds: v.array(v.id("businesses")),
@@ -159,16 +169,20 @@ function checked(input: { name: string; roles: Doc<"users">["roles"]; businessId
   return { name, roles, businessIds };
 }
 
-export const invite = mutation({
-  args: { email: v.string(), ...userFields },
+/**
+ * Adds the person as "invited" and nothing more. The public way to invite is `api.crm.invitations.send`, which calls this, then asks
+ * Clerk to email the invitation, and removes the row again if Clerk refuses. There is deliberately no way to add a person without it.
+ */
+export const createInvited = internalMutation({
+  args: { email: v.string(), invitedBy: v.string(), ...userFields },
   handler: async (ctx, args) => {
-    const admin = await requireAdmin(ctx);
     const email = cleanEmail(args.email).trim().toLowerCase();
     if (!isValidEmail(email)) throw new ConvexError("Enter a valid email address.");
     const existing = await ctx.db.query("users").withIndex("by_email", (q) => q.eq("email", email)).unique();
+    if (existing?.status === "deleted") throw new ConvexError("That person was deleted from the team. Show deleted people and choose Restore to invite them again.");
     if (existing) throw new ConvexError("That email is already a user.");
     for (const id of args.businessIds) if ((await ctx.db.get(id)) === null) throw new ConvexError("That business does not exist.");
-    return await ctx.db.insert("users", { email, ...checked(args), status: "invited", invitedBy: admin.email });
+    return await ctx.db.insert("users", { email, ...checked(args), status: "invited", invitedBy: args.invitedBy });
   },
 });
 
@@ -178,19 +192,152 @@ export const update = mutation({
     const admin = await requireAdmin(ctx);
     const target = await ctx.db.get(args.id);
     if (!target) throw new ConvexError("That user no longer exists.");
+    if (target.status === "deleted") throw new ConvexError("That person was deleted. Restore them first.");
     const fields = checked(args);
     for (const id of fields.businessIds) if ((await ctx.db.get(id)) === null) throw new ConvexError("That business does not exist.");
 
     const stillAdmin = fields.roles.includes("admin") && args.active;
-    if (target.roles.includes("admin") && target.status !== "deactivated" && !stillAdmin) {
+    if (target.roles.includes("admin") && target.status === "active" && !stillAdmin) {
       // Never leave the CRM without an active Admin, and never let an Admin lock themselves out.
       if (target._id === admin.userId) throw new ConvexError("You cannot remove your own Admin access or deactivate yourself.");
-      const admins = (await ctx.db.query("users").take(500)).filter((u) => u.status !== "deactivated" && u.roles.includes("admin"));
+      const admins = (await ctx.db.query("users").take(500)).filter((u) => u.status === "active" && u.roles.includes("admin"));
       if (admins.filter((u) => u._id !== target._id).length === 0) throw new ConvexError("There must be at least one active Admin.");
     }
-    // A person who has never signed in stays "invited"; deactivating is reversible.
-    const status = !args.active ? ("deactivated" as const) : target.tokenIdentifier ? ("active" as const) : ("invited" as const);
+    // A person who has never signed in goes back to "invited" (or "expired", if their invitation has run out); deactivating is reversible.
+    const lapsed = target.status === "expired" || (target.invitationExpiresAt !== undefined && Date.now() > target.invitationExpiresAt);
+    const status = !args.active ? ("deactivated" as const) : target.tokenIdentifier ? ("active" as const) : lapsed ? ("expired" as const) : ("invited" as const);
     await ctx.db.patch(args.id, { ...fields, status });
+    if (!args.active) await endSalesSessions(ctx, target.email);
     return args.id;
+  },
+});
+
+/** Ends the person's sales-form sign-in (D-053), so turning off or removing their access takes effect there at once, not in two weeks. */
+async function endSalesSessions(ctx: MutationCtx, email: string) {
+  const sessions = await ctx.db.query("salesSessions").take(500);
+  for (const session of sessions) if ((session.email ?? "").toLowerCase() === email.toLowerCase()) await ctx.db.delete(session._id);
+}
+
+/* ---- Used by the invitation actions (convex/crm/invitations.ts) and the Clerk webhook. Internal: the browser cannot call these. ---- */
+
+/** The signed-in Admin behind an action. Actions have no database, so they ask here, passing the token identifier from their own auth. */
+export const adminFor = internalQuery({
+  args: { tokenIdentifier: v.string() },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.query("users").withIndex("by_tokenIdentifier", (q) => q.eq("tokenIdentifier", args.tokenIdentifier)).unique();
+    if (!user || user.status !== "active") throw new ConvexError("No access.");
+    if (!user.roles.includes("admin")) throw new ConvexError("Only an Admin can do this.");
+    return { userId: user._id, email: user.email };
+  },
+});
+
+export const getRow = internalQuery({
+  args: { id: v.id("users") },
+  handler: async (ctx, args) => await ctx.db.get(args.id),
+});
+
+/**
+ * Saves the Clerk invitation on the person, marks them invited, and schedules the moment it runs out. Without an invitation (the
+ * person already has a Clerk login, so none could be sent) they are just marked invited: they sign in with the login they have.
+ */
+export const attachInvitation = internalMutation({
+  args: { id: v.id("users"), invitation: v.optional(v.object({ id: v.string(), expiresAt: v.number() })) },
+  handler: async (ctx, args): Promise<null> => {
+    const row = await ctx.db.get(args.id);
+    // A deleted person (D-057) is restored by inviting them again: their old Clerk login is gone, so the old link to it is cleared.
+    if (!row || (row.tokenIdentifier && row.status !== "deleted")) return null;
+    const { invitation } = args;
+    await ctx.db.patch(args.id, {
+      status: "invited",
+      tokenIdentifier: undefined,
+      deletedAt: undefined,
+      deletedBy: undefined,
+      clerkInvitationId: invitation?.id,
+      invitationSentAt: invitation ? Date.now() : undefined,
+      invitationExpiresAt: invitation?.expiresAt,
+    });
+    if (invitation) await ctx.scheduler.runAt(invitation.expiresAt, internal.crm.invitations.expire, { id: args.id, invitationId: invitation.id });
+    return null;
+  },
+});
+
+/** Marks a still-pending invitation as expired. With an invitation id, only if that is still the person's current one (a resend replaces it). */
+export const markExpired = internalMutation({
+  args: { id: v.id("users"), invitationId: v.optional(v.string()) },
+  handler: async (ctx, args): Promise<boolean> => {
+    const row = await ctx.db.get(args.id);
+    if (!row || row.tokenIdentifier || row.status !== "invited") return false;
+    if (args.invitationId !== undefined && row.clerkInvitationId !== args.invitationId) return false;
+    await ctx.db.patch(args.id, { status: "expired" });
+    return true;
+  },
+});
+
+/** Takes back a person who was added a moment ago but whose invitation Clerk refused to send. Only a never-signed-in, still-invited row. */
+export const discard = internalMutation({
+  args: { id: v.id("users") },
+  handler: async (ctx, args): Promise<null> => {
+    const row = await ctx.db.get(args.id);
+    if (row && !row.tokenIdentifier && row.status === "invited" && !row.clerkInvitationId) await ctx.db.delete(args.id);
+    return null;
+  },
+});
+
+/** Last guard before a person is deleted: never leave the CRM without an active Admin. */
+async function assertNotLastAdmin(ctx: QueryCtx, target: Doc<"users">) {
+  if (!target.roles.includes("admin") || target.status !== "active") return;
+  const admins = (await ctx.db.query("users").take(500)).filter((u) => u.status === "active" && u.roles.includes("admin"));
+  if (admins.filter((u) => u._id !== target._id).length === 0) throw new ConvexError("There must be at least one active Admin.");
+}
+
+/** What an Admin may delete, and what has to be cleaned up in Clerk first. Throws a readable message when the answer is no. */
+export const deletionPlan = internalQuery({
+  args: { tokenIdentifier: v.string(), id: v.id("users") },
+  handler: async (ctx, args) => {
+    const admin = await ctx.db.query("users").withIndex("by_tokenIdentifier", (q) => q.eq("tokenIdentifier", args.tokenIdentifier)).unique();
+    if (!admin || admin.status !== "active") throw new ConvexError("No access.");
+    if (!admin.roles.includes("admin")) throw new ConvexError("Only an Admin can do this.");
+    const target = await ctx.db.get(args.id);
+    if (!target) throw new ConvexError("That person no longer exists.");
+    if (target.status === "deleted") throw new ConvexError("That person is already deleted.");
+    if (target._id === admin._id) throw new ConvexError("You cannot delete yourself.");
+    if (bootstrapAdmins().includes(target.email)) throw new ConvexError("The built-in Admin account cannot be deleted.");
+    await assertNotLastAdmin(ctx, target);
+    return { email: target.email, tokenIdentifier: target.tokenIdentifier ?? null, clerkInvitationId: target.clerkInvitationId ?? null };
+  },
+});
+
+/**
+ * Marks the person deleted and ends their sales-form sign-in (D-057). The row is NOT removed: their name, email, roles and history stay,
+ * and an Admin can restore them. The Clerk side has been cleaned up before this is called.
+ */
+export const markDeleted = internalMutation({
+  args: { id: v.id("users"), deletedBy: v.string() },
+  handler: async (ctx, args): Promise<null> => {
+    const row = await ctx.db.get(args.id);
+    if (!row || row.status === "deleted") return null;
+    await assertNotLastAdmin(ctx, row);
+    await ctx.db.patch(args.id, { status: "deleted", deletedAt: Date.now(), deletedBy: args.deletedBy });
+    await endSalesSessions(ctx, row.email);
+    return null;
+  },
+});
+
+/** Clerk says this account was deleted (in Clerk's dashboard, say): mark the matching person deleted here too (the row is kept), unless they are the last Admin. */
+export const removeByClerkUser = internalMutation({
+  args: { clerkUserId: v.string() },
+  handler: async (ctx, args): Promise<"deleted" | "none" | "kept"> => {
+    const rows = await ctx.db.query("users").take(500);
+    const row = rows.find((u) => u.tokenIdentifier !== undefined && u.tokenIdentifier.slice(u.tokenIdentifier.lastIndexOf("|") + 1) === args.clerkUserId);
+    if (!row || row.status === "deleted") return "none";
+    try {
+      await assertNotLastAdmin(ctx, row);
+    } catch {
+      console.log(`clerk webhook: kept ${row.email}, the last active Admin, although their Clerk account was deleted`);
+      return "kept";
+    }
+    await ctx.db.patch(row._id, { status: "deleted", deletedAt: Date.now(), deletedBy: "Clerk" });
+    await endSalesSessions(ctx, row.email);
+    return "deleted";
   },
 });

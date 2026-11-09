@@ -7,7 +7,9 @@ import { clerkMiddleware } from "@clerk/nextjs/server";
 export default clerkMiddleware(async (auth, request) => {
   const path = request.nextUrl.pathname;
   // The sign-in page is open, and so is the sales-form sign-out page (it only ends the session and returns to an allowed address).
-  const isOpen = path === "/sign-in" || path.startsWith("/sign-in/") || path === "/sales-access/signout";
+  // The invitation page is open too: a new team member has no session yet. Clerk only lets them through with the ticket from their email.
+  const isOpen =
+    path === "/sign-in" || path.startsWith("/sign-in/") || path === "/accept-invite" || path.startsWith("/accept-invite/") || path === "/sales-access/signout";
   if (!isOpen) await auth.protect();
 });
 

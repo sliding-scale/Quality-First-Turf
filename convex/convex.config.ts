@@ -16,6 +16,13 @@ const app = defineApp({
     CRM_BOOTSTRAP_ADMIN_EMAILS: v.optional(v.string()),
     // CRM: set to "true" on the DEV deployment only, to allow loading sample data. Unset means seeding is refused.
     CRM_ALLOW_SAMPLE_DATA: v.optional(v.string()),
+    // CRM team invitations (D-055). The Clerk instance's secret key (test key on dev, live key on prod): the backend uses it to send,
+    // cancel and delete invitations and accounts. CRM_APP_URL is the CRM's public address, which the invitation link returns to
+    // (https://launchpad.qualityfirstturf.com on prod); when unset, the address of the Admin's browser is used. CLERK_WEBHOOK_SECRET
+    // is the signing secret of the Clerk webhook that tells the CRM when someone is deleted in Clerk.
+    CLERK_SECRET_KEY: v.optional(v.string()),
+    CRM_APP_URL: v.optional(v.string()),
+    CLERK_WEBHOOK_SECRET: v.optional(v.string()),
   },
 });
 

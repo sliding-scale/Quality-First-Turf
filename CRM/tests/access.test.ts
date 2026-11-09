@@ -1,17 +1,20 @@
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
 import { ConvexError } from "convex/values";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { api, internal } from "../../convex/_generated/api";
 import schema from "../../convex/schema";
-import { adminOf, signedInAs, strangerIn } from "./helpers";
+import { adminOf, fakeClerk, signedInAs, strangerIn } from "./helpers";
 
 const modules = import.meta.glob(["../../convex/**/*.ts", "../../convex/**/*.js", "!../../convex/**/*.d.ts", "!../../convex/node_modules/**"]);
 const today = new Date().setHours(0, 0, 0, 0);
 const listArgs = { status: "All", type: "All", search: "", sortKey: "lastActivity", dir: "desc", page: 1, size: 10 } as const;
 const requestArgs = { status: "All", from: null, to: null, search: "", sortKey: "requestedAt", dir: "desc", today, page: 1, size: 10 } as const;
 
+afterEach(() => vi.unstubAllGlobals());
+
 async function world() {
+  fakeClerk(); // inviting someone asks Clerk to send the email; here Clerk is pretend
   process.env.CRM_ALLOW_SAMPLE_DATA = "true";
   delete process.env.CRM_BOOTSTRAP_ADMIN_EMAILS;
   const base = convexTest(schema, modules);
@@ -49,7 +52,7 @@ describe("signing in", () => {
   });
 
   it("lets an invited person in by their verified email, whatever its case, and only once", async () => {
-    await w.admin.mutation(api.crm.users.invite, { email: "Pat.Smith@Example.com", name: "Pat Smith", roles: ["sales"], businessIds: [w.qft] });
+    await w.admin.action(api.crm.invitations.send, { email: "Pat.Smith@Example.com", name: "Pat Smith", roles: ["sales"], businessIds: [w.qft] });
     const pat = strangerIn(w.base, "pat-clerk", "pat.smith@example.COM");
     expect(await pat.mutation(api.crm.users.claim, {})).toBe("active");
     expect(await pat.mutation(api.crm.users.claim, {})).toBe("active"); // calling again is fine
@@ -61,7 +64,7 @@ describe("signing in", () => {
   });
 
   it("does not trust an email Clerk has not verified", async () => {
-    await w.admin.mutation(api.crm.users.invite, { email: "val@example.com", name: "Val", roles: ["office"], businessIds: [w.qft] });
+    await w.admin.action(api.crm.invitations.send, { email: "val@example.com", name: "Val", roles: ["office"], businessIds: [w.qft] });
     const unverified = w.base.withIdentity({ issuer: "https://clerk.test", subject: "val", email: "val@example.com", emailVerified: false });
     expect(await unverified.mutation(api.crm.users.claim, {})).toBe("unverified");
   });
@@ -167,20 +170,20 @@ describe("managing users", () => {
   it("only an Admin can see, invite or change users", async () => {
     const sales = await signedInAs(w.base, { key: "sales", roles: ["sales"], businessIds: [w.qft] });
     await rejects(sales.query(api.crm.users.list, {}), /Only an Admin/);
-    await rejects(sales.mutation(api.crm.users.invite, input()), /Only an Admin/);
+    await rejects(sales.action(api.crm.invitations.send, input()), /Only an Admin/);
     const target = (await w.admin.query(api.crm.users.list, {})).rows[0];
     await rejects(sales.mutation(api.crm.users.update, { id: target._id, active: true, name: "x", roles: ["admin"], businessIds: [] }), /Only an Admin/);
   });
 
   it("an Admin invites someone, who then shows as invited", async () => {
-    await w.admin.mutation(api.crm.users.invite, input());
+    await w.admin.action(api.crm.invitations.send, input());
     const row = (await w.admin.query(api.crm.users.list, {})).rows.find((u) => u.email === "new.person@example.com");
     expect(row).toMatchObject({ status: "invited", roles: ["sales"], name: "New Person", businessIds: [w.qft] });
   });
 
   it("searches, sorts and pages the team on the server", async () => {
     for (const [name, email] of [["Ann Lee", "ann@example.com"], ["Bob Ray", "bob@sample.org"], ["Cy Dun", "cy@example.com"], ["Di Fox", "di@example.com"]] as const) {
-      await w.admin.mutation(api.crm.users.invite, input({ name, email }));
+      await w.admin.action(api.crm.invitations.send, input({ name, email }));
     }
     const everyone = await w.admin.query(api.crm.users.list, {});
     expect(everyone.total).toBe(5); // four invited plus the Admin
@@ -202,13 +205,13 @@ describe("managing users", () => {
   });
 
   it("checks what it is given", async () => {
-    await rejects(w.admin.mutation(api.crm.users.invite, input({ email: "nope" })), /valid email/);
-    await rejects(w.admin.mutation(api.crm.users.invite, input({ name: "   " })), /name/);
-    await rejects(w.admin.mutation(api.crm.users.invite, input({ roles: [] })), /at least one role/);
-    await rejects(w.admin.mutation(api.crm.users.invite, input({ businessIds: [] })), /at least one business/);
-    await w.admin.mutation(api.crm.users.invite, input({ roles: ["admin"], businessIds: [], email: "boss2@example.com" })); // an Admin needs no business list
-    await w.admin.mutation(api.crm.users.invite, input());
-    await rejects(w.admin.mutation(api.crm.users.invite, input({ email: "NEW.person@example.com" })), /already a user/);
+    await rejects(w.admin.action(api.crm.invitations.send, input({ email: "nope" })), /valid email/);
+    await rejects(w.admin.action(api.crm.invitations.send, input({ name: "   " })), /name/);
+    await rejects(w.admin.action(api.crm.invitations.send, input({ roles: [] })), /at least one role/);
+    await rejects(w.admin.action(api.crm.invitations.send, input({ businessIds: [] })), /at least one business/);
+    await w.admin.action(api.crm.invitations.send, input({ roles: ["admin"], businessIds: [], email: "boss2@example.com" })); // an Admin needs no business list
+    await w.admin.action(api.crm.invitations.send, input());
+    await rejects(w.admin.action(api.crm.invitations.send, input({ email: "NEW.person@example.com" })), /already a user/);
   });
 
   it("never leaves the CRM without an active Admin, and never lets an Admin lock themselves out", async () => {

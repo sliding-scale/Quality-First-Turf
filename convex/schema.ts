@@ -257,6 +257,74 @@ export default defineSchema({
     .index("by_sourceProjectId", ["sourceProjectId"])
     .searchIndex("search_text", { searchField: "searchText", filterFields: ["businessId", "pipeline"] }),
 
+  /** Quotes (D-056). The money on a quote is its lines (quoteLineItems); `totalCents` is a labelled copy of their sum, kept by the one
+   *  place that writes lines, so the list can sort and add up without reading every line. */
+  quotes: defineTable({
+    businessId: v.id("businesses"),
+    clientId: v.id("clients"),
+    /** The request (project) this quote came from, if any. */
+    opportunityId: v.optional(v.id("opportunities")),
+    /** Quote number, unique within the business. */
+    number: v.number(),
+    title: v.string(),
+    status: v.union(
+      v.literal("Draft"),
+      v.literal("Awaiting response"),
+      v.literal("Changes requested"),
+      v.literal("Approved"),
+      v.literal("Converted"),
+      v.literal("Archived"),
+    ),
+    salesperson: v.string(),
+    createdAt: v.number(),
+    sentAt: v.optional(v.number()),
+    viewedAt: v.optional(v.number()),
+    approvedAt: v.optional(v.number()),
+    convertedAt: v.optional(v.number()),
+    introHeading: v.string(),
+    introText: v.string(),
+    introImageId: v.optional(v.id("_storage")),
+    clientMessage: v.string(),
+    contract: v.string(),
+    /** Percent of the total required up front; 0 for none. */
+    depositPercent: v.number(),
+    depositCollectedCents: v.optional(v.number()),
+    depositCollectedAt: v.optional(v.number()),
+    /** The signature on an approved quote: who signed, the picture of it (a stored file), and when. */
+    signedBy: v.optional(v.string()),
+    signatureImageId: v.optional(v.id("_storage")),
+    signedAt: v.optional(v.number()),
+    totalCents: v.number(),
+    /** Search only, a deliberate labelled copy: client name, address, quote number and title. */
+    searchText: v.string(),
+  })
+    .index("by_business_and_createdAt", ["businessId", "createdAt"])
+    .index("by_business_and_number", ["businessId", "number"])
+    .index("by_clientId", ["clientId"])
+    .searchIndex("search_text", { searchField: "searchText", filterFields: ["businessId"] }),
+
+  quoteLineItems: defineTable({
+    quoteId: v.id("quotes"),
+    position: v.number(),
+    name: v.string(),
+    description: v.string(),
+    imageId: v.optional(v.id("_storage")),
+    quantity: v.number(),
+    unitPriceCents: v.number(),
+    /** An optional line has a tick box: it only counts toward the total while `selected`. */
+    optional: v.boolean(),
+    selected: v.boolean(),
+  }).index("by_quoteId_and_position", ["quoteId", "position"]),
+
+  quoteNotes: defineTable({
+    quoteId: v.id("quotes"),
+    text: v.string(),
+    author: v.string(),
+    createdAt: v.number(),
+    attachmentId: v.optional(v.id("_storage")),
+    attachmentName: v.optional(v.string()),
+  }).index("by_quoteId", ["quoteId"]),
+
   /** Staff who can sign in to the CRM (D-046). Invite-only: a row exists first (invited), and the person claims it on their first
    *  sign-in with the same verified email. Signing up in Clerk alone gives no access. */
   users: defineTable({
@@ -267,10 +335,19 @@ export default defineSchema({
     roles: v.array(v.union(v.literal("admin"), v.literal("sales"), v.literal("office"), v.literal("pm"))),
     /** The businesses they can work in (D-016, D-031). An Admin sees all of them whatever this says. */
     businessIds: v.array(v.id("businesses")),
-    status: v.union(v.literal("invited"), v.literal("active"), v.literal("deactivated")),
+    /** "expired": the invitation ran out (7 days) or an Admin cancelled it, and the person has never signed in (D-055). */
+    /** "deleted": taken off the team by an Admin (D-057). The row is kept, never removed, so the history stays; they cannot sign in, and an
+     *  Admin can restore them by sending a new invitation. */
+    status: v.union(v.literal("invited"), v.literal("active"), v.literal("deactivated"), v.literal("expired"), v.literal("deleted")),
+    deletedAt: v.optional(v.number()),
+    deletedBy: v.optional(v.string()),
     /** Clerk's stable identity for this person, set when they first sign in. */
     tokenIdentifier: v.optional(v.string()),
     invitedBy: v.optional(v.string()),
+    /** The Clerk invitation that was emailed, and when it was sent and runs out. Absent for people added before invitations existed. */
+    clerkInvitationId: v.optional(v.string()),
+    invitationSentAt: v.optional(v.number()),
+    invitationExpiresAt: v.optional(v.number()),
     lastSignInAt: v.optional(v.number()),
   })
     .index("by_email", ["email"])

@@ -61,7 +61,7 @@ PRD goal: the complete sales workflow, from enquiry to approved contract.
 **UI/UX (sample data), steps 3.1 to 3.3**
 - [ ] 3.1 Projects: Sales pipeline board (9 stages) with list toggle; project page tabs Overview, Visit (four-step on-site flow, phone-first), Quotes, Files, Activity
 - [x] Customer form to CRM (D-040, built on dev in D-045; not yet deployed to production): a submitted form creates a new client only if the person is unique (rule in Q-016), and always creates a request, i.e. a project at New Request. Needs the user's go-ahead before the live forms app is changed (D-028)
-- [ ] 3.2 Quotes: overview cards, quote builder (desktop-first), statuses, change requests and resubmissions
+- [ ] 3.2 Quotes: overview cards, quote builder (desktop-first), statuses, change requests and resubmissions. **Done so far (D-056, dev):** list with the four figure cards and Status, Date and Salesperson filters, the read-only quote page, quote #1 added as data. **Still to do:** the builder, sending, change requests and resubmissions
 - [ ] 3.3 Home, Schedule and Tasks: dashboard widgets, day/week/month calendar, Today view, personal tasks, Quick Create
 - [ ] Customer-facing: quote approval and contract signing (method undecided, Q-005)
 

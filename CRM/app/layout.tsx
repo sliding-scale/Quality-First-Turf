@@ -48,7 +48,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         {/* ui pins the version of Clerk's forms, so the CSS in app/globals.css that targets their class names only changes when we upgrade @clerk/ui. */}
-        <ClerkProvider ui={ui} localization={localization} afterSignOutUrl="/sign-in">
+        {/* signUpUrl: an invitation link that ran out arrives at the sign-up page, which here explains that instead of showing a form. */}
+        <ClerkProvider ui={ui} localization={localization} afterSignOutUrl="/sign-in" signUpUrl="/accept-invite">
           {children}
         </ClerkProvider>
       </body>
