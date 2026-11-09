@@ -66,6 +66,8 @@ const contactV = v.object({ name: v.string(), role: v.string(), phone: v.string(
 const billingV = v.object({ kind: v.string(), appliedTo: v.string(), at: v.number(), cents: v.number() });
 const scheduleV = v.object({ kind: v.string(), title: v.string(), at: v.number(), status: v.string(), assigned: v.string() });
 
+const emails0 = (e: { address: string }[]) => e.length > 0;
+
 export const applyJobberDetails = internalMutation({
   args: {
     businessSlug: v.string(),
@@ -92,7 +94,8 @@ export const applyJobberDetails = internalMutation({
     for (const { id, ...fields } of args.updates) {
       const c = await ctx.db.get(id);
       if (c === null || c.businessId !== business._id) throw new ConvexError(`Client ${id} is not in ${args.businessSlug}.`);
-      await ctx.db.patch(id, fields);
+      // The single email on the record follows the first one Jobber lists, so the list and the page agree.
+      await ctx.db.patch(id, emails0(fields.emails) ? { ...fields, email: fields.emails[0].address } : fields);
       changed += 1;
     }
     return { changed };
