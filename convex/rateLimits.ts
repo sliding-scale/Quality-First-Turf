@@ -7,4 +7,6 @@ export const rateLimiter = new RateLimiter(components.rateLimiter, {
   publishVisit: { kind: "token bucket", rate: 30, period: HOUR, capacity: 10 },
   loginPerEmail: { kind: "fixed window", rate: 8, period: 15 * MINUTE },
   loginGlobal: { kind: "fixed window", rate: 60, period: HOUR },
+  /** The client's quote page (D-063): viewing, signing, asking for changes, declining. Keyed by the quote link. */
+  clientQuoteAnswer: { kind: "token bucket", rate: 60, period: HOUR, capacity: 20 },
 });

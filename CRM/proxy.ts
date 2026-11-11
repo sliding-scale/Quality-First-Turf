@@ -7,9 +7,11 @@ import { clerkMiddleware } from "@clerk/nextjs/server";
 export default clerkMiddleware(async (auth, request) => {
   const path = request.nextUrl.pathname;
   // The sign-in page is open, and so is the sales-form sign-out page (it only ends the session and returns to an allowed address).
-  // The invitation page is open too: a new team member has no session yet. Clerk only lets them through with the ticket from their email.
+  // The client's quote page (/q/<link>) is open too. The invitation page is open too: a new team member has no session yet. Clerk only lets them through with the ticket from their email.
   const isOpen =
-    path === "/sign-in" || path.startsWith("/sign-in/") || path === "/accept-invite" || path.startsWith("/accept-invite/") || path === "/sales-access/signout";
+    path === "/sign-in" || path.startsWith("/sign-in/") || path === "/accept-invite" || path.startsWith("/accept-invite/") || path === "/sales-access/signout" ||
+    // The client's quote page: the secret link is the key (D-063). Every function behind it checks the token.
+    path.startsWith("/q/");
   if (!isOpen) await auth.protect();
 });
 

@@ -5,6 +5,10 @@ import { Figtree } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
 import "./client-page.css";
+import "./pipeline.css";
+import "./schedule.css";
+import "./quote-builder.css";
+import "./client-quote.css";
 
 // Headings: Figtree (open source), the closest match to Jobber's heading font.
 const figtree = Figtree({ variable: "--font-figtree", subsets: ["latin"], weight: ["700", "800"], display: "swap" });
@@ -39,6 +43,10 @@ const localization = {
   formFieldInputPlaceholder__emailAddress: "",
   formFieldInputPlaceholder__emailAddress_username: "",
   formFieldInputPlaceholder__password: "",
+  // Clerk's stock message says "8 or more characters" whatever the instance's real minimum is. Ours is 8 (Clerk dashboard, Password settings), so say 8.
+  unstable__errors: {
+    form_password_length_too_short: "Your password must contain at least 8 characters.",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

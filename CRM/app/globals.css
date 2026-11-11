@@ -1025,3 +1025,10 @@ span.member-name { color: var(--muted); cursor: default; }
 @media (max-width: 700px) { .cd-mail { grid-template-columns: 1fr; } }
 .tagpick-count { white-space: nowrap; gap: 12px; }
 .menu.filter .tagpick-list .opt { font-weight: 400; padding: 12px 18px; }
+
+/* Phones: the filter chips of every list (Clients, Requests, Quotes, Outcomes...) sit in one straight line that scrolls sideways. */
+@media (max-width: 700px) {
+  .toolbar .chips, .page-head + .chips, .chips.scrollable { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; padding-bottom: 2px; max-width: 100%; }
+  .toolbar .chips::-webkit-scrollbar { display: none; }
+  .toolbar .chips > * { flex: none; white-space: nowrap; }
+}

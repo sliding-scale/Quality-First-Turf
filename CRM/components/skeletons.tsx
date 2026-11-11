@@ -451,3 +451,187 @@ export function QuoteSkeleton() {
     </Busy>
   );
 }
+
+/* Pipeline (D-061): shaped from the real board's own classes so nothing jumps when the data arrives. */
+export function PipelineBoardSkeleton() {
+  return (
+    <Busy>
+      <div className="pl-tab">
+        <div className="pl-bar">
+          <div className="chips">
+            {[150, 44, 140, 150, 130].map((w, i) => (<Sk key={i} w={w} h={38} r={999} />))}
+          </div>
+          <Sk w={280} h={44} r={8} />
+        </div>
+        <div className="pl-boardwrap">
+          <div className="pl-board">
+            {[3, 4, 2].map((cols, g) => (
+              <section key={g} className="pl-group">
+                <div className="pl-rail"><Sk w={22} h={22} r={999} /><Sk w={16} h={90} /></div>
+                <div className="pl-cols">
+                  {range(cols).map((i) => (
+                    <div key={i} className="pl-col">
+                      <div className="pl-colhead"><Sk w="70%" h={16} /><div className="pl-colstat"><Sk w={26} h={22} r={999} /><Sk w={36} h={14} /></div></div>
+                      <div className="pl-colbody">
+                        {i < 2 && (
+                          <div className="pl-card" style={{ cursor: "default" }}>
+                            <Sk w="80%" h={14} />
+                            <div style={{ height: 8 }} />
+                            <Sk w="55%" h={13} />
+                            <div style={{ height: 8 }} />
+                            <Sk w="65%" h={13} />
+                            <div style={{ height: 12 }} />
+                            <div className="pl-cardfoot"><Sk w={34} h={20} r={999} /><Sk w={50} h={14} /></div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
+        </div>
+      </div>
+    </Busy>
+  );
+}
+
+export function PipelineSkeleton() {
+  return (
+    <Busy>
+      <div className="pl">
+        <div className="pl-top">
+          <div className="pl-tabs"><Sk w={70} h={20} /><Sk w={110} h={20} /></div>
+        </div>
+        <div className="pl-actionrow"><div className="pl-actions"><Sk w={110} h={38} r={8} /><Sk w={130} h={38} r={8} /></div></div>
+        <div className="pl-content"><PipelineBoardSkeleton /></div>
+      </div>
+    </Busy>
+  );
+}
+
+export function PipelineTasksSkeleton() {
+  return (
+    <Busy>
+      <div className="pl-taskspage">
+        <Sk w={110} h={24} />
+        <div className="pl-taskbar">
+          <div className="chips">{[70, 100, 90, 110].map((w, i) => (<Sk key={i} w={w} h={38} r={999} />))}</div>
+          <Sk w={150} h={38} r={999} />
+        </div>
+        {range(3).map((i) => (<Sk key={i} w="100%" h={44} style={{ marginBottom: 8 }} />))}
+      </div>
+    </Busy>
+  );
+}
+
+export function PipelineOutcomesSkeleton() {
+  return (
+    <Busy>
+      <div className="pl-outcomes">
+        <div className="chips" style={{ marginBottom: 16 }}><Sk w={130} h={38} r={999} /><Sk w={210} h={38} r={999} /></div>
+        <div className="table-wrap">
+          <table className="table single">
+            <colgroup><col style={{ width: "34%" }} /><col style={{ width: "26%" }} /><col style={{ width: "13%" }} /><col style={{ width: "13%" }} /><col style={{ width: "14%" }} /></colgroup>
+            <thead><tr><th>Title</th><th>Name</th><th>Created On</th><th>Won On</th><th className="num">Total</th></tr></thead>
+            <tbody>
+              {range(3).map((i) => (
+                <tr key={i}><td><Sk w="70%" h={14} /></td><td><Sk w="60%" h={14} /></td><td><Sk w={80} h={14} /></td><td><Sk w={80} h={14} /></td><td className="num"><Sk w={64} h={14} /></td></tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </Busy>
+  );
+}
+
+export function PipelineEditSkeleton() {
+  return (
+    <Busy>
+      <div className="pl-edit">
+        <div className="pl-editbar"><Sk w={120} h={18} /></div>
+        <Sk w={220} h={36} style={{ margin: "14px 0 20px" }} />
+        <div className="pl-editgroups">
+          {[4, 4].map((n, g) => (
+            <section key={g} className="pl-editgroup">
+              <header><Sk w={100} h={22} /></header>
+              <div className="pl-editcols">{range(n).map((i) => (<div key={i} className="pl-editcol"><Sk w="60%" h={16} /><div style={{ height: 14 }} /><Sk w="100%" h={80} /></div>))}</div>
+            </section>
+          ))}
+        </div>
+      </div>
+    </Busy>
+  );
+}
+
+export function TasksSkeleton() {
+  return (
+    <Busy>
+      <div className="tasks-route">
+        <div className="page-head"><h1>Tasks</h1></div>
+        <PipelineTasksSkeleton />
+      </div>
+    </Busy>
+  );
+}
+
+/* Schedule (D-062): the header and a week grid, from the real calendar's own classes. */
+export function ScheduleSkeleton() {
+  return (
+    <Busy>
+      <div className="sc">
+        <div className="sc-bar">
+          <div className="sc-nav">
+            <Sk w={150} h={30} />
+            <Sk w={36} h={38} r={8} />
+            <Sk w={36} h={38} r={8} />
+            <Sk w={64} h={38} r={8} />
+            <Sk w={110} h={38} r={8} />
+            {[100, 110, 120].map((w, i) => (<Sk key={i} w={w} h={38} r={999} />))}
+          </div>
+          <div className="sc-tools"><Sk w={190} h={38} r={8} /><Sk w={64} h={38} r={8} /><Sk w={80} h={38} r={8} /></div>
+        </div>
+        <div className="sc-main">
+          <div className="sc-grid week">
+            <div className="sc-headrow"><div className="sc-gutter" />{range(7).map((i) => (<div key={i} className="sc-colhead"><Sk w={64} h={24} r={999} /></div>))}</div>
+            <div className="sc-scroll">
+              <div className="sc-body" style={{ height: 560 }}>
+                <div className="sc-gutter sc-hours" />
+                {range(7).map((i) => (<div key={i} className="sc-colbody">{i % 2 === 0 && <Sk w="88%" h={52} style={{ margin: "120px 6px 0" }} />}</div>))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Busy>
+  );
+}
+
+/* The quote builder (D-063): the header, the introduction and a line or two, from the builder's own classes. */
+export function QuoteBuilderSkeleton() {
+  return (
+    <Busy>
+      <div className="qb">
+        <div className="qb-top"><Sk w={190} h={32} /></div>
+        <section className="qb-card"><Sk w="100%" h={46} /><div style={{ height: 14 }} /><Sk w="55%" h={46} /></section>
+        <section className="qb-card"><Sk w={140} h={22} /><div style={{ height: 14 }} /><Sk w="100%" h={90} /></section>
+        <section className="qb-card"><Sk w={160} h={22} /><div style={{ height: 14 }} /><Sk w="100%" h={46} /><div style={{ height: 10 }} /><Sk w="100%" h={90} /></section>
+      </div>
+    </Busy>
+  );
+}
+
+/* The client's quote page (D-063). */
+export function ClientQuoteSkeleton() {
+  return (
+    <Busy>
+      <main className="cq">
+        <header className="cq-head"><Sk w={140} h={16} /><div style={{ height: 8 }} /><Sk w="70%" h={30} /><div style={{ height: 8 }} /><Sk w={120} h={14} /></header>
+        <section className="cq-card"><Sk w="40%" h={18} /><Sk w="100%" h={14} /><Sk w="90%" h={14} /></section>
+        <section className="cq-card"><Sk w="50%" h={20} /><Sk w="100%" h={56} /><Sk w="100%" h={56} /></section>
+      </main>
+    </Busy>
+  );
+}

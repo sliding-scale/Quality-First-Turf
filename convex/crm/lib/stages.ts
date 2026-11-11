@@ -78,7 +78,48 @@ export function requestStatus(stage: string, requestedAt: number, now: number): 
 }
 
 /** Quote statuses (D-056), in the order Jobber lists them. Stored on the quote, unlike a request's. */
-export const QUOTE_STATUSES = ["Draft", "Awaiting response", "Changes requested", "Approved", "Converted", "Archived"] as const;
+export const QUOTE_STATUSES = ["Draft", "Awaiting response", "Changes requested", "Approved", "Rejected", "Converted", "Archived"] as const;
 export type QuoteStatus = (typeof QUOTE_STATUSES)[number];
 /** The four that the Overview card counts; Converted and Archived are not "open" any more. */
 export const QUOTE_OPEN_STATUSES = ["Draft", "Awaiting response", "Changes requested", "Approved"] as const;
+
+/* Sales pipeline board (D-061). The board's open columns, grouped as Jobber groups them. Closed Won and Closed Lost are a third
+   group, CLOSED_STAGES, below; they are also listed under Sales Outcomes. */
+export const PIPELINE_GROUPS = {
+  Requests: ["New Request", "Schedule Onsite Consultation", "Onsite Consultation"],
+  Quotes: [
+    "Quote Draft & Site Plan / Design",
+    "Proposal Delivered — Awaiting Response",
+    "Changes Requested",
+    "Quotes Approved — Contract Out for Signature",
+  ],
+} as const satisfies Record<string, readonly string[]>;
+export type PipelineGroup = keyof typeof PIPELINE_GROUPS;
+
+/** The board's third group: projects that are won or lost, as two columns (D-061). Not editable in Edit Stages. */
+export const CLOSED_STAGES = ["Closed Won", "Closed Lost"] as const;
+export type BoardGroup = PipelineGroup | "Closed";
+
+/** Jobber's lead sources. A project with none shows as "No source". */
+export const LEAD_SOURCES = ["Existing Client", "Facebook", "Flyer", "Google", "Instagram", "Other", "Referral", "Vehicle Wrap"] as const;
+export const NO_SOURCE = "No source";
+
+type MoveResult = { ok: true } | { ok: false; error: string };
+
+/** Pure rules for moving a project between Sales stages. `custom` is the business's own extra stage names. */
+export function checkMove(from: string, to: string, opts: { isAdmin: boolean; reason?: string; custom?: readonly string[] }): MoveResult {
+  const known = new Set<string>([...SALES_STAGES, ...(opts.custom ?? [])]);
+  if (!known.has(from)) return { ok: false, error: `"${from}" is not a Sales stage.` };
+  if (!known.has(to)) return { ok: false, error: `"${to}" is not a Sales stage.` };
+  if (from === to) return { ok: false, error: `The project is already in "${to}".` };
+  const closed = (s: string) => s === "Closed Won" || s === "Closed Lost";
+  if (closed(from) && !opts.isAdmin) return { ok: false, error: "Only an Admin can reopen a closed project." };
+  if (to === "Closed Lost" && !(opts.reason ?? "").trim()) return { ok: false, error: "Say why the project was lost." };
+  // Closed Won is checked against the project's quote, in applyMove (convex/crm/pipeline.ts): it needs a signed quote, for everyone.
+  return { ok: true };
+}
+
+/** How long a project has been in its stage. Projects from before stage times were kept count from when they were requested. */
+export function timeInStage(stageEnteredAt: number | undefined, requestedAt: number, now: number): number {
+  return Math.max(0, now - (stageEnteredAt ?? requestedAt));
+}

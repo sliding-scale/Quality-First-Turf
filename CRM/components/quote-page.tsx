@@ -2,20 +2,26 @@
 
 /* One quote (D-056, PRD 3.6), laid out like Jobber's quote page: status and title, the client and a table of facts, then the quote as the
    customer reads it (introduction, products and services with optional extras, deposit, signature), with Notes in the
-   right-hand column. The pencils and the sending, converting and signing items in the More menu are in place but say "not built yet":
-   the quote builder, sending and customer approval are separate steps (Q-005). Print or Save PDF and Delete work. Everything on the page
-   comes from the backend; the totals are worked out there from the lines. On a phone the columns stack, as Jobber's do. */
+   right-hand column. D-063 made it live: the pencils open the builder, Send makes the client's secret link, Collect Signature and Record
+   deposit work, and the activity list shows every step. Converting to a job and sending email or text from the CRM stay greyed (Jobs, and
+   the Zoho connection). Everything on the page comes from the backend; the totals are worked out there from the lines. On a phone the
+   columns stack, as Jobber's do. */
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useMutation } from "convex/react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
+import { clock, failure } from "@/lib/pipeline";
 import { QUOTE_DOT, QUOTE_PILL, useQuote } from "@/lib/quotes";
 import { moneyCents, quoteDate, quoteDateTime } from "@/lib/format";
 import { useStoredString, writeItem } from "@/lib/store";
 import { DeleteQuoteDialog } from "./delete-quote-dialog";
 import { Icon } from "./icon";
 import { ImageViewer, type ViewerImage } from "./image-viewer";
+import { ActivityDialog, DepositDialog, NoteDialog, SendDialog, SignDialog } from "./quote-dialogs";
 import { QuoteSkeleton } from "./skeletons";
 import { useStaff } from "./staff-context";
 import { useUI, type MenuItem } from "./ui-provider";
@@ -45,6 +51,21 @@ function QuoteView({ q }: { q: Quote }) {
   const { dropdown, toast } = useUI();
   const { canEdit } = useStaff();
   const [deleting, setDeleting] = useState(false);
+  const params = useSearchParams();
+  const [dialog, setDialog] = useState<null | "send" | "sign" | "deposit" | "activity" | "note">(() => (params.get("link") === "1" && q.shareToken ? "send" : null));
+  const send = useMutation(api.crm.quoteFlow.send);
+  const duplicate = useMutation(api.crm.quoteDraft.duplicate);
+  const archive = useMutation(api.crm.quoteDraft.archive);
+  const editable = canEdit && (q.status === "Draft" || q.status === "Awaiting response" || q.status === "Changes requested");
+  const fail = (e: unknown, fallback: string) => toast(failure(e, fallback));
+  async function sendNow() {
+    try {
+      await send({ id: q.id, now: clock() });
+      setDialog("send");
+    } catch (e) {
+      fail(e, "The quote could not be sent.");
+    }
+  }
   // The quote's photos, in the order they appear on the page; clicking one opens the viewer on it.
   const photos: ViewerImage[] = [
     ...(q.introImageUrl ? [{ url: q.introImageUrl, caption: q.introHeading || "Introduction" }] : []),
@@ -69,21 +90,35 @@ function QuoteView({ q }: { q: Quote }) {
     ...(q.convertedAt ? ([["Converted", quoteDate(q.convertedAt)]] as [string, React.ReactNode][]) : []),
     ...(q.sentAt ? ([["Sent", quoteDate(q.sentAt)]] as [string, React.ReactNode][]) : []),
     ...(q.viewedAt ? ([["Viewed", quoteDate(q.viewedAt)]] as [string, React.ReactNode][]) : []),
-    ...(q.depositPercent > 0 ? ([["Required Deposit", moneyCents(q.totals.depositCents)]] as [string, React.ReactNode][]) : []),
+    ...(q.totals.depositCents > 0 ? ([["Required Deposit", moneyCents(q.totals.depositCents)]] as [string, React.ReactNode][]) : []),
+    ...(q.revision > 0 ? ([["Revision", q.revision]] as [string, React.ReactNode][]) : []),
     ...(q.request ? ([["From Request", <Link key="r" href={`/clients/${q.request.clientId}`}>{quoteDate(q.request.requestedAt)}</Link>]] as [string, React.ReactNode][]) : []),
   ];
 
-  // Jobber's More menu. Sending, converting and signing wait for later steps; printing and deleting work now. A role that can only look gets
-  // only the items that do not change anything.
-  const later = (label: string, icon: string, what: string, extra: object = {}): MenuItem => ({ label, icon, disabled: true, ...extra });
+  // Jobber's More menu. Converting to a job and sending email or text from the CRM stay greyed (Jobs; the Zoho connection). A role that can
+  // only look gets only the items that do not change anything.
+  const later = (label: string, icon: string, extra: object = {}): MenuItem => ({ label, icon, disabled: true, ...extra });
   const rule: MenuItem = { divider: true };
+  const canSign = canEdit && (q.status === "Draft" || q.status === "Awaiting response" || q.status === "Changes requested");
   const moreItems: MenuItem[] = [
     ...(canEdit
-      ? [later("Convert to Job", "hammer", "Converting quotes to jobs", { iconColor: "var(--green)" }), rule, { heading: "Send as..." } as MenuItem, later("Email", "mail", "Sending quotes by email"), later("Send Text", "sms", "Sending quotes by text"), rule]
+      ? [
+          later("Convert to Job", "hammer", { iconColor: "var(--green)" }),
+          rule,
+          { heading: "Send as..." } as MenuItem,
+          { label: q.shareToken ? "Client link" : "Create the client link", icon: "newtab", onSelect: () => (q.shareToken ? setDialog("send") : void sendNow()), disabled: !(q.shareToken || q.status === "Draft") } as MenuItem,
+          later("Email", "mail"),
+          later("Send Text", "sms"),
+          rule,
+        ]
       : []),
-    later("Preview as Client", "eye", "Previewing a quote as the client"),
-    ...(canEdit ? [later("Collect Signature", "signature", "Collecting signatures")] : []),
+    q.shareToken && q.status !== "Archived"
+      ? ({ label: "Preview as Client", icon: "eye", onSelect: () => window.open(`/q/${q.shareToken}?preview=1`, "_blank", "noopener") } as MenuItem)
+      : later("Preview as Client", "eye"),
+    ...(canEdit ? [{ label: "Collect Signature", icon: "signature", disabled: !canSign, onSelect: () => setDialog("sign") } as MenuItem] : []),
+    ...(canEdit && q.status === "Approved" && q.totals.depositOutstandingCents > 0 ? [{ label: "Record deposit", icon: "dollar", onSelect: () => setDialog("deposit") } as MenuItem] : []),
     { label: "Print or Save PDF", icon: "pdf", onSelect: () => window.print() },
+    ...(canEdit && q.status !== "Archived" && q.status !== "Converted" ? [{ label: "Archive", icon: "stage", onSelect: () => void archive({ id: q.id }).then(() => toast("The quote is archived.")).catch((e) => fail(e, "The quote could not be archived.")) } as MenuItem] : []),
     ...(canEdit ? [{ label: "Delete", icon: "trash", danger: true, onSelect: () => setDeleting(true) } as MenuItem] : []),
   ];
   const clientItems: MenuItem[] = [
@@ -105,25 +140,36 @@ function QuoteView({ q }: { q: Quote }) {
               </Link>
             </div>
             <div className="qh-actions">
-              <button type="button" className="icon-btn" aria-label="View activity" title="View activity" disabled>
+              <button type="button" className="icon-btn" aria-label="View activity" title="View activity" onClick={() => setDialog("activity")}>
                 <Icon name="history" size={24} />
               </button>
+              {canEdit && q.status === "Draft" && <button className="btn primary" type="button" onClick={() => void sendNow()}><Icon name="newtab" size={22} />Send</button>}
+              {canEdit && q.status === "Changes requested" && <Link className="btn primary" href={`/quotes/${q.id}/edit`}><Icon name="pencil" size={22} />Edit and resubmit</Link>}
+              {canEdit && q.status === "Awaiting response" && q.shareToken && <button className="btn primary" type="button" onClick={() => setDialog("send")}><Icon name="newtab" size={22} />Client link</button>}
+              {canEdit && q.status === "Approved" && q.totals.depositOutstandingCents > 0 && <button className="btn primary" type="button" onClick={() => setDialog("deposit")}><Icon name="dollar" size={22} />Record deposit</button>}
               <button className="btn more-btn" type="button" aria-label="More" aria-haspopup="menu" onClick={(e) => dropdown(e.currentTarget, moreItems, { alignRight: true, variant: "actions" })}>
                 <Icon name="more" size={24} /><span className="lbl">More</span>
               </button>
-              <button className="btn primary" type="button" disabled>
-                <Icon name="duplicate" size={24} />Create Similar Quote
-              </button>
+              {canEdit && (
+                <button className="btn" type="button" onClick={() => void duplicate({ id: q.id }).then((id) => router.push(`/quotes/${id}/edit`)).catch((e) => fail(e, "The quote could not be copied."))}>
+                  <Icon name="duplicate" size={24} />Create Similar Quote
+                </button>
+              )}
             </div>
           </div>
           <div className="quote-title-row">
             <h1>{q.title}</h1>
-            {canEdit && (
-              <button type="button" className="icon-btn" aria-label="Edit quote details" title="Edit quote details" disabled>
-                <Icon name="pencil" size={24} />
-              </button>
+            {editable ? (
+              <Link className="icon-btn" aria-label="Edit quote details" title="Edit quote details" href={`/quotes/${q.id}/edit`}><Icon name="pencil" size={24} /></Link>
+            ) : (
+              canEdit && <button type="button" className="icon-btn" aria-label="Edit quote details" title="A quote that is approved, declined or archived cannot be edited" disabled><Icon name="pencil" size={24} /></button>
             )}
           </div>
+          {q.status === "Changes requested" && (
+            <div className="qp-banner warn" role="status"><b>The client asked for changes</b>{q.changesMessage && <p>{q.changesMessage}</p>}<span>Edit the quote, then resubmit it. The client sees the newest version.</span></div>
+          )}
+          {q.status === "Rejected" && <div className="qp-banner bad" role="status"><b>The client declined this quote</b>{q.rejectedReason && <p>{q.rejectedReason}</p>}</div>}
+          {q.status === "Awaiting response" && q.viewedAt && <div className="qp-banner" role="status"><b>The client opened the quote</b><span>{quoteDateTime(q.viewedAt)}</span></div>}
         </div>
 
         <div className="main-col">
@@ -157,7 +203,7 @@ function QuoteView({ q }: { q: Quote }) {
           <section className="card panel quote-section">
             <div className="ph">
               <h3>Introduction</h3>
-              {canEdit && <button type="button" className="icon-btn" aria-label="Edit introduction" disabled><Icon name="pencil" size={24} /></button>}
+              {editable && <Link className="icon-btn" aria-label="Edit introduction" href={`/quotes/${q.id}/edit`}><Icon name="pencil" size={24} /></Link>}
             </div>
             <div className="qs-body">
               {q.introImageUrl && (
@@ -176,7 +222,7 @@ function QuoteView({ q }: { q: Quote }) {
           <section className="card panel quote-section">
             <div className="ph">
               <h3>Product / Service</h3>
-              {canEdit && <button type="button" className="icon-btn" aria-label="Edit products and services" disabled><Icon name="pencil" size={24} /></button>}
+              {editable && <Link className="icon-btn" aria-label="Edit products and services" href={`/quotes/${q.id}/edit`}><Icon name="pencil" size={24} /></Link>}
             </div>
             <div className="qs-body flush">
               <table className="table quote-lines">
@@ -191,7 +237,10 @@ function QuoteView({ q }: { q: Quote }) {
                   <tr><th>Line Item</th><th /><th className="num">Quantity</th><th className="num">Unit Price</th><th className="num">Total</th></tr>
                 </thead>
                 <tbody>
-                  {q.lines.map((l) => (
+                  {q.lines.map((l) =>
+                    l.kind === "text" ? (
+                      <tr key={l.id}><td className="ql-main" colSpan={5}><div className="ql-desc">{l.name}</div></td></tr>
+                    ) : (
                     <tr key={l.id} className={l.optional ? "has-box" : undefined}>
                       <td className="ql-main">
                         <div className="ql-name">
@@ -215,18 +264,21 @@ function QuoteView({ q }: { q: Quote }) {
                       <td className="num" data-label="Price">{moneyCents(l.unitPriceCents)}</td>
                       <td className="num" data-label="Total">{moneyCents(Math.round(l.quantity * l.unitPriceCents))}</td>
                     </tr>
-                  ))}
+                    ),
+                  )}
                 </tbody>
               </table>
               <dl className="quote-totals">
                 <div><dt>Subtotal</dt><dd>{moneyCents(q.totals.subtotalCents)}</dd></div>
+                {q.totals.discountCents > 0 && <div><dt>Discount{q.discountKind === "percent" ? ` (${q.discountValue}%)` : ""}</dt><dd>-{moneyCents(q.totals.discountCents)}</dd></div>}
+                {q.totals.taxCents > 0 && <div><dt>Tax ({q.taxPercent}%)</dt><dd>{moneyCents(q.totals.taxCents)}</dd></div>}
                 <div className="grand"><dt>Total</dt><dd>{moneyCents(q.totals.totalCents)}</dd></div>
-                {q.depositPercent > 0 && (
+                {q.totals.depositCents > 0 && (
                   <>
-                    <div className="rule"><dt>Required deposit ({q.depositPercent}%)</dt><dd>{moneyCents(q.totals.depositCents)}</dd></div>
+                    <div className="rule"><dt>Required deposit{q.depositKind === "percent" ? ` (${q.depositValue}%)` : ""}</dt><dd>{moneyCents(q.totals.depositCents)}</dd></div>
                     {q.totals.depositCollectedCents > 0 && (
                       <div>
-                        <dt><b className="collected">Deposit collected</b>{q.depositCollectedAt ? <> • {quoteDate(q.depositCollectedAt)}</> : null}</dt>
+                        <dt><b className="collected">Deposit collected</b>{q.depositCollectedAt ? <> • {quoteDate(q.depositCollectedAt)}</> : null}{q.depositProofUrl && <> • <a href={q.depositProofUrl} target="_blank" rel="noreferrer">{q.depositProofName ?? "Proof"}</a></>}</dt>
                         <dd>-{moneyCents(q.totals.depositCollectedCents)}</dd>
                       </div>
                     )}
@@ -234,6 +286,11 @@ function QuoteView({ q }: { q: Quote }) {
                   </>
                 )}
               </dl>
+              {q.attachments.length > 0 && (
+                <ul className="qp-files" aria-label="Attachments">
+                  {q.attachments.map((a) => (<li key={a.id}><Icon name="file" size={20} /><a href={a.url ?? undefined} target="_blank" rel="noreferrer">{a.name}</a></li>))}
+                </ul>
+              )}
             </div>
           </section>
 
@@ -279,9 +336,11 @@ function QuoteView({ q }: { q: Quote }) {
           <section className="card quote-notes">
             <div className="qn-head">
               <h3>Notes</h3>
-              <button type="button" className="btn square" aria-label="Add a note" disabled>
-                <Icon name="plus" size={20} />
-              </button>
+              {canEdit && (
+                <button type="button" className="btn square" aria-label="Add a note" onClick={() => setDialog("note")}>
+                  <Icon name="plus" size={20} />
+                </button>
+              )}
             </div>
             {q.notes.length ? (
               q.notes.map((n) => (
@@ -292,9 +351,6 @@ function QuoteView({ q }: { q: Quote }) {
                       <b>{n.author}</b>
                       <div className="muted">{quoteDateTime(n.createdAt)}</div>
                     </div>
-                    {canEdit && (
-                      <button type="button" className="icon-btn" aria-label="Edit note" disabled><Icon name="pencil" size={24} /></button>
-                    )}
                   </div>
                   <p>{n.text}</p>
                   {n.attachmentUrl && (
@@ -313,6 +369,12 @@ function QuoteView({ q }: { q: Quote }) {
       </aside>
 
       {viewing !== null && viewing >= 0 && <ImageViewer images={photos} start={viewing} onClose={() => setViewing(null)} />}
+
+      {dialog === "send" && q.shareToken && <SendDialog token={q.shareToken} revision={q.revision} clientName={q.client.name} clientEmail={q.client.email} title={q.title} onClose={() => { setDialog(null); if (params.get("link")) router.replace(`/quotes/${q.id}`); }} />}
+      {dialog === "sign" && <SignDialog quoteId={q.id as Id<"quotes">} businessId={q.businessId} defaultName={q.client.name} onClose={() => setDialog(null)} />}
+      {dialog === "deposit" && <DepositDialog quoteId={q.id as Id<"quotes">} businessId={q.businessId} outstandingCents={q.totals.depositOutstandingCents} onClose={() => setDialog(null)} />}
+      {dialog === "activity" && <ActivityDialog quoteId={q.id} onClose={() => setDialog(null)} />}
+      {dialog === "note" && <NoteDialog quoteId={q.id as Id<"quotes">} businessId={q.businessId} onClose={() => setDialog(null)} />}
 
       {deleting && (
         <DeleteQuoteDialog

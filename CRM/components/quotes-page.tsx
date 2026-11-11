@@ -6,6 +6,7 @@
    paging; this file only asks and shows. */
 
 import { useConvex } from "convex/react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api } from "@/convex/_generated/api";
@@ -119,7 +120,7 @@ function Quotes({ business, initialQuery }: { business: BusinessDoc; initialQuer
       <div className="page-head">
         <h1>Quotes</h1>
         <div className="actions">
-          <button className="btn primary" type="button" disabled>New Quote</button>
+          <Link className="btn primary" href="/quotes/new">New Quote</Link>
           <button
             className="btn"
             type="button"
@@ -134,8 +135,9 @@ function Quotes({ business, initialQuery }: { business: BusinessDoc; initialQuer
       <div className="kpis compact four">
         <div className="card kpi">
           <div className="h"><span>Overview</span></div>
+          <div className="s">{stats.pending} pending</div>
           <ul className="ov">
-            {QUOTE_OPEN_STATUSES.map((s) => (
+            {[...QUOTE_OPEN_STATUSES, "Rejected" as const].map((s) => (
               <li key={s}>
                 <button type="button" className="ov-item" aria-pressed={status === s} onClick={() => showStatus(s)}>
                   <span className="dot" style={{ background: QUOTE_DOT[s] }} />
@@ -157,7 +159,7 @@ function Quotes({ business, initialQuery }: { business: BusinessDoc; initialQuer
           <div className="s kpi-money">{moneyCents(stats.sent.cents)}</div>
         </div>
         <div className="card kpi">
-          <div className="h"><span>Converted</span><Icon name="arrowupright" size={18} /></div>
+          <div className="h"><span>Approved / Converted</span><Icon name="arrowupright" size={18} /></div>
           <div className="s">Past 30 days</div>
           <div className="n">{stats.converted.count}<Delta value={change(stats.converted.count, stats.converted.countBefore)} /></div>
           <div className="s kpi-money">{moneyCents(stats.converted.cents)}</div>

@@ -117,3 +117,13 @@ button:disabled:hover, .btn:disabled:hover, .icon-btn:disabled:hover, .cj-plus:d
 /* Selecting a row swaps the header for the "N selected" bar; it keeps the header's height so the table does not move. */
 .table.jb thead tr.selbar th { height: 48px; padding: 0; border-bottom: 2px solid #dadfe2; }
 .table.jb .selbar-in { height: 46px; padding: 0 8px; box-sizing: border-box; }
+
+/* Wide screens: the page area stays put, and the main content and the right column each scroll on their own (2026-11-09). */
+@media (min-width: 1101px) {
+  .main:has(.cj-cols) { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
+  .main:has(.cj-cols) > .page { flex: 1; min-height: 0; }
+  .cj-cols { height: 100%; align-items: stretch; grid-template-columns: minmax(0, 1fr) 309px; }
+  .cj-cols.wide { grid-template-columns: minmax(0, 1fr) 64px; }
+  .cj-cols > .cj-main { min-height: 0; overflow-y: auto; padding: var(--pad) 0 56px var(--padx); }
+  .cj-cols > .cj-aside { position: static; min-height: 0; overflow-y: auto; padding: var(--pad) var(--padx) 56px 0; }
+}

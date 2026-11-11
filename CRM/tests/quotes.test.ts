@@ -57,7 +57,7 @@ describe("quote money", () => {
       { quantity: 1, unitPriceCents: 65000, optional: true, selected: true },
       { quantity: 1, unitPriceCents: 38000, optional: true, selected: false }, // not ticked: not included
     ];
-    expect(quoteTotals(lines, 10, 0)).toEqual({ subtotalCents: 545000, totalCents: 545000, depositCents: 54500, depositCollectedCents: 0, depositOutstandingCents: 54500 });
+    expect(quoteTotals(lines, 10, 0)).toEqual({ subtotalCents: 545000, discountCents: 0, taxCents: 0, totalCents: 545000, depositCents: 54500, depositCollectedCents: 0, depositOutstandingCents: 54500 });
     expect(quoteTotals(lines, 10, 54500).depositOutstandingCents).toBe(0);
     expect(quoteTotals(lines, 10, 99999).depositOutstandingCents).toBe(0); // never negative
     expect(quoteTotals([{ quantity: 3, unitPriceCents: 3333, optional: false, selected: true }], 33, 0)).toMatchObject({ totalCents: 9999, depositCents: 3300 });
@@ -133,7 +133,7 @@ describe("the quotes list", () => {
 
   it("counts statuses, and sent, converted and conversion for the past 30 days against the 30 before", async () => {
     const s = await w.admin.query(api.crm.quotes.stats, { businessId: w.qft, today: TODAY });
-    expect(s.counts).toEqual({ Draft: 1, "Awaiting response": 1, "Changes requested": 0, Approved: 0, Converted: 1, Archived: 0 });
+    expect(s.counts).toEqual({ Draft: 1, "Awaiting response": 1, "Changes requested": 0, Approved: 0, Rejected: 0, Converted: 1, Archived: 0 });
     expect(s.sent).toEqual({ count: 1, cents: 765000, countBefore: 1 }); // #1 now, #3 in the 30 days before
     expect(s.converted).toEqual({ count: 1, cents: 765000, countBefore: 0 });
     expect(s.conversionRate).toBe(100); // one sent, and it was converted
@@ -161,7 +161,7 @@ describe("one quote", () => {
     await w.t.run((ctx) => ctx.db.patch(id, { totalCents: 1 }));
     const q = (await w.admin.query(api.crm.quotes.get, { id }))!;
     expect(q).toMatchObject({ number: 1, status: "Converted", signedBy: "May", salesperson: "Office Manager", client: { name: w.clientName, email: "quinn@example.com" } });
-    expect(q.totals).toEqual({ subtotalCents: 545000, totalCents: 545000, depositCents: 54500, depositCollectedCents: 72700, depositOutstandingCents: 0 });
+    expect(q.totals).toEqual({ subtotalCents: 545000, discountCents: 0, taxCents: 0, totalCents: 545000, depositCents: 54500, depositCollectedCents: 72700, depositOutstandingCents: 0 });
     expect(q.lines.map((l) => [l.name, l.optional, l.selected])).toEqual([["Pavers", false, true], ["Steps", true, true], ["Lights", true, false]]);
     expect(q.lines[0].imageUrl).toMatch(/^https?:/);
     expect(q.introImageUrl).toMatch(/^https?:/);

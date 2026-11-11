@@ -281,6 +281,19 @@ export default defineSchema({
     searchText: v.string(),
     /** The customer-form submission (a forms `projects` row) this project was created from, if any (D-040). */
     sourceProjectId: v.optional(v.id("projects")),
+    /** Pipeline board (D-061). `stageEnteredAt` is when it reached its stage; absent on older rows, which count from `requestedAt`. */
+    stageEnteredAt: v.optional(v.number()),
+    leadSource: v.optional(v.string()),
+    salespersonId: v.optional(v.id("users")),
+    outcome: v.optional(v.union(v.literal("won"), v.literal("lost"))),
+    closedAt: v.optional(v.number()),
+    lostReason: v.optional(v.string()),
+    /** The signed contract, uploaded as a PDF or an image (one way to meet the Closed Won rule), and an optional invoice (D-063). */
+    signedContractId: v.optional(v.id("_storage")),
+    signedContractName: v.optional(v.string()),
+    signedContractAt: v.optional(v.number()),
+    invoiceId: v.optional(v.id("_storage")),
+    invoiceName: v.optional(v.string()),
   })
     .index("by_business_and_requestedAt", ["businessId", "requestedAt"])
     .index("by_clientId", ["clientId"])
@@ -302,6 +315,7 @@ export default defineSchema({
       v.literal("Awaiting response"),
       v.literal("Changes requested"),
       v.literal("Approved"),
+      v.literal("Rejected"),
       v.literal("Converted"),
       v.literal("Archived"),
     ),
@@ -325,12 +339,34 @@ export default defineSchema({
     signatureImageId: v.optional(v.id("_storage")),
     signedAt: v.optional(v.number()),
     totalCents: v.number(),
+    /** The builder (D-063). A discount is cents for "amount" or a percent; the deposit above (`depositPercent`) stays as it was, and
+     *  `depositKind`/`depositValue` say it more fully when set. */
+    discountKind: v.optional(v.union(v.literal("amount"), v.literal("percent"))),
+    discountValue: v.optional(v.number()),
+    taxPercent: v.optional(v.number()),
+    depositKind: v.optional(v.union(v.literal("percent"), v.literal("amount"))),
+    depositValue: v.optional(v.number()),
+    /** What the client sees on the quote (Jobber's "Client view"). */
+    clientView: v.optional(v.object({ quantities: v.boolean(), unitPrices: v.boolean(), lineTotals: v.boolean(), totals: v.boolean() })),
+    /** Which version was last sent: 1 for the first, one more for each Resubmit. */
+    revision: v.optional(v.number()),
+    /** The secret in the client's link (/q/<token>). */
+    shareToken: v.optional(v.string()),
+    rejectedAt: v.optional(v.number()),
+    rejectedReason: v.optional(v.string()),
+    changesRequestedAt: v.optional(v.number()),
+    changesMessage: v.optional(v.string()),
+    /** An uploaded PDF or image showing the deposit was received (optional). */
+    depositProofId: v.optional(v.id("_storage")),
+    depositProofName: v.optional(v.string()),
     /** Search only, a deliberate labelled copy: client name, address, quote number and title. */
     searchText: v.string(),
   })
     .index("by_business_and_createdAt", ["businessId", "createdAt"])
     .index("by_business_and_number", ["businessId", "number"])
     .index("by_clientId", ["clientId"])
+    .index("by_shareToken", ["shareToken"])
+    .index("by_opportunityId", ["opportunityId"])
     .searchIndex("search_text", { searchField: "searchText", filterFields: ["businessId"] }),
 
   quoteLineItems: defineTable({
@@ -344,7 +380,49 @@ export default defineSchema({
     /** An optional line has a tick box: it only counts toward the total while `selected`. */
     optional: v.boolean(),
     selected: v.boolean(),
+    /** "text" is a line of words only (no money). Absent means a priced item. */
+    kind: v.optional(v.union(v.literal("item"), v.literal("text"))),
+    /** The price-list name this line was picked from, if any. */
+    catalogueName: v.optional(v.string()),
   }).index("by_quoteId_and_position", ["quoteId", "position"]),
+
+  /** What happened to a quote, in order (D-063): created, sent, link created, viewed, changes requested, resubmitted, approved, rejected,
+   *  signature collected, deposit received. */
+  quoteEvents: defineTable({
+    quoteId: v.id("quotes"),
+    at: v.number(),
+    kind: v.string(),
+    byName: v.string(),
+    detail: v.string(),
+  }).index("by_quoteId", ["quoteId", "at"]),
+
+  /** The quote exactly as it was when a version was sent, so an edit after sending never rewrites what the client saw. */
+  quoteRevisions: defineTable({
+    quoteId: v.id("quotes"),
+    revision: v.number(),
+    sentAt: v.number(),
+    snapshot: v.object({
+      title: v.string(),
+      totalCents: v.number(),
+      lines: v.array(v.object({ name: v.string(), description: v.string(), quantity: v.number(), unitPriceCents: v.number(), optional: v.boolean(), selected: v.boolean(), kind: v.string() })),
+    }),
+  }).index("by_quoteId", ["quoteId", "revision"]),
+
+  /** Site plans and other files attached to a quote. */
+  quoteAttachments: defineTable({
+    quoteId: v.id("quotes"),
+    storageId: v.id("_storage"),
+    name: v.string(),
+    contentType: v.string(),
+    size: v.number(),
+    createdAt: v.number(),
+  }).index("by_quoteId", ["quoteId"]),
+
+  /** A business's default contract text ("Apply to all future quotes"). */
+  quoteDefaults: defineTable({
+    businessId: v.id("businesses"),
+    contract: v.string(),
+  }).index("by_business", ["businessId"]),
 
   quoteNotes: defineTable({
     quoteId: v.id("quotes"),
@@ -382,6 +460,89 @@ export default defineSchema({
   })
     .index("by_email", ["email"])
     .index("by_tokenIdentifier", ["tokenIdentifier"]),
+
+  /** Every move of a project between Sales stages: who, when, from, to (PRD 3.3). Written only by crm/pipeline.ts moveStage. */
+  stageHistory: defineTable({
+    opportunityId: v.id("opportunities"),
+    businessId: v.id("businesses"),
+    from: v.string(),
+    to: v.string(),
+    byName: v.string(),
+    /** Absent when the system made the move (the client's quote link, for example). */
+    byUserId: v.optional(v.id("users")),
+    at: v.number(),
+    note: v.optional(v.string()),
+  })
+    .index("by_opportunity", ["opportunityId", "at"])
+    .index("by_business", ["businessId", "at"]),
+
+  /** A business's changes to the board's stages: its own extra stages, and PRD stages it has hidden (custom false). */
+  pipelineStages: defineTable({
+    businessId: v.id("businesses"),
+    name: v.string(),
+    group: v.union(v.literal("Requests"), v.literal("Quotes")),
+    order: v.number(),
+    hidden: v.boolean(),
+    custom: v.boolean(),
+  }).index("by_business", ["businessId"]),
+
+  /** Tasks on a project (pipeline card panel and Tasks tab). */
+  opportunityTasks: defineTable({
+    /** Absent for a task an Admin created that belongs to no project. */
+    opportunityId: v.optional(v.id("opportunities")),
+    businessId: v.id("businesses"),
+    title: v.string(),
+    assigneeId: v.optional(v.id("users")),
+    dueAt: v.optional(v.number()),
+    done: v.boolean(),
+    createdAt: v.number(),
+    /** When it was ticked off; cleared if it is reopened. Older tasks have none. */
+    completedAt: v.optional(v.number()),
+    /** A task with a start and end also shows on the Schedule (D-062); without them it is "unscheduled". */
+    startAt: v.optional(v.number()),
+    endAt: v.optional(v.number()),
+  })
+    .index("by_opportunity", ["opportunityId"])
+    .index("by_business", ["businessId"]),
+
+  /** The Schedule (D-062): consultations, follow-up visits, events and reminders. Tasks are in opportunityTasks. A repeat is one row,
+   *  expanded when the calendar is read. Written only by crm/schedule.ts. */
+  calendarEvents: defineTable({
+    businessId: v.id("businesses"),
+    type: v.union(v.literal("consultation"), v.literal("visit"), v.literal("event"), v.literal("reminder")),
+    title: v.string(),
+    opportunityId: v.optional(v.id("opportunities")),
+    clientId: v.optional(v.id("clients")),
+    start: v.number(),
+    end: v.number(),
+    /** Shown in the "Anytime" row rather than at a time of day. */
+    anytime: v.boolean(),
+    assigneeIds: v.array(v.id("users")),
+    status: v.union(v.literal("upcoming"), v.literal("completed"), v.literal("confirmed")),
+    notes: v.string(),
+    repeat: v.union(v.literal("none"), v.literal("daily"), v.literal("weekdays"), v.literal("weekly"), v.literal("monthly")),
+    repeatUntil: v.optional(v.number()),
+    createdBy: v.id("users"),
+    createdAt: v.number(),
+  })
+    .index("by_business_and_start", ["businessId", "start"])
+    .index("by_opportunity", ["opportunityId"]),
+
+  /** A business's working days and hours (default Monday to Friday, 8 to 5), used to grey the Schedule and to warn on bookings. */
+  scheduleSettings: defineTable({
+    businessId: v.id("businesses"),
+    days: v.array(v.number()),
+    startMin: v.number(),
+    endMin: v.number(),
+  }).index("by_business", ["businessId"]),
+
+  /** Internal notes on a project, newest first. */
+  opportunityNotes: defineTable({
+    opportunityId: v.id("opportunities"),
+    text: v.string(),
+    author: v.string(),
+    createdAt: v.number(),
+  }).index("by_opportunity", ["opportunityId"]),
 
   /** Internal notes on a client, newest first. */
   clientNotes: defineTable({

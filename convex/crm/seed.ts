@@ -3,7 +3,7 @@ import type { Doc } from "../_generated/dataModel";
 import { env, internalMutation, type MutationCtx } from "../_generated/server";
 import { shortCode } from "./lib/codes";
 import { clientSearchText, opportunitySearchText } from "./lib/clientInput";
-import { DAY_MS, PREPLANNING_STAGES, SALES_STAGES } from "./lib/stages";
+import { DAY_MS, LEAD_SOURCES, PREPLANNING_STAGES, SALES_STAGES } from "./lib/stages";
 import { BUSINESS_NAMES, SAMPLE_SERVICES, generateSampleClients } from "./sampleData";
 
 /* Dev sample data. Run from a terminal against the DEV deployment:
@@ -83,7 +83,17 @@ async function addProject(
   },
 ) {
   const { client, ...rest } = p;
-  await ctx.db.insert("opportunities", { ...rest, searchText: opportunitySearchText(client, rest) });
+  // Board fields (D-061): a stage time, a lead source for most, and an outcome for the two closed stages.
+  const n = [...p.code].reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
+  const entered = Math.min(p.requestedAt + (n % 5) * DAY_MS + (n % 7) * 3_600_000, Date.now());
+  const closed = p.stage === "Closed Won" ? "won" : p.stage === "Closed Lost" ? "lost" : undefined;
+  await ctx.db.insert("opportunities", {
+    ...rest,
+    searchText: opportunitySearchText(client, rest),
+    stageEnteredAt: entered,
+    ...(n % 4 === 0 ? {} : { leadSource: LEAD_SOURCES[n % LEAD_SOURCES.length] }),
+    ...(closed ? { outcome: closed, closedAt: entered, ...(closed === "lost" ? { lostReason: "Chose another company" } : {}) } : {}),
+  });
 }
 
 export const reset = internalMutation({
@@ -92,7 +102,7 @@ export const reset = internalMutation({
     devOnly();
     let deleted = 0;
     // One transaction can only touch so many rows; the sample set is small, so a few batches are plenty.
-    for (const table of ["quoteNotes", "quoteLineItems", "quotes", "clientNotes", "opportunities", "clients", "businesses"] as const) {
+    for (const table of ["opportunityNotes", "opportunityTasks", "stageHistory", "pipelineStages", "quoteNotes", "quoteLineItems", "quotes", "clientNotes", "opportunities", "clients", "businesses"] as const) {
       for (let batch = 0; batch < 20; batch++) {
         const rows = await ctx.db.query(table).take(400);
         if (rows.length === 0) break;

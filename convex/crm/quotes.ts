@@ -3,7 +3,9 @@ import type { Doc, Id } from "../_generated/dataModel";
 import { mutation, query, type QueryCtx } from "../_generated/server";
 import { canSee, requireBusiness, requireEditor, requireStaff } from "./lib/access";
 import { deleteQuote } from "./lib/quoteData";
+import { DEFAULT_CONTRACT } from "./quoteDraft";
 import { quoteTotals } from "./lib/quoteMath";
+import { quoteMoneyOptions } from "./lib/quoteOptions";
 import { DAY_MS, QUOTE_OPEN_STATUSES, QUOTE_STATUSES, type QuoteStatus } from "./lib/stages";
 
 /* Quotes (D-056): the list, its figures, and one quote with everything on it. Read-only for now; the builder comes later. Same
@@ -18,6 +20,7 @@ const statusFilter = v.union(
   v.literal("Awaiting response"),
   v.literal("Changes requested"),
   v.literal("Approved"),
+  v.literal("Rejected"),
   v.literal("Converted"),
   v.literal("Archived"),
 );
@@ -177,7 +180,9 @@ export const stats = query({
         s.cents += q.totalCents;
         if (q.convertedAt !== undefined) s.converted += 1;
       }
-      const c = inNow(q.convertedAt) ? converted.now : inEarlier(q.convertedAt) ? converted.earlier : null;
+      // "Approved / Converted": the day a quote was converted, or else the day it was approved.
+      const doneAt = q.convertedAt ?? q.approvedAt;
+      const c = inNow(doneAt) ? converted.now : inEarlier(doneAt) ? converted.earlier : null;
       if (c) {
         c.count += 1;
         c.cents += q.totalCents;
@@ -186,6 +191,8 @@ export const stats = query({
     const rate = (w: { count: number; converted: number }) => (w.count ? Math.round((w.converted / w.count) * 100) : 0);
     return {
       counts,
+      /** Open quotes: Draft, Awaiting response and Changes requested (the PRD's "Pending"). */
+      pending: counts.Draft + counts["Awaiting response"] + counts["Changes requested"],
       open: QUOTE_OPEN_STATUSES,
       conversionRate: rate(sent.now),
       conversionRateBefore: rate(sent.earlier),
@@ -232,8 +239,13 @@ export const get = query({
         unitPriceCents: l.unitPriceCents,
         optional: l.optional,
         selected: l.selected,
+        kind: l.kind ?? ("item" as const),
+        catalogueName: l.catalogueName ?? null,
       });
     }
+    const attachmentDocs = await ctx.db.query("quoteAttachments").withIndex("by_quoteId", (q) => q.eq("quoteId", quote._id)).take(100);
+    const attachments = [];
+    for (const att of attachmentDocs) attachments.push({ id: att._id, name: att.name, contentType: att.contentType, size: att.size, url: await ctx.storage.getUrl(att.storageId) });
     const noteDocs = await ctx.db.query("quoteNotes").withIndex("by_quoteId", (q) => q.eq("quoteId", quote._id)).take(100);
     const notes = [];
     for (const n of noteDocs.sort((a, b) => b.createdAt - a.createdAt)) {
@@ -265,13 +277,28 @@ export const get = query({
       clientMessage: quote.clientMessage,
       contract: quote.contract,
       depositPercent: quote.depositPercent,
+      discountKind: quote.discountKind ?? null,
+      discountValue: quote.discountValue ?? 0,
+      taxPercent: quote.taxPercent ?? 0,
+      depositKind: quote.depositKind ?? (quote.depositPercent > 0 ? ("percent" as const) : null),
+      depositValue: quote.depositValue ?? quote.depositPercent,
+      clientView: quote.clientView ?? { quantities: true, unitPrices: true, lineTotals: true, totals: true },
+      revision: quote.revision ?? 0,
+      shareToken: quote.shareToken ?? null,
+      rejectedAt: quote.rejectedAt ?? null,
+      rejectedReason: quote.rejectedReason ?? null,
+      changesRequestedAt: quote.changesRequestedAt ?? null,
+      changesMessage: quote.changesMessage ?? null,
+      depositProofName: quote.depositProofName ?? null,
+      depositProofUrl: quote.depositProofId ? await ctx.storage.getUrl(quote.depositProofId) : null,
       depositCollectedAt: quote.depositCollectedAt ?? null,
       signedBy: quote.signedBy ?? null,
       signatureUrl: quote.signatureImageId ? await ctx.storage.getUrl(quote.signatureImageId) : null,
       signedAt: quote.signedAt ?? null,
       // Worked out from the lines every time, so the page can never show a total the lines do not add up to.
-      totals: quoteTotals(lines, quote.depositPercent, quote.depositCollectedCents ?? 0),
+      totals: quoteTotals(lines, quoteMoneyOptions(quote), quote.depositCollectedCents ?? 0),
       lines,
+      attachments,
       notes,
       client: {
         id: client._id,
@@ -298,5 +325,15 @@ export const remove = mutation({
     await requireEditor(ctx, quote.businessId);
     await deleteQuote(ctx, quote);
     return quote.number;
+  },
+});
+
+/** The contract text a new quote starts with: the business's saved default ("Apply to all future quotes"), else Jobber's wording. */
+export const contractDefault = query({
+  args: { businessId: v.id("businesses") },
+  handler: async (ctx, a) => {
+    await requireBusiness(ctx, a.businessId);
+    const row = await ctx.db.query("quoteDefaults").withIndex("by_business", (q) => q.eq("businessId", a.businessId)).first();
+    return row?.contract ?? DEFAULT_CONTRACT;
   },
 });

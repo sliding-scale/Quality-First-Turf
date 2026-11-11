@@ -21,7 +21,7 @@ type NavItem =
 const NAV: NavItem[] = [
   { key: "create", label: "Create", icon: "circle-plus", create: true },
   { key: "home", label: "Home", icon: "home", href: "/home" },
-  { key: "schedule", label: "Schedule", icon: "calendar" },
+  { key: "schedule", label: "Schedule", icon: "calendar", href: "/schedule" },
   { divider: true },
   { key: "clients", label: "Clients", icon: "contact", href: "/clients" },
   { key: "requests", label: "Requests", icon: "inbox", href: "/requests" },
@@ -30,12 +30,14 @@ const NAV: NavItem[] = [
   { key: "invoices", label: "Invoices", icon: "receipt" },
   { key: "payments", label: "Payments", icon: "card" },
   { divider: true },
+  { key: "pipeline", label: "Pipeline", icon: "kanban", href: "/pipeline" },
+  { key: "tasks", label: "Tasks", icon: "tasks", href: "/tasks" },
+  { divider: true },
   { key: "messages", label: "Messages", icon: "message" },
-  { key: "pipeline", label: "Pipeline", icon: "kanban" },
 ];
 
-/** Only Admins see this at the bottom of the sidebar (the backend refuses everyone else anyway). */
-const ADMIN_NAV: NavItem[] = [{ divider: true }, { key: "team", label: "Manage Team", icon: "user", href: "/settings/users" }];
+/** Only Admins see this, in the same group as Messages at the bottom of the sidebar (the backend refuses everyone else anyway). */
+const ADMIN_NAV: NavItem[] = [{ key: "team", label: "Manage Team", icon: "user", href: "/settings/users" }];
 
 const RAIL_KEY = "qft-mock-rail";
 
@@ -108,7 +110,7 @@ function ShellInner({ children }: { children: ReactNode }) {
   const searchRef = useRef<HTMLInputElement>(null);
   const mainRef = useRef<HTMLElement>(null);
 
-  const active = pathname === "/home" || pathname === "/" ? "home" : pathname.startsWith("/clients") ? "clients" : pathname.startsWith("/requests") ? "requests" : pathname.startsWith("/quotes") ? "quotes" : pathname.startsWith("/settings/users") ? "team" : "";
+  const active = pathname === "/home" || pathname === "/" ? "home" : pathname.startsWith("/clients") ? "clients" : pathname.startsWith("/requests") ? "requests" : pathname.startsWith("/quotes") ? "quotes" : pathname.startsWith("/schedule") ? "schedule" : pathname.startsWith("/pipeline") ? "pipeline" : pathname.startsWith("/tasks") ? "tasks" : pathname.startsWith("/settings/users") ? "team" : "";
 
   // The collapsed sidebar is a class on <html>, so a small script in layout.tsx can set it before first paint.
   useEffect(() => {
