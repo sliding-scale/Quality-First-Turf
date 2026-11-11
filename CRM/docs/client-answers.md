@@ -24,7 +24,7 @@ Roles for Sal, May and Robert are not asked yet; the office@qualityfirsturf.com 
 ### Businesses, users and mailboxes
 | Business | Mailbox | User |
 |----------|---------|------|
-| Quality First Turf | sal.t@qualityfirstturf.com | Sal |
+| Quality First Turf Landscape | sal.t@qualityfirstturf.com | Sal |
 | | office@qualityfirsturf.com (typo as supplied, verify spelling) | May |
 | | info@qualityfirstturf.com | Sal |
 | Quality First Turf Construction | sal.t@qualityfirstturf.com | Sal |

@@ -55,20 +55,31 @@ export const createTask = mutation({
   },
 });
 
-/** Gives a task a start and an end so it shows on the Schedule, or clears them (both null) so it is unscheduled again. */
+/** Gives a task a start and an end so it shows on the Schedule, or clears them (both null) so it is unscheduled again.
+ *  `assigneeId`, when sent, gives the task to that person (or to nobody, when null). A task has one assignee. */
 export const setTime = mutation({
-  args: { taskId: v.id("opportunityTasks"), startAt: v.union(v.number(), v.null()), endAt: v.union(v.number(), v.null()) },
+  args: {
+    taskId: v.id("opportunityTasks"),
+    startAt: v.union(v.number(), v.null()),
+    endAt: v.union(v.number(), v.null()),
+    assigneeId: v.optional(v.union(v.id("users"), v.null())),
+  },
   handler: async (ctx, args) => {
     const task = await ctx.db.get(args.taskId);
     if (task === null) throw new ConvexError("That task no longer exists.");
     await requireEditor(ctx, task.businessId);
+    const who: { assigneeId?: Id<"users"> } = {};
+    if (args.assigneeId !== undefined) {
+      who.assigneeId = args.assigneeId ?? undefined;
+      await checkAssignee(ctx, who.assigneeId, task.businessId);
+    }
     if (args.startAt === null && args.endAt === null) {
-      await ctx.db.patch(args.taskId, { startAt: undefined, endAt: undefined });
+      await ctx.db.patch(args.taskId, { ...who, startAt: undefined, endAt: undefined });
       return;
     }
     if (args.startAt === null || args.endAt === null) throw new ConvexError("Give the task a start and an end.");
     if (args.endAt <= args.startAt) throw new ConvexError("The end has to be after the start.");
-    await ctx.db.patch(args.taskId, { startAt: args.startAt, endAt: args.endAt });
+    await ctx.db.patch(args.taskId, { ...who, startAt: args.startAt, endAt: args.endAt });
   },
 });
 

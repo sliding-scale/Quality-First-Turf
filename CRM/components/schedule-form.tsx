@@ -1,25 +1,49 @@
 "use client";
 
-/* "Find a Time" and Edit (D-062): one pop-up to book a consultation, a follow-up visit, a task, an event or a reminder, with Jobber's
-   fields (project, title, instructions, who, when, how long, repeat) and the "Show availability" switch, which greys the times the chosen
-   people are busy on the calendar behind it. A clash is refused by the server and shown in red; a time outside working hours is a warning. */
+/* "Find a Time" and Edit (D-062), in Jobber's layout: search, title, Add Instructions, Add Line Item, Assign, an Unscheduled
+   date (its own calendar) beside duration, Show availability, and More Options for the start time, all-day and repeat. Line items are
+   kept in the notes. A clash is refused by the server and shown in red; a time outside working hours is a warning. */
 
 import { useMutation, useQuery } from "convex/react";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { ITEM_LABEL, REPEATS, REPEAT_LABEL, fromInputs, inWorkingHours, inputParts, BUSINESS_TZ, type ItemType, type Repeat, type ScheduleItem, type WorkingHours } from "@/lib/schedule";
+import { ITEM_LABEL, REPEATS, REPEAT_LABEL, addMonths, fromInputs, inWorkingHours, inputParts, monthDays, monthTitle, parseKey, todayKey, BUSINESS_TZ, type ItemType, type Repeat, type ScheduleItem, type WorkingHours } from "@/lib/schedule";
 import { clock, failure } from "@/lib/pipeline";
 import { FilterMenu } from "./filter-menus";
 import { Icon } from "./icon";
 import { PipelineModal } from "./pipeline-dialogs";
 import type { Person } from "./schedule-grid";
-import { useStaff } from "./staff-context";
 import { useUI } from "./ui-provider";
 
 type Kind = ItemType | "task";
+type Line = { name: string; qty: string };
 const KINDS: Kind[] = ["consultation", "visit", "task", "event", "reminder"];
 const TAB_LABEL: Record<Kind, string> = { consultation: "Request", visit: "Visit", task: "Task", event: "Event", reminder: "Reminder" };
+const LINE_MARK = "\n\nLine items:\n";
+
+/** Instructions and line items share the notes field. The line-item block is only the trailing section this form writes. */
+function splitNotes(notes: string): { text: string; lines: Line[] } {
+  const at = notes.startsWith("Line items:\n") ? 0 : notes.indexOf(LINE_MARK);
+  if (at < 0) return { text: notes, lines: [] };
+  const from = at === 0 ? "Line items:\n".length : at + LINE_MARK.length;
+  const lines = notes.slice(from).split("\n").flatMap((row) => {
+    const m = /^•\s+(.+?)\s+×\s+(\S+)\s*$/.exec(row);
+    return m ? [{ name: m[1], qty: m[2] }] : [];
+  });
+  return { text: at === 0 ? "" : notes.slice(0, at), lines };
+}
+function joinNotes(text: string, lines: Line[]): string {
+  const kept = lines.filter((l) => l.name.trim());
+  const body = text.trim();
+  if (kept.length === 0) return body;
+  const block = kept.map((l) => `• ${l.name.trim()} × ${l.qty.trim() || "1"}`).join("\n");
+  return body ? `${body}${LINE_MARK}${block}` : `Line items:\n${block}`;
+}
+function dateLabel(key: string): string {
+  const { y, m, d } = parseKey(key);
+  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }).format(new Date(Date.UTC(y, m - 1, d)));
+}
 
 export type FormStart = { start?: number; personId?: string; kind?: Kind; projectId?: Id<"opportunities">; title?: string };
 
@@ -36,7 +60,6 @@ export function ScheduleForm({ businessId, people, hours, initial, editing, show
   /** Tells the calendar behind which people to show busy times for (null: none). */
   onAvailability: (userIds: Id<"users">[] | null) => void;
 }) {
-  const staff = useStaff();
   const { popover, toast } = useUI();
   const book = useMutation(api.crm.schedule.book);
   const update = useMutation(api.crm.schedule.update);
@@ -45,15 +68,20 @@ export function ScheduleForm({ businessId, people, hours, initial, editing, show
   const setTime = useMutation(api.crm.opportunityTasks.setTime);
 
   const [kind, setKind] = useState<Kind>(editing?.kind ?? initial.kind ?? "consultation");
-  const startParts = inputParts(editing?.start ?? initial.start ?? defaultStart());
+  const seeded = editing?.start ?? initial.start;
+  const startParts = seeded !== undefined ? inputParts(seeded) : { date: "", time: inputParts(defaultStart()).time };
   const [date, setDate] = useState(startParts.date);
   const [time, setTime2] = useState(startParts.time);
   const [duration, setDuration] = useState(editing ? String(Math.round(((editing.end - editing.start) / 3_600_000) * 100) / 100) : "1");
   const [anytime, setAnytime] = useState(editing?.anytime ?? false);
   const [title, setTitle] = useState(editing?.title ?? initial.title ?? "");
-  const [notes, setNotes] = useState(editing?.notes ?? "");
+  const parsedNotes = splitNotes(editing?.notes ?? "");
+  const [notes, setNotes] = useState(parsedNotes.text);
+  const [lines, setLines] = useState<Line[]>(parsedNotes.lines);
+  const [showNotes, setShowNotes] = useState(parsedNotes.text.trim().length > 0);
+  const [more, setMore] = useState(!!editing);
   const [repeat, setRepeat] = useState<Repeat>(editing?.repeat ?? "none");
-  const [assignees, setAssignees] = useState<string[]>(editing ? editing.assigneeIds : initial.personId ? [initial.personId] : staff._id ? [staff._id] : []);
+  const [assignees, setAssignees] = useState<string[]>(editing ? editing.assigneeIds : initial.personId ? [initial.personId] : []);
   const [projectId, setProjectId] = useState<Id<"opportunities"> | undefined>(editing?.opportunityId ?? initial.projectId);
   const [search, setSearch] = useState("");
   const [avail, setAvail] = useState(showAvailability ?? true);
@@ -96,6 +124,7 @@ export function ScheduleForm({ businessId, people, hours, initial, editing, show
     if (!anytime && (!time || !(hrs > 0))) next.time = true;
     if (kind === "consultation" && !projectId && !editing) next.project = true;
     setBad(next);
+    if (next.time) setMore(true);
     if (Object.keys(next).length) {
       document.getElementById(next.title ? "sc-title" : next.project ? "sc-project" : "sc-date")?.focus();
       return;
@@ -104,18 +133,19 @@ export function ScheduleForm({ businessId, people, hours, initial, editing, show
     setError("");
     try {
       if (kind === "task") {
+        const assigneeId = assignees[0] ? (assignees[0] as Id<"users">) : null;
         if (editing) {
-          await setTime({ taskId: editing.id as Id<"opportunityTasks">, startAt: start, endAt: end });
+          await setTime({ taskId: editing.id as Id<"opportunityTasks">, startAt: start, endAt: end, assigneeId });
         } else {
-          const extra = { ...(assignees[0] ? { assigneeId: assignees[0] as Id<"users"> } : {}) };
+          const extra = { ...(assigneeId ? { assigneeId } : {}) };
           const id = projectId ? await addTask({ id: projectId, title, ...extra }) : await createTask({ businessId, title, ...extra });
           if (!anytime) await setTime({ taskId: id, startAt: start, endAt: end });
         }
       } else if (editing) {
-        await update({ id: editing.id as Id<"calendarEvents">, title, start, end, anytime, assigneeIds: assignees as Id<"users">[], notes, repeat, now: clock() });
+        await update({ id: editing.id as Id<"calendarEvents">, title, start, end, anytime, assigneeIds: assignees as Id<"users">[], notes: joinNotes(notes, lines), repeat, now: clock() });
       } else {
         await book({
-          businessId, type: kind, title, start, end, anytime, assigneeIds: assignees as Id<"users">[], notes, repeat, now: clock(),
+          businessId, type: kind, title, start, end, anytime, assigneeIds: assignees as Id<"users">[], notes: joinNotes(notes, lines), repeat, now: clock(),
           ...(projectId ? { opportunityId: projectId } : {}), ...(project ? { clientId: project.clientId } : {}),
         });
         if (kind === "consultation") toast("The consultation is booked.");
@@ -129,7 +159,7 @@ export function ScheduleForm({ businessId, people, hours, initial, editing, show
 
   return (
     <PipelineModal title={editing ? `Edit ${ITEM_LABEL[kind].toLowerCase()}` : "Find a Time"} onClose={onClose} busy={busy} className="sc-pop">
-      {(close) => (
+      {(_close) => (
         <form className="sc-form" noValidate onSubmit={(e) => { e.preventDefault(); void save(); }}>
           {!editing && (
             <div className="sc-tabs" role="tablist" aria-label="What to book">
@@ -142,7 +172,6 @@ export function ScheduleForm({ businessId, people, hours, initial, editing, show
 
           {kind !== "event" && kind !== "reminder" && !editing && (
             <div className={`field${bad.project ? " bad" : ""}`}>
-              <label htmlFor="sc-project">{kind === "consultation" ? "Project" : "Project (optional)"}</label>
               {projectId ? (
                 <div className="sc-picked">
                   <span>{project ? `${project.title} · ${project.code} · ${project.clientName}` : "Selected"}</span>
@@ -150,8 +179,8 @@ export function ScheduleForm({ businessId, people, hours, initial, editing, show
                 </div>
               ) : (
                 <>
-                  <input id="sc-project" aria-invalid={!!bad.project} placeholder="Search client, address or code" value={search} onChange={(e) => { setSearch(e.target.value); setBad((b) => ({ ...b, project: false })); }} autoComplete="off" />
-                  {options && options.length > 0 && (
+                  <input id="sc-project" aria-label={kind === "consultation" ? "Search client or address" : "Search client or address (optional)"} aria-invalid={!!bad.project} placeholder="Search client or address" value={search} onChange={(e) => { setSearch(e.target.value); setBad((b) => ({ ...b, project: false })); }} autoComplete="off" />
+                  {search.trim() && options && options.length > 0 && (
                     <div className="sc-results" role="listbox">
                       {options.slice(0, 6).map((o) => (
                         <button key={o.id} type="button" role="option" aria-selected={false} onClick={() => { setProjectId(o.id); if (!title.trim()) setTitle(kind === "consultation" ? `Consultation: ${o.title}` : o.title); }}>
@@ -168,88 +197,123 @@ export function ScheduleForm({ businessId, people, hours, initial, editing, show
 
           {(!editing || kind !== "task") && (
             <div className={`field${bad.title ? " bad" : ""}`}>
-              <label htmlFor="sc-title">Title</label>
-              <input id="sc-title" aria-invalid={!!bad.title} maxLength={200} value={title} onChange={(e) => { setTitle(e.target.value); setBad((b) => ({ ...b, title: false })); }} />
+              <input id="sc-title" aria-label="Title" aria-invalid={!!bad.title} maxLength={200} placeholder="Title" value={title} onChange={(e) => { setTitle(e.target.value); setBad((b) => ({ ...b, title: false })); }} />
               <span className="err">Give it a title.</span>
             </div>
           )}
 
-          {kind !== "task" && (
+          {kind !== "task" && (showNotes ? (
             <div className="field">
-              <label htmlFor="sc-notes">Instructions</label>
-              <textarea id="sc-notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
+              <textarea id="sc-notes" aria-label="Instructions" placeholder="Instructions" value={notes} onChange={(e) => setNotes(e.target.value)} />
             </div>
+          ) : (
+            <button type="button" className="sc-addlink" onClick={() => setShowNotes(true)}><Icon name="plus" size={16} /> Add Instructions</button>
+          ))}
+
+          {kind !== "task" && (
+            <>
+              {lines.map((line, i) => (
+                <div className="sc-line" key={i}>
+                  <input aria-label="Line item" placeholder="Name" maxLength={120} value={line.name} onChange={(e) => setLines((ls) => ls.map((l, n) => n === i ? { ...l, name: e.target.value } : l))} />
+                  <input aria-label="Quantity" inputMode="decimal" value={line.qty} onChange={(e) => setLines((ls) => ls.map((l, n) => n === i ? { ...l, qty: e.target.value } : l))} />
+                  <button type="button" className="icon-btn" aria-label="Remove line item" onClick={() => setLines((ls) => ls.filter((_, n) => n !== i))}><Icon name="x" size={16} /></button>
+                </div>
+              ))}
+              <button type="button" className="sc-addlink" onClick={() => setLines((ls) => [...ls, { name: "", qty: "1" }])}><Icon name="plus" size={16} /> Add Line Item</button>
+            </>
           )}
 
           <div className="sc-assign">
-            <span className="sc-label">Assign</span>
-            <div className="sc-chips">
-              {assignees.map((id) => (
-                <span key={id} className="sc-teamchip">{nameOf(id)}<button type="button" aria-label={`Remove ${nameOf(id)}`} onClick={() => setAssignees((a) => a.filter((x) => x !== id))}><Icon name="x" size={14} /></button></span>
-              ))}
-              {(kind !== "task" || assignees.length === 0) && mine.length > 0 && (
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={(e) =>
-                    popover(e.currentTarget, (closeMenu) => (
-                      <FilterMenu placeholder="Search people" options={mine.map((m) => ({ label: m.name }))} selected="" onSelect={(l) => { const p = mine.find((m) => m.name === l); if (p) setAssignees((a) => [...a, p.id]); }} close={closeMenu} />
-                    ), { className: "filter" })
-                  }
-                >
-                  <Icon name="plus" size={16} /> Assign
-                </button>
-              )}
-            </div>
+            {assignees.length > 0 && (
+              <div className="sc-chips">
+                {assignees.map((id) => (
+                  <span key={id} className="sc-teamchip">{nameOf(id)}<button type="button" aria-label={`Remove ${nameOf(id)}`} onClick={() => setAssignees((a) => a.filter((x) => x !== id))}><Icon name="x" size={14} /></button></span>
+                ))}
+              </div>
+            )}
+            {(kind === "task" ? people.length > 0 : mine.length > 0) && (
+              <button
+                type="button"
+                className="btn sc-assignbtn"
+                onClick={(e) => {
+                  const pool = kind === "task" ? people : mine;
+                  popover(e.currentTarget, (closeMenu) => (
+                    <FilterMenu placeholder="Search people" options={pool.map((m) => ({ label: m.name }))} selected="" onSelect={(l) => {
+                      const p = pool.find((m) => m.name === l);
+                      if (!p) return;
+                      setAssignees((a) => kind === "task" ? [p.id] : [...a, p.id]);
+                    }} close={closeMenu} />
+                  ), { className: "filter" });
+                }}
+              >
+                <Icon name="plus" size={16} /> Assign
+              </button>
+            )}
           </div>
 
           <div className="sc-when">
             <div className={`field${bad.date ? " bad" : ""}`}>
-              <label htmlFor="sc-date">Start date</label>
-              <input id="sc-date" type="date" aria-invalid={!!bad.date} value={date} onChange={(e) => { setDate(e.target.value); setBad((b) => ({ ...b, date: false })); }} />
+              <button
+                type="button"
+                id="sc-date"
+                className={`sc-date${date ? "" : " empty"}`}
+                aria-invalid={!!bad.date}
+                aria-haspopup="dialog"
+                onClick={(e) => popover(e.currentTarget, (closeMenu) => (
+                  <DayPicker selected={date} onPick={(d) => { setDate(d); setBad((b) => ({ ...b, date: false })); closeMenu(); }} />
+                ), { className: "sc-cal" })}
+              >
+                {date ? dateLabel(date) : "Unscheduled"}
+              </button>
               <span className="err">Pick a date.</span>
             </div>
             {!anytime && (
-              <div className={`field${bad.time ? " bad" : ""}`}>
-                <label htmlFor="sc-time">Start time</label>
-                <input id="sc-time" type="time" aria-invalid={!!bad.time} value={time} onChange={(e) => { setTime2(e.target.value); setBad((b) => ({ ...b, time: false })); }} />
-              </div>
-            )}
-            {!anytime && (
-              <div className={`field${bad.time ? " bad" : ""}`}>
-                <label htmlFor="sc-dur">Duration in hours</label>
-                <input id="sc-dur" type="number" min="0.25" step="0.25" value={duration} onChange={(e) => { setDuration(e.target.value); setBad((b) => ({ ...b, time: false })); }} />
-                <span className="err">Enter how long it takes.</span>
-              </div>
+              <label className={`sc-durbox${bad.time && !(hrs > 0) ? " bad" : ""}`}>
+                <span>Duration in hours</span>
+                <input id="sc-dur" aria-label="Duration in hours" type="number" min="0.25" step="0.25" value={duration} onChange={(e) => { setDuration(e.target.value); setBad((b) => ({ ...b, time: false })); }} />
+              </label>
             )}
           </div>
-          {kind !== "task" && (
-            <label className="sc-check"><input type="checkbox" checked={anytime} onChange={(e) => setAnytime(e.target.checked)} /> Anytime that day</label>
-          )}
-          {kind === "task" && !editing && (
-            <label className="sc-check"><input type="checkbox" checked={anytime} onChange={(e) => setAnytime(e.target.checked)} /> No time yet (leave it unscheduled)</label>
-          )}
+          {bad.time && !(hrs > 0) && <span className="sc-inline-err">Enter how long it takes.</span>}
 
-          {kind !== "task" && (
-            <div className="field">
-              <label htmlFor="sc-repeat">Repeat</label>
-              <select id="sc-repeat" value={repeat} onChange={(e) => setRepeat(e.target.value as Repeat)}>
-                {REPEATS.map((r) => <option key={r} value={r}>{REPEAT_LABEL[r]}</option>)}
-              </select>
+          {more && (
+            <div className="sc-moreopts">
+              {!anytime && (
+                <div className={`field${bad.time ? " bad" : ""}`}>
+                  <label htmlFor="sc-time">Start time</label>
+                  <input id="sc-time" type="time" aria-invalid={!!bad.time} value={time} onChange={(e) => { setTime2(e.target.value); setBad((b) => ({ ...b, time: false })); }} />
+                </div>
+              )}
+              {kind !== "task" && (
+                <label className="sc-check"><input type="checkbox" checked={anytime} onChange={(e) => setAnytime(e.target.checked)} /> Anytime that day</label>
+              )}
+              {kind === "task" && !editing && (
+                <label className="sc-check"><input type="checkbox" checked={anytime} onChange={(e) => setAnytime(e.target.checked)} /> No time yet (leave it unscheduled)</label>
+              )}
+              {kind !== "task" && (
+                <div className="field">
+                  <label htmlFor="sc-repeat">Repeat</label>
+                  <select id="sc-repeat" value={repeat} onChange={(e) => setRepeat(e.target.value as Repeat)}>
+                    {REPEATS.map((r) => <option key={r} value={r}>{REPEAT_LABEL[r]}</option>)}
+                  </select>
+                </div>
+              )}
             </div>
           )}
 
-          <label className="sc-switch">
-            <input type="checkbox" role="switch" checked={avail} onChange={(e) => setAvail(e.target.checked)} />
-            <span className="track" aria-hidden="true" />
-            Show availability
-            <span className="sc-help" data-tip="Greys the times the chosen people are busy on the calendar behind this pop-up. Zoho Calendar is not connected yet, so only bookings made here show.">?</span>
-          </label>
+          <div className="sc-avail">
+            <span id="sc-avail-label">Show availability</span>
+            <label className="sc-switch">
+              <input type="checkbox" role="switch" aria-labelledby="sc-avail-label" checked={avail} onChange={(e) => setAvail(e.target.checked)} />
+              <span className="track" aria-hidden="true" />
+            </label>
+            <span className="sc-help" tabIndex={0} data-tip="Display your team's combined available time slots. Use the Team filter to narrow who is shown. Drive times are not connected yet, so only bookings made here show. Clearest in the Week and Day views.">?</span>
+          </div>
 
           {outside && <p className="sc-warn" role="status">This is outside working hours. You can still save it.</p>}
           {error && <p className="modal-error" role="alert">{error}</p>}
           <div className="modal-foot">
-            <button type="button" className="btn plain" onClick={close} disabled={busy}>Cancel</button>
+            <button type="button" className="btn sc-morebtn" aria-expanded={more} onClick={() => setMore((m) => !m)}>{more ? "Fewer options" : "More Options"}</button>
             <button type="submit" className="btn primary" disabled={busy}>{busy ? "Saving…" : "Save"}</button>
           </div>
         </form>
@@ -262,4 +326,26 @@ function defaultStart(): number {
   const d = new Date();
   d.setMinutes(0, 0, 0);
   return d.getTime() + 3_600_000;
+}
+
+function DayPicker({ selected, onPick }: { selected: string; onPick: (key: string) => void }) {
+  const today = todayKey(Date.now());
+  const [shown, setShown] = useState(selected || today);
+  const days = monthDays(shown);
+  const month = parseKey(shown).m;
+  return (
+    <div className="mini-cal">
+      <div className="mini-head">
+        <button type="button" aria-label="Previous month" onClick={() => setShown((k) => addMonths(k, -1))}><Icon name="chevleft" size={18} /></button>
+        <span>{monthTitle(shown)}</span>
+        <button type="button" aria-label="Next month" onClick={() => setShown((k) => addMonths(k, 1))}><Icon name="chevright" size={18} /></button>
+      </div>
+      <div className="mini-grid">
+        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => <span key={d} className="mini-dow">{d}</span>)}
+        {days.map((d) => (
+          <button key={d} type="button" className={`mini-day${parseKey(d).m !== month ? " out" : ""}${d === today ? " today" : ""}${d === selected ? " sel" : ""}`} onClick={() => onPick(d)}>{parseKey(d).d}</button>
+        ))}
+      </div>
+    </div>
+  );
 }

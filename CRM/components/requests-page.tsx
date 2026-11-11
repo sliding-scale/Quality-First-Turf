@@ -255,17 +255,17 @@ function Requests({ business, initialQuery }: { business: BusinessDoc; initialQu
                       <div className="strong" title={c.name}>{c.name}</div>
                       {sub && <div className="sub" title={sub}>{sub}</div>}
                     </td>
-                    <td>
+                    <td data-label="Title">
                       <div title={r.title}>{r.title}</div>
                       <div className="sub" title={`Project ${r.code} · ${r.stage}`}>{r.code}</div>
                     </td>
-                    <td title={r.property}>{r.property}</td>
-                    <td>
+                    <td data-label="Property" title={r.property}>{r.property}</td>
+                    <td data-label="Contact">
                       <div title={c.phone}>{c.phone}</div>
                       <div title={c.email}>{c.email}</div>
                     </td>
-                    <td>{dayLabel(daysAgoFrom(r.requestedAt), today)}</td>
-                    <td className="num" title={r.stage}>
+                    <td data-label="Requested">{dayLabel(daysAgoFrom(r.requestedAt), today)}</td>
+                    <td className="num" data-label="Status" title={r.stage}>
                       <span className={`pill ${STATUS_CLASS[r.status]}`}><span className="dot" />{r.status}</span>
                     </td>
                   </tr>

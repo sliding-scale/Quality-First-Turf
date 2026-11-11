@@ -56,7 +56,7 @@ export function SchedulePopup({ item, anchor, people, canEdit, onClose, onFindTi
     const key = (e: KeyboardEvent) => { if (e.key === "Escape") setLeaving(true); };
     const down = (e: MouseEvent) => {
       const t = e.target as HTMLElement;
-      if (box.current && !box.current.contains(t) && !t.closest(".menu, .modal")) setLeaving(true);
+      if (box.current && !box.current.contains(t) && !t.closest(".menu, .modal, .sc-item, .sc-chip, .sc-mchip")) setLeaving(true);
     };
     document.addEventListener("keydown", key);
     document.addEventListener("mousedown", down);

@@ -11,6 +11,7 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { CLIENT_STATUS_FILTERS, CLIENT_STATUS_LABEL, CLIENT_TYPE_LABEL, type ClientStatusFilter } from "@/convex/crm/lib/stages";
 import { daysAgoFrom, useClientList, useClientStats, useWorkspace, type BusinessDoc } from "@/lib/clients";
+import { placeFromSearch, readClientsPlace, writeClientsPlace, clientsListHref, type ClientsPlace, type ClientsSearch } from "@/lib/clients-place";
 import { dayLabel } from "@/lib/format";
 import { useStaff } from "./staff-context";
 import { EmptyBackend } from "./empty-backend";
@@ -26,11 +27,11 @@ const NO_ROWS: Set<string> = new Set();
 type SortKey = "name" | "lastActivity";
 type ClientRow = NonNullable<ReturnType<typeof useClientList>>["rows"][number];
 
-export function ClientsPage({ initialQuery, saved }: { initialQuery: string; saved: boolean }) {
+export function ClientsPage({ initialQuery, saved, list }: { initialQuery: string; saved: boolean; list: ClientsSearch }) {
   const workspace = useWorkspace();
   if (workspace.state === "loading") return <ClientsSkeleton />;
   if (workspace.state === "empty") return <EmptyBackend />;
-  return <Clients business={workspace.business} initialQuery={initialQuery} saved={saved} />;
+  return <Clients business={workspace.business} initialQuery={initialQuery} saved={saved} list={list} />;
 }
 
 /** "↑ 12%" against the previous 30 days, or nothing when there is no earlier period to compare with. */
@@ -40,19 +41,39 @@ function change(now: number, before: number) {
   return <span className={`delta${pct >= 0 ? "" : " down"}`}>{pct >= 0 ? "↑" : "↓"} {Math.abs(pct).toLocaleString("en-US")}%</span>;
 }
 
-function Clients({ business, initialQuery, saved }: { business: BusinessDoc; initialQuery: string; saved: boolean }) {
+function Clients({ business, initialQuery, saved, list }: { business: BusinessDoc; initialQuery: string; saved: boolean; list: ClientsSearch }) {
   const router = useRouter();
   const convex = useConvex();
   const archive = useMutation(api.crm.clients.archive);
   const { canEdit } = useStaff();
   const { dropdown, popover, toast } = useUI();
-  const [q, setQ] = useState(initialQuery);
-  const [search, setSearch] = useState(initialQuery); // what the server is asked, a moment after typing stops
-  const [tags, setTags] = useState<string[]>([]);
-  const [status, setStatus] = useState<ClientStatusFilter>("Leads and Active");
-  const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "lastActivity", dir: "desc" });
-  const [page, setPage] = useState(1);
-  const [size, setSize] = useState(10);
+  // The address wins when it names a page or a search. A bare /clients comes back to the last page in this tab.
+  const fromAddress = placeFromSearch(initialQuery, list);
+  const [booted, setBooted] = useState(fromAddress !== null);
+  const [q, setQ] = useState(fromAddress?.q ?? initialQuery);
+  const [search, setSearch] = useState(fromAddress?.q ?? initialQuery); // what the server is asked, a moment after typing stops
+  const [tags, setTags] = useState<string[]>(fromAddress?.tags ?? []);
+  const [status, setStatus] = useState<ClientStatusFilter>(fromAddress?.status ?? "Leads and Active");
+  const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: fromAddress?.sortKey ?? "lastActivity", dir: fromAddress?.dir ?? "desc" });
+  const [page, setPage] = useState(fromAddress?.page ?? 1);
+  const [size, setSize] = useState(fromAddress?.size ?? 10);
+  // The browser's Back and Forward change the address without remounting the list. Follow it.
+  const urlKey = `${initialQuery}|${list.page}|${list.size}|${list.status}|${list.sort}|${list.dir}|${list.tags}`;
+  const [seenUrl, setSeenUrl] = useState(urlKey);
+  if (urlKey !== seenUrl) {
+    setSeenUrl(urlKey);
+    const next = placeFromSearch(initialQuery, list);
+    if (next) {
+      setQ(next.q);
+      setSearch(next.q);
+      setTags(next.tags);
+      setStatus(next.status);
+      setSort({ key: next.sortKey, dir: next.dir });
+      setPage(next.page);
+      setSize(next.size);
+      setBooted(true);
+    }
+  }
   const [deleting, setDeleting] = useState<Id<"clients">[] | null>(null);
   const [tagging, setTagging] = useState<ClientRow | null>(null);
   const [emailing, setEmailing] = useState<ClientRow | null>(null);
@@ -79,6 +100,23 @@ function Clients({ business, initialQuery, saved }: { business: BusinessDoc; ini
   }, []);
 
   useEffect(() => {
+    if (fromAddress) return;
+    const stored = readClientsPlace();
+    if (stored) {
+      setQ(stored.q);
+      setSearch(stored.q);
+      setTags(stored.tags);
+      setStatus(stored.status);
+      setSort({ key: stored.sortKey, dir: stored.dir });
+      setPage(stored.page);
+      setSize(stored.size);
+    }
+    setBooted(true);
+    // The address on arrival decides this once. A bare /clients restores the last page.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
     const t = setTimeout(() => setSearch(q), 250);
     return () => clearTimeout(t);
   }, [q]);
@@ -87,7 +125,20 @@ function Clients({ business, initialQuery, saved }: { business: BusinessDoc; ini
   const data = useClientList(business._id, filters, page, size);
   const stats = useClientStats(business._id);
 
-  if (data === undefined || stats === undefined) return <ClientsSkeleton />;
+  // Remember the page that is actually on screen, and put it in the address, so Back and the Clients tab can return here.
+  useEffect(() => {
+    if (!booted || data === undefined) return;
+    const pagesNow = Math.max(1, Math.ceil(data.total / size));
+    if (data.page !== page && page <= pagesNow) return;
+    const place: ClientsPlace = { page: data.page, size, q: search, status, tags, sortKey: sort.key, dir: sort.dir };
+    writeClientsPlace(place);
+    const href = clientsListHref(place);
+    const next = new URL(href, location.origin);
+    const here = new URL(location.href);
+    if (here.pathname !== next.pathname || here.searchParams.toString() !== next.searchParams.toString()) router.replace(href, { scroll: false });
+  }, [booted, data, page, size, search, status, tags, sort, router]);
+
+  if (!booted || data === undefined || stats === undefined) return <ClientsSkeleton />;
 
   const { rows, total } = data;
   const current = data.page;
@@ -285,7 +336,7 @@ function Clients({ business, initialQuery, saved }: { business: BusinessDoc; ini
                 // The second line is the company when the name is a person, else the contact when the name is the company.
                 const sub = c.company && c.company !== c.name ? c.company : c.contactName && c.contactName !== c.name ? c.contactName : "";
                 return (
-                  <tr key={c._id} className={`click${selected.has(c._id) ? " picked" : ""}`} onClick={() => router.push(`/clients/${c._id}`)}>
+                  <tr key={c._id} className={`click${selected.has(c._id) ? " picked" : ""}`} onClick={() => { writeClientsPlace({ page: current, size, q: search, status, tags, sortKey: sort.key, dir: sort.dir }); router.push(`/clients/${c._id}`); }}>
                     <td>
                       <div className="name-cell">
                         <Checkbox rowBox state={selected.has(c._id)} label={`Select ${c.name}`} onChange={() => toggleRow(c._id)} />
@@ -295,10 +346,10 @@ function Clients({ business, initialQuery, saved }: { business: BusinessDoc; ini
                         </div>
                       </div>
                     </td>
-                    <td title={addr}>{addr}</td>
-                    <td>{(c.tags ?? []).map((t) => <span key={t} className="jb-tag">{t}</span>)}</td>
-                    <td><span className={`pill jb-status ${c.status === "active" ? "active" : c.status === "lead" ? "lead" : "draft"}`}><span className="dot" />{CLIENT_STATUS_LABEL[c.status]}</span></td>
-                    <td className="jb-last">
+                    <td data-label="Address" title={addr}>{addr}</td>
+                    <td data-label="Tags">{(c.tags ?? []).map((t) => <span key={t} className="jb-tag">{t}</span>)}</td>
+                    <td data-label="Status"><span className={`pill jb-status ${c.status === "active" ? "active" : c.status === "lead" ? "lead" : "draft"}`}><span className="dot" />{CLIENT_STATUS_LABEL[c.status]}</span></td>
+                    <td className="jb-last" data-label="Last activity">
                       {dayLabel(daysAgoFrom(c.lastActivityAt), today)}
                       <div className={`jb-actions${pinned === c._id ? " pinned" : ""}`} onClick={(e) => e.stopPropagation()}>
                         {canEdit && (

@@ -6,7 +6,7 @@ export function EmptyBackend() {
       <p>
         The backend is connected, but this deployment has no businesses or clients yet. On dev you can load sample data: run{" "}
         <code>npx convex env set CRM_ALLOW_SAMPLE_DATA true</code>, then <code>npx convex run crm/seed:run</code> (from the <b>repo root</b>), then{" "}
-        <code>npx convex env remove CRM_ALLOW_SAMPLE_DATA</code>. The first customer-form submission also creates Quality First Turf.
+        <code>npx convex env remove CRM_ALLOW_SAMPLE_DATA</code>. The first customer-form submission also creates Quality First Turf Landscape.
       </p>
     </div>
   );

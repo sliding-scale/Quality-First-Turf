@@ -97,10 +97,10 @@ export function PipelineOutcomes({ business }: { business: BusinessDoc }) {
               data.rows.map((r) => (
                 <tr key={r.id} className="click" onClick={() => router.push(`/clients/${r.clientId}`)} title={r.lostReason ? `Reason: ${r.lostReason}` : undefined}>
                   <td><strong>{r.title}</strong></td>
-                  <td>{r.clientName}</td>
-                  <td>{quoteDate(r.createdOn)}</td>
-                  <td>{quoteDate(r.closedOn)}</td>
-                  <td className="num">{moneyCents(r.totalCents)}</td>
+                  <td data-label="Name">{r.clientName}</td>
+                  <td data-label="Created">{quoteDate(r.createdOn)}</td>
+                  <td data-label={closedLabel}>{quoteDate(r.closedOn)}</td>
+                  <td className="num" data-label="Total">{moneyCents(r.totalCents)}</td>
                 </tr>
               ))
             ) : (

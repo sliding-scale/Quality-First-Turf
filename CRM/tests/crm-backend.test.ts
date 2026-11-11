@@ -34,7 +34,8 @@ describe("seed switch", () => {
 describe("seed", () => {
   it("loads three businesses and does nothing the second time", async () => {
     const { t, businesses } = await seeded();
-    expect(businesses.map((b) => b.name)).toEqual(["Quality First Turf", "Quality First Turf Construction", "Quality First Patios"]);
+    expect(businesses.map((b) => b.name)).toEqual(["Quality First Turf Landscape", "Quality First Turf Construction", "Quality First Patios"]);
+    expect(businesses[0].slug).toBe("quality-first-turf");
     await expect(t.mutation(internal.crm.seed.run, {})).resolves.toMatch(/Already seeded/);
   });
 
@@ -42,6 +43,23 @@ describe("seed", () => {
     const { t } = await seeded();
     await t.mutation(internal.crm.seed.reset, {});
     expect(await t.query(api.crm.businesses.list, {})).toEqual([]);
+  });
+});
+
+describe("business names", () => {
+  it("renames Quality First Turf to Quality First Turf Landscape and keeps the slug", async () => {
+    const base = convexTest(schema, modules);
+    await base.run(async (ctx) => {
+      await ctx.db.insert("businesses", { name: "Quality First Turf", slug: "quality-first-turf" });
+      await ctx.db.insert("businesses", { name: "Quality First Patios", slug: "quality-first-patios" });
+    });
+    const t = await adminOf(base);
+    await t.mutation(api.crm.businesses.alignNames, {});
+    expect((await t.query(api.crm.businesses.list, {})).map((b) => ({ name: b.name, slug: b.slug }))).toEqual([
+      { name: "Quality First Turf Landscape", slug: "quality-first-turf" },
+      { name: "Quality First Patios", slug: "quality-first-patios" },
+    ]);
+    await expect(t.mutation(api.crm.businesses.alignNames, {})).resolves.toBeNull();
   });
 });
 

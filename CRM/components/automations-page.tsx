@@ -29,7 +29,7 @@ function useOverview(businessId: Id<"businesses"> | undefined) {
   return useQuery(api.crm.automations.overview, businessId ? { businessId } : "skip");
 }
 
-const SAMPLE: TemplateVars = { CLIENT_FIRST_NAME: "Natasha", CLIENT_NAME: "Natasha Lee", COMPANY_NAME: "Quality First Turf", DEFAULT_PHONE: "(555) 010-0000", QUOTE_NUMBER: "#2345" };
+const SAMPLE: TemplateVars = { CLIENT_FIRST_NAME: "Natasha", CLIENT_NAME: "Natasha Lee", COMPANY_NAME: "Quality First Turf Landscape", DEFAULT_PHONE: "(555) 010-0000", QUOTE_NUMBER: "#2345" };
 
 const STATUS: Record<RunStatus, { label: string; cls: string }> = {
   sent: { label: "Sent", cls: "active" },
@@ -41,6 +41,7 @@ const STATUS: Record<RunStatus, { label: string; cls: string }> = {
   failed: { label: "Failed", cls: "overdue" },
 };
 
+const SHOW_SENDING_MODE = false;
 const nowMs = () => Date.now();
 const when = (ms: number) => new Date(ms).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
 
@@ -79,14 +80,15 @@ export function AutomationsPage() {
       <div className="page-head"><h1>Automations</h1></div>
       <p className="au-lead">Jobber&apos;s automations, kept as they are: set the days, the message and whether each one is on. Nothing can be added or removed.</p>
 
-      <ModeCard businessId={businessId} data={data} />
+      {/* Hidden for now (user, 2026-11-11). The business stays in log-only mode, so nothing is sent or archived. Put it back to switch on test or live sending. */}
+      {SHOW_SENDING_MODE && <ModeCard businessId={businessId} data={data} />}
 
       {groups.map((g) => (
         <section key={g.name} className="au-group">
           <h2>{g.name}</h2>
           <div className="au-cards">
             {g.items.map((a) => (
-              <button key={a.key} type="button" className="au-card" onClick={() => setOpen(a.key)}>
+              <button key={a.key} type="button" className="au-card" aria-expanded={open === a.key} onClick={() => setOpen((cur) => (cur === a.key ? null : a.key))}>
                 <span className="au-icons"><Icon name="calendar" size={20} /><span aria-hidden>→</span><Icon name={a.action === "email" ? "mail" : "inbox"} size={20} /></span>
                 <span className={`pill ${a.active ? "active" : "draft"}`}><span className="dot" />{a.active ? "Active" : "Off"}</span>
                 <strong>{a.title}</strong>

@@ -14,6 +14,9 @@
 .sc-month-btn:active { background: #dcdad5; }
 .btn.icon { width: 38px; padding: 0; justify-content: center; }
 .sc-info { display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 8px; color: #388523; cursor: help; }
+/* The bar sits against the top of the page, so a tip above a control is clipped. Open it underneath. */
+.sc-bar [data-tip]:hover::after, .sc-bar [data-tip]:focus-visible::after { bottom: auto; top: calc(100% + 8px); }
+.sc-bar [data-tip]:hover::before, .sc-bar [data-tip]:focus-visible::before { bottom: auto; top: calc(100% + 1px); border: 4px solid transparent; border-top: 0; border-bottom-color: #032b3a; }
 .sc-views { display: inline-flex; padding: 3px; border: 1px solid #dadfe2; border-radius: 999px; background: #fff; }
 .sc-viewbtn { padding: 6px 16px; border: 1px solid transparent; border-radius: 999px; background: none; font-weight: 600; color: #49646f; cursor: pointer; transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease; }
 .sc-viewbtn:hover:not(.on) { background: #f1f0ec; }
@@ -119,7 +122,7 @@
 .sc-addperson:hover { background: #eeece7; }
 .sc-muted { color: var(--muted); font-size: 13px; }
 .sc-times { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 14px; }
-.sc-notes { margin: 0; padding: 8px 10px; border-radius: 8px; background: #f7f6f3; font-size: 13px; overflow-wrap: anywhere; }
+.sc-notes { margin: 0; padding: 8px 10px; border-radius: 8px; background: #f7f6f3; font-size: 13px; overflow-wrap: anywhere; white-space: pre-wrap; }
 .sc-popfoot { display: flex; gap: 8px; flex-wrap: wrap; }
 .sc-delete { justify-self: start; display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; color: #b3261e; font-weight: 600; cursor: pointer; padding: 2px 0; }
 .sc-delete:hover { text-decoration: underline; }
@@ -128,7 +131,8 @@
 /* Find a Time: a pop-up that leaves the calendar behind it visible and usable, so a click on a time picks it. */
 .modal-back.sc-pop { background: transparent; place-items: start end; pointer-events: none; padding: 72px 20px 16px; }
 .modal-back.sc-pop .modal { pointer-events: auto; max-width: 420px; max-height: calc(100vh - 100px); overflow-y: auto; padding: 18px 22px 18px; }
-.sc-form { display: grid; gap: 12px; }
+.sc-form { display: grid; gap: 10px; }
+.sc-form .modal-foot { justify-content: space-between; align-items: center; margin-top: 6px; }
 .sc-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
 .sc-tab { padding: 5px 12px; border: 1px solid #dadfe2; border-radius: 999px; background: #fff; font-weight: 600; color: #49646f; cursor: pointer; transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease; }
 .sc-tab:hover:not(:disabled):not(.on) { background: #f1f0ec; }
@@ -139,13 +143,43 @@
 .sc-results button:last-child { border-bottom: 0; }
 .sc-results button:hover { background: #f6f8f8; }
 .sc-results span { color: #49646f; }
-.sc-assign { display: grid; gap: 6px; }
-.sc-when { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
-.sc-switch { display: inline-flex; align-items: center; gap: 10px; font-size: 14px; cursor: pointer; }
+.sc-assign { display: grid; gap: 8px; justify-items: start; }
+.sc-addlink { display: inline-flex; align-items: center; gap: 6px; width: fit-content; border: 0; background: none; padding: 2px 0; color: var(--ink); font-weight: 600; cursor: pointer; }
+.sc-addlink:hover { color: var(--green); }
+.sc-line { display: grid; grid-template-columns: minmax(0, 1fr) 72px 32px; gap: 8px; align-items: center; }
+.sc-line input { height: 40px; border: 1px solid var(--line); border-radius: 8px; padding: 0 10px; background: #fff; }
+.sc-line input:focus { outline: 2px solid var(--green); border-color: var(--green); }
+.sc-assignbtn { color: var(--ink); border-radius: 10px; }
+.sc-morebtn { color: var(--ink); }
+.sc-when { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: start; }
+.sc-when > * { min-width: 0; }
+.sc-when > :only-child { grid-column: 1 / -1; }
+.sc-date { height: 52px; width: 100%; border: 1px solid var(--line); border-radius: 8px; background: #fff; padding: 0 12px; text-align: left; font-weight: 500; color: var(--ink); cursor: pointer; }
+.sc-date.empty { color: #7d8b92; font-weight: 400; }
+.sc-date:hover { background: #f6f8f8; }
+.sc-date:focus-visible { outline: 2px solid var(--green); border-color: var(--green); }
+.field.bad .sc-date { border-color: #b3261e; }
+.sc-durbox { display: flex; flex-direction: column; justify-content: center; gap: 0; height: 52px; border: 1px solid var(--line); border-radius: 8px; padding: 4px 12px; background: #fff; cursor: text; }
+.sc-durbox span { font-size: 12px; color: var(--muted); line-height: 1.2; }
+.sc-durbox input { width: 100%; min-width: 0; height: 22px; border: 0; padding: 0; background: transparent; font-size: 15px; -moz-appearance: textfield; appearance: textfield; }
+.sc-durbox input::-webkit-outer-spin-button, .sc-durbox input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.sc-durbox input:focus { outline: none; }
+.sc-durbox:focus-within { outline: 2px solid var(--green); border-color: var(--green); }
+.sc-durbox.bad { border-color: #b3261e; }
+.sc-inline-err { color: #b3261e; font-size: 13px; }
+.sc-moreopts { display: grid; gap: 10px; }
+.sc-avail { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+.sc-switch { position: relative; display: inline-flex; align-items: center; cursor: pointer; }
+.menu.sc-cal { padding: 4px; }
+.menu.sc-cal .mini-head { display: grid; grid-template-columns: 28px 1fr 28px; align-items: center; justify-items: center; }
+.menu.sc-cal .mini-dow { text-transform: uppercase; font-size: 10px; letter-spacing: 0.04em; }
+.menu.sc-cal .mini-day.today { border-radius: 6px; }
+.sc-help[data-tip]:hover::after, .sc-help[data-tip]:focus-visible::after { white-space: normal; width: 260px; text-align: left; left: auto; right: 0; transform: none; }
+.sc-help[data-tip]:hover::before, .sc-help[data-tip]:focus-visible::before { left: auto; right: 8px; transform: none; }
 .sc-switch input { position: absolute; opacity: 0; }
 .sc-switch .track { position: relative; width: 38px; height: 22px; border-radius: 999px; background: #9aa6ac; transition: background-color 0.18s ease; }
 .sc-switch .track::after { content: ""; position: absolute; left: 3px; top: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform 0.18s ease; }
-.sc-switch input:checked + .track { background: var(--green); }
+.sc-switch input:checked + .track { background: var(--green) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.2 6.2 4.8 8.8 9.8 3.4' fill='none' stroke='%23fff' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") 5px 50% / 11px 11px no-repeat; }
 .sc-switch input:checked + .track::after { transform: translateX(16px); }
 .sc-switch input:focus-visible + .track { outline: 2px solid var(--green); outline-offset: 2px; }
 .sc-help { display: inline-grid; place-items: center; width: 18px; height: 18px; border: 1px solid #9aa6ac; border-radius: 50%; font-size: 11px; color: #49646f; cursor: help; }
@@ -172,11 +206,18 @@
 
 /* Phones and narrow windows: the week and the day scroll sideways with the day names and the hours kept in view. */
 @media (max-width: 700px) {
-  /* The header controls and filters in one straight line that scrolls sideways. */
-  .sc-bar { flex-direction: column; align-items: stretch; gap: 6px; }
-  .sc-nav, .sc-tools { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
-  .sc-nav::-webkit-scrollbar, .sc-tools::-webkit-scrollbar { display: none; }
-  .sc-nav > *, .sc-tools > * { flex: none; white-space: nowrap; }
+  /* The month and Find a Time stay on the first row. The rest wraps, and the view tools scroll sideways. */
+  .sc-bar { flex-direction: column; align-items: stretch; gap: 8px; min-width: 0; }
+  .sc-nav { display: grid; grid-template-columns: auto auto minmax(0, 1fr); align-items: center; justify-items: start; gap: 8px; width: 100%; min-width: 0; overflow: visible; }
+  .sc-month-btn { grid-column: 1 / 3; grid-row: 1; min-width: 0; font-size: 20px; }
+  .sc-nav > .btn.primary { grid-column: 3; grid-row: 1; justify-self: end; }
+  .sc-tools > * { flex: none; white-space: nowrap; }
+  .sc-viewbtn { padding: 6px 8px; }
+  .sc-toolmore { width: 38px; padding: 0; }
+  .sc-toolmore span { display: none; }
+  .sc-tools { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
+  .sc-tools::-webkit-scrollbar { display: none; }
+  .sc-when { grid-template-columns: 1fr; }
 }
 @media (max-width: 900px) {
   .sc-grid.week, .sc-grid.day { overflow: auto; }
@@ -201,6 +242,15 @@
   .main:has(.sc) { overflow: auto; }
   .sc-side { position: fixed; right: 0; top: 60px; bottom: 0; z-index: 40; box-shadow: -8px 0 24px rgba(3, 43, 58, 0.15); }
   .modal-back.sc-pop { place-items: center; padding: 16px; background: rgba(3, 43, 58, 0.35); pointer-events: auto; }
+}
+@media (max-width: 700px) {
+  .modal-back.sc-pop { place-items: start center; padding: 12px; }
+  .modal-back.sc-pop .modal { max-height: calc(100dvh - 24px); }
+  /* Three whole days fill the screen. The fourth starts at the edge, so an appointment is not sliced in half. */
+  .sc-grid.week { container-type: inline-size; }
+  .sc-grid.week .sc-headrow,
+  .sc-grid.week .sc-anytime,
+  .sc-grid.week .sc-body { min-width: calc(64px + var(--cols, 7) * ((100cqw - 64px) / 3)); }
 }
 @media (prefers-reduced-motion: reduce) {
   .sc-popup, .sc-popup.leaving, .sc-side, .sc-warn { animation: none; }

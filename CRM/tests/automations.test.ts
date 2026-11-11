@@ -38,10 +38,10 @@ describe("automation rules", () => {
   });
 
   it("fills in Jobber's variables, flags unknown ones, and words the unresponsive reason", () => {
-    const vars: TemplateVars = { CLIENT_FIRST_NAME: "Natasha", CLIENT_NAME: "Natasha Lee", COMPANY_NAME: "Quality First Turf", DEFAULT_PHONE: "+1 555", QUOTE_NUMBER: "#2345" };
+    const vars: TemplateVars = { CLIENT_FIRST_NAME: "Natasha", CLIENT_NAME: "Natasha Lee", COMPANY_NAME: "Quality First Turf Landscape", DEFAULT_PHONE: "+1 555", QUOTE_NUMBER: "#2345" };
     const text = renderTemplate(DEFAULT_BODY, vars);
     expect(text).toContain("Hi Natasha,");
-    expect(text).toContain("Quality First Turf\n+1 555");
+    expect(text).toContain("Quality First Turf Landscape\n+1 555");
     expect(text).not.toContain("{{");
     expect(unknownVariables("Hi {{CLIENT_FIRST_NAME}} {{NOPE}}")).toEqual(["NOPE"]);
     expect(unresponsiveReason(90)).toBe("Archived automatically after 3 months of unresponsiveness");

@@ -111,10 +111,18 @@ export function UIProvider({ children }: { children: ReactNode }) {
       closeMenu,
       createOpen: open && menu?.kind === "create",
       dropdown: (anchor, items, opts) => {
+        if (open && menu?.kind === "dropdown" && menu.anchor === anchor) {
+          setClosing(true);
+          return;
+        }
         setClosing(false);
         setMenu({ kind: "dropdown", anchor, items, alignRight: !!opts?.alignRight, variant: opts?.variant });
       },
       popover: (anchor, render, opts) => {
+        if (open && menu?.kind === "popover" && menu.anchor === anchor) {
+          setClosing(true);
+          return;
+        }
         setClosing(false);
         setMenu({ kind: "popover", anchor, render, className: opts?.className ?? "", alignRight: !!opts?.alignRight });
       },
@@ -165,8 +173,14 @@ function usePlacement(anchor: HTMLElement, alignRight: boolean, dep: unknown) {
       const left = Math.max(8, Math.min(r.left, window.innerWidth - menu.offsetWidth - 8));
       menu.style.left = left + "px";
     }
-    menu.style.top = r.bottom + 6 + window.scrollY + "px";
-    menu.style.transformOrigin = alignRight ? "top right" : "top left";
+    const spaceBelow = window.innerHeight - r.bottom;
+    const spaceAbove = r.top;
+    const openAbove = spaceBelow < menu.offsetHeight + 12 && spaceAbove > spaceBelow;
+    const top = openAbove ? Math.max(8, r.top - menu.offsetHeight - 6) : r.bottom + 6;
+    menu.style.top = top + window.scrollY + "px";
+    menu.style.transformOrigin = openAbove
+      ? (alignRight ? "bottom right" : "bottom left")
+      : (alignRight ? "top right" : "top left");
   }, [anchor, alignRight, dep]);
   return node;
 }

@@ -1,7 +1,7 @@
 /* Sample clients for the dev deployment. Every name, address and number here is invented. Moved here from the CRM app's
    browser sample data (D-013, D-042) so seeding happens on the server. The sequence is seeded, so it is the same every time. */
 
-export const BUSINESS_NAMES = ["Quality First Turf", "Quality First Turf Construction", "Quality First Patios"] as const;
+import { BUSINESS_NAMES } from "./lib/businessNames";
 
 export type SampleClient = {
   /** A stable number the sample rules (stage, status, archived) are worked out from. */

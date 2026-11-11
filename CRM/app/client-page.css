@@ -6,6 +6,8 @@
 @media (min-width: 1100px) { .table-wrap:has(.table.jb) { overflow: visible; } }
 
 /* Client page, copied from Jobber's (D-060). */
+.cj-back { display: inline-flex; align-items: center; gap: 6px; height: 36px; margin-bottom: 12px; padding: 0 12px; border: 1px solid #dadfe2; border-radius: 8px; background: #fff; color: var(--ink); font-weight: 600; text-decoration: none; transition: background-color 0.15s ease; }
+.cj-back:hover { background: #eeece7; }
 .cj-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .cj-who { display: flex; align-items: center; gap: 10px; color: var(--ink); }
 .cj-actions { display: flex; align-items: center; gap: 8px; }
@@ -25,7 +27,7 @@
 .cj-fields .f + .f { border-top: 1px solid #dadfe2; }
 .cj-fields dt, .cj-fields2 dt { color: #49646f; }
 .cj-fields dd, .cj-fields2 dd { margin: 0; color: var(--text); overflow-wrap: anywhere; }
-.cj a:not(.btn):not(.cj-pencil):not(.cj-iconbtn) { color: #388523; text-decoration: underline; }
+.cj a:not(.btn):not(.cj-pencil):not(.cj-iconbtn):not(.cj-back) { color: #388523; text-decoration: underline; }
 .cj-cols { display: grid; grid-template-columns: minmax(0, 1fr) 285px; gap: 24px; align-items: start; }
 .cj-tabs { display: flex; gap: 24px; border-bottom: 1px solid #dadfe2; margin-bottom: 16px; }
 .cj-tab { padding: 12px 6px; border: 0; border-bottom: 3px solid transparent; margin-bottom: -1px; background: none; font-weight: 600; font-size: 14px; color: #49646f; cursor: pointer; transition: color 0.15s ease, border-color 0.15s ease; }
@@ -57,7 +59,16 @@
 .cj-table tbody tr:last-child td { border-bottom: 0; }
 .cj-table tbody tr.click:hover { background: #f6f5f1; }
 .cj-table td b { color: var(--ink); font-weight: 700; }
-.cj-table td a { color: #388523; }
+.cj-table td a { color: #388523; overflow-wrap: anywhere; }
+@media (max-width: 700px) {
+  .cj-table, .cj-table tbody, .cj-table tr, .cj-table td, .cj-table th { display: block; width: 100%; height: auto; min-width: 0; }
+  .cj-table colgroup, .cj-table thead { display: none; }
+  .cj-table tbody tr { padding: 8px 0; border-bottom: 1px solid #dadfe2; }
+  .cj-table td { border: 0; white-space: normal; overflow-wrap: anywhere; padding: 2px 16px; }
+  .cj-table td.num { text-align: left; }
+  .cj-table td[data-label]::before { content: attr(data-label); display: block; margin-bottom: 1px; font-size: 11px; color: var(--muted); }
+  .cj-table td[data-label]:empty { display: none; }
+}
 .cj-item { display: flex; align-items: center; gap: 10px; }
 .cj-none { text-align: center; padding: 18px 16px; color: var(--text); }
 .cj-total td { border-top: 1px solid #dadfe2; }
@@ -126,7 +137,15 @@ button.cj-mail:hover, button.cj-mail-line:hover { background: #f6f5f1; }
 .cj-tiles { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 12px; }
 .cj-tiles span { display: grid; place-items: center; aspect-ratio: 1.15; border-radius: 6px; background: #eef1f2; color: #b4bec4; }
 @media (max-width: 1100px) { .cj-cols { grid-template-columns: minmax(0, 1fr); } .cj-fields { grid-template-columns: 1fr; gap: 0; } .cj-tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
-@media (max-width: 700px) { .cj-fields .f, .cj-fields2 .f { grid-template-columns: 110px minmax(0, 1fr); } .cj-name h1 { font-size: 28px; } .cj-strip { flex-wrap: wrap; } .cj-strip > span { border-left: 0; padding-left: 0; flex-basis: 100%; order: 3; } }
+@media (max-width: 700px) {
+  .cj-fields .f, .cj-fields2 .f { grid-template-columns: 110px minmax(0, 1fr); }
+  .cj-fields2 { grid-template-columns: 1fr; }
+  .cj-name h1 { font-size: 28px; }
+  .cj-strip { flex-wrap: wrap; }
+  .cj-strip > span { border-left: 0; padding-left: 0; flex-basis: 100%; order: 3; }
+  .cj-tabs { flex-wrap: wrap; gap: 8px 16px; overflow: visible; }
+  .cj-tab { white-space: nowrap; }
+}
 
 /* Anything that is not built yet is greyed out and cannot be chosen (2026-11-09). */
 button:disabled, .btn:disabled, .icon-btn:disabled, .cj-link:disabled, .cj-plus:disabled, .cj-iconbtn:disabled { opacity: 0.4; cursor: not-allowed; }

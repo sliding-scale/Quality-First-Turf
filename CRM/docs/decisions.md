@@ -67,7 +67,7 @@ Add new entries at the bottom of each section. Never delete a decision. Mark it 
 **Why:** the user's correction. It removes a client dependency.
 
 ### D-016: Three business entities
-**Decided (from the client's staff list):** Quality First Turf, Quality First Turf Construction and Quality First Patios are three `businesses` in the CRM, each with its own domain, mailboxes and document branding. Users can belong to more than one. A project belongs to one business.
+**Decided (from the client's staff list):** Quality First Turf, Quality First Turf Construction and Quality First Patios are three `businesses` in the CRM, each with its own domain, mailboxes and document branding. Users can belong to more than one. A project belongs to one business. **D-066** renames the first of these to Quality First Turf Landscape. The slug stays `quality-first-turf`.
 **Open detail:** what differs between the three on quotes and invoices, and whether one client can have projects with several (held question B1.3).
 
 ### D-017: Design consequences of the client's answers
@@ -378,6 +378,10 @@ Add new entries at the bottom of each section. Never delete a decision. Mark it 
 **Forgot password** is Clerk's own flow (an emailed code, then a new password), reached from the always-visible link on the sign-in page (`forgot-password-link.tsx`). Verified on dev by running the whole flow against Clerk with a throwaway test user: reset email code requested, code accepted, new password set, sign-in complete. The dev instance requires passwords of at least 15 characters.
 
 **Env vars (each deployment):** `CLERK_SECRET_KEY` (test key on dev, live key on prod), `CRM_APP_URL` (prod: `https://launchpad.qualityfirstturf.com`), `CLERK_WEBHOOK_SECRET`. **Tests:** `CRM/tests/invitations.test.ts` (29) with a pretend Clerk (`fakeClerk` in `tests/helpers.ts`).
+
+### D-066: Company names, back to the same clients page, and assigning a task (2026-11-11)
+**Decided (client, May, 2026-11-11):** the three companies are Quality First Turf Landscape, Quality First Patios and Quality First Turf Construction. A client opened from page 8 of the list needs a Back control that returns to that page, and the Clients tab does the same. On the schedule, a task can be given to any team member, so May or Sal can create a task for someone else.
+**Built:** the landscape business is renamed in place (`businesses.alignNames`, and the form does the same when it next runs). The slug is unchanged. The clients list keeps its page, search and filters in the address and in the tab, and the client page has a Back button. A task's Assign field is a team dropdown (one person), and saving an existing task keeps the person who was chosen.
 
 ### D-065: Pipeline automations and outbound email (2026-11-11, built on dev)
 **Decided (user):** bring Jobber's automations into the CRM, starting with the ones on the pipeline (quote follow-ups at 2 and 5 days, auto-archive quotes and requests); reminders and other automatic messages follow in later steps. No option to add new automations. Everything Jobber lets staff edit (days, message text, on/off) stays editable. Email goes out through Zoho (`office@qualityfirstturf.com`), which narrows D-064 (read-only) to allow sending for these automations only. Texts: template shown, "coming soon". Dev sends only to a test address, with a log-only mode; only quotes sent after an automation is turned on are followed up. This reverses the 2026-11-10 call in D-061 to leave Automations out. **Archive (user, same day):** when a request auto-archives after 90 days (3 months) of no response, it is also marked **Closed Lost** with the reason "Archived automatically after 3 months of unresponsiveness" (PRD 3.3), and a separate archive flag (`archivedAt`, `archivedReason`) is kept. Design: `docs/superpowers/specs/2026-11-11-pipeline-automations-design.md`.

@@ -50,7 +50,7 @@ The git root is `Quality-First-Turf/` (one level above this folder). It holds `f
 - The PRD's "Company" and "Contact" are one entity: a Jobber **client**, stored in `clients` (D-008). Don't create separate company/contact tables. Both are one Clients tab.
 - Each business has its own client list: a client belongs to one business and lists are scoped to the selected business (D-031).
 - Client types: `homeowner`, `contractor`. The type comes from the customer form.
-- Three **businesses**: Quality First Turf, Quality First Turf Construction, Quality First Patios (D-016). Users can belong to several; a project and a client each belong to one.
+- Three **businesses**: Quality First Turf Landscape, Quality First Turf Construction, Quality First Patios (D-016, D-066). Users can belong to several; a project and a client each belong to one. The landscape business keeps the slug `quality-first-turf`.
 - Login roles: Admin, Sales, Office Team, Project Managers. A user can hold several (D-014). Installers do not log in; they are records that receive work packages via secure links (D-010).
 - Pipelines and their exact stage names are in `docs/prd.md`. Use those names verbatim as constants in one place.
 - United States, all states: tax and time zone vary by job (D-017).

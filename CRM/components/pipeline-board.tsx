@@ -380,8 +380,8 @@ export function PipelineBoard({ business }: { business: BusinessDoc }) {
                               onTouchStart={(e) => touchStart(e, card)}
                               tabIndex={0}
                               onDragStart={(e) => { e.dataTransfer.setData("text/plain", card.id); e.dataTransfer.effectAllowed = "move"; setDragging(card); }}
-                              onClick={() => setOpenId(card.id)}
-                              onKeyDown={(e) => { if (e.key === "Enter") setOpenId(card.id); }}
+                              onClick={() => setOpenId((id) => (id === card.id ? null : card.id))}
+                              onKeyDown={(e) => { if (e.key === "Enter") setOpenId((id) => (id === card.id ? null : card.id)); }}
                             >
                               <div className="pl-cardtop">
                                 <div className="pl-title">{card.title} · {card.code}</div>

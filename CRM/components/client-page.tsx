@@ -13,6 +13,7 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { CLIENT_STATUS_LABEL, requestStatus } from "@/convex/crm/lib/stages";
 import { startOfToday, useClient, useClientNotes, useClientProjects, type ClientDoc } from "@/lib/clients";
+import { clientsReturnHref } from "@/lib/clients-place";
 import { BUSINESS_TIME_ZONE, moneyCents, quoteDate, quoteDateTime } from "@/lib/format";
 import { QUOTE_DOT, QUOTE_OPEN_STATUSES } from "@/lib/quotes";
 import { useStaff } from "./staff-context";
@@ -35,11 +36,18 @@ export function ClientPage({ id }: { id: string }) {
       <div className="empty-state">
         <h2>Client not found</h2>
         <p>This client does not exist, or it was removed.</p>
-        <Link className="btn primary" href="/clients">Back to clients</Link>
+        <BackToClients className="btn primary">Back to clients</BackToClients>
       </div>
     );
   }
   return <ClientView c={client} />;
+}
+
+/** Back to the clients list on the page they came from. The address is filled in after paint so the server and the browser agree. */
+function BackToClients({ className, children }: { className?: string; children: React.ReactNode }) {
+  const [href, setHref] = useState("/clients");
+  useEffect(() => { setHref(clientsReturnHref()); }, []);
+  return <Link className={className} href={href}>{children}</Link>;
 }
 
 const noteDate = (ms: number) => new Date(ms).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: BUSINESS_TIME_ZONE });
@@ -89,6 +97,7 @@ function ClientView({ c }: { c: ClientDoc }) {
   return (
     <div className={`fade-in cj cj-cols${sideOpen ? "" : " wide"}`}>
       <div className="cj-main">
+      <BackToClients className="cj-back"><Icon name="arrowleft" size={18} /> Back</BackToClients>
       <div className="cj-top">
         <div className="cj-who">
           <Icon name="contact" size={22} />
@@ -312,8 +321,8 @@ function ContactsCard({ contacts }: { contacts: NonNullable<ClientDoc["contacts"
           {contacts.map((p, i) => (
             <tr key={i}>
               <td><b>{p.name}</b>{p.role && <div>{p.role}</div>}</td>
-              <td>{p.phone && <a href={`tel:${p.phone}`}>{p.phone}</a>}</td>
-              <td>{p.email && <a href={`mailto:${p.email}`}>{p.email}</a>}</td>
+              <td data-label="Phone">{p.phone && <a href={`tel:${p.phone}`}>{p.phone}</a>}</td>
+              <td data-label="Email">{p.email && <a href={`mailto:${p.email}`}>{p.email}</a>}</td>
               <td><button type="button" className="cj-iconbtn" aria-label="More actions" disabled><Icon name="more" size={22} /></button></td>
             </tr>
           ))}
@@ -380,9 +389,9 @@ function WorkOverview({ clientId }: { clientId: Id<"clients"> }) {
                     <div><b>{r.title}</b><div>{r.sub}</div></div>
                   </div>
                 </td>
-                <td>{r.date}</td>
-                <td><span className="pill jb-status"><span className="dot" style={{ background: r.dot }} />{r.status}</span></td>
-                <td className="num">{r.amount}</td>
+                <td data-label="Date">{r.date}</td>
+                <td data-label="Status"><span className="pill jb-status"><span className="dot" style={{ background: r.dot }} />{r.status}</span></td>
+                <td className="num" data-label="Amount">{r.amount}</td>
               </tr>
             ))
           ) : (
@@ -417,9 +426,9 @@ function BillingCard({ billing, balanceCents }: { billing: NonNullable<ClientDoc
           {billing.map((b, i) => (
             <tr key={i}>
               <td><div className="cj-item"><span style={{ color: "var(--orange)", display: "inline-flex" }}><Icon name="card" size={22} /></span><b>{b.kind}</b></div></td>
-              <td>{b.appliedTo}</td>
-              <td>{quoteDate(b.at)}</td>
-              <td className="num">{money(b.cents)}</td>
+              <td data-label="Applied to">{b.appliedTo}</td>
+              <td data-label="Date">{quoteDate(b.at)}</td>
+              <td className="num" data-label="Amount">{money(b.cents)}</td>
             </tr>
           ))}
           <tr className="cj-total"><td colSpan={3}><b>Current balance</b></td><td className="num"><b>{money(balanceCents)}</b></td></tr>
@@ -461,8 +470,8 @@ function ScheduleCard({ items }: { items: NonNullable<ClientDoc["scheduleItems"]
                   <div><b>{quoteDateTime(s.at)}</b><div>{s.status}</div></div>
                 </div>
               </td>
-              <td>{s.title}</td>
-              <td className={s.assigned === "Unassigned" ? "cj-unassigned" : undefined}>{s.assigned}</td>
+              <td data-label="Title">{s.title}</td>
+              <td data-label="Assigned" className={s.assigned === "Unassigned" ? "cj-unassigned" : undefined}>{s.assigned}</td>
               <td><button type="button" className="cj-iconbtn" aria-label="More actions" disabled><Icon name="more" size={22} /></button></td>
             </tr>
           ))}

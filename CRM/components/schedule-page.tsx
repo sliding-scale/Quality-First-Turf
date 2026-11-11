@@ -153,7 +153,22 @@ function Schedule({ business }: { business: BusinessDoc }) {
           <button type="button" className="btn icon" aria-label="Previous" data-tip="Previous" onClick={() => step(-1)}><Icon name="arrowleft" size={18} /></button>
           <button type="button" className="btn icon" aria-label="Next" data-tip="Next" onClick={() => step(1)}><span style={{ display: "inline-grid", transform: "rotate(180deg)" }}><Icon name="arrowleft" size={18} /></span></button>
           <button type="button" className="btn" onClick={() => go(view, today)}>Today</button>
-          <button type="button" className="btn primary" disabled={!staff.canEdit} onClick={() => openForm({})}>Find a Time</button>
+          <button
+            type="button"
+            className="btn primary"
+            disabled={!staff.canEdit}
+            onClick={() => {
+              if (form && !form.editing) {
+                setForm(null);
+                setPicked(undefined);
+                setAvailUsers(null);
+                return;
+              }
+              openForm({});
+            }}
+          >
+            Find a Time
+          </button>
           <button type="button" className="chip" onClick={(e) => multi(e.currentTarget, "Search", TYPE_OPTIONS.map((t) => ({ value: t, label: TYPE_NAME[t] })), types, setTypes)}>Type<span className="sep" /><b>{typeLabel}</b></button>
           <button type="button" className="chip" onClick={(e) => multi(e.currentTarget, "Search", [...roster.map((p) => ({ value: p.id, label: p.name })), { value: "unassigned", label: "Unassigned" }], team as string[], (v) => setTeam(v as typeof team))}>Team<span className="sep" /><b>{teamLabel}</b></button>
           <button type="button" className="chip" onClick={(e) => multi(e.currentTarget, "Search", STATUS_OPTIONS.map((s) => ({ value: s[0], label: s[1] })), statuses, setStatuses)}>Status<span className="sep" /><b>{statusLabel}</b></button>
@@ -171,7 +186,8 @@ function Schedule({ business }: { business: BusinessDoc }) {
           <button type="button" className="btn icon" disabled aria-label="Map" data-tip="The map needs a map service, which is not set up yet"><Icon name="pin" size={18} /></button>
           <button
             type="button"
-            className="btn"
+            className="btn sc-toolmore"
+            aria-label="More"
             onClick={(e) =>
               dropdown(
                 e.currentTarget,
@@ -187,7 +203,7 @@ function Schedule({ business }: { business: BusinessDoc }) {
               )
             }
           >
-            <Icon name="more" size={18} /> More
+            <Icon name="more" size={18} /> <span>More</span>
           </button>
         </div>
       </div>
@@ -202,7 +218,7 @@ function Schedule({ business }: { business: BusinessDoc }) {
           now={now}
           busy={avail?.busy ?? []}
           canEdit={staff.canEdit}
-          onOpenItem={(item, rect) => setPopup({ item, rect })}
+          onOpenItem={(item, rect) => setPopup((p) => (p?.item.key === item.key ? null : { item, rect }))}
           onEmptySlot={emptySlot}
           onMoveItem={(i, s, p) => void moveItem(i, s, p)}
           onResizeItem={(i, e) => void resizeItem(i, e)}
@@ -219,6 +235,7 @@ function Schedule({ business }: { business: BusinessDoc }) {
 
       {popup && (
         <SchedulePopup
+          key={popup.item.key}
           item={popup.item}
           anchor={popup.rect}
           people={roster}

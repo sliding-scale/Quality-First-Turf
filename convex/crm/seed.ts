@@ -4,7 +4,8 @@ import { env, internalMutation, type MutationCtx } from "../_generated/server";
 import { shortCode } from "./lib/codes";
 import { clientSearchText, opportunitySearchText } from "./lib/clientInput";
 import { DAY_MS, LEAD_SOURCES, PREPLANNING_STAGES, SALES_STAGES } from "./lib/stages";
-import { BUSINESS_NAMES, SAMPLE_SERVICES, generateSampleClients } from "./sampleData";
+import { BUSINESS_NAMES, businessSlug } from "./lib/businessNames";
+import { SAMPLE_SERVICES, generateSampleClients } from "./sampleData";
 
 /* Dev sample data. Run from a terminal against the DEV deployment:
      npx convex run crm/seed:run        loads 98 sample clients and their projects (does nothing if businesses exist)
@@ -23,7 +24,7 @@ export const run = internalMutation({
 
     const businessIds = new Map<string, Doc<"businesses">["_id"]>();
     for (const name of BUSINESS_NAMES) {
-      businessIds.set(name, await ctx.db.insert("businesses", { name, slug: name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") }));
+      businessIds.set(name, await ctx.db.insert("businesses", { name, slug: businessSlug(name) }));
     }
 
     const now = Date.now();

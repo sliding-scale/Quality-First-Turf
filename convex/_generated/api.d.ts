@@ -22,6 +22,7 @@ import type * as crm_invitations from "../crm/invitations.js";
 import type * as crm_lib_access from "../crm/lib/access.js";
 import type * as crm_lib_assignees from "../crm/lib/assignees.js";
 import type * as crm_lib_automationRules from "../crm/lib/automationRules.js";
+import type * as crm_lib_businessNames from "../crm/lib/businessNames.js";
 import type * as crm_lib_clerk from "../crm/lib/clerk.js";
 import type * as crm_lib_clientInput from "../crm/lib/clientInput.js";
 import type * as crm_lib_codes from "../crm/lib/codes.js";
@@ -100,6 +101,7 @@ declare const fullApi: ApiFromModules<{
   "crm/lib/access": typeof crm_lib_access;
   "crm/lib/assignees": typeof crm_lib_assignees;
   "crm/lib/automationRules": typeof crm_lib_automationRules;
+  "crm/lib/businessNames": typeof crm_lib_businessNames;
   "crm/lib/clerk": typeof crm_lib_clerk;
   "crm/lib/clientInput": typeof crm_lib_clientInput;
   "crm/lib/codes": typeof crm_lib_codes;

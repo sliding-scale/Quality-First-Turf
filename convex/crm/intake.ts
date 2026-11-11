@@ -5,6 +5,7 @@ import { internalMutation, type MutationCtx } from "../_generated/server";
 import { US_STATES } from "../shared/usStates";
 import { clientSearchText, opportunitySearchText } from "./lib/clientInput";
 import { cleanEmail, cleanName, cleanZip, formatPhone } from "./lib/fields";
+import { TURF_NAME, TURF_SLUG } from "./lib/businessNames";
 import { SALES_STAGES } from "./lib/stages";
 
 /* What happens when someone fills in the customer form (D-040):
@@ -14,12 +15,14 @@ import { SALES_STAGES } from "./lib/stages";
    The forms backend schedules recordSubmission right after it saves a submission. It is a separate step on purpose, so a
    problem here can never stop the form or the Jobber push, which stay as they were. Everything here is safe to repeat. */
 
-/** The customer form belongs to Quality First Turf. Found by its slug, and created if this deployment does not have it yet. */
-const FORM_BUSINESS = { name: "Quality First Turf", slug: "quality-first-turf" };
+/** The customer form belongs to Quality First Turf Landscape (D-066). Found by its slug, and created if this deployment does not have it yet. */
+const FORM_BUSINESS = { name: TURF_NAME, slug: TURF_SLUG };
 
 async function formBusiness(ctx: MutationCtx): Promise<Id<"businesses">> {
   const found = await ctx.db.query("businesses").withIndex("by_slug", (q) => q.eq("slug", FORM_BUSINESS.slug)).first();
-  return found ? found._id : await ctx.db.insert("businesses", FORM_BUSINESS);
+  if (!found) return await ctx.db.insert("businesses", FORM_BUSINESS);
+  if (found.name !== FORM_BUSINESS.name) await ctx.db.patch(found._id, { name: FORM_BUSINESS.name });
+  return found._id;
 }
 
 /** The forms store the state's full name; the CRM stores the two-letter code. */

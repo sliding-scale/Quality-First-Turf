@@ -85,6 +85,23 @@ describe("project tasks and notes", () => {
     await expect(sales.mutation(api.crm.opportunityTasks.addTask, { id: project, title: "x", assigneeId: olive })).rejects.toThrow(/not on this business/);
   });
 
+  it("gives a task to someone else on the team, or to nobody", async () => {
+    const { sales, admin, base, qft, project, pm } = await seeded();
+    const people = await admin.query(api.crm.pipeline.people, { businessId: qft });
+    const sam = people.find((p) => p.name === "Sam Sales")!;
+    const sal = people.find((p) => p.name === "Sal")!;
+    const id = await sales.mutation(api.crm.opportunityTasks.addTask, { id: project, title: "Call the client", assigneeId: sam.id });
+    await sales.mutation(api.crm.opportunityTasks.setTime, { taskId: id, startAt: NOW, endAt: NOW + 3_600_000, assigneeId: sal.id });
+    let { tasks } = await sales.query(api.crm.opportunityTasks.listForProject, { id: project });
+    expect(tasks[0]).toMatchObject({ assigneeId: sal.id, startAt: NOW, endAt: NOW + 3_600_000 });
+    await sales.mutation(api.crm.opportunityTasks.setTime, { taskId: id, startAt: NOW, endAt: NOW + 3_600_000, assigneeId: null });
+    ({ tasks } = await sales.query(api.crm.opportunityTasks.listForProject, { id: project }));
+    expect(tasks[0].assigneeId).toBeUndefined();
+    const olive = await base.run(async (ctx) => (await ctx.db.query("users").collect()).find((u) => u.name === "Olive Outsider")!._id);
+    await expect(sales.mutation(api.crm.opportunityTasks.setTime, { taskId: id, startAt: NOW, endAt: NOW + 3_600_000, assigneeId: olive })).rejects.toThrow(/not on this business/);
+    await expect(pm.mutation(api.crm.opportunityTasks.setTime, { taskId: id, startAt: NOW, endAt: NOW + 3_600_000, assigneeId: sal.id })).rejects.toThrow();
+  });
+
   it("filters by assignee", async () => {
     const { sales, admin, qft, project } = await seeded();
     const people = await admin.query(api.crm.pipeline.people, { businessId: qft });

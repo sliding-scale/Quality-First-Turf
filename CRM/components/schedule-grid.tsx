@@ -337,7 +337,19 @@ function MonthGrid(p: GridProps) {
                   {!i.anytime && <span className="sc-mtime">{timeText(i.start)}</span>} <span className="sc-mtitle">{i.title}</span>
                 </article>
               ))}
-              {!narrow && list.length > 3 && openMore !== key && <button type="button" className="sc-more" onClick={(e) => { e.stopPropagation(); setOpenMore({ month: p.dateKey.slice(0, 7), day: key }); }}>+{list.length - 3} more</button>}
+              {!narrow && list.length > 3 && (
+                <button
+                  type="button"
+                  className="sc-more"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const monthKey = p.dateKey.slice(0, 7);
+                    setOpenMore((m) => (m?.month === monthKey && m.day === key ? null : { month: monthKey, day: key }));
+                  }}
+                >
+                  {openMore === key ? "Show less" : `+${list.length - 3} more`}
+                </button>
+              )}
             </div>
           );
         })}

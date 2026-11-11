@@ -2,11 +2,14 @@
 
 /* The shared shell: top bar, sidebar, and the scrolling main area every page sits in. */
 
+import { useMutation } from "convex/react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type MouseEvent, type ReactNode } from "react";
+import { api } from "@/convex/_generated/api";
 import { setBusiness, useWorkspace } from "@/lib/clients";
+import { clientsReturnHref } from "@/lib/clients-place";
 import { useStoredString, writeItem } from "@/lib/store";
 import { Icon } from "./icon";
 import { AccountMenu } from "./account-menu";
@@ -64,7 +67,7 @@ export function Shell({ children }: { children: ReactNode }) {
   );
 }
 
-/** The Quality First Turf logo for that business; the other businesses keep the plain "Q" tile until they have a logo of their own. */
+/** The Quality First Turf Landscape logo for that business; the other businesses keep the plain "Q" tile until they have a logo of their own. */
 function BrandMark({ turf }: { turf: boolean }) {
   if (!turf) return <span className="brand-mark">Q</span>;
   return <Image className="brand-logo" src="/brand/logo-full.png" alt="" width={39} height={30} priority />;
@@ -74,6 +77,15 @@ function BrandMark({ turf }: { turf: boolean }) {
 function Brand() {
   const { dropdown } = useUI();
   const workspace = useWorkspace();
+  const align = useMutation(api.crm.businesses.alignNames);
+  const aligning = useRef(false);
+  const turfName = workspace.state === "ready" ? workspace.businesses.find((b) => b.slug === "quality-first-turf")?.name : undefined;
+  // The stored name was "Quality First Turf". Rename it once, in place, the first time someone opens the CRM (D-066).
+  useEffect(() => {
+    if (turfName === undefined || turfName === "Quality First Turf Landscape" || aligning.current) return;
+    aligning.current = true;
+    void align().catch(() => { aligning.current = false; });
+  }, [turfName, align]);
   return (
     <button
       type="button"
@@ -89,7 +101,7 @@ function Brand() {
       }}
     >
       <BrandMark turf={workspace.state === "ready" ? workspace.business.slug === "quality-first-turf" : workspace.state !== "empty"} />
-      <span className="brand-name">{workspace.state === "ready" ? workspace.business.name : workspace.state === "loading" ? <span className="sk sk-inline" style={{ width: 130, height: 16 }} /> : "Quality First Turf"}</span>
+      <span className="brand-name">{workspace.state === "ready" ? workspace.business.name : workspace.state === "loading" ? <span className="sk sk-inline" style={{ width: 130, height: 16 }} /> : "Quality First Turf Landscape"}</span>
       <Icon name="chevdown" size={16} />
     </button>
   );
@@ -161,7 +173,7 @@ function ShellInner({ children }: { children: ReactNode }) {
         </button>
         {/* On a phone the business name moves into the menu, to leave room for the buttons. */}
         <span className="brand-slot">
-          <ErrorBoundary fallback={<span className="brand"><BrandMark turf /><span className="brand-name">Quality First Turf</span></span>}>
+          <ErrorBoundary fallback={<span className="brand"><BrandMark turf /><span className="brand-name">Quality First Turf Landscape</span></span>}>
             <Brand />
           </ErrorBoundary>
         </span>
@@ -205,7 +217,7 @@ function ShellInner({ children }: { children: ReactNode }) {
 
       <nav className="sidebar" id="main-nav" aria-label="Main" inert={mobile && !menuOpen}>
         <div className="sidebar-brand">
-          <ErrorBoundary fallback={<span className="brand"><BrandMark turf /><span className="brand-name">Quality First Turf</span></span>}>
+          <ErrorBoundary fallback={<span className="brand"><BrandMark turf /><span className="brand-name">Quality First Turf Landscape</span></span>}>
             <Brand />
           </ErrorBoundary>
         </div>
@@ -245,8 +257,16 @@ function ShellInner({ children }: { children: ReactNode }) {
             );
             if (n.href) {
               const on = n.key === active;
+              // Clients goes back to the page they were on. Read at the click so it is never a stale address from an earlier render.
+              const openClients = (e: MouseEvent<HTMLAnchorElement>) => {
+                if (n.key !== "clients" || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+                const href = clientsReturnHref();
+                if (href === "/clients") return;
+                e.preventDefault();
+                router.push(href);
+              };
               return (
-                <Link key={n.key} className={on ? "item active" : "item"} href={n.href} title={n.label} aria-current={on ? "page" : undefined}>
+                <Link key={n.key} className={on ? "item active" : "item"} href={n.href} title={n.label} aria-current={on ? "page" : undefined} onClick={openClients}>
                   {inner}
                 </Link>
               );

@@ -261,14 +261,14 @@ function Quotes({ business, initialQuery }: { business: BusinessDoc; initialQuer
               rows.map((r) => (
                 <tr key={r.id} className="click" onClick={() => router.push(`/quotes/${r.id}`)}>
                   <td><div className="strong" title={r.clientName}>{r.clientName}</div></td>
-                  <td>
+                  <td data-label="Quote">
                     <div title={`#${r.number}`}>#{r.number}</div>
                     <div className="sub" title={r.title}>{r.title}</div>
                   </td>
-                  <td title={r.property}>{r.property}</td>
-                  <td>{quoteDate(r.createdAt)}</td>
-                  <td><span className={`pill ${QUOTE_PILL[r.status]}`}><span className="dot" />{r.status}</span></td>
-                  <td className="num">{moneyCents(r.totalCents)}</td>
+                  <td data-label="Property" title={r.property}>{r.property}</td>
+                  <td data-label="Created">{quoteDate(r.createdAt)}</td>
+                  <td data-label="Status"><span className={`pill ${QUOTE_PILL[r.status]}`}><span className="dot" />{r.status}</span></td>
+                  <td className="num" data-label="Total">{moneyCents(r.totalCents)}</td>
                 </tr>
               ))
             ) : (

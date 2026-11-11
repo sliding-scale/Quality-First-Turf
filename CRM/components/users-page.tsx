@@ -236,10 +236,10 @@ export function UsersPage() {
                           {u.status === "deleted" ? <span className="member-name">{u.name}</span> : <button type="button" className="member-name" onClick={() => setEditing(u)}>{u.name}</button>}
                         </div>
                       </td>
-                      <td>{u.roles.map((r) => ROLE_LABEL[r]).join(", ")}</td>
-                      <td>{u.roles.includes("admin") ? "All businesses" : u.businessIds.map(businessName).join(", ")}</td>
-                      <td>{lastActive(u.lastSignInAt)}</td>
-                      <td><span className={`pill tag ${pill.cls}`} title={statusHint(u)}><span className="dot" />{pill.label}</span></td>
+                      <td data-label="Role">{u.roles.map((r) => ROLE_LABEL[r]).join(", ")}</td>
+                      <td data-label="Businesses">{u.roles.includes("admin") ? "All businesses" : u.businessIds.map(businessName).join(", ")}</td>
+                      <td data-label="Last active">{lastActive(u.lastSignInAt)}</td>
+                      <td data-label="Status"><span className={`pill tag ${pill.cls}`} title={statusHint(u)}><span className="dot" />{pill.label}</span></td>
                       <td>
                         <button
                           type="button"
