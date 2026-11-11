@@ -11,7 +11,8 @@ export default function Page() {
   return (
     <SignInShell>
       <div className="auth-head">
-        <h1>Welcome back</h1>
+        <h1 className="auth-product">LaunchPad</h1>
+        <p className="auth-welcome">Welcome back</p>
         <p>Log in to the Quality First Turf CRM.</p>
       </div>
       {/* Shown until Clerk's form has drawn itself (see .auth-skel in globals.css), so the page never opens on just the note below. */}

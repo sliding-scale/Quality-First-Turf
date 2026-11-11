@@ -1,7 +1,6 @@
 import Image from "next/image";
 
-/** The page the sign-in form sits on: the form in a narrow column on the left, with the logo above it, and a landscape photo filling the
- *  right side on wide screens. Below 900px the photo goes away and the form stays centred on white. */
+/** The sign-in form, centred, with the logo and the CRM name above it. */
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="auth-page">
@@ -11,14 +10,6 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           {children}
         </div>
       </main>
-      <aside className="auth-hero" aria-hidden="true">
-        <Image src="/images/login-landscape.webp" alt="" fill sizes="(max-width: 900px) 0px, 50vw" priority />
-        <div className="auth-hero-shade" />
-        <div className="auth-hero-text">
-          <p>Quality First Turf</p>
-          <span>Clients, requests and quotes in one place.</span>
-        </div>
-      </aside>
     </div>
   );
 }

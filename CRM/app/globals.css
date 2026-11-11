@@ -504,21 +504,16 @@ input, select, textarea { font: inherit; color: var(--text); }
 .sk-inline { display: inline-block; vertical-align: middle; }
 
 /* ---------- sign-in, sign-up and the access gate (D-046) ---------- */
-.auth-page { position: fixed; inset: 0; background: #ffffff; overflow: auto; display: flex; }
+.auth-page { position: fixed; inset: 0; background: #ffffff; overflow: hidden; display: flex; }
 /* margin: auto centres the column both ways, and still lets a short screen scroll to the top of it. */
 .auth-col { width: 328px; max-width: calc(100% - 32px); margin: auto; padding: 32px 0; animation: fade-in 0.25s ease-out both; }
-.auth-main { flex: 1 1 50%; min-width: 0; display: flex; }
+.auth-main { flex: 1 1 50%; min-width: 0; min-height: 0; display: flex; overflow: auto; }
 .auth-logo { display: block; width: 150px; height: auto; margin: 0 auto 26px; }
 .auth-head { text-align: center; margin: 0 0 22px; }
 .auth-head h1 { margin: 0 0 6px; font-size: 26px; line-height: 1.2; }
 .auth-head p { margin: 0; color: var(--muted); font-size: 15px; }
-.auth-hero { position: relative; flex: 1 1 50%; min-width: 0; overflow: hidden; background: #1c3a26; }
-.auth-hero img { object-fit: cover; }
-.auth-hero-shade { position: absolute; inset: 0; background: linear-gradient(to top, rgba(6, 36, 26, 0.72), rgba(6, 36, 26, 0.05) 55%); }
-.auth-hero-text { position: absolute; left: 48px; right: 48px; bottom: 44px; color: #fff; }
-.auth-hero-text p { margin: 0 0 6px; font-family: var(--font-figtree), sans-serif; font-weight: 800; font-size: 34px; line-height: 1.15; }
-.auth-hero-text span { font-size: 17px; opacity: 0.9; }
-@media (max-width: 900px) { .auth-hero { display: none; } }
+.auth-head .auth-welcome { margin: 0 0 4px; color: var(--ink); font-size: 20px; font-weight: 700; }
+.auth-head .auth-product { margin: 0 0 14px; font-size: 48px; line-height: 0.95; letter-spacing: -0.03em; color: var(--green); }
 /* A few px of room each side, so the fields (which Clerk draws 1px wider than its column) are never clipped. */
 .auth-signin { padding: 0 4px; }
 /* Clerk's blocks, rearranged to match Jobber's login. These use Clerk's stable cl-* class names. */
