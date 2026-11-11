@@ -28,7 +28,7 @@ function Pipeline({ business }: { business: BusinessDoc }) {
   const router = useRouter();
   const params = useSearchParams();
   const { dropdown } = useUI();
-  const { canEdit } = useStaff();
+  const { canEdit, isAdmin } = useStaff();
   const raw = params.get("tab");
   const tab: Tab = raw === "outcomes" ? raw : "pipeline";
   const [feedback, setFeedback] = useState(false);
@@ -65,6 +65,7 @@ function Pipeline({ business }: { business: BusinessDoc }) {
                   e.currentTarget,
                   [
                     { label: "Edit Stages", icon: "pencil", disabled: !canEdit, onSelect: () => router.push("/pipeline/edit") },
+                    { label: "Automations", icon: "calendar", disabled: !isAdmin, onSelect: () => router.push("/settings/automations") },
                     { label: "Give Feedback", icon: "message", onSelect: () => setFeedback(true) },
                   ],
                   { alignRight: true },

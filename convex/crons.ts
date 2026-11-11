@@ -15,4 +15,7 @@ crons.interval(
 // Read-only. Pulls new Inbox and Sent mail for office@qualityfirstturf.com and keeps filling history while any remains (D-064).
 crons.interval("sync Zoho mailbox into client profiles", { minutes: 3 }, internal.crm.zohoMailSync.syncBatch, {});
 
+// Pipeline automations (D-065): quote follow-ups and auto-archive. Sends nothing and changes nothing while a business is in "log only" mode.
+crons.interval("run pipeline automations", { minutes: 15 }, internal.crm.automations.tick, {});
+
 export default crons;

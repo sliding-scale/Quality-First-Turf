@@ -157,7 +157,7 @@ export const board = query({
     const cards = new Map<string, Card[]>(allColumns.map((s) => [s.name, []]));
     const groupOf = new Map(allColumns.map((s) => [s.name, s.group]));
     for (const p of docs) {
-      if (p.pipeline !== "Sales" || p.businessId !== a.businessId) continue;
+      if (p.pipeline !== "Sales" || p.businessId !== a.businessId || p.archivedAt !== undefined) continue; // archived ones (D-065) are off the board
       const column = cards.get(p.stage);
       if (!column) continue;
       if (a.salespersonId === "unassigned" ? p.salespersonId !== undefined : a.salespersonId !== undefined && p.salespersonId !== a.salespersonId) continue;

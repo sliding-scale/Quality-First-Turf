@@ -8,6 +8,8 @@
  * @module
  */
 
+import type * as crm_automationSend from "../crm/automationSend.js";
+import type * as crm_automations from "../crm/automations.js";
 import type * as crm_businesses from "../crm/businesses.js";
 import type * as crm_clerkWebhook from "../crm/clerkWebhook.js";
 import type * as crm_clientImport from "../crm/clientImport.js";
@@ -19,6 +21,7 @@ import type * as crm_intake from "../crm/intake.js";
 import type * as crm_invitations from "../crm/invitations.js";
 import type * as crm_lib_access from "../crm/lib/access.js";
 import type * as crm_lib_assignees from "../crm/lib/assignees.js";
+import type * as crm_lib_automationRules from "../crm/lib/automationRules.js";
 import type * as crm_lib_clerk from "../crm/lib/clerk.js";
 import type * as crm_lib_clientInput from "../crm/lib/clientInput.js";
 import type * as crm_lib_codes from "../crm/lib/codes.js";
@@ -83,6 +86,8 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  "crm/automationSend": typeof crm_automationSend;
+  "crm/automations": typeof crm_automations;
   "crm/businesses": typeof crm_businesses;
   "crm/clerkWebhook": typeof crm_clerkWebhook;
   "crm/clientImport": typeof crm_clientImport;
@@ -94,6 +99,7 @@ declare const fullApi: ApiFromModules<{
   "crm/invitations": typeof crm_invitations;
   "crm/lib/access": typeof crm_lib_access;
   "crm/lib/assignees": typeof crm_lib_assignees;
+  "crm/lib/automationRules": typeof crm_lib_automationRules;
   "crm/lib/clerk": typeof crm_lib_clerk;
   "crm/lib/clientInput": typeof crm_lib_clientInput;
   "crm/lib/codes": typeof crm_lib_codes;

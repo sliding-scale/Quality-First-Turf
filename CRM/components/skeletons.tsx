@@ -339,6 +339,30 @@ export function RequestSkeleton() {
   );
 }
 
+export function AutomationsSkeleton() {
+  return (
+    <Busy>
+      <div className="page-head"><h1>Automations</h1></div>
+      <Sk w="60%" h={18} style={{ marginBottom: 22 }} />
+      <div className="au-mode card">
+        <Sk w={90} h={22} />
+        <Sk w={320} h={38} r={8} style={{ margin: "14px 0" }} />
+        <Sk h={46} r={8} />
+      </div>
+      {["Quotes", "Requests"].map((g, i) => (
+        <section key={g} className="au-group">
+          <h2>{g}</h2>
+          <div className="au-cards">
+            {range(i === 0 ? 3 : 1).map((n) => (
+              <div key={n} className="au-card"><Sk w={60} h={24} /><Sk w="80%" h={20} /><Sk w="55%" h={20} /></div>
+            ))}
+          </div>
+        </section>
+      ))}
+    </Busy>
+  );
+}
+
 export function UsersSkeleton() {
   return (
     <Busy>

@@ -19,6 +19,9 @@ export function SettingsNav() {
           <div className="group">
             <div className="group-title">Business management</div>
             <button type="button" disabled>Businesses</button>
+            <Link href="/settings/automations" className={pathname.startsWith("/settings/automations") ? "active" : undefined} aria-current={pathname.startsWith("/settings/automations") ? "page" : undefined}>
+              Automations
+            </Link>
           </div>
           <div className="group">
             <div className="group-title">Team organization</div>

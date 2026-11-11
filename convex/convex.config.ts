@@ -23,9 +23,9 @@ const app = defineApp({
     CLERK_SECRET_KEY: v.optional(v.string()),
     CRM_APP_URL: v.optional(v.string()),
     CLERK_WEBHOOK_SECRET: v.optional(v.string()),
-    // Zoho Mail, read-only (D-064). One mailbox, office@qualityfirstturf.com unless ZOHO_MAILBOX is set.
+    // Zoho Mail (D-064 reads, D-065 sends the pipeline automations' emails). One mailbox, office@qualityfirstturf.com unless ZOHO_MAILBOX is set.
     // The refresh token is created once in the Zoho API console with ZohoMail.accounts.READ, ZohoMail.folders.READ and
-    // ZohoMail.messages.READ. There is no send, update or delete scope. ZOHO_ACCOUNTS_URL and ZOHO_MAIL_API_URL are only
+    // ZohoMail.messages.READ. Sending the automations' emails (D-065) also needs ZohoMail.messages.CREATE; there is no update or delete scope. ZOHO_ACCOUNTS_URL and ZOHO_MAIL_API_URL are only
     // needed when the mailbox is not on Zoho's US servers (for example https://accounts.zoho.eu and https://mail.zoho.eu).
     ZOHO_CLIENT_ID: v.optional(v.string()),
     ZOHO_CLIENT_SECRET: v.optional(v.string()),

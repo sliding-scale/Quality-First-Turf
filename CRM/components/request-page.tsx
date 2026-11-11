@@ -40,6 +40,7 @@ function RequestView({ r }: { r: Request }) {
   const { canEdit } = useStaff();
   const people = usePeople(r.businessId);
   const setSalesperson = useMutation(api.crm.pipeline.setSalesperson);
+  const restore = useMutation(api.crm.automations.restoreRequest);
   const [editing, setEditing] = useState(false);
   const [pick, setPick] = useState<string>(UNASSIGNED);
   const [saving, setSaving] = useState(false);
@@ -50,6 +51,14 @@ function RequestView({ r }: { r: Request }) {
   function edit() {
     setPick(r.salespersonId ?? UNASSIGNED);
     setEditing(true);
+  }
+  async function putBack() {
+    try {
+      await restore({ id: r.id, now: Date.now() });
+      toast("The request is back on the board.");
+    } catch (e) {
+      toast(failure(e, "The request could not be restored."));
+    }
   }
   async function save() {
     setSaving(true);
@@ -70,6 +79,12 @@ function RequestView({ r }: { r: Request }) {
         <Link className="rq-back" href="/requests"><Icon name="chevleft" size={18} /> Requests</Link>
         <span className={`pill ${PILL[r.status]}`}><span className="dot" />{r.status}</span>
       </div>
+      {r.archivedAt !== null && (
+        <div className="au-warn" role="status">
+          Archived. {r.archivedReason}.{" "}
+          {canEdit && <button type="button" className="btn link" onClick={() => void putBack()}>Restore</button>}
+        </div>
+      )}
       <div className="rq-title">
         <h1>{r.title} · {r.code}</h1>
         {canEdit && !editing && (

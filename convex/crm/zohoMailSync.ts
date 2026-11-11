@@ -46,7 +46,7 @@ type Batch = {
   contentBacklog: boolean;
 };
 
-type Settings = {
+export type Settings = {
   configured: boolean;
   clientId: string;
   clientSecret: string;
@@ -256,7 +256,7 @@ async function syncContent(ctx: ActionCtx, state: Batch, settings: Settings, pen
   }
 }
 
-async function tokenForRead(ctx: ActionCtx, settings: Settings): Promise<string> {
+export async function tokenForRead(ctx: ActionCtx, settings: Settings): Promise<string> {
   const current = await ctx.runQuery(internal.crm.clientMail.connection, {});
   if (current.accessToken && current.accessTokenExpiresAt > Date.now() + 120_000) return current.accessToken;
   const refreshed = await refresh(ctx, settings);
@@ -269,7 +269,7 @@ async function ensureToken(ctx: ActionCtx, state: Batch, settings: Settings): Pr
   return { ...state, accessToken, accessTokenExpiresAt: Date.now() + 3_000_000 };
 }
 
-async function refresh(ctx: ActionCtx, settings: Settings): Promise<string> {
+export async function refresh(ctx: ActionCtx, settings: Settings): Promise<string> {
   const body = new URLSearchParams({
     grant_type: "refresh_token",
     refresh_token: settings.refreshToken,
@@ -310,7 +310,7 @@ async function zohoGetAuthed(ctx: ActionCtx, state: Batch, settings: Settings, u
   }
 }
 
-async function zohoGet(url: string, accessToken: string): Promise<unknown> {
+export async function zohoGet(url: string, accessToken: string): Promise<unknown> {
   if (!url.startsWith("https://") || url.includes("/updatemessage")) {
     throw new ZohoError("Refusing a Zoho request that is not a read.", 400);
   }
@@ -333,7 +333,7 @@ function mailUrl(base: string, path: string, query: Record<string, string>): str
   return url.toString();
 }
 
-function zohoSettings(): Settings {
+export function zohoSettings(): Settings {
   const clientId = env.ZOHO_CLIENT_ID?.trim() ?? "";
   const clientSecret = env.ZOHO_CLIENT_SECRET?.trim() ?? "";
   const refreshToken = env.ZOHO_REFRESH_TOKEN?.trim() ?? "";
@@ -348,7 +348,7 @@ function zohoSettings(): Settings {
   };
 }
 
-function safeMessage(err: unknown): string {
+export function safeMessage(err: unknown): string {
   const raw = err instanceof Error ? err.message : "Email sync failed.";
   return raw.replace(/Zoho-oauthtoken\s+\S+/gi, "Zoho-oauthtoken [removed]").slice(0, 300);
 }

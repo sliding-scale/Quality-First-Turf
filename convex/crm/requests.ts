@@ -54,7 +54,7 @@ async function loadSales(ctx: QueryCtx, a: Pick<FilterArgs, "businessId" | "from
       .query("opportunities")
       .withSearchIndex("search_text", (q) => q.search("searchText", text).eq("businessId", a.businessId).eq("pipeline", "Sales"))
       .take(MAX_REQUESTS);
-    return found.filter((o) => (a.from === null || o.requestedAt >= a.from) && (a.to === null || o.requestedAt <= a.to));
+    return found.filter((o) => o.archivedAt === undefined && (a.from === null || o.requestedAt >= a.from) && (a.to === null || o.requestedAt <= a.to));
   }
   return await ctx.db
     .query("opportunities")
@@ -65,7 +65,7 @@ async function loadSales(ctx: QueryCtx, a: Pick<FilterArgs, "businessId" | "from
       if (a.to !== null) return base.lte("requestedAt", a.to);
       return base;
     })
-    .filter((q) => q.eq(q.field("pipeline"), "Sales"))
+    .filter((q) => q.and(q.eq(q.field("pipeline"), "Sales"), q.eq(q.field("archivedAt"), undefined)))
     .order("desc")
     .take(MAX_REQUESTS);
 }
@@ -155,6 +155,8 @@ export const get = query({
       requestedAt: o.requestedAt,
       leadSource: o.leadSource ?? "",
       details: o.details ?? "",
+      archivedAt: o.archivedAt ?? null,
+      archivedReason: o.archivedReason ?? "",
       salespersonId: o.salespersonId,
       salespersonName: person ? person.name : "Unassigned",
       assessmentAt: upcoming ?? consults.sort((a, b) => b - a)[0] ?? null,

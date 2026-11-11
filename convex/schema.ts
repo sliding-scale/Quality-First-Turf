@@ -296,6 +296,11 @@ export default defineSchema({
     signedContractAt: v.optional(v.number()),
     invoiceId: v.optional(v.id("_storage")),
     invoiceName: v.optional(v.string()),
+    /** Archived (D-065): set by the Auto-archive Requests automation, which also closes the project as lost. An archived project leaves the
+     *  board and the request list but stays searchable and can be restored; `archivedFromStage` is where Restore puts it back. */
+    archivedAt: v.optional(v.number()),
+    archivedReason: v.optional(v.string()),
+    archivedFromStage: v.optional(v.string()),
   })
     .index("by_business_and_requestedAt", ["businessId", "requestedAt"])
     .index("by_clientId", ["clientId"])
@@ -462,6 +467,52 @@ export default defineSchema({
   })
     .index("by_email", ["email"])
     .index("by_tokenIdentifier", ["tokenIdentifier"]),
+
+  /** The four pipeline automations (D-065), one row each per business, created on first use. Staff change days, wording and on/off only.
+   *  `activeSince` is when it was last turned on: nothing that started before then is acted on. */
+  automations: defineTable({
+    businessId: v.id("businesses"),
+    key: v.union(v.literal("quoteArchive"), v.literal("quoteFollowUp5"), v.literal("quoteFollowUp2"), v.literal("requestArchive")),
+    days: v.number(),
+    active: v.boolean(),
+    activeSince: v.number(),
+    /** The follow-ups' email and text wording. Absent on the archive automations. */
+    subject: v.optional(v.string()),
+    body: v.optional(v.string()),
+    textBody: v.optional(v.string()),
+    updatedAt: v.number(),
+    updatedByName: v.string(),
+  }).index("by_business_and_key", ["businessId", "key"]),
+
+  /** Sending mode for a business's automations: log only (default, sends nothing and changes nothing), test (email goes to one test
+   *  address), or live. */
+  automationSettings: defineTable({
+    businessId: v.id("businesses"),
+    mode: v.union(v.literal("log"), v.literal("test"), v.literal("live")),
+    testAddress: v.optional(v.string()),
+    /** {{DEFAULT_PHONE}} in the wording. */
+    companyPhone: v.string(),
+    updatedAt: v.number(),
+    updatedByName: v.string(),
+  }).index("by_business", ["businessId"]),
+
+  /** What each automation did, one row per quote or request and automation, reused rather than repeated (so nobody is emailed twice). */
+  automationRuns: defineTable({
+    businessId: v.id("businesses"),
+    key: v.union(v.literal("quoteArchive"), v.literal("quoteFollowUp5"), v.literal("quoteFollowUp2"), v.literal("requestArchive")),
+    quoteId: v.optional(v.id("quotes")),
+    opportunityId: v.optional(v.id("opportunities")),
+    clientId: v.optional(v.id("clients")),
+    status: v.union(v.literal("queued"), v.literal("sent"), v.literal("tested"), v.literal("logged"), v.literal("skipped"), v.literal("failed"), v.literal("archived")),
+    mode: v.union(v.literal("log"), v.literal("test"), v.literal("live")),
+    detail: v.string(),
+    toAddress: v.optional(v.string()),
+    attempts: v.number(),
+    at: v.number(),
+  })
+    .index("by_business_and_at", ["businessId", "at"])
+    .index("by_quote_and_key", ["quoteId", "key"])
+    .index("by_opportunity_and_key", ["opportunityId", "key"]),
 
   /** Every move of a project between Sales stages: who, when, from, to (PRD 3.3). Written only by crm/pipeline.ts moveStage. */
   stageHistory: defineTable({
