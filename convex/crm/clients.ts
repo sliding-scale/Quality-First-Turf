@@ -1,6 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { mutation, query, type QueryCtx } from "../_generated/server";
+import { internal } from "../_generated/api";
 import { canSee, requireBusiness, requireEditor, requireStaff } from "./lib/access";
 import { deleteQuote } from "./lib/quoteData";
 import { clientInputFields, clientSearchText, normalizeClientInput, opportunitySearchText } from "./lib/clientInput";
@@ -218,7 +219,8 @@ async function related(ctx: QueryCtx, clientId: Id<"clients">) {
   const projects = await ctx.db.query("opportunities").withIndex("by_clientId", (q) => q.eq("clientId", clientId)).take(MAX_RELATED + 1);
   const notes = await ctx.db.query("clientNotes").withIndex("by_clientId", (q) => q.eq("clientId", clientId)).take(MAX_RELATED + 1);
   const quotes = await ctx.db.query("quotes").withIndex("by_clientId", (q) => q.eq("clientId", clientId)).take(MAX_RELATED + 1);
-  return { projects, notes, quotes };
+  const emails = await ctx.db.query("clientMailMessages").withIndex("by_client_and_receivedAt", (q) => q.eq("clientId", clientId)).take(MAX_RELATED + 1);
+  return { projects, notes, quotes, emails };
 }
 
 /** What deleting these clients would also delete: their projects, quotes and notes. Nothing is changed. */
@@ -229,6 +231,7 @@ export const deletePreview = query({
     let projects = 0;
     let notes = 0;
     let quotes = 0;
+    let emails = 0;
     const names: string[] = [];
     for (const id of args.ids) {
       const client = await ctx.db.get(id);
@@ -238,9 +241,10 @@ export const deletePreview = query({
       projects += r.projects.length;
       notes += r.notes.length;
       quotes += r.quotes.length;
+      emails += r.emails.length;
       names.push(client.name);
     }
-    return { names, projects, notes, quotes };
+    return { names, projects, notes, quotes, emails };
   },
 });
 
@@ -262,6 +266,7 @@ export const remove = mutation({
       for (const n of r.notes) await ctx.db.delete(n._id);
       for (const q of r.quotes) await deleteQuote(ctx, q);
       await ctx.db.delete(id);
+      if (r.emails.length > 0) await ctx.scheduler.runAfter(0, internal.crm.clientMail.deleteClientMail, { clientId: id });
       deleted += 1;
     }
     return deleted;

@@ -12,4 +12,7 @@ crons.interval(
   {},
 );
 
+// Read-only. Pulls new Inbox and Sent mail for office@qualityfirstturf.com and keeps filling history while any remains (D-064).
+crons.interval("sync Zoho mailbox into client profiles", { minutes: 3 }, internal.crm.zohoMailSync.syncBatch, {});
+
 export default crons;

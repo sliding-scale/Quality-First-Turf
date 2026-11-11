@@ -43,6 +43,7 @@ export function DeleteClientsDialog({ ids, onClose, onDeleted }: { ids: Id<"clie
         preview.projects > 0 ? { key: "projects", label: plural(preview.projects, "project") } : null,
         preview.quotes > 0 ? { key: "quotes", label: plural(preview.quotes, "quote") } : null,
         preview.notes > 0 ? { key: "notes", label: plural(preview.notes, "note") } : null,
+        preview.emails > 500 ? { key: "emails", label: "more than 500 saved emails" } : preview.emails > 0 ? { key: "emails", label: plural(preview.emails, "saved email") } : null,
       ].filter((x): x is { key: string; label: string } => x !== null)
     : [];
   const allTicked = items.every((i) => ticked.has(i.key));

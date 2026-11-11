@@ -117,6 +117,7 @@ PRD goal: the final workflow, communication integrations and production deployme
 - [ ] Schema: `invoices`, `invoiceLines`, `payments`, `communications`, `integrationCredentials` (server-side only)
 - [ ] Finance pipeline entered from construction sign-off; invoices, deposits, final payments, dashboard pending payments
 - [ ] Phone and SMS: multiple numbers, calls, texts, communication log against client, project and user (provider: Q-006)
+- [x] Zoho Mail, read-only, into the client Communication tab: `office@qualityfirstturf.com`, Inbox and Sent, no sending or mailbox changes (D-064)
 - [ ] WhatsApp Business: send work packages, log against the project
 - [ ] Permissions hardening across Admin, Sales, Office Team, Project Managers (multi-role)
 - [ ] Export for clients, projects, quotes and invoices

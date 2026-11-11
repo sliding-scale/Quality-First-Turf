@@ -552,4 +552,93 @@ export default defineSchema({
     text: v.string(),
     author: v.string(),
   }).index("by_clientId", ["clientId"]),
+
+  /** One office mailbox connection (D-064). The refresh token stays in the Convex environment; this row caches the short-lived
+   *  access token and how far the read-only sync has walked. Nothing here is returned to the browser. */
+  zohoMailSync: defineTable({
+    singleton: v.literal("default"),
+    /** The mailbox being read, so a change of ZOHO_MAILBOX starts a fresh connection. */
+    mailbox: v.string(),
+    accountId: v.string(),
+    accessToken: v.string(),
+    accessTokenExpiresAt: v.number(),
+    inboxFolderId: v.string(),
+    sentFolderId: v.string(),
+    inboxCursor: v.number(),
+    sentCursor: v.number(),
+    inboxDone: v.boolean(),
+    sentDone: v.boolean(),
+    backfillStartedAt: v.optional(v.number()),
+    running: v.boolean(),
+    /** While this is in the future and `running` is set, another sync leaves the run alone. */
+    runningUntil: v.number(),
+    lastSuccessAt: v.optional(v.number()),
+    /** Empty when the last run finished. Never contains a token. */
+    lastError: v.string(),
+  }).index("by_singleton", ["singleton"]),
+
+  /** A client address the mailbox sync still has to search, or has already covered (D-064). */
+  zohoWatchedAddresses: defineTable({
+    address: v.string(),
+    field: v.union(v.literal("sender"), v.literal("to"), v.literal("cc")),
+    nextStart: v.number(),
+    done: v.boolean(),
+    /** True when this address was already on a client at the moment the Inbox and Sent walk started, so that walk covers its history. */
+    inScan: v.boolean(),
+    enqueuedAt: v.number(),
+  })
+    .index("by_address", ["address"])
+    .index("by_done_and_inScan", ["done", "inScan"])
+    .index("by_inScan_and_done", ["inScan", "done"]),
+
+  /** One Zoho message matched to one client. The same message can be stored twice when two clients share it. Bodies live in clientMailBodies. */
+  clientMailMessages: defineTable({
+    businessId: v.id("businesses"),
+    clientId: v.id("clients"),
+    zohoAccountId: v.string(),
+    zohoMessageId: v.string(),
+    folderId: v.string(),
+    threadId: v.string(),
+    subject: v.string(),
+    fromName: v.string(),
+    fromAddress: v.string(),
+    toAddresses: v.array(v.string()),
+    ccAddresses: v.array(v.string()),
+    direction: v.union(v.literal("incoming"), v.literal("outgoing")),
+    receivedAt: v.number(),
+    preview: v.string(),
+    hasAttachment: v.boolean(),
+    contentStatus: v.union(v.literal("pending"), v.literal("stored"), v.literal("unavailable")),
+    imagesHidden: v.boolean(),
+    /** Failed body fetches. After three, the body is left out and the preview still shows. */
+    contentAttempts: v.optional(v.number()),
+  })
+    .index("by_client_and_receivedAt", ["clientId", "receivedAt"])
+    .index("by_zohoMessage_and_client", ["zohoMessageId", "clientId"])
+    .index("by_client_and_thread", ["clientId", "threadId"])
+    .index("by_contentStatus", ["contentStatus"]),
+
+  /** The latest message of a Zoho thread for one client, so the Communication tab can page conversations instead of every email. */
+  clientMailThreads: defineTable({
+    businessId: v.id("businesses"),
+    clientId: v.id("clients"),
+    threadId: v.string(),
+    subject: v.string(),
+    latestAt: v.number(),
+    preview: v.string(),
+    fromName: v.string(),
+    fromAddress: v.string(),
+    toAddresses: v.array(v.string()),
+    direction: v.union(v.literal("incoming"), v.literal("outgoing")),
+    count: v.number(),
+    hasAttachment: v.boolean(),
+  })
+    .index("by_client_and_latestAt", ["clientId", "latestAt"])
+    .index("by_client_and_thread", ["clientId", "threadId"]),
+
+  /** Sanitized HTML for one stored message. Kept off the message row so the thread list does not read every body. */
+  clientMailBodies: defineTable({
+    messageId: v.id("clientMailMessages"),
+    html: v.string(),
+  }).index("by_message", ["messageId"]),
 });

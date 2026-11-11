@@ -17,6 +17,7 @@ import { BUSINESS_TIME_ZONE, moneyCents, quoteDate, quoteDateTime } from "@/lib/
 import { QUOTE_DOT, QUOTE_OPEN_STATUSES } from "@/lib/quotes";
 import { useStaff } from "./staff-context";
 import { EditTagsDialog, SendEmailDialog } from "./client-dialogs";
+import { ClientCommunication } from "./client-communication";
 import { DeleteClientsDialog } from "./delete-clients-dialog";
 import { Icon } from "./icon";
 import { ClientSkeleton, Sk } from "./skeletons";
@@ -183,19 +184,11 @@ function ClientView({ c }: { c: ClientDoc }) {
               </>
             )}
             {tab === "communication" && (
-              <section className="cj-card cj-empty">
-                {c.lastCommunication ? (
-                  <div className="cj-msg">
-                    <div className="when">{quoteDateTime(c.lastCommunication.at)}</div>
-                    <p>{c.lastCommunication.text}</p>
-                  </div>
-                ) : (
-                  <>
-                    <b>No communications yet</b>
-                    <span>This client&apos;s emails, texts, and chats will appear here.</span>
-                  </>
-                )}
-              </section>
+              <ClientCommunication
+                clientId={c._id}
+                hasEmail={emails.length > 0 || (c.contacts ?? []).some((person) => person.email.trim())}
+                lastCommunication={c.lastCommunication}
+              />
             )}
             {tab === "media" && (
               <div className="cj-media">

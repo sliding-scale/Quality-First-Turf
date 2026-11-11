@@ -177,6 +177,21 @@ export function ClientSkeleton() {
   );
 }
 
+export function CommunicationSkeleton() {
+  return (
+    <section className="cj-card" aria-busy="true" aria-label="Loading emails">
+      <div className="cj-card-head"><Sk w={72} h={24} /></div>
+      {range(4).map((i) => (
+        <div className="cj-mail" key={i}>
+          <Sk w="48%" h={18} />
+          <Sk w="64%" h={14} style={{ marginTop: 8 }} />
+          <Sk w="90%" h={14} style={{ marginTop: 8 }} />
+        </div>
+      ))}
+    </section>
+  );
+}
+
 export function FormSkeleton() {
   // One cell of a joined field group: a short label line inside a 50px box, like the real fields.
   const cell = (key: number, w = 90) => (

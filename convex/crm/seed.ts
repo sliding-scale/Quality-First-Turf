@@ -102,7 +102,7 @@ export const reset = internalMutation({
     devOnly();
     let deleted = 0;
     // One transaction can only touch so many rows; the sample set is small, so a few batches are plenty.
-    for (const table of ["opportunityNotes", "opportunityTasks", "stageHistory", "pipelineStages", "quoteNotes", "quoteLineItems", "quotes", "clientNotes", "opportunities", "clients", "businesses"] as const) {
+    for (const table of ["clientMailBodies", "clientMailMessages", "clientMailThreads", "zohoWatchedAddresses", "zohoMailSync", "opportunityNotes", "opportunityTasks", "stageHistory", "pipelineStages", "quoteNotes", "quoteLineItems", "quotes", "clientNotes", "opportunities", "clients", "businesses"] as const) {
       for (let batch = 0; batch < 20; batch++) {
         const rows = await ctx.db.query(table).take(400);
         if (rows.length === 0) break;

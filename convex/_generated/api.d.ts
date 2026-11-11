@@ -11,6 +11,7 @@
 import type * as crm_businesses from "../crm/businesses.js";
 import type * as crm_clerkWebhook from "../crm/clerkWebhook.js";
 import type * as crm_clientImport from "../crm/clientImport.js";
+import type * as crm_clientMail from "../crm/clientMail.js";
 import type * as crm_clientQuote from "../crm/clientQuote.js";
 import type * as crm_clients from "../crm/clients.js";
 import type * as crm_devBoardDemo from "../crm/devBoardDemo.js";
@@ -30,6 +31,7 @@ import type * as crm_lib_schedule from "../crm/lib/schedule.js";
 import type * as crm_lib_stages from "../crm/lib/stages.js";
 import type * as crm_lib_svix from "../crm/lib/svix.js";
 import type * as crm_lib_systemMove from "../crm/lib/systemMove.js";
+import type * as crm_lib_zohoMail from "../crm/lib/zohoMail.js";
 import type * as crm_opportunityTasks from "../crm/opportunityTasks.js";
 import type * as crm_pipeline from "../crm/pipeline.js";
 import type * as crm_projects from "../crm/projects.js";
@@ -43,6 +45,7 @@ import type * as crm_sampleData from "../crm/sampleData.js";
 import type * as crm_schedule from "../crm/schedule.js";
 import type * as crm_seed from "../crm/seed.js";
 import type * as crm_users from "../crm/users.js";
+import type * as crm_zohoMailSync from "../crm/zohoMailSync.js";
 import type * as crons from "../crons.js";
 import type * as http from "../http.js";
 import type * as jobber_client from "../jobber/client.js";
@@ -83,6 +86,7 @@ declare const fullApi: ApiFromModules<{
   "crm/businesses": typeof crm_businesses;
   "crm/clerkWebhook": typeof crm_clerkWebhook;
   "crm/clientImport": typeof crm_clientImport;
+  "crm/clientMail": typeof crm_clientMail;
   "crm/clientQuote": typeof crm_clientQuote;
   "crm/clients": typeof crm_clients;
   "crm/devBoardDemo": typeof crm_devBoardDemo;
@@ -102,6 +106,7 @@ declare const fullApi: ApiFromModules<{
   "crm/lib/stages": typeof crm_lib_stages;
   "crm/lib/svix": typeof crm_lib_svix;
   "crm/lib/systemMove": typeof crm_lib_systemMove;
+  "crm/lib/zohoMail": typeof crm_lib_zohoMail;
   "crm/opportunityTasks": typeof crm_opportunityTasks;
   "crm/pipeline": typeof crm_pipeline;
   "crm/projects": typeof crm_projects;
@@ -115,6 +120,7 @@ declare const fullApi: ApiFromModules<{
   "crm/schedule": typeof crm_schedule;
   "crm/seed": typeof crm_seed;
   "crm/users": typeof crm_users;
+  "crm/zohoMailSync": typeof crm_zohoMailSync;
   crons: typeof crons;
   http: typeof http;
   "jobber/client": typeof jobber_client;

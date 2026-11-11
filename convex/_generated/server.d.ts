@@ -42,6 +42,12 @@ type Env = {
   readonly SALES_EMAIL: string | undefined;
   readonly SALES_NAME: string | undefined;
   readonly SALES_PASSWORD: string | undefined;
+  readonly ZOHO_ACCOUNTS_URL: string | undefined;
+  readonly ZOHO_CLIENT_ID: string | undefined;
+  readonly ZOHO_CLIENT_SECRET: string | undefined;
+  readonly ZOHO_MAILBOX: string | undefined;
+  readonly ZOHO_MAIL_API_URL: string | undefined;
+  readonly ZOHO_REFRESH_TOKEN: string | undefined;
 };
 
 /**

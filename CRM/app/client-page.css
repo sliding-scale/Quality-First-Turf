@@ -86,6 +86,41 @@
 .cj-msg { width: 100%; text-align: left; }
 .cj-msg .when { font-size: 12px; color: #49646f; }
 .cj-msg p { margin: 6px 0 0; color: var(--text); }
+
+/* Email on the Communication tab (D-064). Read only: there is no reply, send, delete or mark-as-read control. */
+.cj-mail-sync { margin-top: 2px; font-size: 12px; font-weight: 400; color: #49646f; }
+.cj-mail-note { margin: 0; padding: 0 16px 12px; color: #49646f; font-size: 13px; }
+.cj-mail-error { margin: 0 16px 12px; color: var(--red); font-size: 13px; }
+.cj-thread { border-top: 1px solid #dadfe2; }
+.cj-mail { display: block; width: 100%; padding: 14px 16px; border: 0; background: transparent; text-align: left; color: inherit; font: inherit; }
+.cj-mail + .cj-mail { border-top: 1px solid #dadfe2; }
+button.cj-mail, button.cj-mail-line { cursor: pointer; transition: background-color 0.15s ease; }
+button.cj-mail:hover, button.cj-mail-line:hover { background: #f6f5f1; }
+.cj-mail-top { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+.cj-mail-top b { color: var(--ink); font-weight: 700; }
+.cj-mail-top .when { flex: none; font-size: 12px; color: #49646f; }
+.cj-mail-meta { display: flex; flex-wrap: wrap; gap: 8px 12px; margin-top: 4px; color: #49646f; font-size: 13px; }
+.cj-dir { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; }
+.cj-dir i { width: 8px; height: 8px; border-radius: 50%; background: #7c98a3; }
+.cj-dir.out { color: #246318; }
+.cj-dir.out i { background: #388523; }
+.cj-mail-preview { margin: 6px 0 0; color: var(--text); font-size: 14px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.cj-mail-count { margin-top: 6px; color: #49646f; font-size: 12px; }
+.cj-thread-body { padding: 0 8px 8px 16px; }
+.cj-mail-line { display: block; width: 100%; margin-top: 8px; padding: 10px 12px; border: 1px solid #dadfe2; border-radius: 8px; background: #fff; text-align: left; color: inherit; font: inherit; }
+.cj-mail-line.open { border-color: #388523; }
+.cj-mail-body { margin: 8px 12px 4px; padding: 12px 0 4px; border-top: 1px solid #dadfe2; color: var(--text); font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+.cj-mail-body p { margin: 0 0 8px; }
+.cj-mail-body a { color: #388523; }
+.cj-mail-body blockquote { margin: 8px 0; padding-left: 12px; border-left: 2px solid #dadfe2; color: #49646f; }
+.cj-mail-body table { max-width: 100%; }
+.cj-mail-images { margin: 0 0 8px; color: #49646f; font-size: 13px; }
+.cj-mail-more { display: flex; justify-content: center; padding: 12px 16px 16px; }
+.cj-chev { display: inline-block; margin-right: 6px; transition: transform 0.15s ease; }
+.cj-thread.open .cj-chev { transform: rotate(90deg); }
+@media (prefers-reduced-motion: reduce) {
+  .cj-chev, button.cj-mail, button.cj-mail-line { transition: none; }
+}
 .cj-media-empty { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 36px 16px 24px; color: #49646f; text-align: center; }
 .cj-media-ic { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; background: #eef1f2; }
 .cj-tiles { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 12px; }
