@@ -25,8 +25,27 @@ const inter = localFont({
   ],
 });
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://launchpad.qualityfirstturf.com";
+const DESCRIPTION = "Quality First Turf's CRM: clients, requests and quotes in one place.";
+
+// The preview image is a plain file in public/, not a generated route: the proxy sends signed-out visitors (and link-preview bots) to the
+// sign-in page for any route, but lets static image files through.
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: { default: "Quality First Turf CRM", template: "%s · Quality First Turf CRM" },
+  description: DESCRIPTION,
+  icons: {
+    icon: [{ url: "/brand/favicon.png", type: "image/png", sizes: "300x300" }],
+    apple: [{ url: "/brand/favicon-full.png", type: "image/png" }],
+  },
+  openGraph: {
+    type: "website",
+    siteName: "Quality First Turf",
+    title: "Quality First Turf CRM",
+    description: DESCRIPTION,
+    images: [{ url: "/brand/preview.png", width: 1200, height: 630, alt: "Quality First Turf" }],
+  },
+  twitter: { card: "summary_large_image", title: "Quality First Turf CRM", description: DESCRIPTION, images: ["/brand/preview.png"] },
 };
 
 // Sets the collapsed-sidebar class before first paint so the page does not jump.

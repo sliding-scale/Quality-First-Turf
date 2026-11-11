@@ -25,6 +25,13 @@ export function useRequestList(businessId: Id<"businesses">, filters: RequestFil
   return useKept(useQuery(api.crm.requests.list, { businessId, ...filters, today: startOfToday(), page, size }));
 }
 
+export { failure, usePeople } from "./pipeline";
+
+export function useRequest(id: string) {
+  // An id that is not a request id makes the query throw; the page treats that as "not found".
+  return useQuery(api.crm.requests.get, { id: id as Id<"opportunities">, today: startOfToday() });
+}
+
 export function useRequestStats(businessId: Id<"businesses">) {
   return useKept(useQuery(api.crm.requests.stats, { businessId, today: startOfToday() }));
 }

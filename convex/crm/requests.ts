@@ -1,8 +1,11 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
-import { query, type QueryCtx } from "../_generated/server";
-import { requireBusiness } from "./lib/access";
-import { DAY_MS, REQUEST_STATUSES, requestStatus, type RequestStatus } from "./lib/stages";
+import { mutation, query, type QueryCtx } from "../_generated/server";
+import { newShortCode } from "../projects/shortCode";
+import { requireBusiness, requireEditor } from "./lib/access";
+import { checkAssignee } from "./lib/assignees";
+import { opportunitySearchText } from "./lib/clientInput";
+import { DAY_MS, REQUEST_STATUSES, SALES_STAGES, requestStatus, type RequestStatus } from "./lib/stages";
 
 /* Requests (D-039): not a table. A request is a Sales-pipeline project (`opportunities`) seen through its stage, and its
    status is worked out from the stage and age here. Same bounded-read approach as clients.ts. */
@@ -76,12 +79,15 @@ type RequestRow = {
   status: RequestStatus;
   requestedAt: number;
   property: string;
+  salespersonId: Id<"users"> | undefined;
+  salespersonName: string;
   client: { name: string; contactName: string; company: string; phone: string; email: string };
 };
 
 async function matching(ctx: QueryCtx, a: FilterArgs) {
   const docs = await loadSales(ctx, a);
   const rows: RequestRow[] = [];
+  const people = new Map((await ctx.db.query("users").take(500)).map((u) => [u._id, u.name]));
   for (const o of docs) {
     const status = requestStatus(o.stage, o.requestedAt, a.today);
     if (a.status !== "All" && status !== a.status) continue;
@@ -96,6 +102,8 @@ async function matching(ctx: QueryCtx, a: FilterArgs) {
       status,
       requestedAt: o.requestedAt,
       property: client.street1 ? `${client.street1}, ${client.city}, ${client.state} ${client.zip}` : "",
+      salespersonId: o.salespersonId,
+      salespersonName: o.salespersonId ? (people.get(o.salespersonId) ?? "") : "Unassigned",
       client: { name: client.name, contactName: client.contactName, company: client.company, phone: client.phone, email: client.email },
     });
   }
@@ -119,6 +127,39 @@ export const list = query({
     const pages = Math.max(1, Math.ceil(rows.length / size));
     const page = Math.min(Math.max(Math.floor(args.page), 1), pages);
     return { rows: rows.slice((page - 1) * size, page * size), total: rows.length, page, capped };
+  },
+});
+
+/** One request, for its own page (laid out like Jobber's request page). null when it does not exist, is not in the Sales pipeline, or the caller has no access. */
+export const get = query({
+  args: { id: v.id("opportunities"), today: v.number() },
+  handler: async (ctx, args) => {
+    const o = await ctx.db.get(args.id);
+    if (o === null || o.pipeline !== "Sales") return null;
+    await requireBusiness(ctx, o.businessId);
+    const client = await ctx.db.get(o.clientId);
+    if (client === null) return null;
+    const person = o.salespersonId ? await ctx.db.get(o.salespersonId) : null;
+    // The assessment is the project's consultation: the next one booked, or else the latest.
+    const events = await ctx.db.query("calendarEvents").withIndex("by_business_and_start", (q) => q.eq("businessId", o.businessId)).order("desc").take(2000);
+    const consults = events.filter((e) => e.type === "consultation" && e.opportunityId === o._id).map((e) => e.start);
+    const upcoming = consults.filter((s) => s >= args.today).sort((a, b) => a - b)[0];
+    return {
+      id: o._id,
+      businessId: o.businessId,
+      clientId: o.clientId,
+      code: o.code,
+      title: o.title,
+      stage: o.stage,
+      status: requestStatus(o.stage, o.requestedAt, args.today),
+      requestedAt: o.requestedAt,
+      leadSource: o.leadSource ?? "",
+      details: o.details ?? "",
+      salespersonId: o.salespersonId,
+      salespersonName: person ? person.name : "Unassigned",
+      assessmentAt: upcoming ?? consults.sort((a, b) => b - a)[0] ?? null,
+      client: { name: client.name, street1: client.street1, city: client.city, state: client.state, zip: client.zip, phone: client.phone, email: client.email },
+    };
   },
 });
 
@@ -157,5 +198,47 @@ export const stats = query({
       conversionRate: rate(windows.now),
       conversionRateBefore: rate(windows.earlier),
     };
+  },
+});
+
+/** "New Request" (Jobber's form): a new project in the Sales pipeline at the first stage, for an existing client. */
+export const create = mutation({
+  args: {
+    businessId: v.id("businesses"),
+    clientId: v.id("clients"),
+    title: v.string(),
+    salespersonId: v.optional(v.id("users")),
+    details: v.optional(v.string()),
+    note: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const staff = await requireEditor(ctx, args.businessId);
+    const title = args.title.trim();
+    if (!title) throw new ConvexError("Give the request a title.");
+    if (title.length > 200) throw new ConvexError("The title is too long.");
+    const client = await ctx.db.get(args.clientId);
+    if (client === null || client.businessId !== args.businessId) throw new ConvexError("Pick a client from this business.");
+    await checkAssignee(ctx, args.salespersonId, args.businessId);
+    const details = (args.details ?? "").trim().slice(0, 5000);
+    const stage = SALES_STAGES[0]; // New Request
+    const code = await newShortCode(ctx);
+    const now = Date.now();
+    const id = await ctx.db.insert("opportunities", {
+      businessId: args.businessId,
+      clientId: client._id,
+      code,
+      title,
+      pipeline: "Sales",
+      stage,
+      requestedAt: now,
+      stageEnteredAt: now,
+      owner: "Unassigned",
+      salespersonId: args.salespersonId,
+      details: details || undefined,
+      searchText: opportunitySearchText(client, { title, code, stage }),
+    });
+    const note = (args.note ?? "").trim().slice(0, 5000);
+    if (note) await ctx.db.insert("opportunityNotes", { opportunityId: id, text: note, author: staff.name, createdAt: now });
+    return id;
   },
 });

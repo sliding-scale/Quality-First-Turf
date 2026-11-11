@@ -106,11 +106,11 @@ export type ViewAction = { key: "request" | "quote" | "schedule"; label: string;
 
 /** The "View ..." choices on a card: a quote's card offers View Quote (not View Request); a card whose consultation is scheduled also
  *  offers View Schedule. It opens the Schedule at the week of the project's consultation; with none booked it has no destination and is greyed. */
-export function viewActions(card: { group: BoardGroup; stage: string; clientId: string; quoteId?: string; consultationAt?: number }): ViewAction[] {
+export function viewActions(card: { id: string; group: BoardGroup; stage: string; clientId: string; quoteId?: string; consultationAt?: number }): ViewAction[] {
   const quote = card.group === "Quotes" || (card.group === "Closed" && card.quoteId !== undefined);
   const list: ViewAction[] = quote
     ? [{ key: "quote", label: "View Quote", ...(card.quoteId ? { href: `/quotes/${card.quoteId}` } : {}) }]
-    : [{ key: "request", label: "View Request", href: `/clients/${card.clientId}` }];
+    : [{ key: "request", label: "View Request", href: `/requests/${card.id}` }];
   if (card.stage === "Onsite Consultation") {
     list.push({ key: "schedule", label: "View Schedule", ...(card.consultationAt !== undefined ? { href: `/schedule?view=week&date=${dayKey(card.consultationAt, BUSINESS_TZ)}` } : {}) });
   }

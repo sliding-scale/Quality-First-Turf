@@ -40,8 +40,8 @@ export function useUI(): UI {
 
 const CREATE_ITEMS: { label: string; icon: string; color: string; href?: string; soon?: string }[] = [
   { label: "Client", icon: "user", color: "var(--ink)", href: "/clients/new" },
-  { label: "Request", icon: "inbox", color: "var(--orange)", soon: "Requests" },
-  { label: "Quote", icon: "quote", color: "var(--burgundy)", soon: "Quotes" },
+  { label: "Request", icon: "inbox", color: "var(--orange)", href: "/requests/new" },
+  { label: "Quote", icon: "quote", color: "var(--burgundy)", href: "/quotes/new" },
   { label: "Job", icon: "hammer", color: "var(--green)", soon: "Jobs" },
   { label: "Invoice", icon: "receipt", color: "var(--navy)", soon: "Invoices" },
 ];

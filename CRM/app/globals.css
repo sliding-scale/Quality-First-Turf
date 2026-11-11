@@ -507,6 +507,18 @@ input, select, textarea { font: inherit; color: var(--text); }
 .auth-page { position: fixed; inset: 0; background: #ffffff; overflow: auto; display: flex; }
 /* margin: auto centres the column both ways, and still lets a short screen scroll to the top of it. */
 .auth-col { width: 328px; max-width: calc(100% - 32px); margin: auto; padding: 32px 0; animation: fade-in 0.25s ease-out both; }
+.auth-main { flex: 1 1 50%; min-width: 0; display: flex; }
+.auth-logo { display: block; width: 150px; height: auto; margin: 0 auto 26px; }
+.auth-head { text-align: center; margin: 0 0 22px; }
+.auth-head h1 { margin: 0 0 6px; font-size: 26px; line-height: 1.2; }
+.auth-head p { margin: 0; color: var(--muted); font-size: 15px; }
+.auth-hero { position: relative; flex: 1 1 50%; min-width: 0; overflow: hidden; background: #1c3a26; }
+.auth-hero img { object-fit: cover; }
+.auth-hero-shade { position: absolute; inset: 0; background: linear-gradient(to top, rgba(6, 36, 26, 0.72), rgba(6, 36, 26, 0.05) 55%); }
+.auth-hero-text { position: absolute; left: 48px; right: 48px; bottom: 44px; color: #fff; }
+.auth-hero-text p { margin: 0 0 6px; font-family: var(--font-figtree), sans-serif; font-weight: 800; font-size: 34px; line-height: 1.15; }
+.auth-hero-text span { font-size: 17px; opacity: 0.9; }
+@media (max-width: 900px) { .auth-hero { display: none; } }
 /* A few px of room each side, so the fields (which Clerk draws 1px wider than its column) are never clipped. */
 .auth-signin { padding: 0 4px; }
 /* Clerk's blocks, rearranged to match Jobber's login. These use Clerk's stable cl-* class names. */
@@ -1032,3 +1044,26 @@ span.member-name { color: var(--muted); cursor: default; }
   .toolbar .chips::-webkit-scrollbar { display: none; }
   .toolbar .chips > * { flex: none; white-space: nowrap; }
 }
+
+/* ---------- one request (D-039), like Jobber's request page ---------- */
+.rq-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.rq-back { display: inline-flex; align-items: center; gap: 4px; color: var(--green); font-weight: 600; text-decoration: none; }
+.rq-back:hover { color: var(--green-dark); text-decoration: underline; }
+.rq-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 20px; }
+.rq-title h1 { margin: 0; }
+.rq-grid { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(0, 1.4fr); gap: 24px; align-items: start; }
+.rq-client { padding: 16px 20px; display: grid; gap: 2px; color: var(--text); }
+.rq-clientname { color: var(--ink); font-weight: 700; font-size: 16px; text-decoration: none; margin-bottom: 4px; }
+.rq-clientname:hover { color: var(--green); text-decoration: underline; }
+.rq-gap { margin-top: 10px; }
+.rq-facts { margin: 0; }
+.rq-facts > div { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 12px; align-items: center; min-height: 44px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.rq-facts dt { color: var(--muted); }
+.rq-facts dd { margin: 0; color: var(--ink); }
+.rq-select select { height: 40px; width: 100%; max-width: 320px; }
+.rq-facts > .rq-editbar { display: flex; justify-content: flex-end; gap: 10px; border-bottom: 0; grid-template-columns: none; padding-top: 14px; }
+@media (max-width: 900px) { .rq-grid { grid-template-columns: 1fr; } .rq-facts > div { grid-template-columns: 130px minmax(0, 1fr); } }
+.rq-overview { margin-top: 24px; padding: 18px 20px; }
+.rq-overview h2 { margin: 0 0 12px; }
+.rq-overview h3 { margin: 0 0 4px; font-size: 15px; }
+.rq-overview p { margin: 0; white-space: pre-wrap; color: var(--text); }

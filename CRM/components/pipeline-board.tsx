@@ -5,6 +5,7 @@
    writes the history. Closed Won and Closed Lost are not columns: while a card is dragged, two targets appear for them. */
 
 import { useMutation } from "convex/react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type TouchEvent as ReactTouchEvent } from "react";
 import { api } from "@/convex/_generated/api";
@@ -342,7 +343,9 @@ export function PipelineBoard({ business }: { business: BusinessDoc }) {
                 <div className="pl-rail">
                   <span className="pl-badge" data-tip={`${board.groups[group].count} in ${group}`}>{board.groups[group].count}</span>
                   <span className="pl-vlabel">{group}</span>
-                  {group !== "Closed" && <button type="button" className="pl-railbtn" disabled aria-label={group === "Requests" ? "New request" : "New quote"}><Icon name="plus" size={18} /></button>}
+                  {group !== "Closed" && (canEdit
+                    ? <Link className="pl-railbtn" href={group === "Requests" ? "/requests/new" : "/quotes/new"} aria-label={group === "Requests" ? "New request" : "New quote"}><Icon name="plus" size={18} /></Link>
+                    : <button type="button" className="pl-railbtn" disabled aria-label={group === "Requests" ? "New request" : "New quote"}><Icon name="plus" size={18} /></button>)}
                   <button
                     type="button"
                     className="pl-railbtn pl-fold"

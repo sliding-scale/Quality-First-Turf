@@ -10,6 +10,10 @@ export const metadata: Metadata = { title: "Log in" };
 export default function Page() {
   return (
     <SignInShell>
+      <div className="auth-head">
+        <h1>Welcome back</h1>
+        <p>Log in to the Quality First Turf CRM.</p>
+      </div>
       {/* Shown until Clerk's form has drawn itself (see .auth-skel in globals.css), so the page never opens on just the note below. */}
       <div className="auth-skel" role="status" aria-busy="true">
         <span className="sr">Loading the sign-in form…</span>

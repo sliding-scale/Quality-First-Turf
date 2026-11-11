@@ -5,6 +5,7 @@
    (convex/crm/requests.ts) does the filtering, sorting, counting and paging; this file only asks and shows. */
 
 import { useConvex } from "convex/react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api } from "@/convex/_generated/api";
@@ -73,6 +74,7 @@ function Requests({ business, initialQuery }: { business: BusinessDoc; initialQu
 
   if (data === undefined || stats === undefined) return <RequestsSkeleton />;
 
+
   const { rows, total } = data;
   const current = data.page;
   const pages = Math.max(1, Math.ceil(total / size));
@@ -112,9 +114,9 @@ function Requests({ business, initialQuery }: { business: BusinessDoc; initialQu
   async function exportCsv() {
     const all = await convex.query(api.crm.requests.exportRows, { businessId: business._id, ...filters, today: new Date().setHours(0, 0, 0, 0) });
     const esc = (s: string | number | null | undefined) => `"${String(s == null ? "" : s).replace(/"/g, '""')}"`;
-    const head = ["Client", "Title", "Project", "Property", "Phone", "Email", "Requested", "Status", "Stage", "Business"];
+    const head = ["Client", "Title", "Project", "Property", "Phone", "Email", "Requested", "Status", "Stage", "Salesperson", "Business"];
     const csv = [head.join(",")]
-      .concat(all.map((r) => [r.client.name, r.title, r.code, r.property, r.client.phone, r.client.email, dayLabel(daysAgoFrom(r.requestedAt)), r.status, r.stage, business.name].map(esc).join(",")))
+      .concat(all.map((r) => [r.client.name, r.title, r.code, r.property, r.client.phone, r.client.email, dayLabel(daysAgoFrom(r.requestedAt)), r.status, r.stage, r.salespersonName, business.name].map(esc).join(",")))
       .join("\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
     const a = document.createElement("a");
@@ -132,7 +134,7 @@ function Requests({ business, initialQuery }: { business: BusinessDoc; initialQu
       <div className="page-head">
         <h1>Requests</h1>
         <div className="actions">
-          <button className="btn primary" type="button" disabled>New Request</button>
+          <Link className="btn primary" href="/requests/new">New Request</Link>
           <button
             className="btn"
             type="button"
@@ -248,7 +250,7 @@ function Requests({ business, initialQuery }: { business: BusinessDoc; initialQu
                 const c = r.client;
                 const sub = c.company && c.name !== c.company ? c.company : c.company ? `Contact: ${c.contactName}` : "";
                 return (
-                  <tr key={r.id} className="click" onClick={() => router.push(`/clients/${r.clientId}`)}>
+                  <tr key={r.id} className="click" onClick={() => router.push(`/requests/${r.id}`)}>
                     <td>
                       <div className="strong" title={c.name}>{c.name}</div>
                       {sub && <div className="sub" title={sub}>{sub}</div>}

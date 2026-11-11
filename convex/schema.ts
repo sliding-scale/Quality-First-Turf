@@ -285,6 +285,8 @@ export default defineSchema({
     stageEnteredAt: v.optional(v.number()),
     leadSource: v.optional(v.string()),
     salespersonId: v.optional(v.id("users")),
+    /** "Service details" typed on a request made in the CRM (Jobber's New Request form). Requests from the customer form have none. */
+    details: v.optional(v.string()),
     outcome: v.optional(v.union(v.literal("won"), v.literal("lost"))),
     closedAt: v.optional(v.number()),
     lostReason: v.optional(v.string()),

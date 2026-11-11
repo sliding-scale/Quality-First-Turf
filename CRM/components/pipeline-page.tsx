@@ -53,7 +53,7 @@ function Pipeline({ business }: { business: BusinessDoc }) {
             <button
               type="button"
               className="btn primary"
-              onClick={(e) => dropdown(e.currentTarget, [{ label: "Request", icon: "inbox", disabled: true }, { label: "Quote", icon: "quote", disabled: true }], { alignRight: true })}
+              onClick={(e) => dropdown(e.currentTarget, [{ label: "Request", icon: "inbox", disabled: !canEdit, onSelect: () => router.push("/requests/new") }, { label: "Quote", icon: "quote", disabled: !canEdit, onSelect: () => router.push("/quotes/new") }], { alignRight: true })}
             >
               <Icon name="plus" size={18} /> Add New
             </button>

@@ -284,6 +284,46 @@ export function RequestsSkeleton() {
   );
 }
 
+export function NewRequestSkeleton() {
+  return (
+    <Busy>
+      <div className="page-head"><h1><Sk w={200} h={32} /></h1></div>
+      <section className="qb-card qb-head">
+        <Sk w="100%" h={46} r={8} />
+        <div className="qb-headgrid">
+          <div className="qb-left"><Sk w="100%" h={46} r={8} /></div>
+          <div style={{ display: "grid", gap: 12 }}><Sk w="70%" h={20} /><Sk w="100%" h={40} r={8} /></div>
+        </div>
+      </section>
+      <section className="qb-card"><Sk w={120} h={24} /><Sk w="100%" h={90} r={8} /></section>
+      <section className="qb-card"><Sk w={80} h={24} /><Sk w="100%" h={90} r={8} /></section>
+    </Busy>
+  );
+}
+
+export function RequestSkeleton() {
+  return (
+    <Busy>
+      <div className="rq-top"><Sk w={90} h={20} /><Sk w={96} h={24} r={999} /></div>
+      <div className="rq-title"><h1><Sk w={360} h={36} /></h1></div>
+      <div className="rq-grid">
+        <div className="card rq-client">
+          <Sk w={140} h={18} />
+          <Sk w="80%" h={16} />
+          <Sk w="55%" h={16} />
+          <Sk w={120} h={16} style={{ marginTop: 10 }} />
+          <Sk w={180} h={16} />
+        </div>
+        <dl className="rq-facts">
+          {range(4).map((i) => (
+            <div key={i}><dt><Sk w={110} h={16} /></dt><dd><Sk w={150} h={16} /></dd></div>
+          ))}
+        </dl>
+      </div>
+    </Busy>
+  );
+}
+
 export function UsersSkeleton() {
   return (
     <Busy>
