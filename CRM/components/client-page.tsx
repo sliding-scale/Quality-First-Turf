@@ -46,6 +46,8 @@ export function ClientPage({ id }: { id: string }) {
 /** Back to the clients list on the page they came from. The address is filled in after paint so the server and the browser agree. */
 function BackToClients({ className, children }: { className?: string; children: React.ReactNode }) {
   const [href, setHref] = useState("/clients");
+  // The saved place lives in the tab's storage, which the server cannot read, so it can only be applied after the first paint.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setHref(clientsReturnHref()); }, []);
   return <Link className={className} href={href}>{children}</Link>;
 }

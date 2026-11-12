@@ -256,7 +256,7 @@ export function ScheduleForm({ businessId, people, hours, initial, editing, show
               <button
                 type="button"
                 id="sc-date"
-                className={`sc-date${date ? "" : " empty"}`}
+                className={`sc-date${date ? "" : " blank"}`}
                 aria-invalid={!!bad.date}
                 aria-haspopup="dialog"
                 onClick={(e) => popover(e.currentTarget, (closeMenu) => (
@@ -329,7 +329,7 @@ function defaultStart(): number {
 }
 
 function DayPicker({ selected, onPick }: { selected: string; onPick: (key: string) => void }) {
-  const today = todayKey(Date.now());
+  const [today] = useState(() => todayKey(Date.now()));
   const [shown, setShown] = useState(selected || today);
   const days = monthDays(shown);
   const month = parseKey(shown).m;

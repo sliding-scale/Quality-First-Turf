@@ -293,7 +293,7 @@ function MonthGrid(p: GridProps) {
           return (
             <div
               key={key}
-              className={`sc-mcell${outside ? " outside" : ""}${off ? " off" : ""}`}
+              className={`sc-mcell${outside ? " outside" : ""}${off ? " off" : ""}${!narrow && openMore === key ? " open" : ""}`}
               onClick={() => (narrow ? p.onOpenDay(key) : p.canEdit && p.onEmptySlot(dayStartMs(key) + 9 * 3_600_000))}
               aria-label={narrow ? `${parseKey(key).d}, ${list.length} item${list.length === 1 ? "" : "s"}` : undefined}
               onDragOver={(e) => { if (p.canEdit && e.dataTransfer.types.includes(DRAG_TYPE)) e.preventDefault(); }}

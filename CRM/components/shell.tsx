@@ -80,12 +80,14 @@ function Brand() {
   const align = useMutation(api.crm.businesses.alignNames);
   const aligning = useRef(false);
   const turfName = workspace.state === "ready" ? workspace.businesses.find((b) => b.slug === "quality-first-turf")?.name : undefined;
+  // Also true while any business still has an old name, such as "Quality First Construction".
+  const oldName = workspace.state === "ready" && workspace.businesses.some((b) => b.name === "Quality First Construction" || b.name === "Quality First Turf");
   // The stored name was "Quality First Turf". Rename it once, in place, the first time someone opens the CRM (D-066).
   useEffect(() => {
-    if (turfName === undefined || turfName === "Quality First Turf Landscape" || aligning.current) return;
+    if (turfName === undefined || (turfName === "Quality First Turf Landscape" && !oldName) || aligning.current) return;
     aligning.current = true;
     void align().catch(() => { aligning.current = false; });
-  }, [turfName, align]);
+  }, [turfName, oldName, align]);
   return (
     <button
       type="button"

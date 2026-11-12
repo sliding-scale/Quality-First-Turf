@@ -77,11 +77,12 @@
 .sc-mcell { min-height: 92px; min-width: 0; padding: 4px; border-right: 1px solid #eeece7; border-bottom: 1px solid #eeece7; overflow: hidden; display: flex; flex-direction: column; gap: 2px; cursor: default; transition: background-color 0.15s ease; }
 .sc-mcell:hover { background: #fbfbfa; }
 .sc-mcell.off { background: #f7f6f3; }
+.sc-mcell.open { overflow: visible; align-self: start; position: relative; z-index: 4; background: #fff; border-radius: 8px; box-shadow: 0 6px 24px rgba(3, 43, 58, 0.22); }
 .sc-mcell.outside { background: #efefec; color: #9aa6ac; }
 .sc-mnum { align-self: flex-start; min-width: 24px; height: 24px; padding: 0 6px; border: 0; border-radius: 999px; background: none; font-size: 13px; font-weight: 600; color: #233d48; cursor: pointer; transition: background-color 0.15s ease; }
 .sc-mnum:hover:not(.today) { background: #eeece7; }
 .sc-mnum.today { background: #2f7bc0; color: #fff; }
-.sc-mchip { display: flex; gap: 4px; padding: 1px 6px; border-left: 4px solid; border-radius: 4px; font-size: 12px; color: #233d48; cursor: pointer; overflow: hidden; white-space: nowrap; transition: box-shadow 0.15s ease; }
+.sc-mchip { flex: none; display: flex; gap: 4px; padding: 1px 6px; border-left: 4px solid; border-radius: 4px; font-size: 12px; color: #233d48; cursor: pointer; overflow: hidden; white-space: nowrap; transition: box-shadow 0.15s ease; }
 .sc-mchip:hover { box-shadow: 0 1px 5px rgba(3, 43, 58, 0.25); }
 .sc-mchip.done { opacity: 0.6; text-decoration: line-through; }
 .sc-mtime { flex: none; color: #49646f; }
@@ -155,7 +156,7 @@
 .sc-when > * { min-width: 0; }
 .sc-when > :only-child { grid-column: 1 / -1; }
 .sc-date { height: 52px; width: 100%; border: 1px solid var(--line); border-radius: 8px; background: #fff; padding: 0 12px; text-align: left; font-weight: 500; color: var(--ink); cursor: pointer; }
-.sc-date.empty { color: #7d8b92; font-weight: 400; }
+.sc-date.blank { color: #7d8b92; font-weight: 400; }
 .sc-date:hover { background: #f6f8f8; }
 .sc-date:focus-visible { outline: 2px solid var(--green); border-color: var(--green); }
 .field.bad .sc-date { border-color: #b3261e; }

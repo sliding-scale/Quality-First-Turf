@@ -103,6 +103,8 @@ function Clients({ business, initialQuery, saved, list }: { business: BusinessDo
     if (fromAddress) return;
     const stored = readClientsPlace();
     if (stored) {
+      // The saved place is in the tab's storage, which the server cannot read, so it is applied once after the first paint.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setQ(stored.q);
       setSearch(stored.q);
       setTags(stored.tags);
