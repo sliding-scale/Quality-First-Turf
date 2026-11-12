@@ -251,3 +251,17 @@ describe("automations: who can change them", () => {
     await expect(settings(w, "test", "")).rejects.toThrow(/test email/);
   });
 });
+
+describe("automations: turning them on from the command line", () => {
+  it("makes the rows, sets every business to the mode, and starts the follow-up clock at that moment", async () => {
+    const w = await seeded();
+    const r = await w.base.mutation(internal.crm.automations.setModeEverywhere, { mode: "live", now: T0 });
+    expect(r.changed).toBe(3);
+    const o = await w.sales.query(api.crm.automations.overview, { businessId: w.qft });
+    expect(o.mode).toBe("live");
+    expect(o.ready).toBe(true);
+    const rows = await w.base.run((ctx) => ctx.db.query("automations").collect());
+    expect(rows.every((x) => x.activeSince === T0 && x.active)).toBe(true);
+    expect((await w.base.mutation(internal.crm.automations.setModeEverywhere, { mode: "live", now: T0 + 1 })).changed).toBe(0);
+  });
+});

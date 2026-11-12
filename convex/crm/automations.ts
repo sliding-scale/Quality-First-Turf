@@ -396,3 +396,21 @@ export const mailAccountId = internalQuery({
     return sync?.accountId ?? "";
   },
 });
+
+/** Sets the sending mode for every business from the command line (`npx convex run crm/automations:setModeEverywhere '{"mode":"live"}'`), for turning
+ *  the automations on at launch without a click. Internal: it cannot be called from the app. Makes the rows first, so the follow-up clock starts now. */
+export const setModeEverywhere = internalMutation({
+  args: { mode: modeV, now: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const now = args.now ?? Date.now();
+    let changed = 0;
+    for (const b of await ctx.db.query("businesses").take(50)) {
+      const { settings } = await ensureRows(ctx, b._id, now, SYSTEM);
+      if (settings.mode !== args.mode) {
+        await ctx.db.patch(settings._id, { mode: args.mode, updatedAt: now, updatedByName: SYSTEM });
+        changed += 1;
+      }
+    }
+    return { changed };
+  },
+});
