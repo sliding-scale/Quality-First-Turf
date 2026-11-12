@@ -4,6 +4,8 @@ import { mutation, query, type QueryCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { canSee, requireBusiness, requireEditor, requireStaff } from "./lib/access";
 import { deleteQuote } from "./lib/quoteData";
+import { attachmentLinks, checkNoteFiles, deleteNoteFiles, noteFilesArg } from "./lib/noteFiles";
+import { toggleCheckbox } from "./lib/noteText";
 import { clientInputFields, clientSearchText, normalizeClientInput, opportunitySearchText } from "./lib/clientInput";
 import { CLIENT_TAGS, DAY_MS, matchesClientStatusFilter, type ClientStatusFilter } from "./lib/stages";
 
@@ -263,7 +265,10 @@ export const remove = mutation({
         throw new ConvexError(`${client.name} has too much attached to delete in one go. Archive it instead.`);
       }
       for (const p of r.projects) await ctx.db.delete(p._id);
-      for (const n of r.notes) await ctx.db.delete(n._id);
+      for (const n of r.notes) {
+        await deleteNoteFiles(ctx, n.attachments);
+        await ctx.db.delete(n._id);
+      }
       for (const q of r.quotes) await deleteQuote(ctx, q);
       await ctx.db.delete(id);
       if (r.emails.length > 0) await ctx.scheduler.runAfter(0, internal.crm.clientMail.deleteClientMail, { clientId: id });
@@ -279,19 +284,39 @@ export const notes = query({
     const client = await ctx.db.get(args.clientId);
     if (client === null) return [];
     await requireBusiness(ctx, client.businessId);
-    return await ctx.db.query("clientNotes").withIndex("by_clientId", (q) => q.eq("clientId", args.clientId)).order("desc").take(100);
+    const rows = await ctx.db.query("clientNotes").withIndex("by_clientId", (q) => q.eq("clientId", args.clientId)).order("desc").take(100);
+    const out = [];
+    for (const n of rows) out.push({ _id: n._id, _creationTime: n._creationTime, text: n.text, author: n.author, files: await attachmentLinks(ctx, n.attachments) });
+    return out;
   },
 });
 
 export const addNote = mutation({
-  args: { clientId: v.id("clients"), text: v.string() },
+  args: { clientId: v.id("clients"), text: v.string(), files: noteFilesArg },
   handler: async (ctx, args) => {
     const client = await ctx.db.get(args.clientId);
     if (client === null) throw new ConvexError("That client no longer exists.");
     const staff = await requireEditor(ctx, client.businessId);
     const text = args.text.trim();
-    if (!text) throw new ConvexError("Write a note first.");
-    if (text.length > 2000) throw new ConvexError("Notes can be up to 2,000 characters.");
-    return await ctx.db.insert("clientNotes", { clientId: args.clientId, text, author: staff.name });
+    if (text.length > 5000) throw new ConvexError("Notes can be up to 5,000 characters.");
+    const attachments = await checkNoteFiles(ctx, args.files);
+    if (!text && attachments.length === 0) throw new ConvexError("Write a note first.");
+    return await ctx.db.insert("clientNotes", { clientId: args.clientId, text, author: staff.name, ...(attachments.length ? { attachments } : {}) });
+  },
+});
+
+/** Ticks or unticks a checkbox in a saved note (a line like "- [ ] call back"). */
+export const toggleNoteLine = mutation({
+  args: { noteId: v.id("clientNotes"), line: v.number() },
+  handler: async (ctx, args) => {
+    const note = await ctx.db.get(args.noteId);
+    if (note === null) throw new ConvexError("That note no longer exists.");
+    const client = await ctx.db.get(note.clientId);
+    if (client === null) throw new ConvexError("That client no longer exists.");
+    await requireEditor(ctx, client.businessId);
+    const next = toggleCheckbox(note.text, args.line);
+    if (next === null) throw new ConvexError("That line is not a checkbox.");
+    await ctx.db.patch(note._id, { text: next });
+    return null;
   },
 });

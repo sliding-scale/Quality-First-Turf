@@ -3,6 +3,8 @@ import type { Id } from "../_generated/dataModel";
 import { mutation, query } from "../_generated/server";
 import { requireAdmin, requireBusiness, requireEditor } from "./lib/access";
 import { checkAssignee } from "./lib/assignees";
+import { attachmentLinks, checkNoteFiles, noteFilesArg } from "./lib/noteFiles";
+import { toggleCheckbox } from "./lib/noteText";
 
 /** Tasks and notes on a project: the pipeline card panel and the Tasks tab (D-061). */
 
@@ -25,7 +27,9 @@ export const listForProject = query({
     // Open tasks first, soonest due first (undated last); notes newest first.
     tasks.sort((a, b) => Number(a.done) - Number(b.done) || (a.dueAt ?? Infinity) - (b.dueAt ?? Infinity) || a.createdAt - b.createdAt);
     notes.sort((a, b) => b.createdAt - a.createdAt || b._creationTime - a._creationTime);
-    return { tasks, notes };
+    const shaped = [];
+    for (const n of notes) shaped.push({ _id: n._id, text: n.text, author: n.author, createdAt: n.createdAt, files: await attachmentLinks(ctx, n.attachments) });
+    return { tasks, notes: shaped };
   },
 });
 
@@ -94,14 +98,16 @@ export const setDone = mutation({
 });
 
 export const addNote = mutation({
-  args: { id: v.id("opportunities"), text: v.string() },
+  args: { id: v.id("opportunities"), text: v.string(), files: noteFilesArg },
   handler: async (ctx, args) => {
     const project = await ctx.db.get(args.id);
     if (project === null) throw new ConvexError("That project no longer exists.");
     const staff = await requireEditor(ctx, project.businessId);
     const text = args.text.trim();
-    if (!text) throw new ConvexError("Write something first.");
-    return ctx.db.insert("opportunityNotes", { opportunityId: args.id, text, author: staff.name, createdAt: Date.now() });
+    if (text.length > 5000) throw new ConvexError("Notes can be up to 5,000 characters.");
+    const attachments = await checkNoteFiles(ctx, args.files);
+    if (!text && attachments.length === 0) throw new ConvexError("Write something first.");
+    return ctx.db.insert("opportunityNotes", { opportunityId: args.id, text, author: staff.name, createdAt: Date.now(), ...(attachments.length ? { attachments } : {}) });
   },
 });
 
@@ -143,5 +149,21 @@ export const listAll = query({
       rows,
       completed,
     };
+  },
+});
+
+/** Ticks or unticks a checkbox in a saved project note. */
+export const toggleNoteLine = mutation({
+  args: { noteId: v.id("opportunityNotes"), line: v.number() },
+  handler: async (ctx, args) => {
+    const note = await ctx.db.get(args.noteId);
+    if (note === null) throw new ConvexError("That note no longer exists.");
+    const project = await ctx.db.get(note.opportunityId);
+    if (project === null) throw new ConvexError("That project no longer exists.");
+    await requireEditor(ctx, project.businessId);
+    const next = toggleCheckbox(note.text, args.line);
+    if (next === null) throw new ConvexError("That line is not a checkbox.");
+    await ctx.db.patch(note._id, { text: next });
+    return null;
   },
 });

@@ -93,6 +93,13 @@ export const EXTRA_ICONS: Record<string, IconDef> = {
     paths: [{ d: "M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Zm1 2v10h9V7H5Zm11 0v10h3V7h-3Z" }],
   },
   // Pipeline (D-061): sort direction, a padlock for locked stages, a crossed eye for hidden ones, a drag grip.
+  // Note toolbar (D-067): dictation, voice note, list styles, checkbox, camera, stop.
+  mic: { vb: "0 0 24 24", paths: [{ d: "M12 14a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V21h2v-3.1A7 7 0 0 0 19 11h-2Z" }] },
+  bullets: { vb: "0 0 24 24", paths: [{ d: "M5 7.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Zm0 6a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Zm0 6a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3ZM9 5.5h11v2H9v-2Zm0 6h11v2H9v-2Zm0 6h11v2H9v-2Z" }] },
+  numbers: { vb: "0 0 24 24", paths: [{ d: "M3 4h2v4H4V5H3V4Zm1 6.5h1.2L3 13.3V14h3v-1H4.6L6 11.2V10.5A1.5 1.5 0 0 0 4.5 9 1.5 1.5 0 0 0 3 10.5h1c0-.3.2-.5.5-.5s.5.2.5.5ZM3 17h3v4H3v-1h2v-.5H3.5v-1H5V18H3v-1ZM9 5.5h11v2H9v-2Zm0 6h11v2H9v-2Zm0 6h11v2H9v-2Z" }] },
+  checkbox: { vb: "0 0 24 24", paths: [{ d: "M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm0 2v14h14V5H5Zm4.5 9.1 5.6-5.6 1.4 1.4-7 7-3.4-3.4 1.4-1.4 2 2Z" }] },
+  camera: { vb: "0 0 24 24", paths: [{ d: "M9 3 7.2 5H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.2L15 3H9Zm3 14a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9Zm0-2a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" }] },
+  stop: { vb: "0 0 24 24", paths: [{ d: "M7 7h10v10H7V7Z" }] },
   arrowup: { vb: "0 0 24 24", paths: [{ d: "M12 4 5 11l1.4 1.4L11 7.8V20h2V7.8l4.6 4.6L19 11l-7-7Z" }] },
   lock: { vb: "0 0 24 24", paths: [{ d: "M17 9h-1V7a4 4 0 0 0-8 0v2H7a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2ZM10 7a2 2 0 0 1 4 0v2h-4V7Zm7 12H7v-8h10v8Z" }] },
   eyeoff: { vb: "0 0 24 24", paths: [{ d: "M3.3 2 2 3.3 5 6.3A12 12 0 0 0 1.5 12C3.1 16.1 7.2 19 12 19c1.8 0 3.4-.4 4.9-1.2l2.8 2.9 1.3-1.3L3.3 2ZM12 17c-3.8 0-7-2.6-8.5-5 .7-1.3 1.7-2.4 2.9-3.2l1.8 1.8a4 4 0 0 0 5.4 5.4l1.5 1.5c-1 .3-2 .5-3.1.5Zm-2-5 2.9 2.9A2 2 0 0 1 10 12Zm2-5c3.8 0 7 2.6 8.5 5-.4.8-1 1.6-1.7 2.2l1.4 1.4A12 12 0 0 0 22.5 12C20.9 7.9 16.8 5 12 5c-1 0-2 .1-2.9.4l1.7 1.7c.4-.1.8-.1 1.2-.1Z" }] },

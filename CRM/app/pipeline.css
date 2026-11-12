@@ -113,8 +113,8 @@
 .pl-tasks li.done span { text-decoration: line-through; color: var(--muted); }
 .pl-tasks small, .pl-note small, .pl-history small { color: var(--muted); font-size: 12px; }
 .pl-noteform { display: grid; gap: 8px; justify-items: start; }
-.pl-noteform textarea { width: 100%; min-height: 76px; padding: 10px 12px; border: 1px dashed #9aa6ac; border-radius: 8px; resize: vertical; background: #fff; }
-.pl-noteform textarea:focus { outline: 2px solid var(--green); border-style: solid; }
+
+
 .pl-note { padding: 10px 12px; border: 1px solid #dadfe2; border-radius: 8px; font-size: 14px; display: grid; gap: 4px; overflow-wrap: anywhere; }
 .pl-history li { padding: 8px 10px; border-left: 3px solid #dadfe2; font-size: 14px; display: grid; gap: 2px; }
 

@@ -8,7 +8,7 @@ import { ConvexError } from "convex/values";
 import { useMutation, useQuery } from "convex/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { CLIENT_STATUS_LABEL, requestStatus } from "@/convex/crm/lib/stages";
@@ -16,6 +16,8 @@ import { startOfToday, useClient, useClientNotes, useClientProjects, type Client
 import { clientsReturnHref } from "@/lib/clients-place";
 import { BUSINESS_TIME_ZONE, moneyCents, quoteDate, quoteDateTime } from "@/lib/format";
 import { QUOTE_DOT, QUOTE_OPEN_STATUSES } from "@/lib/quotes";
+import { NoteEditor, useUploadPending, type PendingFile } from "./note-editor";
+import { NoteBody } from "./note-view";
 import { useStaff } from "./staff-context";
 import { EditTagsDialog, SendEmailDialog } from "./client-dialogs";
 import { ClientCommunication } from "./client-communication";
@@ -486,19 +488,31 @@ function ScheduleCard({ items }: { items: NonNullable<ClientDoc["scheduleItems"]
 function NotesCard({ clientId, canEdit }: { clientId: Id<"clients">; canEdit: boolean }) {
   const { toast } = useUI();
   const addNote = useMutation(api.crm.clients.addNote);
+  const toggleLine = useMutation(api.crm.clients.toggleNoteLine);
+  const upload = useUploadPending();
   const saved = useClientNotes(clientId);
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLTextAreaElement>(null);
+  const [text, setText] = useState("");
+  const [files, setFiles] = useState<PendingFile[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  function close() {
+    files.forEach((f) => URL.revokeObjectURL(f.url));
+    setText("");
+    setFiles([]);
+    setOpen(false);
+  }
 
   async function submit() {
-    const text = ref.current?.value.trim();
-    if (!text) return;
+    if (!text.trim() && files.length === 0) return;
+    setSaving(true);
     try {
-      await addNote({ clientId, text });
-      if (ref.current) ref.current.value = "";
-      setOpen(false);
+      await addNote({ clientId, text, files: await upload(files) });
+      close();
     } catch (e) {
       toast(e instanceof ConvexError && typeof e.data === "string" ? e.data : "The note could not be saved.");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -507,10 +521,10 @@ function NotesCard({ clientId, canEdit }: { clientId: Id<"clients">; canEdit: bo
       <h3>Notes</h3>
       {canEdit && (open ? (
         <div className="cj-note-box">
-          <textarea ref={ref} autoFocus placeholder="Leave an internal note for yourself or a team member" aria-label="New note" />
+          <NoteEditor autoFocus value={text} onChange={setText} files={files} onFiles={setFiles} disabled={saving} rows={9} />
           <div className="cj-note-actions">
-            <button type="button" className="btn plain" onClick={() => setOpen(false)}>Cancel</button>
-            <button type="button" className="btn primary" onClick={() => void submit()}>Save</button>
+            <button type="button" className="btn plain" disabled={saving} onClick={close}>Cancel</button>
+            <button type="button" className="btn primary" disabled={saving || (!text.trim() && files.length === 0)} onClick={() => void submit()}>{saving ? "Saving…" : "Save"}</button>
           </div>
         </div>
       ) : (
@@ -524,7 +538,7 @@ function NotesCard({ clientId, canEdit }: { clientId: Id<"clients">; canEdit: bo
       ) : (
         saved.map((n) => (
           <div className="note-item" key={n._id}>
-            {n.text}
+            <NoteBody text={n.text} files={n.files} canEdit={canEdit} onToggle={(line) => void toggleLine({ noteId: n._id, line }).catch((e) => toast(e instanceof ConvexError && typeof e.data === "string" ? e.data : "The checkbox could not be changed."))} />
             <div className="d">{n.author} · {noteDate(n._creationTime)}</div>
           </div>
         ))

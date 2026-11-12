@@ -41,7 +41,7 @@ const STATUS: Record<RunStatus, { label: string; cls: string }> = {
   failed: { label: "Failed", cls: "overdue" },
 };
 
-const SHOW_SENDING_MODE = false;
+const SHOW_SENDING_MODE = true;
 const nowMs = () => Date.now();
 const when = (ms: number) => new Date(ms).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
 

@@ -18,6 +18,7 @@ import { clock, failure, usePeople } from "@/lib/pipeline";
 import { centsToInput, dollarsToCents, uploadFile, useClientSearch, useQuote } from "@/lib/quotes";
 import { EmptyBackend } from "./empty-backend";
 import { Icon } from "./icon";
+import { NewClientDialog } from "./new-client-dialog";
 import { PipelineModal } from "./pipeline-dialogs";
 import { QuoteBuilderSkeleton } from "./skeletons";
 import { QuoteLines, lineCents, newLine, type DraftLine } from "./quote-lines";
@@ -119,6 +120,7 @@ function Builder({ business, quote, presetClient, presetProject }: { business: B
   const [busy, setBusy] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [clientQuery, setClientQuery] = useState("");
+  const [addingClient, setAddingClient] = useState(false);
   const intro = useRef<HTMLInputElement>(null);
   const attach = useRef<HTMLInputElement>(null);
   const set = (p: Partial<Draft>) => setD((cur) => ({ ...cur, ...p }));
@@ -260,8 +262,10 @@ function Builder({ business, quote, presetClient, presetProject }: { business: B
                           <b>{c.name}</b> <span>{[c.street1, c.city].filter(Boolean).join(", ")}</span>
                         </button>
                       ))}
+                      <button type="button" className="sc-newclient" onClick={() => setAddingClient(true)}><Icon name="plus" size={16} /> New client{clientQuery.trim() ? ` "${clientQuery.trim()}"` : ""}</button>
                     </div>
                   )}
+                  {!(clientQuery.trim() && found) && <button type="button" className="btn link sc-newclient-link" onClick={() => setAddingClient(true)}><Icon name="plus" size={16} /> New client</button>}
                   <span className="err">Pick the client this quote is for.</span>
                 </>
               )}
@@ -439,6 +443,14 @@ function Builder({ business, quote, presetClient, presetProject }: { business: B
             </div>
           )}
         </PipelineModal>
+      )}
+      {addingClient && (
+        <NewClientDialog
+          businessId={business._id}
+          typed={clientQuery}
+          onClose={() => setAddingClient(false)}
+          onCreated={(c) => { set({ clientId: c.id, clientName: c.name }); setClientQuery(""); setBad((b) => { const n = new Set(b); n.delete("client"); return n; }); toast("Client saved."); }}
+        />
       )}
     </div>
   );

@@ -4,6 +4,7 @@ import { mutation, query, type QueryCtx } from "../_generated/server";
 import { newShortCode } from "../projects/shortCode";
 import { requireBusiness, requireEditor } from "./lib/access";
 import { checkAssignee } from "./lib/assignees";
+import { checkNoteFiles, noteFilesArg } from "./lib/noteFiles";
 import { opportunitySearchText } from "./lib/clientInput";
 import { DAY_MS, REQUEST_STATUSES, SALES_STAGES, requestStatus, type RequestStatus } from "./lib/stages";
 
@@ -212,6 +213,7 @@ export const create = mutation({
     salespersonId: v.optional(v.id("users")),
     details: v.optional(v.string()),
     note: v.optional(v.string()),
+    noteFiles: noteFilesArg,
   },
   handler: async (ctx, args) => {
     const staff = await requireEditor(ctx, args.businessId);
@@ -240,7 +242,8 @@ export const create = mutation({
       searchText: opportunitySearchText(client, { title, code, stage }),
     });
     const note = (args.note ?? "").trim().slice(0, 5000);
-    if (note) await ctx.db.insert("opportunityNotes", { opportunityId: id, text: note, author: staff.name, createdAt: now });
+    const attachments = await checkNoteFiles(ctx, args.noteFiles);
+    if (note || attachments.length) await ctx.db.insert("opportunityNotes", { opportunityId: id, text: note, author: staff.name, createdAt: now, ...(attachments.length ? { attachments } : {}) });
     return id;
   },
 });

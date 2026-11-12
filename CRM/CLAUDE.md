@@ -56,7 +56,7 @@ The git root is `Quality-First-Turf/` (one level above this folder). It holds `f
 - United States, all states: tax and time zone vary by job (D-017).
 
 ## UI/UX direction (client requirement, D-019)
-- **Build only what the PRD describes (D-024).** Jobber has many features the client does not need. Check `docs/prd.md` before adding any screen, field, filter or button. The exceptions are the Jobber items the user chose to keep (D-025).
+- **The main objective is to replicate Jobber (D-068).** The PRD (`docs/prd.md`) is the guideline and the list of mandatory features that must be in Launchpad; it is not a ceiling. When building or changing a screen, copy Jobber's version (read it in the browser) and add whatever the PRD requires on top. Do not leave out a Jobber feature just because the PRD does not mention it. This replaces the old "build only what the PRD describes" rule (D-024). If Jobber and the PRD disagree, the PRD's mandatory feature stays and the difference is reported. Anything the user has told us to leave out (for example the AI summary, D-061) stays out.
 - **Fonts and icons are Jobber's:** Inter for text and Figtree for headings (an open-source stand-in for Jobber Pro, which is proprietary and must not be shipped; see D-025), and the Atlantis icon set from `@jobber/design` (MIT). The icon table is `lib/icons-data.ts`; keep its licence notice (`lib/ICONS-LICENSE.txt`).
 - **Heavily inspired by Jobber's interface.** Left sidebar, top bar with search and a Create button, list and detail pages. Nav (D-025): Create, Home, Schedule, Clients, Requests, Quotes, Jobs, Invoices, Payments, Messages, Pipeline.
 - **Minimalist.** Little ornament, generous whitespace, no gradients, restrained shadows, thin borders. Detail goes on the detail page.

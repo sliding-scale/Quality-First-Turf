@@ -89,7 +89,7 @@
 .cj-note-empty:hover { background: #f8f8f6; border-color: #9aa6ac; }
 .cj-note-empty .ic { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: #eef1f2; color: #49646f; }
 .cj-note-box { margin-top: 12px; }
-.cj-note-box textarea { width: 100%; min-height: 96px; padding: 10px 12px; border: 1px solid #8e9ba3; border-radius: 8px; font: inherit; resize: vertical; }
+
 .cj-note-box textarea:focus { outline: 2px solid var(--green); border-color: var(--green); }
 .cj-note-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
 .cj-empty { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 40px 16px; color: #49646f; text-align: center; }

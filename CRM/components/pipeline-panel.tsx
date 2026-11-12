@@ -13,6 +13,8 @@ import { moneyCents, quoteDate, quoteDateTime } from "@/lib/format";
 import { LEAD_SOURCES, NO_SOURCE, failure, timeLabel, viewActions, type BoardCard } from "@/lib/pipeline";
 import { FilterMenu } from "./filter-menus";
 import { Icon } from "./icon";
+import { NoteEditor, useUploadPending, type PendingFile } from "./note-editor";
+import { NoteBody } from "./note-view";
 import { AddTaskDialog } from "./pipeline-dialogs";
 import { useStaff } from "./staff-context";
 import { useUI } from "./ui-provider";
@@ -34,11 +36,15 @@ export function PipelinePanel({ business, card, people, onClose, onLost, onWon }
   const history = useQuery(api.crm.pipeline.history, { id: card.id });
   const setDone = useMutation(api.crm.opportunityTasks.setDone);
   const addNote = useMutation(api.crm.opportunityTasks.addNote);
+  const toggleLine = useMutation(api.crm.opportunityTasks.toggleNoteLine);
+  const upload = useUploadPending();
   const setSalesperson = useMutation(api.crm.pipeline.setSalesperson);
   const setLeadSource = useMutation(api.crm.pipeline.setLeadSource);
   const [leaving, setLeaving] = useState(false);
   const [adding, setAdding] = useState(false);
   const [note, setNote] = useState("");
+  const [noteFiles, setNoteFiles] = useState<PendingFile[]>([]);
+  const [savingNote, setSavingNote] = useState(false);
 
   useEffect(() => {
     if (!leaving) return;
@@ -194,16 +200,21 @@ export function PipelinePanel({ business, card, people, onClose, onLost, onWon }
               className="pl-noteform"
               onSubmit={(e) => {
                 e.preventDefault();
-                if (!note.trim()) return;
-                addNote({ id: card.id, text: note }).then(() => setNote("")).catch((err) => toast(failure(err, "The note could not be saved.")));
+                if (!note.trim() && noteFiles.length === 0) return;
+                setSavingNote(true);
+                upload(noteFiles)
+                  .then((files) => addNote({ id: card.id, text: note, files }))
+                  .then(() => { noteFiles.forEach((f) => URL.revokeObjectURL(f.url)); setNote(""); setNoteFiles([]); })
+                  .catch((err) => toast(failure(err, "The note could not be saved.")))
+                  .finally(() => setSavingNote(false));
               }}
             >
-              <textarea aria-label="Leave an internal note" placeholder="Leave an internal note for yourself or a team member" value={note} onChange={(e) => setNote(e.target.value)} />
-              <button type="submit" className="btn primary" disabled={!note.trim()}>Save note</button>
+              <NoteEditor value={note} onChange={setNote} files={noteFiles} onFiles={setNoteFiles} disabled={savingNote} rows={8} />
+              <button type="submit" className="btn primary" disabled={savingNote || (!note.trim() && noteFiles.length === 0)}>{savingNote ? "Saving…" : "Save note"}</button>
             </form>
           )}
           {extras?.notes.map((n) => (
-            <div key={n._id} className="pl-note fade-in"><div>{n.text}</div><small>{n.author} · {quoteDateTime(n.createdAt)}</small></div>
+            <div key={n._id} className="pl-note fade-in"><NoteBody text={n.text} files={n.files} canEdit={canEdit} onToggle={(line) => void toggleLine({ noteId: n._id, line }).catch((err) => toast(failure(err, "The checkbox could not be changed.")))} /><small>{n.author} · {quoteDateTime(n.createdAt)}</small></div>
           ))}
         </section>
 

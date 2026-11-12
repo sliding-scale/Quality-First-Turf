@@ -1,6 +1,11 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
+/** Photos and voice notes on a client or project note (D-067). Checked when saved by convex/crm/lib/noteFiles.ts. */
+const noteAttachments = v.optional(
+  v.array(v.object({ storageId: v.id("_storage"), kind: v.union(v.literal("image"), v.literal("audio")), name: v.string(), contentType: v.string(), size: v.number() })),
+);
+
 export const projectStatus = v.union(
   v.literal("discovery saved"),
   v.literal("on-site saved"),
@@ -595,6 +600,7 @@ export default defineSchema({
     text: v.string(),
     author: v.string(),
     createdAt: v.number(),
+    attachments: noteAttachments,
   }).index("by_opportunity", ["opportunityId"]),
 
   /** Internal notes on a client, newest first. */
@@ -602,6 +608,7 @@ export default defineSchema({
     clientId: v.id("clients"),
     text: v.string(),
     author: v.string(),
+    attachments: noteAttachments,
   }).index("by_clientId", ["clientId"]),
 
   /** One office mailbox connection (D-064). The refresh token stays in the Convex environment; this row caches the short-lived

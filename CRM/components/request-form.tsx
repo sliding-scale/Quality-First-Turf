@@ -17,6 +17,8 @@ import { useClientSearch } from "@/lib/quotes";
 import { failure, usePeople } from "@/lib/requests";
 import { EmptyBackend } from "./empty-backend";
 import { Icon } from "./icon";
+import { NewClientDialog } from "./new-client-dialog";
+import { NoteEditor, useUploadPending, type PendingFile } from "./note-editor";
 import { NewRequestSkeleton } from "./skeletons";
 import { useStaff } from "./staff-context";
 import { useUI } from "./ui-provider";
@@ -41,11 +43,14 @@ function Form({ business }: { business: BusinessDoc }) {
   const [salesperson, setSalesperson] = useState<string | null>(null); // null until the person changes it: then the signed-in user
   const [details, setDetails] = useState("");
   const [note, setNote] = useState("");
+  const [addingClient, setAddingClient] = useState(false);
+  const [noteFiles, setNoteFiles] = useState<PendingFile[]>([]);
+  const upload = useUploadPending();
   const [bad, setBad] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const found = useClientSearch(business._id, clientQuery);
 
-  const dirty = !!(title || client || details || note);
+  const dirty = !!(title || client || details || note || noteFiles.length);
   useEffect(() => {
     if (!dirty) return;
     const warn = (e: BeforeUnloadEvent) => e.preventDefault();
@@ -84,6 +89,7 @@ function Form({ business }: { business: BusinessDoc }) {
         salespersonId: chosen ? (chosen as Id<"users">) : undefined,
         details,
         note,
+        noteFiles: await upload(noteFiles),
       });
       toast("Request saved.");
       router.push(`/requests/${id}`);
@@ -123,8 +129,10 @@ function Form({ business }: { business: BusinessDoc }) {
                           <b>{c.name}</b> <span>{[c.street1, c.city].filter(Boolean).join(", ")}</span>
                         </button>
                       ))}
+                      <button type="button" className="sc-newclient" onClick={() => setAddingClient(true)}><Icon name="plus" size={16} /> New client{clientQuery.trim() ? ` "${clientQuery.trim()}"` : ""}</button>
                     </div>
                   )}
+                  {!(clientQuery.trim() && found) && <button type="button" className="btn link sc-newclient-link" onClick={() => setAddingClient(true)}><Icon name="plus" size={16} /> New client</button>}
                   <span className="err">Pick the client this request is for.</span>
                 </>
               )}
@@ -151,7 +159,7 @@ function Form({ business }: { business: BusinessDoc }) {
         <h2>Overview</h2>
         <div className="field">
           <label htmlFor="rf-details">Service details</label>
-          <textarea id="rf-details" maxLength={5000} placeholder="Please provide as much information as you can" value={details} onChange={(e) => setDetails(e.target.value)} />
+          <NoteEditor id="rf-details" noFiles rows={7} placeholder="Please provide as much information as you can" value={details} onChange={setDetails} files={[]} onFiles={() => undefined} />
         </div>
       </section>
 
@@ -159,7 +167,7 @@ function Form({ business }: { business: BusinessDoc }) {
         <h2>Notes</h2>
         <div className="field">
           <label htmlFor="rf-note">Internal note</label>
-          <textarea id="rf-note" maxLength={5000} placeholder="Leave an internal note for yourself or a team member" value={note} onChange={(e) => setNote(e.target.value)} />
+          <NoteEditor id="rf-note" rows={7} value={note} onChange={setNote} files={noteFiles} onFiles={setNoteFiles} />
         </div>
       </section>
 
@@ -167,6 +175,14 @@ function Form({ business }: { business: BusinessDoc }) {
         <button type="button" className="btn" disabled={busy} onClick={() => router.push("/requests")}>Cancel</button>
         <button type="button" className="btn primary" disabled={busy} onClick={() => void save()}>Save Request</button>
       </div>
+      {addingClient && (
+        <NewClientDialog
+          businessId={business._id}
+          typed={clientQuery}
+          onClose={() => setAddingClient(false)}
+          onCreated={(c) => { setClient(c); setClientQuery(""); clear("client"); toast("Client saved."); }}
+        />
+      )}
     </div>
   );
 }
