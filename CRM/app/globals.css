@@ -1221,3 +1221,20 @@ a.qs-chip:active { background: var(--shell); }
 .mn-excerpt { color: var(--muted); overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .mn-text small { color: var(--muted); }
 .mn-empty { padding: 22px 16px; color: var(--muted); text-align: center; }
+
+/* Saved disclaimers shown under the contract text (D-075). */
+.qs-disc { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+.qs-disc h4 { margin: 0 0 4px; font-size: 16px; color: var(--ink); }
+.cq-disc { margin-top: 14px; padding-top: 12px; border-top: 1px solid #e3e7e9; }
+.cq-disc h3 { margin: 0 0 4px; font-size: 16px; }
+
+/* Settings → Disclaimers (D-075). */
+.dc-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.dc-item { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding: 18px 20px; }
+.dc-body { min-width: 0; display: grid; gap: 6px; }
+.dc-body h3 { margin: 0; font-size: 17px; }
+.dc-body p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text); }
+.dc-body small { color: var(--muted); }
+.dc-actions { display: flex; gap: 8px; flex: none; }
+.dc-empty { padding: 24px; text-align: center; color: var(--muted); }
+@media (max-width: 700px) { .dc-item { flex-direction: column; } }

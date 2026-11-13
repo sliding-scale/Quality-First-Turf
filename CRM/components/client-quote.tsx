@@ -70,11 +70,13 @@ function ClientQuote({ token, preview }: { token: string; preview: boolean }) {
   }
 
   const canAnswer = view.canAnswer && !preview;
+  // The contract text and any saved disclaimers are one thing to read and agree to.
+  const hasTerms = !!view.contract || view.disclaimers.length > 0;
   const totals = live ?? view.totals;
   const reset = () => { setMode(null); setError(""); setBad({}); setBusy(false); };
 
   async function submitApprove() {
-    const next = { name: !name.trim(), sig: !png, agree: !!view!.contract && !agree };
+    const next = { name: !name.trim(), sig: !png, agree: hasTerms && !agree };
     setBad(next);
     if (next.name || next.sig || next.agree) return;
     setBusy(true);
@@ -174,7 +176,13 @@ function ClientQuote({ token, preview }: { token: string; preview: boolean }) {
           <ul className="cq-files">{view.attachments.map((a) => (<li key={a.name}><a href={a.url ?? undefined} target="_blank" rel="noreferrer">{a.name}</a></li>))}</ul>
         </section>
       )}
-      {view.contract && <section className="cq-card"><h2>Contract / Disclaimer</h2><p className="cq-text small">{view.contract}</p></section>}
+      {hasTerms && (
+        <section className="cq-card">
+          <h2>Contract / Disclaimer</h2>
+          {view.contract && <p className="cq-text small">{view.contract}</p>}
+          {view.disclaimers.map((d) => (<div key={d.title} className="cq-disc"><h3>{d.title}</h3><p className="cq-text small">{d.text}</p></div>))}
+        </section>
+      )}
 
       {canAnswer && !mode && (
         <div className="cq-actions" role="group" aria-label="Your answer">
@@ -198,9 +206,9 @@ function ClientQuote({ token, preview }: { token: string; preview: boolean }) {
             <SignaturePad onChange={(b) => { setPng(b); setBad((x) => ({ ...x, sig: false })); }} />
             <span className="cq-err">Please sign in the box.</span>
           </div>
-          {view.contract && (
+          {hasTerms && (
             <label className={`cq-agree${bad.agree ? " bad" : ""}`}>
-              <input type="checkbox" checked={agree} onChange={(e) => { setAgree(e.target.checked); setBad((b) => ({ ...b, agree: false })); }} /> I have read and agree to the contract above.
+              <input type="checkbox" checked={agree} onChange={(e) => { setAgree(e.target.checked); setBad((b) => ({ ...b, agree: false })); }} /> I have read and agree to the contract and disclaimers above.
             </label>
           )}
           {error && <p className="cq-error" role="alert">{error}</p>}

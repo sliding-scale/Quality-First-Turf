@@ -73,6 +73,7 @@ export const get = query({
       depositCents: view.totals ? totals.depositCents : null,
       clientMessage: quote.clientMessage,
       contract: quote.contract,
+      disclaimers: quote.disclaimers ?? [],
       attachments,
       signedBy: quote.signedBy ?? null,
       signedAt: quote.signedAt ?? null,

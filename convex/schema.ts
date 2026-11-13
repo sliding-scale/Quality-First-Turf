@@ -344,6 +344,9 @@ export default defineSchema({
     introImageId: v.optional(v.id("_storage")),
     clientMessage: v.string(),
     contract: v.string(),
+    /** Saved disclaimers attached to this quote (D-075): a copy of each one's title and wording when it was attached, so a quote that was sent keeps
+     *  what the client saw even if the library changes later. */
+    disclaimers: v.optional(v.array(v.object({ title: v.string(), text: v.string() }))),
     /** Percent of the total required up front; 0 for none. */
     depositPercent: v.number(),
     depositCollectedCents: v.optional(v.number()),
@@ -435,7 +438,20 @@ export default defineSchema({
   /** A business's default contract text ("Apply to all future quotes"). */
   quoteDefaults: defineTable({
     businessId: v.id("businesses"),
-    contract: v.string(),
+    /** Absent until someone saves one with "Apply to all future quotes"; the builder then uses Jobber's wording. */
+    contract: v.optional(v.string()),
+    /** When the starter disclaimers were first added to this business's library (D-075), so deleting them all does not bring them back. */
+    disclaimersSeededAt: v.optional(v.number()),
+  }).index("by_business", ["businessId"]),
+
+  /** A business's library of saved disclaimers (D-075) that a quote can attach. Written only by crm/disclaimers.ts. */
+  disclaimers: defineTable({
+    businessId: v.id("businesses"),
+    title: v.string(),
+    text: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    updatedByName: v.string(),
   }).index("by_business", ["businessId"]),
 
   quoteNotes: defineTable({

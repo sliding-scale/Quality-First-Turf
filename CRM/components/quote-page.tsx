@@ -315,13 +315,18 @@ function QuoteView({ q }: { q: Quote }) {
             </section>
           )}
 
-          {(q.contract || editable) && (
+          {(q.contract || q.disclaimers.length > 0 || editable) && (
             <section className="card panel quote-section">
               <div className="ph">
                 <h3>Contract / Disclaimer</h3>
                 {editable && <Link className="icon-btn" aria-label="Edit contract / disclaimer" href={`/quotes/${q.id}/edit?section=contract`}><Icon name="pencil" size={24} /></Link>}
               </div>
-              <div className="qs-body"><p className="qs-text">{q.contract || "No contract."}</p></div>
+              <div className="qs-body">
+                {(q.contract || q.disclaimers.length === 0) && <p className="qs-text">{q.contract || "No contract."}</p>}
+                {q.disclaimers.map((d) => (
+                  <div key={d.title} className="qs-disc"><h4>{d.title}</h4><p className="qs-text">{d.text}</p></div>
+                ))}
+              </div>
             </section>
           )}
 

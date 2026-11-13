@@ -339,6 +339,23 @@ export function RequestSkeleton() {
   );
 }
 
+export function DisclaimersSkeleton() {
+  return (
+    <Busy>
+      <div className="page-head"><h1>Disclaimers</h1></div>
+      <Sk w="70%" h={18} style={{ marginBottom: 22 }} />
+      <ul className="dc-list">
+        {range(4).map((n) => (
+          <li key={n} className="card dc-item">
+            <div className="dc-body"><Sk w="30%" h={20} style={{ marginBottom: 10 }} /><Sk w="90%" h={14} /><Sk w="70%" h={14} style={{ marginTop: 6 }} /></div>
+            <div className="dc-actions"><Sk w={64} h={36} /><Sk w={72} h={36} /></div>
+          </li>
+        ))}
+      </ul>
+    </Busy>
+  );
+}
+
 export function AutomationsSkeleton() {
   return (
     <Busy>

@@ -17,6 +17,7 @@ import { money } from "@/lib/format";
 import { clock, failure, usePeople } from "@/lib/pipeline";
 import { centsToInput, dollarsToCents, uploadFile, useClientSearch, useQuote } from "@/lib/quotes";
 import { SECTION_TITLE, type Section } from "@/lib/quote-sections";
+import { sameTitle, type DisclaimerCopy } from "@/convex/crm/lib/disclaimers";
 import { EmptyBackend } from "./empty-backend";
 import { Icon } from "./icon";
 import { NewClientDialog } from "./new-client-dialog";
@@ -50,12 +51,14 @@ type Draft = {
   /** null until the person types: then a new quote shows (and saves) the business's default contract text. */
   contract: string | null;
   applyContract: boolean;
+  /** Saved disclaimers attached to this quote, each a copy of its title and wording (D-075). */
+  disclaimers: DisclaimerCopy[];
 };
 
 const ALL_ON: View = { quantities: true, unitPrices: true, lineTotals: true, totals: true };
 const blank = (salesperson: string): Draft => ({
   title: "", clientName: "", salesperson, introHeading: "", introText: "", introImageUrl: null, lines: [newLine("item")], discountKind: null, discount: "", tax: "", depositKind: null,
-  deposit: "", clientView: ALL_ON, showMessage: false, clientMessage: "", contract: null, applyContract: false,
+  deposit: "", clientView: ALL_ON, showMessage: false, clientMessage: "", contract: null, applyContract: false, disclaimers: [],
 });
 
 type QuoteDoc = NonNullable<ReturnType<typeof useQuote>>;
@@ -65,7 +68,7 @@ function fromQuote(q: QuoteDoc): Draft {
     introImageUrl: q.introImageUrl, lines: q.lines.map((l) => ({ key: l.id, id: l.id, kind: l.kind, name: l.name, description: l.description, imageUrl: l.imageUrl, quantity: String(l.quantity), price: centsToInput(l.unitPriceCents), optional: l.optional, selected: l.selected, catalogueName: l.catalogueName ?? undefined })),
     discountKind: q.discountKind, discount: q.discountKind === "amount" ? centsToInput(q.discountValue) : q.discountKind === "percent" ? String(q.discountValue) : "",
     tax: q.taxPercent ? String(q.taxPercent) : "", depositKind: q.depositKind, deposit: q.depositKind === "amount" ? centsToInput(q.depositValue) : q.depositKind === "percent" ? String(q.depositValue) : "",
-    clientView: q.clientView, showMessage: !!q.clientMessage, clientMessage: q.clientMessage, contract: q.contract, applyContract: false,
+    clientView: q.clientView, showMessage: !!q.clientMessage, clientMessage: q.clientMessage, contract: q.contract, applyContract: false, disclaimers: q.disclaimers,
   };
 }
 
@@ -182,7 +185,7 @@ function Builder({ business, quote, presetClient, presetProject, section }: { bu
       })),
       ...(m.discountKind ? { discountKind: m.discountKind, discountValue: m.discountValue } : {}), ...(m.taxPercent ? { taxPercent: m.taxPercent } : {}),
       ...(m.depositKind ? { depositKind: m.depositKind, depositValue: m.depositValue } : {}),
-      clientView: d.clientView, clientMessage: d.showMessage ? d.clientMessage : "", contract: d.contract ?? contractDefault ?? "", applyContractToFuture: d.applyContract,
+      clientView: d.clientView, clientMessage: d.showMessage ? d.clientMessage : "", contract: d.contract ?? contractDefault ?? "", applyContractToFuture: d.applyContract, disclaimers: d.disclaimers,
     });
     setBaseline(JSON.stringify(d));
     return id;
@@ -434,6 +437,7 @@ function Builder({ business, quote, presetClient, presetProject, section }: { bu
         <h2 className="qb-h">Contract / Disclaimer</h2>
         <div className="field"><label htmlFor="qb-contract">Description</label><textarea id="qb-contract" value={d.contract ?? contractDefault ?? ""} onChange={(e) => set({ contract: e.target.value })} /></div>
         <label className="sc-check"><input type="checkbox" checked={d.applyContract} onChange={(e) => set({ applyContract: e.target.checked })} /> Apply to all future quotes</label>
+        <DisclaimerPicker businessId={business._id} chosen={d.disclaimers} onChange={(disclaimers) => set({ disclaimers })} />
       </section>
       )}
 
@@ -465,6 +469,57 @@ function Builder({ business, quote, presetClient, presetProject, section }: { bu
           onClose={() => setAddingClient(false)}
           onCreated={(c) => { set({ clientId: c.id, clientName: c.name }); setClientQuery(""); setBad((b) => { const n = new Set(b); n.delete("client"); return n; }); toast("Client saved."); }}
         />
+      )}
+    </div>
+  );
+}
+
+/** "Saved disclaimers": the business's library, with a tick box for each. Ticking one attaches a copy of its wording to the quote. The contract text
+ *  box above stays for anything typed by hand. The starter wording is added to a new business's library the first time this opens. */
+function DisclaimerPicker({ businessId, chosen, onChange }: { businessId: Id<"businesses">; chosen: DisclaimerCopy[]; onChange: (next: DisclaimerCopy[]) => void }) {
+  const staff = useStaff();
+  const library = useQuery(api.crm.disclaimers.list, { businessId });
+  const seed = useMutation(api.crm.disclaimers.ensureDefaults);
+  const seeding = useRef(false);
+  useEffect(() => {
+    if (!library || library.seeded || !staff.canEdit || seeding.current) return;
+    seeding.current = true;
+    void seed({ businessId, now: Date.now() }).catch(() => { seeding.current = false; });
+  }, [library, staff.canEdit, seed, businessId]);
+  const canManage = staff.isAdmin || staff.roles.includes("office");
+  const has = (title: string) => chosen.some((c) => sameTitle(c.title, title));
+  const toggle = (item: DisclaimerCopy) => onChange(has(item.title) ? chosen.filter((c) => !sameTitle(c.title, item.title)) : [...chosen, { title: item.title, text: item.text }]);
+  // Attached ones whose library entry was renamed or deleted since still show, so they can be removed.
+  const orphans = library ? chosen.filter((c) => !library.items.some((i) => sameTitle(i.title, c.title))) : [];
+  return (
+    <div className="qb-disc">
+      <div className="qb-disc-head">
+        <b>Saved disclaimers</b>
+        <span>Tick the ones to attach to this quote.{canManage && <> <Link href="/settings/disclaimers">Manage disclaimers</Link></>}</span>
+      </div>
+      {library === undefined ? (
+        <div className="sk" style={{ height: 44 }} />
+      ) : library.items.length === 0 && orphans.length === 0 ? (
+        <p className="sc-muted">{library.seeded ? "There are no saved disclaimers yet." : "Getting the starter disclaimers ready…"}</p>
+      ) : (
+        <ul className="qb-disc-list">
+          {library.items.map((i) => (
+            <li key={i.id}>
+              <label className="sc-check">
+                <input type="checkbox" checked={has(i.title)} onChange={() => toggle(i)} />
+                <span><b>{i.title}</b><small>{i.text}</small></span>
+              </label>
+            </li>
+          ))}
+          {orphans.map((o) => (
+            <li key={`o-${o.title}`}>
+              <label className="sc-check">
+                <input type="checkbox" checked onChange={() => toggle(o)} />
+                <span><b>{o.title}</b><small>{o.text}</small><em>Not in the library any more. Untick to remove it from this quote.</em></span>
+              </label>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );

@@ -6,6 +6,7 @@ import { quoteMoneyOptions } from "./lib/quoteOptions";
 import { quoteTotals } from "./lib/quoteMath";
 import { systemMove } from "./lib/systemMove";
 import { notifyMentions } from "./lib/mentionNotify";
+import { MAX_DISCLAIMERS_PER_QUOTE, checkDisclaimer } from "./lib/disclaimers";
 
 /** Building a quote (D-063): create, save, attachments, notes, duplicate, archive. Sending and the client's answers are in quoteFlow.ts and
  *  clientQuote.ts. A quote that is approved, rejected, converted or archived can no longer be edited. */
@@ -104,6 +105,8 @@ export const save = mutation({
     clientMessage: v.string(),
     contract: v.string(),
     applyContractToFuture: v.boolean(),
+    /** The saved disclaimers attached (D-075), each a copy of its title and wording. Left out: the quote keeps the ones it has. */
+    disclaimers: v.optional(v.array(v.object({ title: v.string(), text: v.string() }))),
   },
   handler: async (ctx, a) => {
     const quote = await ctx.db.get(a.id);
@@ -119,6 +122,14 @@ export const save = mutation({
         if (!Number.isFinite(l.quantity) || l.quantity < 0 || l.quantity > 1_000_000) throw new ConvexError("A quantity has to be between 0 and 1,000,000.");
         if (!Number.isInteger(l.unitPriceCents) || l.unitPriceCents < 0 || l.unitPriceCents > 10_000_000_000) throw new ConvexError("A unit price has to be zero or more.");
       }
+    }
+    if (a.disclaimers !== undefined) {
+      if (a.disclaimers.length > MAX_DISCLAIMERS_PER_QUOTE) throw new ConvexError(`A quote can have up to ${MAX_DISCLAIMERS_PER_QUOTE} disclaimers.`);
+      for (const d of a.disclaimers) {
+        const problem = checkDisclaimer(d);
+        if (problem) throw new ConvexError(problem);
+      }
+      if (new Set(a.disclaimers.map((d) => d.title.trim().toLowerCase())).size !== a.disclaimers.length) throw new ConvexError("A disclaimer can be attached to a quote once.");
     }
     const money = {
       discountKind: a.discountKind, discountValue: a.discountValue, taxPercent: a.taxPercent, depositKind: a.depositKind, depositValue: a.depositValue,
@@ -147,7 +158,8 @@ export const save = mutation({
     await ctx.db.patch(quote._id, {
       title, salesperson: a.salesperson.trim() || quote.salesperson, introHeading: a.introHeading, introText: a.introText, introImageId: a.introImageId, ...money,
       depositPercent: a.depositKind === "percent" ? Math.min(100, Math.max(0, a.depositValue ?? 0)) : 0, clientView: a.clientView, clientMessage: a.clientMessage,
-      contract: a.contract, totalCents: totals.totalCents, searchText: await searchTextOf(ctx, next),
+      contract: a.contract, ...(a.disclaimers !== undefined ? { disclaimers: a.disclaimers.map((d) => ({ title: d.title.trim(), text: d.text.trim() })) } : {}),
+      totalCents: totals.totalCents, searchText: await searchTextOf(ctx, next),
     });
     if (a.applyContractToFuture) {
       const row = await ctx.db.query("quoteDefaults").withIndex("by_business", (q) => q.eq("businessId", quote.businessId)).first();
@@ -214,7 +226,7 @@ export const duplicate = mutation({
     const now = Date.now();
     const id = await ctx.db.insert("quotes", {
       businessId: quote.businessId, clientId: quote.clientId, opportunityId: quote.opportunityId, number, title: quote.title, status: "Draft", salesperson: staff.name, createdAt: now,
-      introHeading: quote.introHeading, introText: quote.introText, clientMessage: quote.clientMessage, contract: quote.contract, depositPercent: quote.depositPercent,
+      introHeading: quote.introHeading, introText: quote.introText, clientMessage: quote.clientMessage, contract: quote.contract, disclaimers: quote.disclaimers, depositPercent: quote.depositPercent,
       totalCents: quote.totalCents, discountKind: quote.discountKind, discountValue: quote.discountValue, taxPercent: quote.taxPercent, depositKind: quote.depositKind,
       depositValue: quote.depositValue, clientView: quote.clientView, searchText: quote.searchText.replace(String(quote.number), String(number)),
     });

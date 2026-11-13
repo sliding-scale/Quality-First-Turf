@@ -276,6 +276,7 @@ export const get = query({
       introImageUrl: quote.introImageId ? await ctx.storage.getUrl(quote.introImageId) : null,
       clientMessage: quote.clientMessage,
       contract: quote.contract,
+      disclaimers: quote.disclaimers ?? [],
       depositPercent: quote.depositPercent,
       discountKind: quote.discountKind ?? null,
       discountValue: quote.discountValue ?? 0,
