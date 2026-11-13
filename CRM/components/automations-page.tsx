@@ -11,8 +11,8 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import {
-  MAX_DAYS, MIN_DAYS, MODES, MODE_LABEL, VARIABLES, renderTemplate,
-  type AutomationKey, type Mode, type RunStatus, type TemplateVars,
+  MAX_DAYS, MIN_DAYS, VARIABLES, renderTemplate,
+  type AutomationKey, type RunStatus, type TemplateVars,
 } from "@/convex/crm/lib/automationRules";
 import { useKept, useWorkspace } from "@/lib/clients";
 import { failure } from "@/lib/pipeline";
@@ -43,7 +43,6 @@ const STATUS: Record<RunStatus | "done", { label: string; cls: string }> = {
   failed: { label: "Failed", cls: "overdue" },
 };
 
-const SHOW_SENDING_MODE = true;
 const nowMs = () => Date.now();
 const when = (ms: number) => new Date(ms).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
 
@@ -93,8 +92,6 @@ export function AutomationsPage() {
       </div>
       <p className="au-lead">Configure the triggers and conditions and the CRM will complete routine tasks and perform actions automatically. Jobber&apos;s four are here to adjust (days, message, on or off); make your own with New Automation.</p>
 
-      {/* Hidden for now (user, 2026-11-11). The business stays in log-only mode, so nothing is sent or archived. Put it back to switch on test or live sending. */}
-      {SHOW_SENDING_MODE && <ModeCard businessId={businessId} data={data} />}
 
       {groups.map((g) => (
         <section key={g.name} className="au-group">
@@ -123,71 +120,6 @@ export function AutomationsPage() {
       {builder === "new" && <AutomationBuilder key="new" businessId={businessId} automation={null} onClose={() => setBuilder(null)} />}
       {editing && <AutomationBuilder key={editing.id + editing.updatedAt} businessId={businessId} automation={editing} onClose={() => setBuilder(null)} />}
     </div>
-  );
-}
-
-/* ---- Sending mode ---- */
-
-function ModeCard({ businessId, data }: { businessId: Id<"businesses">; data: Overview }) {
-  const { toast } = useUI();
-  const save = useMutation(api.crm.automations.setSettings);
-  const [mode, setMode] = useState<Mode>(data.mode);
-  const [test, setTest] = useState(data.testAddress);
-  const [phone, setPhone] = useState(data.companyPhone);
-  const [bad, setBad] = useState<"" | "test">("");
-  const [busy, setBusy] = useState(false);
-  const dirty = mode !== data.mode || test.trim() !== data.testAddress || phone.trim() !== data.companyPhone;
-
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    if (mode === "test" && !test.trim()) return setBad("test");
-    setBad("");
-    setBusy(true);
-    try {
-      await save({ businessId, mode, testAddress: test, companyPhone: phone, now: Date.now() });
-      toast("Automation settings saved.");
-    } catch (err) {
-      toast(failure(err, "That could not be saved."));
-      if (mode === "test") setBad("test");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  const note: Record<Mode, string> = {
-    log: "Nothing is sent and nothing is archived. Each automation only writes what it would have done in the activity list below.",
-    test: "Follow-ups go to the test address instead of the client. Archiving is real.",
-    live: "Follow-ups go to clients and quotes and requests are archived.",
-  };
-
-  return (
-    <form className="au-mode card" onSubmit={submit} noValidate>
-      <h2>Sending</h2>
-      <div className="au-modes" role="radiogroup" aria-label="Sending mode">
-        {MODES.map((m) => (
-          <label key={m} className={`au-radio${mode === m ? " on" : ""}`}>
-            <input type="radio" name="mode" checked={mode === m} onChange={() => setMode(m)} />
-            {MODE_LABEL[m]}
-          </label>
-        ))}
-      </div>
-      <p className="au-note">{note[mode]}</p>
-      {!data.sendingConfigured && mode !== "log" && (
-        <p className="au-warn">Email sending is not set up on this deployment yet (the Zoho send permission and the CRM address). Follow-ups will show as failed until it is.</p>
-      )}
-      <div className="au-row">
-        <div className={`field${bad === "test" ? " bad" : ""}`}>
-          <label htmlFor="au-test">Test email address</label>
-          <input id="au-test" type="email" inputMode="email" value={test} aria-invalid={bad === "test"} onChange={(e) => { setTest(e.target.value.replace(/\s/g, "")); setBad(""); }} />
-          <span className="err">Enter the address test emails should go to.</span>
-        </div>
-        <div className="field">
-          <label htmlFor="au-phone">Phone number in messages</label>
-          <input id="au-phone" value={phone} maxLength={40} onChange={(e) => setPhone(e.target.value)} />
-        </div>
-        <button type="submit" className="btn primary" disabled={!dirty || busy}>Save</button>
-      </div>
-    </form>
   );
 }
 

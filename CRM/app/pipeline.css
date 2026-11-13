@@ -306,3 +306,34 @@ button.pl-iconbox:hover:not(:disabled) { background: #dcdad5; }
 
 /* A larger opportunity window (client request, 2026-11-13): wider on big screens, full width on a phone. */
 @media (min-width: 1500px) { .pl-panel { width: 720px; } }
+
+/* Fill the wider opportunity window (client, 2026-11-13): bigger text, two columns at the top, a full-width note box, centred header and buttons. */
+.pl-panel { font-size: 16px; }
+.pl-panelhead { padding: 24px 28px 18px; align-items: flex-start; }
+.pl-panelhead > div { flex: 1; text-align: center; padding-left: 36px; }
+.pl-panelhead h2 { font-size: 26px; }
+.pl-panelvalue { font-size: 20px; }
+.pl-panelchips { justify-content: center; }
+.pl-chip { padding: 4px 14px; font-size: 14px; }
+.pl-panelbody { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-content: start; gap: 22px 24px; padding: 24px 28px 40px; }
+.pl-panelbody > .pl-section { grid-column: 1 / -1; }
+.pl-box { padding: 18px 20px; text-align: center; }
+.pl-clientname { font-size: 20px; }
+.pl-contact { font-size: 16px; justify-items: center; gap: 4px; }
+.pl-quick { display: grid; align-content: center; justify-items: center; gap: 10px; text-align: center; }
+.pl-quick h3, .pl-sectionhead h3 { font-size: 19px; }
+.pl-quickrow { justify-content: center; gap: 10px; }
+.pl-facts { gap: 12px; align-content: center; }
+.pl-facts > div { grid-template-columns: 130px minmax(0, 1fr); font-size: 16px; }
+.pl-panelbody > .pl-quickrow { align-self: center; }
+.pl-none { font-size: 16px; padding: 18px; }
+.pl-tasks li { font-size: 16px; padding: 12px 14px; }
+.pl-note { font-size: 16px; padding: 14px 16px; }
+.pl-note small, .pl-tasks small, .pl-history small { font-size: 13px; }
+.pl-history li { font-size: 16px; padding: 10px 14px; }
+.pl-noteform { justify-items: stretch; gap: 12px; }
+.pl-noteform .ne { width: 100%; }
+.pl-noteform .ne-area { min-height: 240px; font-size: 16px; }
+.pl-noteform .ne-btn { font-size: 15px; }
+.pl-noteform > .btn { justify-self: end; }
+@media (max-width: 900px) { .pl-panelbody { grid-template-columns: minmax(0, 1fr); } .pl-panelhead > div { padding-left: 0; } }
