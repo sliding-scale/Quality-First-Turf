@@ -9,11 +9,12 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore, type MouseEvent, type ReactNode } from "react";
 import { api } from "@/convex/_generated/api";
 import { setBusiness, useWorkspace } from "@/lib/clients";
-import { clientsReturnHref } from "@/lib/clients-place";
+import { forgetClientsPlace } from "@/lib/clients-place";
 import { useStoredString, writeItem } from "@/lib/store";
 import { Icon } from "./icon";
 import { AccountMenu } from "./account-menu";
 import { ErrorBoundary } from "./error-boundary";
+import { NotificationsBell } from "./notifications-bell";
 import { useStaff } from "./staff-context";
 import { UIProvider, useUI } from "./ui-provider";
 
@@ -210,9 +211,7 @@ function ShellInner({ children }: { children: ReactNode }) {
         <button className="icon-btn" type="button" aria-label="Messages" disabled>
           <Icon name="message" size={24} />
         </button>
-        <button className="icon-btn" type="button" aria-label="Notifications" disabled>
-          <Icon name="bell" size={24} />
-        </button>
+        <NotificationsBell />
         <button
           className="icon-btn"
           type="button"
@@ -268,13 +267,11 @@ function ShellInner({ children }: { children: ReactNode }) {
             );
             if (n.href) {
               const on = n.key === active;
-              // Clients goes back to the page they were on. Read at the click so it is never a stale address from an earlier render.
+              // A sidebar tab always opens its first page. The Clients list's saved place is dropped, so only Back from a client page (which reads
+              // it) returns to where the person was.
               const openClients = (e: MouseEvent<HTMLAnchorElement>) => {
                 if (n.key !== "clients" || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
-                const href = clientsReturnHref();
-                if (href === "/clients") return;
-                e.preventDefault();
-                router.push(href);
+                forgetClientsPlace();
               };
               if (n.key === "pipeline") {
                 // Pipeline opens a list of pipelines under it. Sales is the one that exists and is selected; the rest are greyed out until they are built.

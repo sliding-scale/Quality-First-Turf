@@ -6,6 +6,7 @@ import { checkAssignee } from "./lib/assignees";
 import { attachmentLinks, checkNoteFiles, noteFilesArg } from "./lib/noteFiles";
 import { mirrorChanged, mirrorRemoved } from "./lib/mirror";
 import { toggleCheckbox } from "./lib/noteText";
+import { notifyMentions } from "./lib/mentionNotify";
 
 /** Tasks and notes on a project: the pipeline card panel and the Tasks tab (D-061). */
 
@@ -110,7 +111,10 @@ export const addNote = mutation({
     if (text.length > 5000) throw new ConvexError("Notes can be up to 5,000 characters.");
     const attachments = await checkNoteFiles(ctx, args.files);
     if (!text && attachments.length === 0) throw new ConvexError("Write something first.");
-    return ctx.db.insert("opportunityNotes", { opportunityId: args.id, text, author: staff.name, createdAt: Date.now(), ...(attachments.length ? { attachments } : {}) });
+    const now = Date.now();
+    const noteId = await ctx.db.insert("opportunityNotes", { opportunityId: args.id, text, author: staff.name, createdAt: now, ...(attachments.length ? { attachments } : {}) });
+    await notifyMentions(ctx, { businessId: project.businessId, staff, text, target: { kind: "project", opportunityId: args.id }, now });
+    return noteId;
   },
 });
 

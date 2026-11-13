@@ -5,10 +5,12 @@
    until Save, then `uploadPending` sends them to storage and the note is saved with their ids, so cancelling leaves nothing behind.
    Dictation uses the browser's own speech recognition (Chrome, Edge, Safari); where it is missing the button says so. */
 
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { api } from "@/convex/_generated/api";
 import { continueList, parseLine, toggleList, type ListKind } from "@/convex/crm/lib/noteText";
+import { tagQuery } from "@/convex/crm/lib/mentions";
+import { useWorkspace } from "@/lib/clients";
 import { Icon } from "./icon";
 import { useUI } from "./ui-provider";
 
@@ -73,6 +75,12 @@ export function NoteEditor({ id, value, onChange, files, onFiles, placeholder, r
   const recorder = useRef<{ rec: MediaRecorder; chunks: Blob[]; stream: MediaStream; timer: ReturnType<typeof setInterval> } | null>(null);
   const live = useRef({ value, files });
   const supportsSpeech = useMemo(() => speechApi() !== null, []);
+  // Tagging a team member with @: the people of the business being worked in, narrowed by what has been typed after the "@".
+  const ws = useWorkspace();
+  const people = useQuery(api.crm.pipeline.people, ws.state === "ready" ? { businessId: ws.business._id } : "skip");
+  const [tag, setTag] = useState<{ start: number; query: string } | null>(null);
+  const [pickIndex, setPickIndex] = useState(0);
+  const tagMatches = tag && people ? people.filter((p) => p.name.toLowerCase().includes(tag.query.trim().toLowerCase())).slice(0, 6) : [];
   const supportsRecording = useMemo(() => typeof navigator !== "undefined" && !!navigator.mediaDevices?.getUserMedia && typeof MediaRecorder !== "undefined", []);
 
   useEffect(() => {
@@ -94,6 +102,33 @@ export function NoteEditor({ id, value, onChange, files, onFiles, placeholder, r
     const end = text.indexOf("\n", from);
     const k = parseLine(text.slice(from, end === -1 ? text.length : end)).kind;
     setKindNow(k === "text" ? null : k);
+    // An "@" being typed asks who to tag.
+    const q = tagQuery(text, el.selectionStart);
+    setTag(q);
+    if (q?.start !== tag?.start) setPickIndex(0);
+  }
+
+  /** Tags a person: the "@" and what was typed after it become "@Name ". */
+  function choosePerson(p: { name: string }) {
+    const el = area.current;
+    if (!tag || !el) return;
+    const cursor = el.selectionStart;
+    const insert = `@${p.name} `;
+    onChange(value.slice(0, tag.start) + insert + value.slice(cursor));
+    setTag(null);
+    requestAnimationFrame(() => { el.focus(); el.setSelectionRange(tag.start + insert.length, tag.start + insert.length); });
+  }
+
+  /** Arrow keys, Enter, Tab and Escape drive the list of people while it is open. True when the key was used. */
+  function tagKey(e: KeyboardEvent<HTMLTextAreaElement>): boolean {
+    if (!tag || tagMatches.length === 0) return false;
+    if (e.key === "ArrowDown") setPickIndex((i) => (i + 1) % tagMatches.length);
+    else if (e.key === "ArrowUp") setPickIndex((i) => (i - 1 + tagMatches.length) % tagMatches.length);
+    else if (e.key === "Enter" || e.key === "Tab") choosePerson(tagMatches[Math.min(pickIndex, tagMatches.length - 1)]);
+    else if (e.key === "Escape") setTag(null);
+    else return false;
+    e.preventDefault();
+    return true;
   }
 
   function format(kind: ListKind) {
@@ -282,10 +317,23 @@ export function NoteEditor({ id, value, onChange, files, onFiles, placeholder, r
         aria-label="Note"
         value={value}
         onChange={(e) => { onChange(e.target.value); look(e.target); }}
-        onKeyDown={onKeyDown}
-        onKeyUp={(e) => look(e.currentTarget)}
+        onKeyDown={(e) => { if (!tagKey(e)) onKeyDown(e); }}
+        onKeyUp={(e) => { if (!["ArrowDown", "ArrowUp", "Enter", "Tab", "Escape"].includes(e.key) || !tag) look(e.currentTarget); }}
         onClick={(e) => look(e.currentTarget)}
+        onBlur={() => setTimeout(() => setTag(null), 150)}
       />
+      {tag && tagMatches.length > 0 && (
+        <ul className="ne-tags" role="listbox" aria-label="Tag a team member">
+          {tagMatches.map((p, i) => (
+            <li key={p.id} role="option" aria-selected={i === pickIndex}>
+              <button type="button" className={i === pickIndex ? "on" : undefined} onMouseDown={(e) => e.preventDefault()} onClick={() => choosePerson(p)}>
+                <span className="ne-tag-av" aria-hidden="true">{p.name.slice(0, 1).toUpperCase()}</span>
+                {p.name}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
       {files.length > 0 && (
         <div className="ne-files">
           {files.map((f) => (

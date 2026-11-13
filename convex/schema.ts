@@ -521,6 +521,22 @@ export default defineSchema({
     .index("by_quote_and_key", ["quoteId", "key"])
     .index("by_opportunity_and_key", ["opportunityId", "key"]),
 
+  /** A person tagged in a note with @ (D-073): one row per note and tagged person, shown behind the top bar's bell until read. Written only
+   *  by crm/lib/mentionNotify.ts. `excerpt` is a deliberate labelled copy of the start of the note, so the bell needs no lookup. */
+  noteMentions: defineTable({
+    businessId: v.id("businesses"),
+    userId: v.id("users"),
+    byName: v.string(),
+    byUserId: v.id("users"),
+    kind: v.union(v.literal("project"), v.literal("client"), v.literal("quote")),
+    opportunityId: v.optional(v.id("opportunities")),
+    clientId: v.optional(v.id("clients")),
+    quoteId: v.optional(v.id("quotes")),
+    excerpt: v.string(),
+    at: v.number(),
+    readAt: v.optional(v.number()),
+  }).index("by_user_and_at", ["userId", "at"]),
+
   /** Automations an Admin builds with Jobber's "New Automation" panel (D-071): a trigger, conditions and one action. Written only by
    *  crm/customAutomations.ts. The four fixed ones (D-065) stay in `automations`. `activeSince` is when it was last turned on: nothing
    *  that happened before then is acted on. */

@@ -18,6 +18,7 @@ import { Icon } from "./icon";
 import { PipelineModal } from "./pipeline-dialogs";
 import { SignaturePad } from "./signature-pad";
 import { useUI } from "./ui-provider";
+import { NoteEditor } from "./note-editor";
 
 export const clientLink = (token: string) => `${window.location.origin}/q/${token}`;
 
@@ -256,7 +257,7 @@ export function NoteDialog({ quoteId, businessId, onClose }: { quoteId: Id<"quot
         >
           <div className={`field${bad ? " bad" : ""}`}>
             <label htmlFor="nt-text">Leave an internal note for yourself or a team member</label>
-            <textarea id="nt-text" aria-invalid={bad} value={text} onChange={(e) => { setText(e.target.value); setBad(false); }} />
+            <NoteEditor id="nt-text" noFiles rows={6} value={text} onChange={(t) => { setText(t); setBad(false); }} files={[]} onFiles={() => undefined} />
             <span className="err">Write a note or add a file.</span>
           </div>
           <div className="field" style={{ marginTop: 12 }}>

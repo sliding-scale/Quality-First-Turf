@@ -72,6 +72,15 @@ function Clients({ business, initialQuery, saved, list }: { business: BusinessDo
       setPage(next.page);
       setSize(next.size);
       setBooted(true);
+    } else {
+      // The address went bare while the list is open (the sidebar's Clients tab): back to page 1 with the defaults.
+      setQ("");
+      setSearch("");
+      setTags([]);
+      setStatus("Leads and Active");
+      setSort({ key: "lastActivity", dir: "desc" });
+      setPage(1);
+      setSize(10);
     }
   }
   const [deleting, setDeleting] = useState<Id<"clients">[] | null>(null);

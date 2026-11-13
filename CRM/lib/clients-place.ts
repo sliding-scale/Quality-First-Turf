@@ -1,5 +1,6 @@
-/* Where the Clients list was, so Back and the Clients tab return to the same page, search and filters (May, 2026-11-11).
-   The address is the source of truth when it names a page. A bare /clients restores the last place in this tab. */
+/* Where the Clients list was, so Back from a client page returns to the same page, search and filters (May, 2026-11-11).
+   The address is the source of truth when it names a page. A bare /clients restores the last place in this tab, except right after the sidebar
+   tab was clicked, which forgets it: a sidebar tab always opens the first page. */
 
 import { CLIENT_STATUS_FILTERS, type ClientStatusFilter } from "@/convex/crm/lib/stages";
 
@@ -98,4 +99,13 @@ export function writeClientsPlace(place: ClientsPlace) {
 /** The list to go back to. /clients until the browser can read the saved place, which a bare /clients then restores. */
 export function clientsReturnHref(): string {
   return clientsListHref(readClientsPlace());
+}
+
+/** Drops the saved place, so the next bare /clients opens page 1 with the default filters (the sidebar's Clients tab does this). */
+export function forgetClientsPlace() {
+  try {
+    sessionStorage.removeItem(KEY);
+  } catch {
+    /* storage unavailable: nothing was saved */
+  }
 }

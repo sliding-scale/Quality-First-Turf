@@ -60,7 +60,6 @@ export function UsersPage() {
   const resend = useAction(api.crm.invitations.resend);
   const cancel = useAction(api.crm.invitations.cancel);
   const [deleting, setDeleting] = useState<UserDoc | null>(null);
-  const [showDeleted, setShowDeleted] = useState(false);
   const [q, setQ] = useState("");
   const [search, setSearch] = useState(""); // what the server is asked, a moment after typing stops
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "name", dir: "asc" });
@@ -74,7 +73,7 @@ export function UsersPage() {
     return () => clearTimeout(t);
   }, [q]);
 
-  const data = useKept(useQuery(api.crm.users.list, staff.isAdmin ? { search, sortKey: sort.key, dir: sort.dir, page, size, includeDeleted: showDeleted } : "skip"));
+  const data = useKept(useQuery(api.crm.users.list, staff.isAdmin ? { search, sortKey: sort.key, dir: sort.dir, page, size } : "skip"));
 
   if (!staff.isAdmin) {
     return (
@@ -197,10 +196,6 @@ export function UsersPage() {
 
       <div className="team-count-row">
         <h3 className="team-count">Team members ({data.total})</h3>
-        <label className="checkline show-deleted">
-          <input type="checkbox" checked={showDeleted} onChange={(e) => { setShowDeleted(e.target.checked); setPage(1); }} />
-          Show deleted
-        </label>
       </div>
 
       <div className="table-card">
@@ -310,7 +305,8 @@ function UserForm({ user, businesses, onDone }: { user: UserDoc | null; business
   const [email, setEmail] = useState(user?.email ?? "");
   const [roles, setRoles] = useState<Role[]>(user?.roles ?? []);
   const [businessIds, setBusinessIds] = useState<Id<"businesses">[]>(user?.businessIds ?? []);
-  const [active, setActive] = useState(user ? user.status !== "deactivated" : true);
+  // Turning access on or off is in the row's three-dots menu; editing keeps whatever it is now.
+  const active = user ? user.status !== "deactivated" : true;
   const [attempted, setAttempted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [serverError, setServerError] = useState("");
@@ -397,13 +393,6 @@ function UserForm({ user, businesses, onDone }: { user: UserDoc | null; business
         {isAdmin && <div className="muted">Admins work in every business.</div>}
         <div className="err">Choose at least one business.</div>
       </fieldset>
-
-      {user && (
-        <label className="checkline">
-          <input type="checkbox" checked={active} onChange={() => setActive(!active)} />
-          Can log in (turn off to remove access without deleting them)
-        </label>
-      )}
 
       {serverError && <div className="form-error" role="alert">{serverError}</div>}
       <div className="user-form-actions">

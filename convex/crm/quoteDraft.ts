@@ -5,6 +5,7 @@ import { requireEditor } from "./lib/access";
 import { quoteMoneyOptions } from "./lib/quoteOptions";
 import { quoteTotals } from "./lib/quoteMath";
 import { systemMove } from "./lib/systemMove";
+import { notifyMentions } from "./lib/mentionNotify";
 
 /** Building a quote (D-063): create, save, attachments, notes, duplicate, archive. Sending and the client's answers are in quoteFlow.ts and
  *  clientQuote.ts. A quote that is approved, rejected, converted or archived can no longer be edited. */
@@ -197,7 +198,9 @@ export const addNote = mutation({
     const text = a.text.trim();
     if (!text && !a.attachmentId) throw new ConvexError("Write something first.");
     if (a.attachmentId) await checkFile(ctx, a.attachmentId, "A note's file");
-    await ctx.db.insert("quoteNotes", { quoteId: quote._id, text, author: staff.name, createdAt: Date.now(), attachmentId: a.attachmentId, attachmentName: a.attachmentName });
+    const now = Date.now();
+    await ctx.db.insert("quoteNotes", { quoteId: quote._id, text, author: staff.name, createdAt: now, attachmentId: a.attachmentId, attachmentName: a.attachmentName });
+    await notifyMentions(ctx, { businessId: quote.businessId, staff, text, target: { kind: "quote", quoteId: quote._id }, now });
   },
 });
 

@@ -3,14 +3,26 @@
 /* A saved note as it is shown (D-067): the text with its bullets, numbers and checkboxes (a checkbox can be ticked right here), then
    the photos (click one to see it large) and the voice notes (with a player). */
 
+import { useQuery } from "convex/react";
 import { useState } from "react";
+import { api } from "@/convex/_generated/api";
+import { splitTags, type Person } from "@/convex/crm/lib/mentions";
 import { parseNote } from "@/convex/crm/lib/noteText";
+import { useWorkspace } from "@/lib/clients";
 import { ImageViewer } from "./image-viewer";
 
 export type NoteFile = { kind: "image" | "audio"; name: string; contentType: string; url: string };
 
+/** A line of a note, with the people tagged in it (@Name) in colour. */
+function Tagged({ text, people }: { text: string; people: readonly Person[] }) {
+  if (!text.includes("@")) return <>{text}</>;
+  return <>{splitTags(text, people).map((p, i) => (p.tag ? <span key={i} className="nv-tag">{p.text}</span> : <span key={i}>{p.text}</span>))}</>;
+}
+
 export function NoteBody({ text, files, canEdit, onToggle }: { text: string; files: NoteFile[]; canEdit: boolean; onToggle: (line: number) => void }) {
   const [viewing, setViewing] = useState<number | null>(null);
+  const ws = useWorkspace();
+  const team = useQuery(api.crm.pipeline.people, ws.state === "ready" ? { businessId: ws.business._id } : "skip") ?? [];
   const lines = parseNote(text);
   const photos = files.filter((f) => f.kind === "image");
   const voices = files.filter((f) => f.kind === "audio");
@@ -23,13 +35,13 @@ export function NoteBody({ text, files, canEdit, onToggle }: { text: string; fil
               return (
                 <label key={i} className={`nv-line nv-check${l.done ? " done" : ""}`}>
                   <input type="checkbox" checked={l.done} disabled={!canEdit} onChange={() => onToggle(i)} />
-                  <span>{l.text}</span>
+                  <span><Tagged text={l.text} people={team} /></span>
                 </label>
               );
             }
-            if (l.kind === "bullet") return <div key={i} className="nv-line nv-bullet"><span aria-hidden="true">•</span><span>{l.text}</span></div>;
-            if (l.kind === "number") return <div key={i} className="nv-line nv-bullet"><span aria-hidden="true">{l.n}.</span><span>{l.text}</span></div>;
-            return <div key={i} className="nv-line">{l.text === "" ? <br /> : l.text}</div>;
+            if (l.kind === "bullet") return <div key={i} className="nv-line nv-bullet"><span aria-hidden="true">•</span><span><Tagged text={l.text} people={team} /></span></div>;
+            if (l.kind === "number") return <div key={i} className="nv-line nv-bullet"><span aria-hidden="true">{l.n}.</span><span><Tagged text={l.text} people={team} /></span></div>;
+            return <div key={i} className="nv-line">{l.text === "" ? <br /> : <Tagged text={l.text} people={team} />}</div>;
           })}
         </div>
       )}

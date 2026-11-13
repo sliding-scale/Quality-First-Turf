@@ -25,6 +25,7 @@ import { ActivityDialog, DepositDialog, NoteDialog, SendDialog, SignDialog } fro
 import { QuoteSkeleton } from "./skeletons";
 import { useStaff } from "./staff-context";
 import { useUI, type MenuItem } from "./ui-provider";
+import { NoteBody } from "./note-view";
 
 export function QuotePage({ id }: { id: string }) {
   const quote = useQuote(id);
@@ -382,7 +383,7 @@ function QuoteView({ q }: { q: Quote }) {
                       <div className="muted">{quoteDateTime(n.createdAt)}</div>
                     </div>
                   </div>
-                  <p>{n.text}</p>
+                  <NoteBody text={n.text} files={[]} canEdit={false} onToggle={() => undefined} />
                   {n.attachmentUrl && (
                     <a className="qn-file" href={n.attachmentUrl} target="_blank" rel="noreferrer" title={n.attachmentName ?? "Attachment"}>
                       <Icon name="file" size={24} />

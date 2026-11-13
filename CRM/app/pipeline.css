@@ -83,7 +83,7 @@
 .pl-done:hover { background: #f6f8f8; }
 
 /* The card's panel, sliding in from the right. */
-.pl-panel { position: absolute; top: 0; right: 0; bottom: 0; width: 390px; max-width: 100%; z-index: 8; display: flex; flex-direction: column; background: #fff; border-left: 1px solid #dadfe2; box-shadow: -8px 0 24px rgba(3, 43, 58, 0.12); animation: pl-panel-in 0.22s ease-out both; }
+.pl-panel { position: absolute; top: 0; right: 0; bottom: 0; width: 600px; max-width: 100%; z-index: 8; display: flex; flex-direction: column; background: #fff; border-left: 1px solid #dadfe2; box-shadow: -8px 0 24px rgba(3, 43, 58, 0.12); animation: pl-panel-in 0.22s ease-out both; }
 .pl-panel.leaving { animation: pl-panel-out 0.2s ease-in both; }
 @keyframes pl-panel-in { from { transform: translateX(100%); opacity: 0.6; } to { transform: none; opacity: 1; } }
 @keyframes pl-panel-out { from { transform: none; opacity: 1; } to { transform: translateX(100%); opacity: 0.6; } }
@@ -303,3 +303,6 @@ button.pl-iconbox:hover:not(:disabled) { background: #dcdad5; }
 .ab-foot { display: flex; gap: 12px; padding: 14px 24px; border-top: 1px solid #dadfe2; background: #fff; }
 .ab-save { flex: 1; }
 @media (prefers-reduced-motion: reduce) { .ab-panel, .ab-panel.leaving { animation: none; } }
+
+/* A larger opportunity window (client request, 2026-11-13): wider on big screens, full width on a phone. */
+@media (min-width: 1500px) { .pl-panel { width: 720px; } }

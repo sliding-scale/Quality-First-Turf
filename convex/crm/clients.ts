@@ -8,6 +8,7 @@ import { attachmentLinks, checkNoteFiles, deleteNoteFiles, noteFilesArg } from "
 import { toggleCheckbox } from "./lib/noteText";
 import { clientInputFields, clientSearchText, normalizeClientInput, opportunitySearchText } from "./lib/clientInput";
 import { CLIENT_TAGS, DAY_MS, matchesClientStatusFilter, type ClientStatusFilter } from "./lib/stages";
+import { notifyMentions } from "./lib/mentionNotify";
 
 /* Clients (D-008, D-031): one list per business. Lists are filtered, sorted, counted and cut into a page here, on the
    server, over a bounded read of at most MAX_CLIENTS rows of one business. If a business ever passes that, the list says
@@ -301,7 +302,9 @@ export const addNote = mutation({
     if (text.length > 5000) throw new ConvexError("Notes can be up to 5,000 characters.");
     const attachments = await checkNoteFiles(ctx, args.files);
     if (!text && attachments.length === 0) throw new ConvexError("Write a note first.");
-    return await ctx.db.insert("clientNotes", { clientId: args.clientId, text, author: staff.name, ...(attachments.length ? { attachments } : {}) });
+    const noteId = await ctx.db.insert("clientNotes", { clientId: args.clientId, text, author: staff.name, ...(attachments.length ? { attachments } : {}) });
+    await notifyMentions(ctx, { businessId: client.businessId, staff, text, target: { kind: "client", clientId: args.clientId }, now: Date.now() });
+    return noteId;
   },
 });
 

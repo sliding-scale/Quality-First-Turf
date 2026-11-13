@@ -7,6 +7,7 @@ import { checkAssignee } from "./lib/assignees";
 import { checkNoteFiles, noteFilesArg } from "./lib/noteFiles";
 import { opportunitySearchText } from "./lib/clientInput";
 import { DAY_MS, REQUEST_STATUSES, SALES_STAGES, requestStatus, type RequestStatus } from "./lib/stages";
+import { notifyMentions } from "./lib/mentionNotify";
 
 /* Requests (D-039): not a table. A request is a Sales-pipeline project (`opportunities`) seen through its stage, and its
    status is worked out from the stage and age here. Same bounded-read approach as clients.ts. */
@@ -311,6 +312,7 @@ export const create = mutation({
     const note = (args.note ?? "").trim().slice(0, 5000);
     const attachments = await checkNoteFiles(ctx, args.noteFiles);
     if (note || attachments.length) await ctx.db.insert("opportunityNotes", { opportunityId: id, text: note, author: staff.name, createdAt: now, ...(attachments.length ? { attachments } : {}) });
+    await notifyMentions(ctx, { businessId: args.businessId, staff, text: note, target: { kind: "project", opportunityId: id }, now });
     return id;
   },
 });
