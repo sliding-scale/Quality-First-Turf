@@ -23,7 +23,8 @@ export const expire = internalMutation({
   args: { sessionId: v.id("salesSessions") },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await ctx.db.delete("salesSessions", args.sessionId);
+    // The session may already be gone (signed out, or the hourly purge got there first). Nothing to do then.
+    if (await ctx.db.get("salesSessions", args.sessionId)) await ctx.db.delete("salesSessions", args.sessionId);
     return null;
   },
 });

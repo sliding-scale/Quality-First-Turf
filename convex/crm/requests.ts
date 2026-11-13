@@ -233,6 +233,31 @@ function cleanLines(lines: { name: string; description: string; quantity: number
   return out;
 }
 
+/** Changes a request's title and/or service details (the Overview). Each pencil on the request page sends only its own part. */
+export const update = mutation({
+  args: { id: v.id("opportunities"), title: v.optional(v.string()), details: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const o = await ctx.db.get(args.id);
+    if (o === null || o.pipeline !== "Sales") throw new ConvexError("That request no longer exists.");
+    await requireEditor(ctx, o.businessId);
+    const patch: Partial<Doc<"opportunities">> = {};
+    if (args.title !== undefined) {
+      const title = args.title.trim();
+      if (!title) throw new ConvexError("Give the request a title.");
+      if (title.length > 200) throw new ConvexError("The title is too long.");
+      const client = await ctx.db.get(o.clientId);
+      patch.title = title;
+      if (client) patch.searchText = opportunitySearchText(client, { title, code: o.code, stage: o.stage });
+    }
+    if (args.details !== undefined) {
+      const details = args.details.trim();
+      if (details.length > 5000) throw new ConvexError("The service details are too long (5,000 characters at most).");
+      patch.details = details || undefined;
+    }
+    await ctx.db.patch(o._id, patch);
+  },
+});
+
 /** Replaces the request's Product / Service lines. */
 export const setLines = mutation({
   args: { id: v.id("opportunities"), lines: linesArg },

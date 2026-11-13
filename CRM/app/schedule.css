@@ -3,7 +3,7 @@
 .main:has(.sc) { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
 .main:has(.sc) > .page { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .sc { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.sc > [role="status"], .sc-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.sc > [role="status"]:not(.sc-connectnote), .sc-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 [role="status"] > .sc { flex: 1; min-height: 0; }
 .main:has(.sc) > .page > [role="status"] { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 

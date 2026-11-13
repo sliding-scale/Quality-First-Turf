@@ -160,7 +160,7 @@ function QuoteView({ q }: { q: Quote }) {
           <div className="quote-title-row">
             <h1>{q.title}</h1>
             {editable ? (
-              <Link className="icon-btn" aria-label="Edit quote details" title="Edit quote details" href={`/quotes/${q.id}/edit`}><Icon name="pencil" size={24} /></Link>
+              <Link className="icon-btn" aria-label="Edit quote details" title="Edit quote details" href={`/quotes/${q.id}/edit?section=details`}><Icon name="pencil" size={24} /></Link>
             ) : (
               canEdit && <button type="button" className="icon-btn" aria-label="Edit quote details" title="A quote that is approved, declined or archived cannot be edited" disabled><Icon name="pencil" size={24} /></button>
             )}
@@ -203,7 +203,7 @@ function QuoteView({ q }: { q: Quote }) {
           <section className="card panel quote-section">
             <div className="ph">
               <h3>Introduction</h3>
-              {editable && <Link className="icon-btn" aria-label="Edit introduction" href={`/quotes/${q.id}/edit`}><Icon name="pencil" size={24} /></Link>}
+              {editable && <Link className="icon-btn" aria-label="Edit introduction" href={`/quotes/${q.id}/edit?section=intro`}><Icon name="pencil" size={24} /></Link>}
             </div>
             <div className="qs-body">
               {q.introImageUrl && (
@@ -222,7 +222,7 @@ function QuoteView({ q }: { q: Quote }) {
           <section className="card panel quote-section">
             <div className="ph">
               <h3>Product / Service</h3>
-              {editable && <Link className="icon-btn" aria-label="Edit products and services" href={`/quotes/${q.id}/edit`}><Icon name="pencil" size={24} /></Link>}
+              {editable && <Link className="icon-btn" aria-label="Edit products and services" href={`/quotes/${q.id}/edit?section=lines`}><Icon name="pencil" size={24} /></Link>}
             </div>
             <div className="qs-body flush">
               <table className="table quote-lines">
@@ -298,7 +298,7 @@ function QuoteView({ q }: { q: Quote }) {
           {canEdit && (
             <div className="qs-add" role="group" aria-label="Add section">
               <span className="qs-add-label"><Icon name="plus" size={16} />Add section</span>
-              {editable ? <Link className="qs-chip" href={`/quotes/${q.id}/edit`}>Attachments</Link> : <span className="qs-chip" aria-disabled="true">Attachments</span>}
+              {editable ? <Link className="qs-chip" href={`/quotes/${q.id}/edit?section=attachments`}>Attachments</Link> : <span className="qs-chip" aria-disabled="true">Attachments</span>}
               <span className="qs-chip" aria-disabled="true" title="Not available yet">Images</span>
               <span className="qs-chip" aria-disabled="true" title="Not available yet">Reviews</span>
             </div>
@@ -308,7 +308,7 @@ function QuoteView({ q }: { q: Quote }) {
             <section className="card panel quote-section">
               <div className="ph">
                 <h3>Client Message</h3>
-                {editable && <Link className="icon-btn" aria-label="Edit client message" href={`/quotes/${q.id}/edit`}><Icon name="pencil" size={24} /></Link>}
+                {editable && <Link className="icon-btn" aria-label="Edit client message" href={`/quotes/${q.id}/edit?section=message`}><Icon name="pencil" size={24} /></Link>}
               </div>
               <div className="qs-body"><p className="qs-text">{q.clientMessage || "No message."}</p></div>
             </section>
@@ -318,7 +318,7 @@ function QuoteView({ q }: { q: Quote }) {
             <section className="card panel quote-section">
               <div className="ph">
                 <h3>Contract / Disclaimer</h3>
-                {editable && <Link className="icon-btn" aria-label="Edit contract / disclaimer" href={`/quotes/${q.id}/edit`}><Icon name="pencil" size={24} /></Link>}
+                {editable && <Link className="icon-btn" aria-label="Edit contract / disclaimer" href={`/quotes/${q.id}/edit?section=contract`}><Icon name="pencil" size={24} /></Link>}
               </div>
               <div className="qs-body"><p className="qs-text">{q.contract || "No contract."}</p></div>
             </section>

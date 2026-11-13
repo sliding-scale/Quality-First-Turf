@@ -16,6 +16,7 @@ import { useClientProjects, useWorkspace, type BusinessDoc } from "@/lib/clients
 import { money } from "@/lib/format";
 import { clock, failure, usePeople } from "@/lib/pipeline";
 import { centsToInput, dollarsToCents, uploadFile, useClientSearch, useQuote } from "@/lib/quotes";
+import { SECTION_TITLE, type Section } from "@/lib/quote-sections";
 import { EmptyBackend } from "./empty-backend";
 import { Icon } from "./icon";
 import { NewClientDialog } from "./new-client-dialog";
@@ -85,21 +86,22 @@ export function NewQuotePage({ clientId, projectId }: { clientId?: string; proje
   return <Builder business={workspace.business} presetClient={clientId as Id<"clients"> | undefined} presetProject={projectId as Id<"opportunities"> | undefined} />;
 }
 
-export function EditQuotePage({ id }: { id: string }) {
+/** The quote page's pencils each open just their own section, as in Jobber (`/quotes/<id>/edit?section=intro`). Without one, the whole quote opens. */
+export function EditQuotePage({ id, section }: { id: string; section?: Section }) {
   const quote = useQuote(id);
   if (quote === undefined) return <QuoteBuilderSkeleton />;
   if (quote === null) return <div className="empty-state"><h2>Quote not found</h2><Link className="btn primary" href="/quotes">Back to quotes</Link></div>;
-  return <EditGate quote={quote} />;
+  return <EditGate quote={quote} section={section} />;
 }
 
-function EditGate({ quote }: { quote: QuoteDoc }) {
+function EditGate({ quote, section }: { quote: QuoteDoc; section?: Section }) {
   const workspace = useWorkspace();
   if (workspace.state !== "ready") return <QuoteBuilderSkeleton />;
   const business = workspace.businesses.find((b) => b._id === quote.businessId) ?? workspace.business;
-  return <Builder business={business} quote={quote} />;
+  return <Builder business={business} quote={quote} section={section} />;
 }
 
-function Builder({ business, quote, presetClient, presetProject }: { business: BusinessDoc; quote?: QuoteDoc; presetClient?: Id<"clients">; presetProject?: Id<"opportunities"> }) {
+function Builder({ business, quote, presetClient, presetProject, section }: { business: BusinessDoc; quote?: QuoteDoc; presetClient?: Id<"clients">; presetProject?: Id<"opportunities">; section?: Section }) {
   const router = useRouter();
   const { toast } = useUI();
   const staff = useStaff();
@@ -228,14 +230,17 @@ function Builder({ business, quote, presetClient, presetProject }: { business: B
   const cancel = () => (dirty ? setLeaving(true) : router.push(quote ? `/quotes/${quote.id}` : "/quotes"));
   const personNames = people?.map((p) => p.name) ?? [];
   const view = d.clientView;
+  /** With a section chosen (a pencil on the quote page) only that section is on screen; the rest of the quote is saved as it was. */
+  const only = (s: Section) => !section || section === s;
 
   return (
     <div className="qb fade-in">
       <div className="qb-top">
-        <h1><Icon name="quote" size={26} /> {quote ? `Edit quote #${quote.number}` : "New Quote"}</h1>
+        <h1><Icon name="quote" size={26} /> {quote ? `Edit quote #${quote.number}${section ? ` · ${SECTION_TITLE[section]}` : ""}` : "New Quote"}</h1>
       </div>
       {error && <p className="qb-error" role="alert">{error}</p>}
 
+      {only("details") && (
       <section className="qb-card qb-head">
         <div className={`field${bad.has("title") ? " bad" : ""}`}>
           <label htmlFor="qb-title">Title</label>
@@ -294,15 +299,17 @@ function Builder({ business, quote, presetClient, presetProject }: { business: B
           </dl>
         </div>
       </section>
+      )}
 
-      <div className="qb-sections" role="group" aria-label="Add section">
+      {!section && <div className="qb-sections" role="group" aria-label="Add section">
         <span><Icon name="plus" size={16} /> Add section</span>
         <button type="button" className="chip outline" disabled data-tip="Add files from the Attachments section below">Attachments</button>
         <button type="button" className="chip outline" disabled data-tip="Not available yet">Images</button>
         <button type="button" className="chip outline" disabled data-tip="Not available yet">Reviews</button>
         <button type="button" className={`chip outline${d.showMessage ? " on" : ""}`} aria-pressed={d.showMessage} onClick={() => set({ showMessage: !d.showMessage })}>Client Message</button>
-      </div>
+      </div>}
 
+      {only("intro") && (
       <section className="qb-card" aria-label="Introduction">
         <h2 className="qb-h">Introduction</h2>
         <div className="qb-intro">
@@ -324,9 +331,11 @@ function Builder({ business, quote, presetClient, presetProject }: { business: B
           </div>
         </div>
       </section>
+      )}
 
-      <QuoteLines businessId={business._id} clientId={clientId} projectId={d.opportunityId} lines={d.lines} onChange={(lines) => set({ lines })} bad={bad} />
+      {only("lines") && <QuoteLines businessId={business._id} clientId={clientId} projectId={d.opportunityId} lines={d.lines} onChange={(lines) => set({ lines })} bad={bad} />}
 
+      {only("lines") && (
       <section className="qb-card qb-money" aria-label="Totals">
         <div className="qb-view">
           <span><Icon name="eye" size={20} /> Client view</span>
@@ -387,14 +396,16 @@ function Builder({ business, quote, presetClient, presetProject }: { business: B
         </dl>
         {d.lines.some((l) => !Number.isFinite(lineCents(l))) && <p className="sc-warn">A quantity or a price is not a number, so the totals are not final.</p>}
       </section>
+      )}
 
-      {d.showMessage && (
+      {(section === "message" || (!section && d.showMessage)) && (
         <section className="qb-card" aria-label="Client message">
           <h2 className="qb-h">Client Message</h2>
-          <div className="field"><label htmlFor="qb-msg">Message shown on the quote</label><textarea id="qb-msg" value={d.clientMessage} onChange={(e) => set({ clientMessage: e.target.value })} /></div>
+          <div className="field"><label htmlFor="qb-msg">Message shown on the quote</label><textarea id="qb-msg" value={d.clientMessage} onChange={(e) => set({ clientMessage: e.target.value, ...(section === "message" ? { showMessage: true } : {}) })} /></div>
         </section>
       )}
 
+      {only("attachments") && (
       <section className="qb-card" aria-label="Attachments">
         <h2 className="qb-h">Attachments</h2>
         {quote ? (
@@ -416,18 +427,21 @@ function Builder({ business, quote, presetClient, presetProject }: { business: B
           <p className="sc-muted">Save the quote first, then come back here to attach site plans and files.</p>
         )}
       </section>
+      )}
 
+      {only("contract") && (
       <section className="qb-card" aria-label="Contract / Disclaimer">
         <h2 className="qb-h">Contract / Disclaimer</h2>
         <div className="field"><label htmlFor="qb-contract">Description</label><textarea id="qb-contract" value={d.contract ?? contractDefault ?? ""} onChange={(e) => set({ contract: e.target.value })} /></div>
         <label className="sc-check"><input type="checkbox" checked={d.applyContract} onChange={(e) => set({ applyContract: e.target.checked })} /> Apply to all future quotes</label>
       </section>
+      )}
 
       <div className="qb-bar">
         <button type="button" className="btn plain" onClick={cancel} disabled={busy}>Cancel</button>
         <div className="qb-save">
-          <button type="button" className="btn primary" disabled={busy || !staff.canEdit} onClick={() => void run("view")}>{busy ? "Saving…" : "Save Quote"}</button>
-          <SaveMenu disabled={busy || !staff.canEdit} onSend={() => void run("send")} onAwaiting={() => void run("awaiting")} />
+          <button type="button" className="btn primary" disabled={busy || !staff.canEdit} onClick={() => void run("view")}>{busy ? "Saving…" : section ? "Save" : "Save Quote"}</button>
+          {!section && <SaveMenu disabled={busy || !staff.canEdit} onSend={() => void run("send")} onAwaiting={() => void run("awaiting")} />}
         </div>
       </div>
 

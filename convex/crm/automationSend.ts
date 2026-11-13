@@ -25,6 +25,24 @@ export const sendOne = internalAction({
   },
 });
 
+/** The same for a custom automation (D-071): one email, from the office mailbox. */
+export const sendCustomOne = internalAction({
+  args: { runId: v.id("customAutomationRuns") },
+  handler: async (ctx, a) => {
+    const prep = await ctx.runMutation(internal.crm.customAutomations.prepareSend, { runId: a.runId, now: Date.now() });
+    if (!prep) return null;
+    try {
+      const settings = zohoSettings();
+      if (!settings.configured) throw new ZohoError("Zoho Mail isn't connected. Set ZOHO_CLIENT_ID, ZOHO_CLIENT_SECRET and ZOHO_REFRESH_TOKEN.", 400);
+      await sendMail(ctx, settings, { to: prep.to, subject: prep.subject, html: prep.html });
+      await ctx.runMutation(internal.crm.customAutomations.finishSend, { runId: a.runId, mode: prep.mode, to: prep.to, subject: prep.subject, now: Date.now() });
+    } catch (err) {
+      await ctx.runMutation(internal.crm.customAutomations.finishSend, { runId: a.runId, mode: prep.mode, to: prep.to, subject: prep.subject, error: safeMessage(err), now: Date.now() });
+    }
+    return null;
+  },
+});
+
 async function accountId(ctx: ActionCtx, settings: Settings, token: string): Promise<string> {
   const stored: string = await ctx.runQuery(internal.crm.automations.mailAccountId, {});
   if (stored) return stored;

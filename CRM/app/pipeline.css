@@ -268,3 +268,38 @@ button.pl-iconbox:hover:not(:disabled) { background: #dcdad5; }
 .mc-types { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px 16px; }
 .mc-type { display: flex; align-items: center; gap: 8px; padding: 6px 0; cursor: pointer; }
 .mc-type input { accent-color: var(--green); width: 18px; height: 18px; cursor: pointer; }
+
+/* New Automation panel (D-071): Jobber's side panel with a sentence for each step. */
+.ab-panel { position: fixed; top: 0; right: 0; bottom: 0; z-index: 40; width: 420px; max-width: 100%; display: flex; flex-direction: column; background: #fff; border-left: 1px solid #dadfe2; box-shadow: -8px 0 24px rgba(3, 43, 58, 0.14); animation: pl-panel-in 0.22s ease-out both; }
+.ab-panel.leaving { animation: pl-panel-out 0.2s ease-in both; }
+.ab-head { padding: 18px 24px 10px; }
+.ab-headrow { display: flex; align-items: center; justify-content: space-between; min-height: 32px; }
+.ab-title { width: 100%; margin-top: 6px; padding: 4px 0; border: 0; border-bottom: 2px dotted #b9b6ae; background: none; font: 700 22px/1.3 var(--font-figtree), Figtree, sans-serif; color: var(--ink); transition: border-color 0.15s ease; }
+.ab-title::placeholder { color: var(--ink); opacity: 1; }
+.ab-title:focus { outline: none; border-bottom: 2px solid var(--green); }
+.ab-title.bad { border-bottom: 2px solid #b3261e; }
+.ab-body { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 24px 24px; display: flex; flex-direction: column; gap: 0; }
+.ab-step { display: grid; gap: 4px; margin-top: 12px; }
+.ab-label { text-align: center; font-size: 12px; font-style: italic; color: var(--muted); }
+.ab-card { position: relative; display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; transition: border-color 0.15s ease, box-shadow 0.15s ease; }
+.ab-card.bad { border-color: #b3261e; background: #fdf3f2; }
+.ab-ico { display: inline-grid; place-items: center; flex: none; width: 36px; height: 36px; border-radius: 8px; background: var(--shell); color: var(--ink); }
+.ab-sentence { flex: 1; min-width: 0; line-height: 1.7; color: var(--text); }
+.ab-link { padding: 0; border: 0; background: none; color: var(--green); font: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; transition: color 0.15s ease; }
+.ab-link:hover { color: var(--green-dark); }
+.ab-link:active { color: var(--ink); }
+.ab-center { width: 100%; text-align: center; padding: 8px; }
+.ab-days { width: 52px; height: 30px; padding: 0 6px; text-align: center; border: 1px solid var(--line); border-radius: 6px; font: inherit; color: var(--green); font-weight: 600; }
+.ab-days:focus, .ab-text:focus { outline: 2px solid var(--green); outline-offset: 0; }
+.ab-text { width: 150px; height: 30px; padding: 0 8px; border: 1px solid var(--line); border-radius: 6px; font: inherit; }
+.ab-trash { flex: none; color: #b3261e; }
+.ab-plus { position: relative; display: flex; justify-content: center; padding: 10px 0 0; }
+.ab-plus::before { content: ""; position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; background: var(--line); }
+.ab-plusbtn { position: relative; z-index: 1; display: inline-grid; place-items: center; width: 28px; height: 28px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--green); cursor: pointer; transition: background-color 0.15s ease, border-color 0.15s ease; }
+.ab-plusbtn:hover { background: var(--shell); border-color: var(--green); }
+.ab-plusbtn:active { background: var(--shell-2); }
+.ab-err { margin: 4px 0 0; color: #b3261e; font-size: 14px; animation: rise-in 0.18s ease-out both; }
+.ab-note { margin: 18px 0 0; color: var(--muted); font-size: 13px; }
+.ab-foot { display: flex; gap: 12px; padding: 14px 24px; border-top: 1px solid #dadfe2; background: #fff; }
+.ab-save { flex: 1; }
+@media (prefers-reduced-motion: reduce) { .ab-panel, .ab-panel.leaving { animation: none; } }

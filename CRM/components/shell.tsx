@@ -47,7 +47,7 @@ const PIPELINES: { label: string; href?: string }[] = [
   { label: "Sales", href: "/pipeline" },
   { label: "Preplanning" },
   { label: "Construction" },
-  { label: "Backend / Finance" },
+  { label: "Finance" },
 ];
 
 const RAIL_KEY ="qft-mock-rail";
@@ -282,10 +282,10 @@ function ShellInner({ children }: { children: ReactNode }) {
                 return (
                   <div key={n.key} className="nav-group">
                     <Link
-                      className={on ? "item active" : "item"}
+                      className={on ? "item on-path" : "item"}
                       href={n.href}
                       title={n.label}
-                      aria-current={on ? "page" : undefined}
+                      aria-current={undefined}
                       aria-expanded={open}
                       aria-controls="pipeline-sub"
                       onClick={(e) => {

@@ -1,12 +1,19 @@
 "use client";
 
-/* Home: greeting, workflow cards, today's appointments, my messages, upcoming consultations. Sample data. */
+/* Home: greeting, workflow cards, today's appointments, my tasks (real), upcoming consultations. Sample data. */
 
+import { useMutation, useQuery } from "convex/react";
+import Link from "next/link";
 import { useState, type CSSProperties } from "react";
-import { money0 } from "@/lib/format";
+import { api } from "@/convex/_generated/api";
+import { useWorkspace } from "@/lib/clients";
+import { money0, quoteDate } from "@/lib/format";
+import { failure, todayBounds, useMinute } from "@/lib/pipeline";
 import { useIsClient } from "@/lib/store";
 import { Icon } from "./icon";
 import { HomeSkeleton } from "./skeletons";
+import { useStaff } from "./staff-context";
+import { useUI } from "./ui-provider";
 
 type Card = { bar: string; icon: string; name: string; big: number | string; label: string; lines: [string, number | string][] };
 
@@ -26,13 +33,48 @@ const APPTS: Appt[] = [
   { time: "2:30 PM", title: "Consultation", client: "Rivera Landscape", where: "9120 Hillcrest Ave, Upland", who: "Robert", state: "upcoming" },
 ];
 
-// PRD: texts and WhatsApp are logged against the client and the user.
-const MESSAGES = [
-  { who: "Maria Alvarez", ch: "Text", t: "Can we move Thursday's visit to the afternoon?", ago: "10 min ago", unread: true },
-  { who: "Crew A", ch: "WhatsApp", t: "Work package received, we start at 7:30 tomorrow.", ago: "1 h ago", unread: false },
-  { who: "David Kim", ch: "Text", t: "Thanks, I will review the quote tonight.", ago: "3 h ago", unread: true },
-  { who: "Rivera Landscape", ch: "Text", t: "The gate will be open at 2 PM for the consultation.", ago: "Yesterday", unread: false },
-];
+const MAX_TASKS_SHOWN = 5;
+
+/** My tasks: the signed-in person's open tasks, overdue and soonest first, from the Tasks tab's data. Tick one to complete it. */
+function MyTasks() {
+  const { toast } = useUI();
+  const { _id: me, canEdit } = useStaff();
+  const ws = useWorkspace();
+  const now = useMinute();
+  const { todayStart, todayEnd } = todayBounds();
+  const setDone = useMutation(api.crm.opportunityTasks.setDone);
+  const data = useQuery(api.crm.opportunityTasks.listAll, ws.state === "ready" ? { businessId: ws.business._id, assigneeId: me, now, todayStart, todayEnd } : "skip");
+  const rows = data?.rows ?? [];
+  const label = (due: number | undefined) => (due === undefined ? "No due date" : due < todayStart ? `Overdue · ${quoteDate(due)}` : due <= todayEnd ? "Due today" : `Due ${quoteDate(due)}`);
+
+  return (
+    <>
+      <h2 className="section-title">My tasks</h2>
+      <div className="card list-card">
+        {ws.state === "loading" || (ws.state === "ready" && data === undefined) ? (
+          <div className="task"><div style={{ flex: 1 }}><span className="sk" style={{ display: "block", height: 16, width: "70%" }} /><span className="sk" style={{ display: "block", height: 12, width: "40%", marginTop: 6 }} /></div></div>
+        ) : rows.length === 0 ? (
+          <div className="empty">No open tasks. Nice work.</div>
+        ) : (
+          rows.slice(0, MAX_TASKS_SHOWN).map((t) => (
+            <div className="task" key={t.id}>
+              <input type="checkbox" checked={false} disabled={!canEdit} aria-label={`Complete ${t.title}`} onChange={() => void setDone({ taskId: t.id, done: true }).catch((e) => toast(failure(e, "The task could not be updated.")))} />
+              <div>
+                <b style={{ color: "var(--ink)" }}>{t.title}</b>
+                <div className="d" style={t.dueAt !== undefined && t.dueAt < todayStart ? { color: "#b3261e" } : undefined}>
+                  {label(t.dueAt)}{t.clientName ? ` · ${t.clientName}` : ""}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+        {rows.length > 0 && (
+          <div className="task"><Link href="/tasks" className="btn link">{rows.length > MAX_TASKS_SHOWN ? `View all ${rows.length} tasks` : "View all tasks"}</Link></div>
+        )}
+      </div>
+    </>
+  );
+}
 
 const CONSULTS = [
   { d: "Tomorrow, 9:00 AM", t: "Linda Foster", w: "Glendora · Sal" },
@@ -143,22 +185,7 @@ function Home() {
         </div>
 
         <div className="col aside">
-          <h2 className="section-title">My messages</h2>
-          <div className="card list-card">
-            {MESSAGES.map((m) => (
-              <div key={m.who} className={`msgrow${m.unread ? " unread" : ""}`} aria-disabled="true">
-                <span className="dot-u" />
-                <div className="m">
-                  <div className="top">
-                    <b>{m.who}</b>
-                    <span className="d">{m.ago}</span>
-                  </div>
-                  <div className="s">{m.t}</div>
-                  <span className="pill tag">{m.ch}</span>
-                </div>
-              </div>
-            ))}
-          </div>
+          <MyTasks />
           <h2 className="section-title" style={{ marginTop: 0 }}>Upcoming consultations</h2>
           <div className="card list-card">
             {CONSULTS.map((c) => (

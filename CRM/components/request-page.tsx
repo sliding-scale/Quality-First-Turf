@@ -11,7 +11,7 @@ import { useMutation, useQuery } from "convex/react";
 import { useState } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { clock } from "@/lib/pipeline";
+import { LEAD_SOURCES, clock } from "@/lib/pipeline";
 import { failure, usePeople, useRequest } from "@/lib/requests";
 import { quoteDate, quoteDateTime } from "@/lib/format";
 import { Icon } from "./icon";
@@ -51,6 +51,14 @@ function RequestView({ r }: { r: Request }) {
   const restore = useMutation(api.crm.automations.restoreRequest);
   const [editing, setEditing] = useState(false);
   const [pick, setPick] = useState<string>(UNASSIGNED);
+  const [titleDraft, setTitleDraft] = useState("");
+  const [titleBad, setTitleBad] = useState(false);
+  const [sourceDraft, setSourceDraft] = useState("");
+  const [editingOverview, setEditingOverview] = useState(false);
+  const [detailsDraft, setDetailsDraft] = useState("");
+  const [savingOverview, setSavingOverview] = useState(false);
+  const updateRequest = useMutation(api.crm.requests.update);
+  const setLeadSource = useMutation(api.crm.pipeline.setLeadSource);
   const [saving, setSaving] = useState(false);
 
   const book = useMutation(api.crm.schedule.book);
@@ -115,7 +123,26 @@ function RequestView({ r }: { r: Request }) {
 
   function edit() {
     setPick(r.salespersonId ?? UNASSIGNED);
+    setTitleDraft(r.title);
+    setSourceDraft(r.leadSource);
+    setTitleBad(false);
     setEditing(true);
+  }
+  function editOverview() {
+    setDetailsDraft(r.details);
+    setEditingOverview(true);
+  }
+  async function saveOverview() {
+    setSavingOverview(true);
+    try {
+      await updateRequest({ id: r.id, details: detailsDraft });
+      setEditingOverview(false);
+      toast("Overview saved.");
+    } catch (e) {
+      toast(failure(e, "The overview could not be saved."));
+    } finally {
+      setSavingOverview(false);
+    }
   }
   async function putBack() {
     try {
@@ -125,14 +152,22 @@ function RequestView({ r }: { r: Request }) {
       toast(failure(e, "The request could not be restored."));
     }
   }
+  /** Saves what the header pencil edits: the title, the request source and the salesperson. Each is only sent if it changed. */
   async function save() {
+    if (!titleDraft.trim()) {
+      setTitleBad(true);
+      document.getElementById("rq-title-input")?.focus();
+      return;
+    }
     setSaving(true);
     try {
-      await setSalesperson({ id: r.id, salespersonId: pick === UNASSIGNED ? null : (people?.find((p) => p.id === pick)?.id ?? null) });
+      if (titleDraft.trim() !== r.title) await updateRequest({ id: r.id, title: titleDraft });
+      if (sourceDraft !== r.leadSource) await setLeadSource({ id: r.id, leadSource: sourceDraft || null });
+      if (pick !== (r.salespersonId ?? UNASSIGNED)) await setSalesperson({ id: r.id, salespersonId: pick === UNASSIGNED ? null : (people?.find((p) => p.id === pick)?.id ?? null) });
       setEditing(false);
-      toast(pick === UNASSIGNED ? "Request unassigned." : "Salesperson saved.");
+      toast("Request saved.");
     } catch (e) {
-      toast(failure(e, "The salesperson could not be changed."));
+      toast(failure(e, "The request could not be saved."));
     } finally {
       setSaving(false);
     }
@@ -151,7 +186,15 @@ function RequestView({ r }: { r: Request }) {
         </div>
       )}
       <div className="rq-title">
-        <h1>{r.title} · {r.code}</h1>
+        {editing ? (
+          <div className={`field rq-titlefield${titleBad ? " bad" : ""}`}>
+            <label htmlFor="rq-title-input">Title</label>
+            <input id="rq-title-input" aria-invalid={titleBad} maxLength={200} value={titleDraft} disabled={saving} onChange={(e) => { setTitleDraft(e.target.value); setTitleBad(false); }} />
+            <span className="err">Give the request a title.</span>
+          </div>
+        ) : (
+          <h1>{r.title} · {r.code}</h1>
+        )}
         {canEdit && !editing && (
           <button type="button" className="icon-btn" aria-label="Edit request details" onClick={edit}><Icon name="pencil" size={20} /></button>
         )}
@@ -169,7 +212,21 @@ function RequestView({ r }: { r: Request }) {
         </section>
 
         <dl className="rq-facts">
-          <div><dt>Request Source</dt><dd>{r.leadSource || "None"}</dd></div>
+          <div>
+            <dt>Request Source</dt>
+            <dd>
+              {editing ? (
+                <div className="field rq-select">
+                  <select aria-label="Request source" value={sourceDraft} disabled={saving} onChange={(e) => setSourceDraft(e.target.value)}>
+                    <option value="">None</option>
+                    {LEAD_SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+              ) : (
+                r.leadSource || "None"
+              )}
+            </dd>
+          </div>
           <div><dt>Requested</dt><dd>{quoteDate(r.requestedAt)}</dd></div>
           <div>
             <dt>Salesperson</dt>
@@ -196,10 +253,25 @@ function RequestView({ r }: { r: Request }) {
         </dl>
       </div>
 
-      <section className="card rq-overview">
-        <h2>Overview</h2>
+      <section className="card rq-overview" aria-label="Overview">
+        <div className="rq-sechead">
+          <h2>Overview</h2>
+          {canEdit && !editingOverview && <button type="button" className="icon-btn" aria-label="Edit the overview" onClick={editOverview}><Icon name="pencil" size={20} /></button>}
+        </div>
         <h3>Service details</h3>
-        <p>{r.details || "—"}</p>
+        {editingOverview ? (
+          <>
+            <div className="field">
+              <textarea aria-label="Service details" rows={6} maxLength={5000} value={detailsDraft} disabled={savingOverview} onChange={(e) => setDetailsDraft(e.target.value)} autoFocus />
+            </div>
+            <div className="rq-editbar rl-bar">
+              <button type="button" className="btn" disabled={savingOverview} onClick={() => setEditingOverview(false)}>Cancel</button>
+              <button type="button" className="btn primary" disabled={savingOverview} onClick={() => void saveOverview()}>{savingOverview ? "Saving…" : "Save"}</button>
+            </div>
+          </>
+        ) : (
+          <p>{r.details || "—"}</p>
+        )}
       </section>
 
       <section className="card rq-overview" aria-label="On-site assessment">

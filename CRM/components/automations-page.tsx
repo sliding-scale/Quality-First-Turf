@@ -2,7 +2,7 @@
 
 /* Settings → Automations (D-065), laid out like Jobber's page: the four automations as cards grouped Quotes and Requests, each opening
    what Jobber's side panel shows (When this happens / And only if / Then do this) with the things Jobber lets you change: the days, the
-   message and Active. No "New Automation": the four are fixed. Below them, the sending mode (log only, test address, live) and what the
+   message and Active, and New Automation (D-071) opens Jobber's builder panel for ones of our own. Below them, the sending mode (log only, test address, live) and what the
    automations have done. Only Admins change anything; the backend refuses everyone else. */
 
 import { useMutation, useQuery } from "convex/react";
@@ -16,6 +16,7 @@ import {
 } from "@/convex/crm/lib/automationRules";
 import { useKept, useWorkspace } from "@/lib/clients";
 import { failure } from "@/lib/pipeline";
+import { AutomationBuilder } from "./automation-builder";
 import { Icon } from "./icon";
 import { PipelineModal } from "./pipeline-dialogs";
 import { AutomationsSkeleton } from "./skeletons";
@@ -31,7 +32,8 @@ function useOverview(businessId: Id<"businesses"> | undefined) {
 
 const SAMPLE: TemplateVars = { CLIENT_FIRST_NAME: "Natasha", CLIENT_NAME: "Natasha Lee", COMPANY_NAME: "Quality First Turf Landscape", DEFAULT_PHONE: "(555) 010-0000", QUOTE_NUMBER: "#2345" };
 
-const STATUS: Record<RunStatus, { label: string; cls: string }> = {
+const STATUS: Record<RunStatus | "done", { label: string; cls: string }> = {
+  done: { label: "Done", cls: "active" },
   sent: { label: "Sent", cls: "active" },
   tested: { label: "Test sent", cls: "lead" },
   logged: { label: "Logged only", cls: "draft" },
@@ -52,6 +54,8 @@ export function AutomationsPage() {
   const data = useKept(useOverview(businessId));
   const ensure = useMutation(api.crm.automations.ensure);
   const [open, setOpen] = useState<AutomationKey | null>(null);
+  const [builder, setBuilder] = useState<"new" | Id<"customAutomations"> | null>(null);
+  const custom = useQuery(api.crm.customAutomations.list, businessId ? { businessId } : "skip");
   const asked = useRef(false);
 
   // The four rows are created once, by an Admin opening this page (the cron makes them too, so this only saves waiting for it).
@@ -72,13 +76,22 @@ export function AutomationsPage() {
   }
   if (ws.state === "loading" || !data || !businessId) return <AutomationsSkeleton />;
 
-  const groups = (["Quotes", "Requests"] as const).map((g) => ({ name: g, items: data.automations.filter((a) => a.group === g) }));
+  const groups = (["Quotes", "Requests"] as const).map((g) => ({
+    name: g,
+    items: data.automations.filter((a) => a.group === g),
+    // The ones an Admin built sit after Jobber's, under the kind of thing they watch.
+    mine: (custom ?? []).filter((c) => (c.trigger.object === "quote" ? "Quotes" : "Requests") === g),
+  }));
   const current = data.automations.find((a) => a.key === open) ?? null;
+  const editing = builder && builder !== "new" ? (custom ?? []).find((c) => c.id === builder) ?? null : null;
 
   return (
     <div className="fade-in au">
-      <div className="page-head"><h1>Automations</h1></div>
-      <p className="au-lead">Jobber&apos;s automations, kept as they are: set the days, the message and whether each one is on. Nothing can be added or removed.</p>
+      <div className="page-head">
+        <h1>Automations</h1>
+        <button type="button" className="btn primary" onClick={() => { setOpen(null); setBuilder("new"); }}>New Automation</button>
+      </div>
+      <p className="au-lead">Configure the triggers and conditions and the CRM will complete routine tasks and perform actions automatically. Jobber&apos;s four are here to adjust (days, message, on or off); make your own with New Automation.</p>
 
       {/* Hidden for now (user, 2026-11-11). The business stays in log-only mode, so nothing is sent or archived. Put it back to switch on test or live sending. */}
       {SHOW_SENDING_MODE && <ModeCard businessId={businessId} data={data} />}
@@ -88,10 +101,17 @@ export function AutomationsPage() {
           <h2>{g.name}</h2>
           <div className="au-cards">
             {g.items.map((a) => (
-              <button key={a.key} type="button" className="au-card" aria-expanded={open === a.key} onClick={() => setOpen((cur) => (cur === a.key ? null : a.key))}>
+              <button key={a.key} type="button" className="au-card" aria-expanded={open === a.key} onClick={() => { setBuilder(null); setOpen((cur) => (cur === a.key ? null : a.key)); }}>
                 <span className="au-icons"><Icon name="calendar" size={20} /><span aria-hidden>→</span><Icon name={a.action === "email" ? "mail" : "inbox"} size={20} /></span>
                 <span className={`pill ${a.active ? "active" : "draft"}`}><span className="dot" />{a.active ? "Active" : "Off"}</span>
                 <strong>{a.title}</strong>
+              </button>
+            ))}
+            {g.mine.map((c) => (
+              <button key={c.id} type="button" className="au-card" aria-expanded={builder === c.id} onClick={() => { setOpen(null); setBuilder((cur) => (cur === c.id ? null : c.id)); }}>
+                <span className="au-icons"><Icon name="calendar" size={20} /><span aria-hidden>→</span><Icon name={c.action.kind === "notify" ? "mail" : c.action.kind === "addTag" ? "contact" : "stage"} size={20} /></span>
+                <span className={`pill ${c.active ? "active" : "draft"}`}><span className="dot" />{c.active ? "Active" : "Off"}</span>
+                <strong>{c.title}</strong>
               </button>
             ))}
           </div>
@@ -100,6 +120,8 @@ export function AutomationsPage() {
 
       <Activity businessId={businessId} />
       {current && <AutomationDialog key={current.key} businessId={businessId} a={current} onClose={() => setOpen(null)} />}
+      {builder === "new" && <AutomationBuilder key="new" businessId={businessId} automation={null} onClose={() => setBuilder(null)} />}
+      {editing && <AutomationBuilder key={editing.id + editing.updatedAt} businessId={businessId} automation={editing} onClose={() => setBuilder(null)} />}
     </div>
   );
 }
@@ -319,7 +341,10 @@ function AutomationDialog({ businessId, a, onClose }: { businessId: Id<"business
 /* ---- What they did ---- */
 
 function Activity({ businessId }: { businessId: Id<"businesses"> }) {
-  const rows = useKept(useQuery(api.crm.automations.activity, { businessId }));
+  const fixed = useKept(useQuery(api.crm.automations.activity, { businessId }));
+  const mine = useKept(useQuery(api.crm.customAutomations.activity, { businessId }));
+  // The fixed four and the custom ones in one list, newest first.
+  const rows = fixed === undefined || mine === undefined ? undefined : [...fixed, ...mine].sort((a, b) => b.at - a.at).slice(0, 100);
   return (
     <section className="au-group">
       <h2>Activity</h2>

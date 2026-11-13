@@ -521,6 +521,53 @@ export default defineSchema({
     .index("by_quote_and_key", ["quoteId", "key"])
     .index("by_opportunity_and_key", ["opportunityId", "key"]),
 
+  /** Automations an Admin builds with Jobber's "New Automation" panel (D-071): a trigger, conditions and one action. Written only by
+   *  crm/customAutomations.ts. The four fixed ones (D-065) stay in `automations`. `activeSince` is when it was last turned on: nothing
+   *  that happened before then is acted on. */
+  customAutomations: defineTable({
+    businessId: v.id("businesses"),
+    title: v.string(),
+    active: v.boolean(),
+    activeSince: v.number(),
+    trigger: v.object({ kind: v.union(v.literal("datePassed"), v.literal("occurs")), object: v.union(v.literal("quote"), v.literal("project")), event: v.string(), days: v.optional(v.number()) }),
+    conditions: v.array(v.object({
+      field: v.union(v.literal("quoteStatus"), v.literal("stage"), v.literal("clientTag"), v.literal("lineItem")),
+      op: v.union(v.literal("is"), v.literal("isNot")),
+      values: v.array(v.string()),
+    })),
+    action: v.object({
+      kind: v.union(v.literal("notify"), v.literal("addTag"), v.literal("updateStatus")),
+      method: v.optional(v.union(v.literal("both"), v.literal("email"), v.literal("text"))),
+      subject: v.optional(v.string()),
+      body: v.optional(v.string()),
+      textBody: v.optional(v.string()),
+      tag: v.optional(v.string()),
+      status: v.optional(v.string()),
+    }),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    updatedByName: v.string(),
+  }).index("by_business", ["businessId"]),
+
+  /** What each custom automation did, one row per item (a quote, a project, or one stage move) and automation, reused rather than repeated
+   *  so nobody is emailed twice. `itemKey` is "q:<quote id>", "p:<project id>" or "h:<stage history id>". */
+  customAutomationRuns: defineTable({
+    businessId: v.id("businesses"),
+    automationId: v.id("customAutomations"),
+    itemKey: v.string(),
+    quoteId: v.optional(v.id("quotes")),
+    opportunityId: v.optional(v.id("opportunities")),
+    clientId: v.optional(v.id("clients")),
+    status: v.union(v.literal("queued"), v.literal("sent"), v.literal("tested"), v.literal("logged"), v.literal("skipped"), v.literal("failed"), v.literal("done")),
+    mode: v.union(v.literal("log"), v.literal("test"), v.literal("live")),
+    detail: v.string(),
+    toAddress: v.optional(v.string()),
+    attempts: v.number(),
+    at: v.number(),
+  })
+    .index("by_automation_and_item", ["automationId", "itemKey"])
+    .index("by_business_and_at", ["businessId", "at"]),
+
   /** Every move of a project between Sales stages: who, when, from, to (PRD 3.3). Written only by crm/pipeline.ts moveStage. */
   stageHistory: defineTable({
     opportunityId: v.id("opportunities"),
