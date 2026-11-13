@@ -257,3 +257,10 @@
   .sc-popup, .sc-popup.leaving, .sc-side, .sc-warn { animation: none; }
   .sc-switch .track, .sc-switch .track::after { transition: none; }
 }
+
+/* Zoho Calendar (D-069): a small mark on items that came from someone's Zoho Calendar, and the note asking people to connect. */
+.sc-zoho { margin-left: 6px; padding: 0 5px; border-radius: 4px; background: rgba(3, 43, 58, 0.12); color: #032b3a; font-size: 10px; font-weight: 700; letter-spacing: 0.02em; align-self: center; }
+.sc-connectnote { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 10px; padding: 10px 14px; border: 1px solid #dadfe2; border-radius: 10px; background: #fff; font-size: 14px; }
+.sc-connectnote a { font-weight: 700; }
+.sc-connectnote button { border: 0; background: none; color: var(--muted); cursor: pointer; padding: 4px; border-radius: 6px; transition: background-color 0.15s ease; }
+.sc-connectnote button:hover { background: #eeece7; }

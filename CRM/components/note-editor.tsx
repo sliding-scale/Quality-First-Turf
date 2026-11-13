@@ -131,6 +131,8 @@ export function NoteEditor({ id, value, onChange, files, onFiles, placeholder, r
 
   function toggleDictation() {
     if (listening) {
+      // Show "off" at once; the browser still delivers any last words before it ends.
+      setListening(false);
       recognition.current?.stop();
       return;
     }
@@ -139,19 +141,40 @@ export function NoteEditor({ id, value, onChange, files, onFiles, placeholder, r
     const r = new Ctor();
     r.lang = "en-US";
     r.continuous = true;
-    r.interimResults = false;
+    r.interimResults = true; // words appear as they are spoken, not after a pause
+    // The not-yet-final words currently shown in the text, so the next update can replace them.
+    let pending: { at: number; len: number } | null = null;
     r.onresult = (e) => {
-      let heard = "";
-      for (let i = e.resultIndex; i < e.results.length; i++) if (e.results[i].isFinal) heard += e.results[i][0].transcript;
-      heard = heard.trim();
-      if (!heard) return;
+      let fin = "";
+      let interim = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) fin += e.results[i][0].transcript;
+        else interim += e.results[i][0].transcript;
+      }
+      fin = fin.trim();
       const cur = live.current.value;
       const el = area.current;
-      const at = el ? el.selectionEnd : cur.length;
-      const before = cur.slice(0, at);
+      let base = cur;
+      let at = el ? el.selectionEnd : cur.length;
+      if (pending) {
+        base = cur.slice(0, pending.at) + cur.slice(pending.at + pending.len);
+        at = pending.at;
+      }
+      const before = base.slice(0, at);
       const sep = before === "" || /\s$/.test(before) ? "" : " ";
-      const insert = sep + heard;
-      onChange(before + insert + cur.slice(at));
+      if (!fin && !interim.trim()) {
+        if (pending) { live.current.value = base; onChange(base); pending = null; }
+        return;
+      }
+      const finPart = fin ? sep + fin : "";
+      const interimText = interim.trim();
+      // Interim words follow the final ones after a space (or the usual separator when there are no final words).
+      const interimPart = interimText ? (finPart ? " " : sep) + interimText : "";
+      const insert = finPart + interimPart;
+      const next = before + insert + base.slice(at);
+      live.current.value = next;
+      onChange(next);
+      pending = interimPart ? { at: at + finPart.length, len: interimPart.length } : null;
       requestAnimationFrame(() => el?.setSelectionRange(at + insert.length, at + insert.length));
     };
     r.onerror = (e) => {

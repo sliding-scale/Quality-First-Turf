@@ -4,6 +4,7 @@ import { mutation, query } from "../_generated/server";
 import { requireAdmin, requireBusiness, requireEditor } from "./lib/access";
 import { checkAssignee } from "./lib/assignees";
 import { attachmentLinks, checkNoteFiles, noteFilesArg } from "./lib/noteFiles";
+import { mirrorChanged, mirrorRemoved } from "./lib/mirror";
 import { toggleCheckbox } from "./lib/noteText";
 
 /** Tasks and notes on a project: the pipeline card panel and the Tasks tab (D-061). */
@@ -78,12 +79,14 @@ export const setTime = mutation({
       await checkAssignee(ctx, who.assigneeId, task.businessId);
     }
     if (args.startAt === null && args.endAt === null) {
-      await ctx.db.patch(args.taskId, { ...who, startAt: undefined, endAt: undefined });
+      await ctx.db.patch(args.taskId, { ...who, startAt: undefined, endAt: undefined, updatedAt: Date.now() });
+      await mirrorRemoved(ctx, "task", args.taskId);
       return;
     }
     if (args.startAt === null || args.endAt === null) throw new ConvexError("Give the task a start and an end.");
     if (args.endAt <= args.startAt) throw new ConvexError("The end has to be after the start.");
-    await ctx.db.patch(args.taskId, { ...who, startAt: args.startAt, endAt: args.endAt });
+    await ctx.db.patch(args.taskId, { ...who, startAt: args.startAt, endAt: args.endAt, updatedAt: Date.now() });
+    await mirrorChanged(ctx, "task", args.taskId);
   },
 });
 

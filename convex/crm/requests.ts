@@ -142,9 +142,12 @@ export const get = query({
     if (client === null) return null;
     const person = o.salespersonId ? await ctx.db.get(o.salespersonId) : null;
     // The assessment is the project's consultation: the next one booked, or else the latest.
-    const events = await ctx.db.query("calendarEvents").withIndex("by_business_and_start", (q) => q.eq("businessId", o.businessId)).order("desc").take(2000);
-    const consults = events.filter((e) => e.type === "consultation" && e.opportunityId === o._id).map((e) => e.start);
+    const events = await ctx.db.query("calendarEvents").withIndex("by_opportunity", (q) => q.eq("opportunityId", o._id)).take(50);
+    const mine = events.filter((e) => e.type === "consultation");
+    const consults = mine.map((e) => e.start);
     const upcoming = consults.filter((s) => s >= args.today).sort((a, b) => a - b)[0];
+    const shownAt = upcoming ?? [...consults].sort((a, b) => b - a)[0];
+    const shown = mine.find((e) => e.start === shownAt);
     return {
       id: o._id,
       businessId: o.businessId,
@@ -160,7 +163,12 @@ export const get = query({
       archivedReason: o.archivedReason ?? "",
       salespersonId: o.salespersonId,
       salespersonName: person ? person.name : "Unassigned",
-      assessmentAt: upcoming ?? consults.sort((a, b) => b - a)[0] ?? null,
+      assessmentAt: shownAt ?? null,
+      /** The booked on-site assessment (a consultation on the Schedule), with the instructions kept in its notes. */
+      assessment: shown
+        ? { id: shown._id, start: shown.start, end: shown.end, anytime: shown.anytime, assigneeIds: shown.assigneeIds, status: shown.status, instructions: shown.notes }
+        : null,
+      lines: o.lines ?? [],
       client: { name: client.name, street1: client.street1, city: client.city, state: client.state, zip: client.zip, phone: client.phone, email: client.email },
     };
   },
@@ -204,6 +212,38 @@ export const stats = query({
   },
 });
 
+const linesArg = v.array(v.object({ name: v.string(), description: v.string(), quantity: v.number(), unitPriceCents: v.number() }));
+
+const MAX_LINES = 50;
+
+/** Trims and checks the Product / Service lines. A line with no name and no price is a blank row and is dropped. */
+function cleanLines(lines: { name: string; description: string; quantity: number; unitPriceCents: number }[]) {
+  if (lines.length > MAX_LINES) throw new ConvexError(`A request can have up to ${MAX_LINES} lines.`);
+  const out = [];
+  for (const l of lines) {
+    const name = l.name.trim();
+    const description = l.description.trim().slice(0, 2000);
+    if (!name && !description && l.unitPriceCents === 0) continue;
+    if (!name) throw new ConvexError("Give every line a name.");
+    if (name.length > 200) throw new ConvexError("A line name is too long.");
+    if (!Number.isFinite(l.quantity) || l.quantity <= 0 || l.quantity > 100000) throw new ConvexError(`Check the quantity on "${name}".`);
+    if (!Number.isInteger(l.unitPriceCents) || l.unitPriceCents < 0 || l.unitPriceCents > 100_000_000_00) throw new ConvexError(`Check the price on "${name}".`);
+    out.push({ name, description, quantity: l.quantity, unitPriceCents: l.unitPriceCents });
+  }
+  return out;
+}
+
+/** Replaces the request's Product / Service lines. */
+export const setLines = mutation({
+  args: { id: v.id("opportunities"), lines: linesArg },
+  handler: async (ctx, args) => {
+    const o = await ctx.db.get(args.id);
+    if (o === null || o.pipeline !== "Sales") throw new ConvexError("That request no longer exists.");
+    await requireEditor(ctx, o.businessId);
+    await ctx.db.patch(o._id, { lines: cleanLines(args.lines) });
+  },
+});
+
 /** "New Request" (Jobber's form): a new project in the Sales pipeline at the first stage, for an existing client. */
 export const create = mutation({
   args: {
@@ -212,6 +252,7 @@ export const create = mutation({
     title: v.string(),
     salespersonId: v.optional(v.id("users")),
     details: v.optional(v.string()),
+    lines: v.optional(linesArg),
     note: v.optional(v.string()),
     noteFiles: noteFilesArg,
   },
@@ -239,6 +280,7 @@ export const create = mutation({
       owner: "Unassigned",
       salespersonId: args.salespersonId,
       details: details || undefined,
+      ...(args.lines && cleanLines(args.lines).length ? { lines: cleanLines(args.lines) } : {}),
       searchText: opportunitySearchText(client, { title, code, stage }),
     });
     const note = (args.note ?? "").trim().slice(0, 5000);

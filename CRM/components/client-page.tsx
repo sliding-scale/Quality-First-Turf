@@ -253,7 +253,7 @@ function ClientView({ c }: { c: ClientDoc }) {
             </section>
           )}
 
-          <NotesCard clientId={c._id} canEdit={canEdit} />
+          <NotesCard key={c._id} clientId={c._id} canEdit={canEdit} />
           </>
           )}
         </aside>

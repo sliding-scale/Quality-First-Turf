@@ -292,6 +292,8 @@ export default defineSchema({
     salespersonId: v.optional(v.id("users")),
     /** "Service details" typed on a request made in the CRM (Jobber's New Request form). Requests from the customer form have none. */
     details: v.optional(v.string()),
+    /** The request's Product / Service lines (Jobber's request page): what the client asked for, with a price to start from. Written only by crm/requests.ts. */
+    lines: v.optional(v.array(v.object({ name: v.string(), description: v.string(), quantity: v.number(), unitPriceCents: v.number() }))),
     outcome: v.optional(v.union(v.literal("won"), v.literal("lost"))),
     closedAt: v.optional(v.number()),
     lostReason: v.optional(v.string()),
@@ -559,6 +561,8 @@ export default defineSchema({
     /** A task with a start and end also shows on the Schedule (D-062); without them it is "unscheduled". */
     startAt: v.optional(v.number()),
     endAt: v.optional(v.number()),
+    /** Last change to its schedule (D-069), for the Zoho mirror. Absent: createdAt. */
+    updatedAt: v.optional(v.number()),
   })
     .index("by_opportunity", ["opportunityId"])
     .index("by_business", ["businessId"]),
@@ -582,9 +586,66 @@ export default defineSchema({
     repeatUntil: v.optional(v.number()),
     createdBy: v.id("users"),
     createdAt: v.number(),
+    /** "zoho" for an item that came from someone's Zoho Calendar (D-069). It never blocks a booking: overlapping it is a warning. */
+    source: v.optional(v.literal("zoho")),
+    /** The place, for an item that came from Zoho. Items made in the CRM send their client's address instead. */
+    location: v.optional(v.string()),
+    /** Last change by anyone or by the sync; decides who wins when the CRM and Zoho both changed an item. Absent: createdAt. */
+    updatedAt: v.optional(v.number()),
   })
     .index("by_business_and_start", ["businessId", "start"])
     .index("by_opportunity", ["opportunityId"]),
+
+  /** One person's Zoho Calendar connection (D-069). Tokens are encrypted and never sent to the browser. */
+  calendarConnections: defineTable({
+    userId: v.id("users"),
+    /** The business whose calendar this person's Zoho events are mirrored into. */
+    businessId: v.id("businesses"),
+    status: v.union(v.literal("connected"), v.literal("needsReconnect")),
+    calendarUid: v.string(),
+    calendarName: v.string(),
+    timezone: v.string(),
+    /** Where this person's Zoho account lives (accounts.zoho.com, .eu, .in...) and its calendar API. */
+    accountsUrl: v.string(),
+    apiBase: v.string(),
+    syncTypes: v.object({ tasks: v.boolean(), reminders: v.boolean(), events: v.boolean(), visits: v.boolean(), consultations: v.boolean() }),
+    refreshToken: v.string(),
+    accessToken: v.optional(v.string()),
+    accessTokenExpiresAt: v.optional(v.number()),
+    connectedAt: v.number(),
+    lastSyncAt: v.optional(v.number()),
+    lastError: v.string(),
+  }).index("by_userId", ["userId"]),
+
+  /** Which CRM item is which Zoho event, for one person's calendar. */
+  calendarLinks: defineTable({
+    connectionId: v.id("calendarConnections"),
+    userId: v.id("users"),
+    kind: v.union(v.literal("event"), v.literal("task")),
+    eventId: v.optional(v.id("calendarEvents")),
+    taskId: v.optional(v.id("opportunityTasks")),
+    zohoUid: v.string(),
+    etag: v.string(),
+    /** Fingerprints of the mirrored fields the last time the two sides matched: a side whose fingerprint moved has changed since. */
+    crmHash: v.string(),
+    zohoHash: v.string(),
+    origin: v.union(v.literal("crm"), v.literal("zoho")),
+    /** A Zoho repeat the CRM cannot hold (every 2 weeks, ...). It is read as one occurrence and never written back, so the series is not damaged. */
+    lossy: v.optional(v.boolean()),
+  })
+    .index("by_connection", ["connectionId"])
+    .index("by_connection_and_zohoUid", ["connectionId", "zohoUid"])
+    .index("by_zohoUid", ["zohoUid"])
+    .index("by_event", ["eventId"])
+    .index("by_task", ["taskId"]),
+
+  /** A pending "Connect Zoho Calendar": the one-use code Zoho sends back with the person. */
+  calendarOauthStates: defineTable({
+    state: v.string(),
+    userId: v.id("users"),
+    businessId: v.id("businesses"),
+    expiresAt: v.number(),
+  }).index("by_state", ["state"]),
 
   /** A business's working days and hours (default Monday to Friday, 8 to 5), used to grey the Schedule and to warn on bookings. */
   scheduleSettings: defineTable({

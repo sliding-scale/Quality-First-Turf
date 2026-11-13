@@ -4,7 +4,8 @@
    type, team and status, Find a Time, the Unscheduled list, working hours, and the pop-ups. The backend does the repeats, the filtering
    and the double-booking checks; this file only asks and shows. */
 
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/convex/_generated/api";
@@ -24,6 +25,7 @@ import { RescheduleDialog, ScheduleSettings, UnscheduledPanel } from "./schedule
 import { SchedulePopup } from "./schedule-popup";
 import { ScheduleSkeleton } from "./skeletons";
 import { useStaff } from "./staff-context";
+import { useStoredString, writeItem } from "@/lib/store";
 import { useUI } from "./ui-provider";
 
 const TYPE_OPTIONS = [...ITEM_TYPES, "task"] as const;
@@ -63,6 +65,10 @@ function Schedule({ business }: { business: BusinessDoc }) {
   const [form, setForm] = useState<{ n: number; initial: FormStart; editing?: ScheduleItem; availability: boolean } | null>(null);
   const [picked, setPicked] = useState<{ start: number; personId?: string; n: number } | undefined>();
   const [availUsers, setAvailUsers] = useState<Id<"users">[] | null>(null);
+  // A note asking people to connect their Zoho Calendar (D-069), hidden for a week once dismissed.
+  const calendar = useQuery(api.crm.calendarConnect.mine, {});
+  const hiddenUntil = Number(useStoredString("qft-zoho-note", "0"));
+  const showConnect = calendar !== undefined && calendar.available && (calendar.connection === null || calendar.connection.status !== "connected") && hiddenUntil < clock();
   const [dialog, setDialog] = useState<"settings" | "reschedule" | "feedback" | null>(null);
 
   const filters: RangeFilters = useMemo(() => ({ types, people: team, statuses }), [types, team, statuses]);
@@ -141,6 +147,12 @@ function Schedule({ business }: { business: BusinessDoc }) {
 
   return (
     <div className="sc fade-in">
+      {showConnect && (
+        <div className="sc-connectnote" role="status">
+          <span>{calendar.connection === null ? "Connect your Zoho Calendar so it matches this one." : "Your Zoho Calendar needs to be reconnected."} <Link href="/settings/calendar">{calendar.connection === null ? "Connect" : "Reconnect"}</Link></span>
+          <button type="button" aria-label="Hide for a week" onClick={() => writeItem("qft-zoho-note", String(clock() + 7 * 86_400_000))}><Icon name="x" size={16} /></button>
+        </div>
+      )}
       <div className="sc-bar">
         <div className="sc-nav">
           <button

@@ -42,7 +42,15 @@ const NAV: NavItem[] = [
 /** Only Admins see this, in the same group as Messages at the bottom of the sidebar (the backend refuses everyone else anyway). */
 const ADMIN_NAV: NavItem[] = [{ key: "team", label: "Manage Team", icon: "user", href: "/settings/users" }];
 
-const RAIL_KEY = "qft-mock-rail";
+/** The pipelines in the PRD. Only Sales is built; the others show greyed out under Pipeline. */
+const PIPELINES: { label: string; href?: string }[] = [
+  { label: "Sales", href: "/pipeline" },
+  { label: "Preplanning" },
+  { label: "Construction" },
+  { label: "Backend / Finance" },
+];
+
+const RAIL_KEY ="qft-mock-rail";
 
 /** Phones: below this width the sidebar becomes a menu that opens over the page (keep in step with the 700px rules in globals.css). */
 const MOBILE_QUERY = "(max-width: 700px)";
@@ -120,6 +128,7 @@ function ShellInner({ children }: { children: ReactNode }) {
   const [menuPath, setMenuPath] = useState<string | null>(null);
   const menuOpen = menuPath === pathname;
   const rail = useStoredString(RAIL_KEY, "0") === "1";
+  const [pipeOpen, setPipeOpen] = useState(false);
   const [search, setSearch] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
   const mainRef = useRef<HTMLElement>(null);
@@ -267,6 +276,45 @@ function ShellInner({ children }: { children: ReactNode }) {
                 e.preventDefault();
                 router.push(href);
               };
+              if (n.key === "pipeline") {
+                // Pipeline opens a list of pipelines under it. Sales is the one that exists and is selected; the rest are greyed out until they are built.
+                const open = pipeOpen || on;
+                return (
+                  <div key={n.key} className="nav-group">
+                    <Link
+                      className={on ? "item active" : "item"}
+                      href={n.href}
+                      title={n.label}
+                      aria-current={on ? "page" : undefined}
+                      aria-expanded={open}
+                      aria-controls="pipeline-sub"
+                      onClick={(e) => {
+                        // Already on a pipeline page: the click only folds or unfolds the list.
+                        if (on && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                          e.preventDefault();
+                          setPipeOpen(!pipeOpen);
+                          return;
+                        }
+                        setPipeOpen(true);
+                      }}
+                    >
+                      {inner}
+                      <span className={open ? "chev open" : "chev"}><Icon name="chevdown" size={16} /></span>
+                    </Link>
+                    <div className={open ? "nav-sub open" : "nav-sub"} id="pipeline-sub" inert={!open}>
+                      <div className="nav-sub-in">
+                        {PIPELINES.map((p) =>
+                          p.href ? (
+                            <Link key={p.label} className={on ? "subitem active" : "subitem"} href={p.href} aria-current={on ? "page" : undefined}>{p.label}</Link>
+                          ) : (
+                            <span key={p.label} className="subitem soon" aria-disabled="true" title={`${p.label} is not available yet`}>{p.label}</span>
+                          ),
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
               return (
                 <Link key={n.key} className={on ? "item active" : "item"} href={n.href} title={n.label} aria-current={on ? "page" : undefined} onClick={openClients}>
                   {inner}

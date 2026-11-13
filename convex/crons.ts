@@ -18,4 +18,7 @@ crons.interval("sync Zoho mailbox into client profiles", { minutes: 3 }, interna
 // Pipeline automations (D-065): quote follow-ups and auto-archive. Sends nothing and changes nothing while a business is in "log only" mode.
 crons.interval("run pipeline automations", { minutes: 15 }, internal.crm.automations.tick, {});
 
+// Zoho Calendar mirror (D-069): reads each connected person's calendar and sends what the CRM has changed. Does nothing until someone connects.
+crons.interval("mirror Zoho calendars", { minutes: 5 }, internal.crm.calendarSync.pullAll, {});
+
 export default crons;

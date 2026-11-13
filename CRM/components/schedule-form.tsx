@@ -115,6 +115,10 @@ export function ScheduleForm({ businessId, people, hours, initial, editing, show
   const end = anytime ? start + 86_400_000 : start + hrs * 3_600_000;
   const outside = kind !== "reminder" && !anytime && Number.isFinite(start) && Number.isFinite(end) && end > start && !inWorkingHours({ start, end }, hours, BUSINESS_TZ);
   const nameOf = (id: string) => people.find((p) => p.id === id)?.name ?? "Someone";
+  // Booking over someone's Zoho event is a warning, never a refusal (D-069).
+  const timeKnown = Number.isFinite(start) && Number.isFinite(end) && end > start && assignees.length > 0;
+  const zohoBusy = useQuery(api.crm.schedule.availability, timeKnown ? { businessId, userIds: assignees as Id<"users">[], from: start, to: end } : "skip");
+  const zohoClash = zohoBusy?.busy.find((b) => b.external && b.start < end && start < b.end && b.id !== editing?.id);
   const mine = useMemo(() => people.filter((p) => !assignees.includes(p.id)), [people, assignees]);
 
   async function save() {
@@ -311,6 +315,7 @@ export function ScheduleForm({ businessId, people, hours, initial, editing, show
           </div>
 
           {outside && <p className="sc-warn" role="status">This is outside working hours. You can still save it.</p>}
+          {zohoClash && <p className="sc-warn" role="status">{nameOf(zohoClash.userId)} is busy in Zoho Calendar with &ldquo;{zohoClash.title}&rdquo; at that time. You can still save it.</p>}
           {error && <p className="modal-error" role="alert">{error}</p>}
           <div className="modal-foot">
             <button type="button" className="btn sc-morebtn" aria-expanded={more} onClick={() => setMore((m) => !m)}>{more ? "Fewer options" : "More Options"}</button>

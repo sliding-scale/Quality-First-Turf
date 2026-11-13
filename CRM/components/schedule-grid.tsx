@@ -250,6 +250,7 @@ function TimeGrid(p: GridProps) {
                       <div className="sc-itemtop">
                         <span className="sc-ini">{names.length ? initials(p.people.find((x) => x.id === names[0])?.name ?? "") : <Icon name="userx" size={11} />}</span>
                         <b>{s.item.title}</b>
+                        {s.item.zoho && <span className="sc-zoho" title="From Zoho Calendar">Zoho</span>}
                       </div>
                       <div className="sc-itemtime">{timeText(s.item.start)} – {timeText(live)}</div>
                       {p.canEdit && s.item.kind !== "task" && (

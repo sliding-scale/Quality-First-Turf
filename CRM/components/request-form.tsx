@@ -2,8 +2,8 @@
 
 /* New Request, laid out like Jobber's form: a title, the client, the date it was requested (today), the salesperson (the person making it,
    to start with), the service details and an internal note. Saving makes a project in the Sales pipeline at New Request, through
-   crm/requests:create. Jobber's images, on-site assessment and line items are not here: the visit is booked from the Schedule and the
-   price comes with the quote. Nothing is flagged red until Save is pressed (D-035). */
+   crm/requests:create. Like Jobber's it also has an On-site assessment (booked as a consultation on the Schedule once the request is
+   saved) and Product / Service lines. Nothing is flagged red until Save is pressed (D-035). */
 
 import Link from "next/link";
 import { useMutation } from "convex/react";
@@ -14,8 +14,11 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { useWorkspace, type BusinessDoc } from "@/lib/clients";
 import { quoteDate } from "@/lib/format";
 import { useClientSearch } from "@/lib/quotes";
+import { clock } from "@/lib/pipeline";
 import { failure, usePeople } from "@/lib/requests";
 import { EmptyBackend } from "./empty-backend";
+import { AssessmentModal, AssessmentPicker, type AssessmentDraft } from "./request-assessment";
+import { RequestLinesEditor, checkRequestLines, type RequestLine } from "./request-lines";
 import { Icon } from "./icon";
 import { NewClientDialog } from "./new-client-dialog";
 import { NoteEditor, useUploadPending, type PendingFile } from "./note-editor";
@@ -49,8 +52,13 @@ function Form({ business }: { business: BusinessDoc }) {
   const [bad, setBad] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const found = useClientSearch(business._id, clientQuery);
+  const book = useMutation(api.crm.schedule.book);
+  const [assessment, setAssessment] = useState<AssessmentDraft | null>(null);
+  const [assessing, setAssessing] = useState(false);
+  const [lines, setLines] = useState<RequestLine[]>([]);
+  const [badLines, setBadLines] = useState<Set<string>>(new Set());
 
-  const dirty = !!(title || client || details || note || noteFiles.length);
+  const dirty = !!(title || client || details || note || noteFiles.length || assessment || lines.length);
   useEffect(() => {
     if (!dirty) return;
     const warn = (e: BeforeUnloadEvent) => e.preventDefault();
@@ -76,8 +84,13 @@ function Form({ business }: { business: BusinessDoc }) {
     if (!title.trim()) missing.add("title");
     if (!client) missing.add("client");
     setBad(missing);
-    if (missing.size) {
-      document.getElementById(missing.has("title") ? "rf-title" : "rf-client")?.focus();
+    const checked = checkRequestLines(lines);
+    setBadLines(checked.bad);
+    if (missing.size || checked.bad.size) {
+      // Focus the first thing that is wrong: the title, the client, then the first bad line box ("key:name" is the box with id "rn-key").
+      const [lineKey, field] = ([...checked.bad][0] ?? "").split(":");
+      const lineBox = `${field === "name" ? "rn" : field === "qty" ? "rq" : "rp"}-${lineKey}`;
+      document.getElementById(missing.has("title") ? "rf-title" : missing.has("client") ? "rf-client" : lineBox)?.focus();
       return;
     }
     setBusy(true);
@@ -88,10 +101,25 @@ function Form({ business }: { business: BusinessDoc }) {
         title,
         salespersonId: chosen ? (chosen as Id<"users">) : undefined,
         details,
+        lines: checked.ok,
         note,
         noteFiles: await upload(noteFiles),
       });
-      toast("Request saved.");
+      // The assessment is a consultation on the Schedule. If it clashes with someone's booking the request is still saved, and the
+      // person is told to book the visit again from the request page.
+      if (assessment) {
+        try {
+          await book({
+            businessId: business._id, type: "consultation", title, start: assessment.start, end: assessment.end, anytime: assessment.anytime,
+            assigneeIds: assessment.assigneeIds as Id<"users">[], notes: assessment.instructions, opportunityId: id, clientId: client!.id, now: clock(),
+          });
+          toast("Request saved.");
+        } catch (e) {
+          toast(`Request saved, but the assessment was not booked. ${failure(e, "Book it again from the request page.")}`);
+        }
+      } else {
+        toast("Request saved.");
+      }
       router.push(`/requests/${id}`);
     } catch (e) {
       toast(failure(e, "The request could not be saved."));
@@ -164,6 +192,16 @@ function Form({ business }: { business: BusinessDoc }) {
       </section>
 
       <section className="qb-card">
+        <h2>On-site assessment</h2>
+        <AssessmentPicker value={assessment} people={people} onEdit={() => setAssessing(true)} onRemove={() => setAssessment(null)} />
+      </section>
+
+      <section className="qb-card" aria-label="Product / Service">
+        <h2 className="qb-h">Product / Service</h2>
+        <RequestLinesEditor lines={lines} onChange={(l) => { setLines(l); setBadLines(new Set()); }} bad={badLines} />
+      </section>
+
+      <section className="qb-card">
         <h2>Notes</h2>
         <div className="field">
           <label htmlFor="rf-note">Internal note</label>
@@ -175,6 +213,7 @@ function Form({ business }: { business: BusinessDoc }) {
         <button type="button" className="btn" disabled={busy} onClick={() => router.push("/requests")}>Cancel</button>
         <button type="button" className="btn primary" disabled={busy} onClick={() => void save()}>Save Request</button>
       </div>
+      {assessing && <AssessmentModal people={people} initial={assessment} onSave={(a) => setAssessment(a)} onClose={() => setAssessing(false)} />}
       {addingClient && (
         <NewClientDialog
           businessId={business._id}

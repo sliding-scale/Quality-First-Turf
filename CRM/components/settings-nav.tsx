@@ -14,6 +14,12 @@ export function SettingsNav() {
   return (
     <nav className="settings-nav" aria-label="Settings">
       <h2>Settings</h2>
+      <div className="group">
+        <div className="group-title">Personal</div>
+        <Link href="/settings/calendar" className={pathname.startsWith("/settings/calendar") ? "active" : undefined} aria-current={pathname.startsWith("/settings/calendar") ? "page" : undefined}>
+          My calendar
+        </Link>
+      </div>
       {staff.isAdmin && (
         <>
           <div className="group">

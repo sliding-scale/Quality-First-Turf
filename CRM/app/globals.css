@@ -76,6 +76,20 @@ input, select, textarea { font: inherit; color: var(--text); }
 .nav .item .label { white-space: nowrap; }
 .nav .divider { border: 0; border-top: 1px solid #b9b6ae; margin: 8px 6px; }
 .nav .item.soon { opacity: 0.9; }
+/* Pipeline's dropdown of pipelines: opens and closes by animating the row height. Hidden in the icon rail, shown again in the phone menu. */
+.nav .item .chev { margin-left: auto; display: inline-flex; transition: transform 0.2s ease-out; }
+.nav .item .chev.open { transform: rotate(180deg); }
+.nav-sub { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.22s ease-out; }
+.nav-sub.open { grid-template-rows: 1fr; }
+.nav-sub-in { overflow: hidden; min-height: 0; }
+.nav .subitem { display: block; padding: 8px 12px 8px 48px; border-radius: 8px; color: var(--ink); font-weight: 600; font-size: 0.95em; text-decoration: none; white-space: nowrap; transition: background-color 0.15s ease, color 0.15s ease; }
+.nav a.subitem:hover { background: rgba(0, 0, 0, 0.05); }
+.nav a.subitem:active { background: var(--shell-2); }
+.nav .subitem.active { background: var(--shell-2); }
+.nav .subitem.soon { color: #8a8f8c; font-weight: 500; cursor: not-allowed; }
+.rail .nav .chev, .rail .nav-sub { display: none; }
+@media (max-width: 1100px) { .nav .chev, .nav-sub { display: none; } }
+@media (prefers-reduced-motion: reduce) { .nav-sub, .nav .item .chev { transition: none; } }
 .collapse { margin-top: 8px; display: flex; align-items: center; gap: 12px; border: 0; background: none; padding: 9px 12px; border-radius: 8px; color: var(--ink); }
 .collapse:hover { background: rgba(0, 0, 0, 0.05); }
 
@@ -869,6 +883,8 @@ span.member-name { color: var(--muted); cursor: default; }
   .sidebar-brand .brand-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; text-align: left; font-size: 15px; }
   .nav .label, .collapse .label, .rail .nav .label, .rail .collapse .label { display: inline; opacity: 1; }
   .nav .item { justify-content: flex-start; padding: 12px; }
+  .nav .item .chev { display: inline-flex; }
+  .nav-sub, .rail .nav-sub { display: grid; }
   .collapse { display: none; }
   .menu-backdrop { display: block; position: fixed; inset: 0; z-index: 25; background: rgba(3, 43, 58, 0.45); opacity: 0; pointer-events: none; transition: opacity 0.2s ease-out; }
   .menu-open .menu-backdrop { opacity: 1; pointer-events: auto; }
@@ -1133,3 +1149,47 @@ span.member-name { color: var(--muted); cursor: default; }
 .nc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 14px 0 4px; }
 .nc-wide { grid-column: 1 / -1; }
 @media (max-width: 700px) { .nc-grid { grid-template-columns: minmax(0, 1fr); } }
+
+/* Quote page: Jobber's "Add section" strip, and the multi-line text of Client Message and Contract / Disclaimer. */
+.qs-add { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 6px; margin: 16px 0; border-radius: 10px; background: var(--shell); }
+.qs-add-label { display: inline-flex; align-items: center; gap: 4px; padding: 0 8px; font-weight: 600; color: var(--ink); }
+.qs-chip { display: inline-block; padding: 6px 12px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); font-weight: 600; font-size: 0.95em; text-decoration: none; transition: background-color 0.15s ease, border-color 0.15s ease; }
+a.qs-chip:hover { background: var(--shell-2); }
+a.qs-chip:active { background: var(--shell); }
+.qs-chip[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }
+.qs-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* Request page and New Request form: the Notes column, section headers, On-site assessment and Product / Service (like Jobber's). */
+.rq-split { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 24px; align-items: start; }
+.rq-main { min-width: 0; }
+.rq-side { position: sticky; top: 0; min-width: 0; }
+.rq-notes { padding: 16px 20px; display: grid; gap: 12px; }
+.rq-notes h3 { margin: 0; }
+.rq-sechead { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.rq-sechead h2 { margin: 0; }
+.rq-overview .muted { margin: 0 0 12px; }
+.rq-overview .quote-lines { margin: 0 -20px; width: calc(100% + 40px); }
+.rl-totals { margin: 12px 0 0 auto; max-width: 420px; }
+.rl-empty { margin: 0; color: var(--muted); }
+.rl-bar { display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; }
+.as-empty { display: grid; justify-items: center; gap: 8px; width: 100%; padding: 32px 16px; border: 1px dashed #b9b6ae; border-radius: 10px; background: none; color: var(--text); text-align: center; transition: background-color 0.15s ease, border-color 0.15s ease; }
+.as-empty:hover { background: rgba(0, 0, 0, 0.03); border-color: var(--green); }
+.as-empty:active { background: rgba(0, 0, 0, 0.06); }
+.as-empty b { color: var(--green); }
+.as-icon { display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: var(--shell); color: var(--ink); }
+.as-card { display: grid; gap: 12px; }
+.as-facts { margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 24px; }
+.as-facts > div { display: grid; gap: 2px; }
+.as-facts .wide { grid-column: 1 / -1; }
+.as-facts dt { color: var(--muted); font-size: 0.9em; }
+.as-facts dd { margin: 0; color: var(--ink); white-space: pre-wrap; }
+.as-unassigned { color: #b0372d; }
+.as-done { display: flex; margin-top: 6px; }
+.as-actions { display: flex; gap: 8px; }
+.as-form { display: grid; gap: 14px; margin-top: 16px; min-width: min(480px, 80vw); }
+.as-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.as-team { border: 0; margin: 0; padding: 0; display: grid; gap: 6px; }
+.as-team legend { font-weight: 600; margin-bottom: 4px; padding: 0; }
+.as-bar { display: flex; justify-content: flex-end; gap: 10px; }
+@media (max-width: 1100px) { .rq-split { grid-template-columns: minmax(0, 1fr); } .rq-side { position: static; } }
+@media (max-width: 700px) { .as-row, .as-facts { grid-template-columns: minmax(0, 1fr); } }

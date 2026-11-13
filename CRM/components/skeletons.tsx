@@ -358,6 +358,20 @@ export function AutomationsSkeleton() {
   );
 }
 
+export function CalendarSettingsSkeleton() {
+  return (
+    <Busy>
+      <div className="page-head"><h1>My calendar</h1></div>
+      <Sk w="62%" h={18} style={{ marginBottom: 22 }} />
+      <div className="card mc-card">
+        <Sk w={220} h={24} />
+        <Sk w="80%" h={16} style={{ margin: "14px 0" }} />
+        <Sk w={190} h={38} r={8} />
+      </div>
+    </Busy>
+  );
+}
+
 export function UsersSkeleton() {
   return (
     <Busy>

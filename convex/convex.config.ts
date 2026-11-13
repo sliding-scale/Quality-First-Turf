@@ -33,6 +33,12 @@ const app = defineApp({
     ZOHO_MAILBOX: v.optional(v.string()),
     ZOHO_ACCOUNTS_URL: v.optional(v.string()),
     ZOHO_MAIL_API_URL: v.optional(v.string()),
+    // Zoho Calendar, one connection per person (D-069). A Zoho "Server-based Application" (its Client ID and Secret) whose redirect address is
+    // <this deployment's .convex.site address>/zoho/calendar/callback, and a key that encrypts each person's stored token
+    // (32 random bytes, base64: `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`).
+    ZOHO_CAL_CLIENT_ID: v.optional(v.string()),
+    ZOHO_CAL_CLIENT_SECRET: v.optional(v.string()),
+    CALENDAR_TOKEN_KEY: v.optional(v.string()),
   },
 });
 

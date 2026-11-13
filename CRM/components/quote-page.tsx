@@ -294,6 +294,36 @@ function QuoteView({ q }: { q: Quote }) {
             </div>
           </section>
 
+          {/* Jobber's "Add section" strip. Attachments are on the quote already and are edited in the builder; Images and Reviews are greyed until they are built. */}
+          {canEdit && (
+            <div className="qs-add" role="group" aria-label="Add section">
+              <span className="qs-add-label"><Icon name="plus" size={16} />Add section</span>
+              {editable ? <Link className="qs-chip" href={`/quotes/${q.id}/edit`}>Attachments</Link> : <span className="qs-chip" aria-disabled="true">Attachments</span>}
+              <span className="qs-chip" aria-disabled="true" title="Not available yet">Images</span>
+              <span className="qs-chip" aria-disabled="true" title="Not available yet">Reviews</span>
+            </div>
+          )}
+
+          {(q.clientMessage || editable) && (
+            <section className="card panel quote-section">
+              <div className="ph">
+                <h3>Client Message</h3>
+                {editable && <Link className="icon-btn" aria-label="Edit client message" href={`/quotes/${q.id}/edit`}><Icon name="pencil" size={24} /></Link>}
+              </div>
+              <div className="qs-body"><p className="qs-text">{q.clientMessage || "No message."}</p></div>
+            </section>
+          )}
+
+          {(q.contract || editable) && (
+            <section className="card panel quote-section">
+              <div className="ph">
+                <h3>Contract / Disclaimer</h3>
+                {editable && <Link className="icon-btn" aria-label="Edit contract / disclaimer" href={`/quotes/${q.id}/edit`}><Icon name="pencil" size={24} /></Link>}
+              </div>
+              <div className="qs-body"><p className="qs-text">{q.contract || "No contract."}</p></div>
+            </section>
+          )}
+
           {(q.signatureUrl || q.signedBy) && q.signedAt && (
             <div className="quote-signature">
               <div className="sig-cell">

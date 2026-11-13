@@ -30,6 +30,7 @@ import type { DataModel } from "./dataModel.js";
 type Env = {
   readonly CONVEX_CLOUD_URL: string;
   readonly CONVEX_SITE_URL: string;
+  readonly CALENDAR_TOKEN_KEY: string | undefined;
   readonly CLERK_SECRET_KEY: string | undefined;
   readonly CLERK_WEBHOOK_SECRET: string | undefined;
   readonly CRM_ALLOW_SAMPLE_DATA: string | undefined;
@@ -43,6 +44,8 @@ type Env = {
   readonly SALES_NAME: string | undefined;
   readonly SALES_PASSWORD: string | undefined;
   readonly ZOHO_ACCOUNTS_URL: string | undefined;
+  readonly ZOHO_CAL_CLIENT_ID: string | undefined;
+  readonly ZOHO_CAL_CLIENT_SECRET: string | undefined;
   readonly ZOHO_CLIENT_ID: string | undefined;
   readonly ZOHO_CLIENT_SECRET: string | undefined;
   readonly ZOHO_MAILBOX: string | undefined;

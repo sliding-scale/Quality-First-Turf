@@ -46,6 +46,17 @@ export function PipelinePanel({ business, card, people, onClose, onLost, onWon }
   const [noteFiles, setNoteFiles] = useState<PendingFile[]>([]);
   const [savingNote, setSavingNote] = useState(false);
 
+  // The panel stays mounted when another card is opened, so an unsaved note must not follow along.
+  const [noteFor, setNoteFor] = useState(card.id);
+  if (noteFor !== card.id) {
+    noteFiles.forEach((f) => URL.revokeObjectURL(f.url));
+    setNoteFor(card.id);
+    setNote("");
+    setNoteFiles([]);
+    setAdding(false);
+    setSavingNote(false);
+  }
+
   useEffect(() => {
     if (!leaving) return;
     const t = setTimeout(onClose, EXIT_MS);

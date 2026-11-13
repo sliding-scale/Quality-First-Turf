@@ -6,6 +6,7 @@ import { checkAssignee } from "./lib/assignees";
 import {
   BLOCKING, BUSINESS_TZ, DEFAULT_HOURS, expandRepeats, overlaps, type ItemType, type Repeat, type WorkingHours,
 } from "./lib/schedule";
+import { mirrorChanged, mirrorRemoved } from "./lib/mirror";
 import { applyMove } from "./pipeline";
 
 /** The Schedule (D-062): bookings with double-booking prevention, the calendar read, the unscheduled list, availability and settings.
@@ -29,7 +30,7 @@ function checkFields(f: { title: string; start: number; end: number; anytime: bo
   return title;
 }
 
-type Busy = { id: Id<"calendarEvents">; userId: Id<"users">; title: string; start: number; end: number };
+type Busy = { id: Id<"calendarEvents">; userId: Id<"users">; title: string; start: number; end: number; /** From someone's Zoho Calendar: shown as busy, and a warning, never a refusal (D-069). */ external: boolean };
 
 /** The blocking items of the given people in [from, to), repeats expanded. External calendars plug in at `externalBusy`. */
 async function busyFor(ctx: QueryCtx, businessId: Id<"businesses">, userIds: readonly Id<"users">[], from: number, to: number): Promise<Busy[]> {
@@ -39,7 +40,7 @@ async function busyFor(ctx: QueryCtx, businessId: Id<"businesses">, userIds: rea
     if (!(BLOCKING as readonly string[]).includes(e.type) || e.anytime) continue;
     const who = e.assigneeIds.filter((u) => userIds.includes(u));
     if (who.length === 0) continue;
-    for (const o of expandRepeats(e, from, to, BUSINESS_TZ)) for (const userId of who) out.push({ id: e._id, userId, title: e.title, start: o.start, end: o.end });
+    for (const o of expandRepeats(e, from, to, BUSINESS_TZ)) for (const userId of who) out.push({ id: e._id, userId, title: e.title, start: o.start, end: o.end, external: e.source === "zoho" });
   }
   return out;
 }
@@ -59,7 +60,7 @@ async function checkConflicts(
   if (!(BLOCKING as readonly string[]).includes(f.type) || f.anytime || f.assigneeIds.length === 0) return;
   const horizon = f.repeat === "none" ? f.end : Math.min(f.repeatUntil ?? Infinity, f.start + REPEAT_HORIZON);
   const mine = expandRepeats({ start: f.start, end: f.end, repeat: f.repeat, repeatUntil: f.repeatUntil }, f.start, horizon, BUSINESS_TZ);
-  const busy = (await busyFor(ctx, businessId, f.assigneeIds, f.start, horizon)).filter((b) => b.id !== ignoreId);
+  const busy = (await busyFor(ctx, businessId, f.assigneeIds, f.start, horizon)).filter((b) => b.id !== ignoreId && !b.external);
   for (const o of mine) {
     const clash = busy.find((b) => overlaps(o, b));
     if (clash) {
@@ -94,8 +95,9 @@ export const book = mutation({
     await checkConflicts(ctx, a.businessId, { type: a.type, start: a.start, end: a.end, anytime, assigneeIds, repeat, repeatUntil: a.repeatUntil });
     const id = await ctx.db.insert("calendarEvents", {
       businessId: a.businessId, type: a.type, title, opportunityId: a.opportunityId, clientId: a.clientId ?? project?.clientId, start: a.start, end: a.end, anytime,
-      assigneeIds, status: "upcoming", notes: a.notes ?? "", repeat, repeatUntil: a.repeatUntil, createdBy: staff.userId, createdAt: a.now,
+      assigneeIds, status: "upcoming", notes: a.notes ?? "", repeat, repeatUntil: a.repeatUntil, createdBy: staff.userId, createdAt: a.now, updatedAt: a.now,
     });
+    await mirrorChanged(ctx, "event", id);
     // Booking a consultation for a project that was waiting for one moves it forward in the pipeline.
     if (a.type === "consultation" && project && project.stage === "Schedule Onsite Consultation") {
       await applyMove(ctx, project, "Onsite Consultation", staff, undefined, a.now);
@@ -115,7 +117,8 @@ async function saveChanges(ctx: MutationCtx, event: Doc<"calendarEvents">, c: Ch
   const title = checkFields(next);
   if (c.assigneeIds) await checkAssignees(ctx, next.assigneeIds, event.businessId);
   await checkConflicts(ctx, event.businessId, { type: event.type, ...next }, event._id);
-  await ctx.db.patch(event._id, { ...next, title });
+  await ctx.db.patch(event._id, { ...next, title, updatedAt: Date.now() });
+  await mirrorChanged(ctx, "event", event._id);
 }
 
 export const update = mutation({
@@ -157,6 +160,7 @@ export const remove = mutation({
     const event = await ctx.db.get(args.id);
     if (event === null) return;
     await requireEditor(ctx, event.businessId);
+    await mirrorRemoved(ctx, "event", args.id);
     await ctx.db.delete(args.id);
   },
 });
@@ -173,6 +177,8 @@ export type ScheduleItem = {
   anytime: boolean;
   assigneeIds: Id<"users">[];
   status: "upcoming" | "completed" | "confirmed";
+  /** From someone's Zoho Calendar (D-069). */
+  zoho: boolean;
   /** Worked out, never stored: not completed and already over. */
   overdue: boolean;
   repeat: Repeat;
@@ -214,7 +220,7 @@ export const range = query({
         items.push({
           key: `${e._id}:${o.occurrence}`, id: e._id, kind: e.type, title: e.title, start: o.start, end: o.end, anytime: e.anytime, assigneeIds: e.assigneeIds,
           status: e.status, overdue: e.status !== "completed" && o.end < a.now, repeat: e.repeat, clientId: e.clientId, clientName: await clientName(e.clientId),
-          opportunityId: e.opportunityId, notes: e.notes, occurrence: o.occurrence, seriesStart: e.start, seriesEnd: e.end,
+          opportunityId: e.opportunityId, notes: e.notes, occurrence: o.occurrence, seriesStart: e.start, seriesEnd: e.end, zoho: e.source === "zoho",
         });
       }
     }
@@ -225,7 +231,7 @@ export const range = query({
       items.push({
         key: `task:${t._id}`, id: t._id, kind: "task", title: t.title, start: t.startAt, end: t.endAt, anytime: false, assigneeIds: t.assigneeId ? [t.assigneeId] : [],
         status: t.done ? "completed" : "upcoming", overdue: !t.done && t.endAt < a.now, repeat: "none", clientId: project?.clientId, clientName: await clientName(project?.clientId),
-        opportunityId: t.opportunityId, notes: "", occurrence: 0, seriesStart: t.startAt, seriesEnd: t.endAt,
+        opportunityId: t.opportunityId, notes: "", occurrence: 0, seriesStart: t.startAt, seriesEnd: t.endAt, zoho: false,
       });
     }
     const wantedStatus = new Set(a.statuses.filter((s) => (STATUS_KEYS as readonly string[]).includes(s)));
@@ -278,7 +284,7 @@ export const availability = query({
   handler: async (ctx, a) => {
     await requireBusiness(ctx, a.businessId);
     const busy = [...(await busyFor(ctx, a.businessId, a.userIds, a.from, a.to)), ...externalBusy()];
-    return { hours: await hoursOf(ctx, a.businessId), busy: busy.map((b) => ({ id: b.id, userId: b.userId, title: b.title, start: b.start, end: b.end })) };
+    return { hours: await hoursOf(ctx, a.businessId), busy: busy.map((b) => ({ id: b.id, userId: b.userId, title: b.title, start: b.start, end: b.end, external: b.external })) };
   },
 });
 
