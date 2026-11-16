@@ -6,6 +6,8 @@ import { quoteMoneyOptions } from "./lib/quoteOptions";
 import { quoteTotals } from "./lib/quoteMath";
 import { systemMove } from "./lib/systemMove";
 import { notifyMentions } from "./lib/mentionNotify";
+import { checkNoteFiles, noteFilesArg } from "./lib/noteFiles";
+import { toggleCheckbox } from "./lib/noteText";
 import { MAX_DISCLAIMERS_PER_QUOTE, checkDisclaimer } from "./lib/disclaimers";
 
 /** Building a quote (D-063): create, save, attachments, notes, duplicate, archive. Sending and the client's answers are in quoteFlow.ts and
@@ -201,17 +203,50 @@ export const removeAttachment = mutation({
   },
 });
 
+/** Changes the words of a note on a quote (the pencil on a note, as in Jobber). The file on it stays. */
+export const editNote = mutation({
+  args: { noteId: v.id("quoteNotes"), text: v.string() },
+  handler: async (ctx, a) => {
+    const note = await ctx.db.get(a.noteId);
+    if (note === null) throw new ConvexError("That note no longer exists.");
+    const quote = await ctx.db.get(note.quoteId);
+    if (quote === null) throw new ConvexError("That quote no longer exists.");
+    await requireEditor(ctx, quote.businessId);
+    const text = a.text.trim();
+    if (!text && !note.attachmentId && !note.attachments?.length) throw new ConvexError("Write something first.");
+    if (text.length > 5000) throw new ConvexError("Notes can be up to 5,000 characters.");
+    await ctx.db.patch(note._id, { text });
+  },
+});
+
+/** Ticks or unticks a checkbox line in a saved quote note. */
+export const toggleNoteLine = mutation({
+  args: { noteId: v.id("quoteNotes"), line: v.number() },
+  handler: async (ctx, a) => {
+    const note = await ctx.db.get(a.noteId);
+    if (note === null) throw new ConvexError("That note no longer exists.");
+    const quote = await ctx.db.get(note.quoteId);
+    if (quote === null) throw new ConvexError("That quote no longer exists.");
+    await requireEditor(ctx, quote.businessId);
+    const next = toggleCheckbox(note.text, a.line);
+    if (next === null) throw new ConvexError("That line is not a checkbox.");
+    await ctx.db.patch(note._id, { text: next });
+  },
+});
+
 export const addNote = mutation({
-  args: { quoteId: v.id("quotes"), text: v.string(), attachmentId: v.optional(v.id("_storage")), attachmentName: v.optional(v.string()) },
+  args: { quoteId: v.id("quotes"), text: v.string(), attachmentId: v.optional(v.id("_storage")), attachmentName: v.optional(v.string()), files: noteFilesArg },
   handler: async (ctx, a) => {
     const quote = await ctx.db.get(a.quoteId);
     if (quote === null) throw new ConvexError("That quote no longer exists.");
     const staff = await requireEditor(ctx, quote.businessId);
     const text = a.text.trim();
-    if (!text && !a.attachmentId) throw new ConvexError("Write something first.");
+    if (text.length > 5000) throw new ConvexError("Notes can be up to 5,000 characters.");
+    const attachments = await checkNoteFiles(ctx, a.files);
+    if (!text && !a.attachmentId && attachments.length === 0) throw new ConvexError("Write something first.");
     if (a.attachmentId) await checkFile(ctx, a.attachmentId, "A note's file");
     const now = Date.now();
-    await ctx.db.insert("quoteNotes", { quoteId: quote._id, text, author: staff.name, createdAt: now, attachmentId: a.attachmentId, attachmentName: a.attachmentName });
+    await ctx.db.insert("quoteNotes", { quoteId: quote._id, text, author: staff.name, createdAt: now, attachmentId: a.attachmentId, attachmentName: a.attachmentName, ...(attachments.length ? { attachments } : {}) });
     await notifyMentions(ctx, { businessId: quote.businessId, staff, text, target: { kind: "quote", quoteId: quote._id }, now });
   },
 });

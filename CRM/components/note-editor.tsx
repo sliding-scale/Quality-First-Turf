@@ -14,7 +14,7 @@ import { useWorkspace } from "@/lib/clients";
 import { Icon } from "./icon";
 import { useUI } from "./ui-provider";
 
-export type PendingFile = { id: string; kind: "image" | "audio"; blob: Blob; name: string; url: string };
+export type PendingFile = { id: string; kind: "image" | "audio" | "file"; blob: Blob; name: string; url: string };
 
 const MAX_RECORDING_SECONDS = 300;
 const MAX_FILES = 10;
@@ -67,6 +67,8 @@ export function NoteEditor({ id, value, onChange, files, onFiles, placeholder, r
   const { toast } = useUI();
   const area = useRef<HTMLTextAreaElement>(null);
   const picker = useRef<HTMLInputElement>(null);
+  const camInput = useRef<HTMLInputElement>(null);
+  const [camera, setCamera] = useState(false);
   const [kindNow, setKindNow] = useState<ListKind | null>(null);
   const [listening, setListening] = useState(false);
   const [recording, setRecording] = useState(false);
@@ -278,6 +280,27 @@ export function NoteEditor({ id, value, onChange, files, onFiles, placeholder, r
     if (picker.current) picker.current.value = "";
   }
 
+  /** Any file from the computer or phone. Photos stay photos; everything else is kept as a file. */
+  function addFiles(list: FileList | null) {
+    if (!list) return;
+    const next = [...files];
+    for (const f of Array.from(list)) {
+      if (/\.(exe|bat|cmd|com|msi|scr|js|vbs|ps1|sh|jar|dll|apk|app)$/i.test(f.name)) { toast(`${f.name} cannot be attached.`); continue; }
+      if (f.size > 15 * 1024 * 1024) { toast(`${f.name} is over 15 MB.`); continue; }
+      if (next.length >= MAX_FILES) { toast(`A note can have up to ${MAX_FILES} files.`); break; }
+      next.push({ id: crypto.randomUUID(), kind: f.type.startsWith("image/") ? "image" : "file", blob: f, name: f.name || "File", url: URL.createObjectURL(f) });
+    }
+    onFiles(next);
+    if (picker.current) picker.current.value = "";
+  }
+
+  /** The camera button: a live camera view to take a photo from; where the browser cannot, the phone's own camera app. */
+  function openCamera() {
+    if (files.length >= MAX_FILES) return toast(`A note can have up to ${MAX_FILES} files.`);
+    if (typeof navigator !== "undefined" && "mediaDevices" in navigator) setCamera(true);
+    else camInput.current?.click();
+  }
+
   function removeFile(fid: string) {
     const gone = files.find((f) => f.id === fid);
     if (gone) URL.revokeObjectURL(gone.url);
@@ -294,8 +317,10 @@ export function NoteEditor({ id, value, onChange, files, onFiles, placeholder, r
         <span className="ne-sep" aria-hidden="true" />
         {!noFiles && (
           <>
-            <button type="button" className="ne-btn" aria-label="Add photos" title="Add photos or take one" disabled={disabled} onClick={() => picker.current?.click()}><Icon name="camera" size={20} /></button>
-            <input ref={picker} type="file" accept="image/*" multiple hidden onChange={(e) => addPhotos(e.target.files)} />
+            <button type="button" className="ne-btn" aria-label="Take a photo" title="Take a photo with the camera" disabled={disabled} onClick={openCamera}><Icon name="camera" size={20} /></button>
+            <input ref={camInput} type="file" accept="image/*" capture="environment" hidden onChange={(e) => addPhotos(e.target.files)} />
+            <button type="button" className="ne-btn" aria-label="Attach a file" title="Attach a file" disabled={disabled} onClick={() => picker.current?.click()}><Icon name="file" size={20} /></button>
+            <input ref={picker} type="file" multiple hidden onChange={(e) => addFiles(e.target.files)} />
           </>
         )}
         <button type="button" className={`ne-btn${listening ? " live" : ""}`} aria-label={listening ? "Stop dictating" : "Dictate (speech to text)"} aria-pressed={listening} title={supportsSpeech ? (listening ? "Stop dictating" : "Dictate: speak and it is typed for you") : "Dictation needs Chrome, Edge or Safari"} disabled={disabled || !supportsSpeech} onClick={toggleDictation}><Icon name="mic" size={20} /><span>{listening ? "Listening…" : "Dictate"}</span></button>
@@ -334,6 +359,7 @@ export function NoteEditor({ id, value, onChange, files, onFiles, placeholder, r
           ))}
         </ul>
       )}
+      {camera && <CameraShot onClose={() => setCamera(false)} onShot={(blob) => { onFiles([...live.current.files, { id: crypto.randomUUID(), kind: "image", blob, name: `Photo ${stamp()}.jpg`, url: URL.createObjectURL(blob) }]); setCamera(false); }} onFail={() => { setCamera(false); camInput.current?.click(); }} />}
       {files.length > 0 && (
         <div className="ne-files">
           {files.map((f) => (
@@ -341,6 +367,8 @@ export function NoteEditor({ id, value, onChange, files, onFiles, placeholder, r
               {f.kind === "image" ? (
                 // eslint-disable-next-line @next/next/no-img-element -- a local preview of a file that has not been uploaded yet
                 <img src={f.url} alt={f.name} />
+              ) : f.kind === "file" ? (
+                <div className="ne-doc"><Icon name="file" size={20} /><span title={f.name}>{f.name}</span></div>
               ) : (
                 <audio controls preload="metadata" src={f.url} aria-label={f.name} />
               )}
@@ -349,6 +377,43 @@ export function NoteEditor({ id, value, onChange, files, onFiles, placeholder, r
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+/** A live camera view with a Take photo button. Nothing is kept until Save on the note, like every other waiting file. */
+function CameraShot({ onShot, onClose, onFail }: { onShot: (blob: Blob) => void; onClose: () => void; onFail: () => void }) {
+  const video = useRef<HTMLVideoElement>(null);
+  const stream = useRef<MediaStream | null>(null);
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    let gone = false;
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then((s) => {
+      if (gone) { s.getTracks().forEach((t) => t.stop()); return; }
+      stream.current = s;
+      if (video.current) { video.current.srcObject = s; void video.current.play(); }
+    }, onFail);
+    return () => { gone = true; stream.current?.getTracks().forEach((t) => t.stop()); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- opens once
+  }, []);
+  function shoot() {
+    const v = video.current;
+    if (!v || !v.videoWidth) return;
+    const c = document.createElement("canvas");
+    c.width = v.videoWidth;
+    c.height = v.videoHeight;
+    c.getContext("2d")?.drawImage(v, 0, 0);
+    c.toBlob((b) => { if (b) onShot(b); }, "image/jpeg", 0.9);
+  }
+  return (
+    <div className="ne-cam" role="dialog" aria-modal="true" aria-label="Take a photo">
+      <div className="ne-cam-box">
+        <video ref={video} playsInline muted onLoadedMetadata={() => setReady(true)} />
+        <div className="ne-cam-bar">
+          <button type="button" className="btn" onClick={onClose}>Cancel</button>
+          <button type="button" className="btn primary" disabled={!ready} onClick={shoot}>Take photo</button>
+        </div>
+      </div>
     </div>
   );
 }

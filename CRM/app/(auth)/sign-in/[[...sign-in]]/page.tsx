@@ -2,6 +2,7 @@ import { SignIn } from "@clerk/nextjs";
 import type { Metadata } from "next";
 import { signInAppearance } from "@/components/clerk-appearance";
 import { ForgotPasswordLink } from "@/components/forgot-password-link";
+import { WelcomeBar } from "@/components/welcome-loading";
 import { SignInShell } from "@/components/sign-in-shell";
 
 export const metadata: Metadata = { title: "Log in" };
@@ -18,9 +19,7 @@ export default function Page() {
       {/* Shown until Clerk's form has drawn itself (see .auth-skel in globals.css), so the page never opens on just the note below. */}
       <div className="auth-skel" role="status" aria-busy="true">
         <span className="sr">Loading the sign-in form…</span>
-        <span className="sk" style={{ height: 50, borderRadius: 6 }} />
-        <span className="sk" style={{ height: 50, borderRadius: 6, marginTop: 22 }} />
-        <span className="sk" style={{ height: 52, borderRadius: 6, marginTop: 22 }} />
+        <WelcomeBar />
       </div>
       <SignIn appearance={signInAppearance} fallbackRedirectUrl="/home" />
       <ForgotPasswordLink />

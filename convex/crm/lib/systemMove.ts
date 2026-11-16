@@ -1,5 +1,6 @@
 import type { Doc } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
+import { notifyStage } from "./mentionNotify";
 import { SALES_STAGES } from "./stages";
 
 /** A pipeline move made by the system rather than by a person: a quote being created, sent or answered by the client (D-063). It checks
@@ -28,5 +29,6 @@ export async function systemMove(
     opportunityId: project._id, businessId: project.businessId, from, to, byName, at: now,
     ...(opts.byUserId ? { byUserId: opts.byUserId } : {}), ...(opts.note ? { note: opts.note } : {}),
   });
+  await notifyStage(ctx, { project, from, to, byName, ...(opts.byUserId ? { byUserId: opts.byUserId } : {}), now });
   return true;
 }

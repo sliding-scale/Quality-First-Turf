@@ -134,3 +134,21 @@ export const revisions = query({
     return rows.sort((x, y) => y.revision - x.revision);
   },
 });
+
+/** Editing an approved quote (D-078), after Jobber's "Signature will be removed" warning: takes off the client's signature and puts the quote
+ *  back to Draft so it can be edited and sent again. The deposit that was received stays recorded, and the project stays where it is. A quote
+ *  on a project that is already Closed Won cannot be reopened: Closed Won depends on that signature. */
+export const reopenForEdit = mutation({
+  args: { id: v.id("quotes"), now: v.number() },
+  handler: async (ctx, a) => {
+    const { quote, staff } = await load(ctx, a.id);
+    if (quote.status !== "Approved" && quote.status !== "Converted") throw new ConvexError("Only an approved quote needs to be reopened.");
+    if (quote.opportunityId) {
+      const project = await ctx.db.get(quote.opportunityId);
+      if (project?.outcome === "won") throw new ConvexError("This project is closed as won, so its signed quote cannot be changed.");
+    }
+    if (quote.signatureImageId) await ctx.storage.delete(quote.signatureImageId);
+    await ctx.db.patch(quote._id, { status: "Draft", signedAt: undefined, signedBy: undefined, signatureImageId: undefined, approvedAt: undefined, convertedAt: undefined });
+    await logEvent(ctx, quote._id, "reopened", staff.name, "Reopened for editing. The client's signature was removed.", a.now);
+  },
+});

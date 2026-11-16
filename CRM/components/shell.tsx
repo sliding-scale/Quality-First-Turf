@@ -129,7 +129,9 @@ function ShellInner({ children }: { children: ReactNode }) {
   const [menuPath, setMenuPath] = useState<string | null>(null);
   const menuOpen = menuPath === pathname;
   const rail = useStoredString(RAIL_KEY, "0") === "1";
-  const [pipeOpen, setPipeOpen] = useState(false);
+  // The person's fold or unfold of the Pipeline list, remembered only for the page it was made on: going to any other page forgets it, so the list
+  // is open on a pipeline page and folded everywhere else.
+  const [pipeChoice, setPipeChoice] = useState<{ path: string; open: boolean } | null>(null);
   const [search, setSearch] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
   const mainRef = useRef<HTMLElement>(null);
@@ -275,7 +277,7 @@ function ShellInner({ children }: { children: ReactNode }) {
               };
               if (n.key === "pipeline") {
                 // Pipeline opens a list of pipelines under it. Sales is the one that exists and is selected; the rest are greyed out until they are built.
-                const open = pipeOpen || on;
+                const open = pipeChoice && pipeChoice.path === pathname ? pipeChoice.open : on;
                 return (
                   <div key={n.key} className="nav-group">
                     <Link
@@ -289,10 +291,9 @@ function ShellInner({ children }: { children: ReactNode }) {
                         // Already on a pipeline page: the click only folds or unfolds the list.
                         if (on && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
                           e.preventDefault();
-                          setPipeOpen(!pipeOpen);
+                          setPipeChoice({ path: pathname, open: !open });
                           return;
                         }
-                        setPipeOpen(true);
                       }}
                     >
                       {inner}

@@ -18,10 +18,12 @@ import { clock, failure } from "@/lib/pipeline";
 import { QUOTE_DOT, QUOTE_PILL, useQuote } from "@/lib/quotes";
 import { moneyCents, quoteDate, quoteDateTime } from "@/lib/format";
 import { useStoredString, writeItem } from "@/lib/store";
+import type { Section } from "@/lib/quote-sections";
 import { DeleteQuoteDialog } from "./delete-quote-dialog";
 import { Icon } from "./icon";
 import { ImageViewer, type ViewerImage } from "./image-viewer";
-import { ActivityDialog, DepositDialog, NoteDialog, SendDialog, SignDialog } from "./quote-dialogs";
+import { ActivityDialog, DepositDialog, SendDialog, SignDialog, SignatureWarningDialog } from "./quote-dialogs";
+import { NoteEditor, useUploadPending, type PendingFile } from "./note-editor";
 import { QuoteSkeleton } from "./skeletons";
 import { useStaff } from "./staff-context";
 import { useUI, type MenuItem } from "./ui-provider";
@@ -47,17 +49,87 @@ type Quote = NonNullable<ReturnType<typeof useQuote>>;
 /** "1" while the Notes column is folded away. Remembered in this browser. */
 const SIDE_KEY = "qft-quote-notes-closed";
 
+/** One note in the right-hand column, with Jobber's pencil: the words turn into a box with Cancel and Save. The file on it stays. */
+function QuoteNote({ n, canEdit, editingId, setEditingId }: { n: Quote["notes"][number]; canEdit: boolean; editingId: string | null; setEditingId: (id: string | null) => void }) {
+  const { toast } = useUI();
+  const edit = useMutation(api.crm.quoteDraft.editNote);
+  const toggleLine = useMutation(api.crm.quoteDraft.toggleNoteLine);
+  // Only one note is edited at a time: while one is open, the pencils on the others are off.
+  const editing = editingId === n.id;
+  const setEditing = (on: boolean) => setEditingId(on ? n.id : null);
+  const [text, setText] = useState(n.text);
+  const [busy, setBusy] = useState(false);
+  async function save() {
+    setBusy(true);
+    try {
+      await edit({ noteId: n.id as Id<"quoteNotes">, text });
+      setEditing(false);
+      toast("Note saved.");
+    } catch (e) {
+      toast(failure(e, "The note could not be saved."));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="qn-item">
+      <div className="qn-who">
+        <span className="qn-avatar" aria-hidden="true">{n.author.slice(0, 1).toUpperCase()}</span>
+        <div>
+          <b>{n.author}</b>
+          <div className="muted">{quoteDateTime(n.createdAt)}</div>
+        </div>
+        {canEdit && !editing && <button type="button" className="icon-btn qn-pencil" aria-label="Edit note" disabled={editingId !== null} title={editingId !== null ? "Save or cancel the note you are editing first" : undefined} onClick={() => { setText(n.text); setEditing(true); }}><Icon name="pencil" size={20} /></button>}
+      </div>
+      {editing ? (
+        <>
+          <NoteEditor noFiles rows={5} value={text} onChange={setText} files={[]} onFiles={() => undefined} disabled={busy} />
+          <div className="qn-bar">
+            <button type="button" className="btn" disabled={busy} onClick={() => setEditing(false)}>Cancel</button>
+            <button type="button" className="btn primary" disabled={busy || (!text.trim() && !n.attachmentUrl && n.files.length === 0)} onClick={() => void save()}>{busy ? "Saving…" : "Save"}</button>
+          </div>
+        </>
+      ) : (
+        <NoteBody text={n.text} files={n.files} canEdit={canEdit} onToggle={(line) => void toggleLine({ noteId: n.id as Id<"quoteNotes">, line }).catch((e) => toast(failure(e, "The checkbox could not be changed.")))} />
+      )}
+      {n.attachmentUrl && (
+        <a className="qn-file" href={n.attachmentUrl} target="_blank" rel="noreferrer" title={n.attachmentName ?? "Attachment"}>
+          <Icon name="file" size={24} />
+          <span>{n.attachmentName ?? "Attachment"}</span>
+        </a>
+      )}
+    </div>
+  );
+}
+
 function QuoteView({ q }: { q: Quote }) {
   const router = useRouter();
   const { dropdown, toast } = useUI();
   const { canEdit } = useStaff();
+  const addNote = useMutation(api.crm.quoteDraft.addNote);
+  const uploadPending = useUploadPending();
+  const [note, setNote] = useState("");
+  const [noteFiles, setNoteFiles] = useState<PendingFile[]>([]);
+  const [savingNote, setSavingNote] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const params = useSearchParams();
   const [dialog, setDialog] = useState<null | "send" | "sign" | "deposit" | "activity" | "note">(() => (params.get("link") === "1" && q.shareToken ? "send" : null));
   const send = useMutation(api.crm.quoteFlow.send);
   const duplicate = useMutation(api.crm.quoteDraft.duplicate);
   const archive = useMutation(api.crm.quoteDraft.archive);
-  const editable = canEdit && (q.status === "Draft" || q.status === "Awaiting response" || q.status === "Changes requested");
+  // Every section has its pencil, as in Jobber. A quote that was approved asks first (its signature is removed to edit it); a declined or
+  // archived one cannot be edited.
+  const needsReopen = q.status === "Approved" || q.status === "Converted";
+  const pencils = canEdit && q.status !== "Rejected" && q.status !== "Archived";
+  const [editFor, setEditFor] = useState<null | Section>(null);
+  const [noteEditing, setNoteEditing] = useState<string | null>(null);
+  const openEdit = (section: Section) => (needsReopen ? setEditFor(section) : router.push(`/quotes/${q.id}/edit?section=${section}`));
+  const pencil = (section: Section, label: string) =>
+    pencils ? (
+      <button type="button" className="icon-btn" aria-label={label} title={needsReopen ? `${label} (removes the signature)` : label} onClick={() => openEdit(section)}><Icon name="pencil" size={24} /></button>
+    ) : canEdit ? (
+      <button type="button" className="icon-btn" aria-label={label} title="A declined or archived quote cannot be edited" disabled><Icon name="pencil" size={24} /></button>
+    ) : null;
   const fail = (e: unknown, fallback: string) => toast(failure(e, fallback));
   async function sendNow() {
     try {
@@ -160,11 +232,7 @@ function QuoteView({ q }: { q: Quote }) {
           </div>
           <div className="quote-title-row">
             <h1>{q.title}</h1>
-            {editable ? (
-              <Link className="icon-btn" aria-label="Edit quote details" title="Edit quote details" href={`/quotes/${q.id}/edit?section=details`}><Icon name="pencil" size={24} /></Link>
-            ) : (
-              canEdit && <button type="button" className="icon-btn" aria-label="Edit quote details" title="A quote that is approved, declined or archived cannot be edited" disabled><Icon name="pencil" size={24} /></button>
-            )}
+            {pencil("details", "Edit quote details")}
           </div>
           {q.status === "Changes requested" && (
             <div className="qp-banner warn" role="status"><b>The client asked for changes</b>{q.changesMessage && <p>{q.changesMessage}</p>}<span>Edit the quote, then resubmit it. The client sees the newest version.</span></div>
@@ -204,7 +272,7 @@ function QuoteView({ q }: { q: Quote }) {
           <section className="card panel quote-section">
             <div className="ph">
               <h3>Introduction</h3>
-              {editable && <Link className="icon-btn" aria-label="Edit introduction" href={`/quotes/${q.id}/edit?section=intro`}><Icon name="pencil" size={24} /></Link>}
+              {pencil("intro", "Edit introduction")}
             </div>
             <div className="qs-body">
               {q.introImageUrl && (
@@ -223,7 +291,7 @@ function QuoteView({ q }: { q: Quote }) {
           <section className="card panel quote-section">
             <div className="ph">
               <h3>Product / Service</h3>
-              {editable && <Link className="icon-btn" aria-label="Edit products and services" href={`/quotes/${q.id}/edit?section=lines`}><Icon name="pencil" size={24} /></Link>}
+              {pencil("lines", "Edit products and services")}
             </div>
             <div className="qs-body flush">
               <table className="table quote-lines">
@@ -299,27 +367,27 @@ function QuoteView({ q }: { q: Quote }) {
           {canEdit && (
             <div className="qs-add" role="group" aria-label="Add section">
               <span className="qs-add-label"><Icon name="plus" size={16} />Add section</span>
-              {editable ? <Link className="qs-chip" href={`/quotes/${q.id}/edit?section=attachments`}>Attachments</Link> : <span className="qs-chip" aria-disabled="true">Attachments</span>}
+              {pencils ? <button type="button" className="qs-chip" onClick={() => openEdit("attachments")}>Attachments</button> : <span className="qs-chip" aria-disabled="true">Attachments</span>}
               <span className="qs-chip" aria-disabled="true" title="Not available yet">Images</span>
               <span className="qs-chip" aria-disabled="true" title="Not available yet">Reviews</span>
             </div>
           )}
 
-          {(q.clientMessage || editable) && (
+          {(q.clientMessage || pencils) && (
             <section className="card panel quote-section">
               <div className="ph">
                 <h3>Client Message</h3>
-                {editable && <Link className="icon-btn" aria-label="Edit client message" href={`/quotes/${q.id}/edit?section=message`}><Icon name="pencil" size={24} /></Link>}
+                {pencil("message", "Edit client message")}
               </div>
               <div className="qs-body"><p className="qs-text">{q.clientMessage || "No message."}</p></div>
             </section>
           )}
 
-          {(q.contract || q.disclaimers.length > 0 || editable) && (
+          {(q.contract || q.disclaimers.length > 0 || pencils) && (
             <section className="card panel quote-section">
               <div className="ph">
                 <h3>Contract / Disclaimer</h3>
-                {editable && <Link className="icon-btn" aria-label="Edit contract / disclaimer" href={`/quotes/${q.id}/edit?section=contract`}><Icon name="pencil" size={24} /></Link>}
+                {pencil("contract", "Edit contract / disclaimer")}
               </div>
               <div className="qs-body">
                 {(q.contract || q.disclaimers.length === 0) && <p className="qs-text">{q.contract || "No contract."}</p>}
@@ -372,33 +440,29 @@ function QuoteView({ q }: { q: Quote }) {
           <section className="card quote-notes">
             <div className="qn-head">
               <h3>Notes</h3>
-              {canEdit && (
-                <button type="button" className="btn square" aria-label="Add a note" onClick={() => setDialog("note")}>
-                  <Icon name="plus" size={20} />
-                </button>
-              )}
             </div>
+            {canEdit && (
+              <form
+                className="pl-noteform"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!note.trim() && noteFiles.length === 0) return;
+                  setSavingNote(true);
+                  uploadPending(noteFiles)
+                    .then((files) => addNote({ quoteId: q.id as Id<"quotes">, text: note, files }))
+                    .then(() => { noteFiles.forEach((f) => URL.revokeObjectURL(f.url)); setNote(""); setNoteFiles([]); })
+                    .catch((err) => toast(failure(err, "The note could not be saved.")))
+                    .finally(() => setSavingNote(false));
+                }}
+              >
+                <NoteEditor value={note} onChange={setNote} files={noteFiles} onFiles={setNoteFiles} disabled={savingNote} rows={5} placeholder="Leave an internal note for yourself or a team member" />
+                <button type="submit" className="btn primary" disabled={savingNote || (!note.trim() && noteFiles.length === 0)}>{savingNote ? "Saving…" : "Save note"}</button>
+              </form>
+            )}
             {q.notes.length ? (
-              q.notes.map((n) => (
-                <div className="qn-item" key={n.id}>
-                  <div className="qn-who">
-                    <span className="qn-avatar" aria-hidden="true">{n.author.slice(0, 1).toUpperCase()}</span>
-                    <div>
-                      <b>{n.author}</b>
-                      <div className="muted">{quoteDateTime(n.createdAt)}</div>
-                    </div>
-                  </div>
-                  <NoteBody text={n.text} files={[]} canEdit={false} onToggle={() => undefined} />
-                  {n.attachmentUrl && (
-                    <a className="qn-file" href={n.attachmentUrl} target="_blank" rel="noreferrer" title={n.attachmentName ?? "Attachment"}>
-                      <Icon name="file" size={24} />
-                      <span>{n.attachmentName ?? "Attachment"}</span>
-                    </a>
-                  )}
-                </div>
-              ))
+              q.notes.map((n) => <QuoteNote key={n.id} n={n} canEdit={canEdit} editingId={noteEditing} setEditingId={setNoteEditing} />)
             ) : (
-              <p className="muted">No notes yet.</p>
+              !canEdit && <p className="muted">No notes yet.</p>
             )}
           </section>
         </div>
@@ -410,7 +474,7 @@ function QuoteView({ q }: { q: Quote }) {
       {dialog === "sign" && <SignDialog quoteId={q.id as Id<"quotes">} businessId={q.businessId} defaultName={q.client.name} onClose={() => setDialog(null)} />}
       {dialog === "deposit" && <DepositDialog quoteId={q.id as Id<"quotes">} businessId={q.businessId} outstandingCents={q.totals.depositOutstandingCents} onClose={() => setDialog(null)} />}
       {dialog === "activity" && <ActivityDialog quoteId={q.id} onClose={() => setDialog(null)} />}
-      {dialog === "note" && <NoteDialog quoteId={q.id as Id<"quotes">} businessId={q.businessId} onClose={() => setDialog(null)} />}
+      {editFor && <SignatureWarningDialog quoteId={q.id as Id<"quotes">} onClose={() => setEditFor(null)} onReopened={() => router.push(`/quotes/${q.id}/edit?section=${editFor}`)} />}
 
       {deleting && (
         <DeleteQuoteDialog

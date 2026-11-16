@@ -1,9 +1,9 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
-/** Photos and voice notes on a client or project note (D-067). Checked when saved by convex/crm/lib/noteFiles.ts. */
+/** Photos, voice notes and attached files on a client or project note (D-067). Checked when saved by convex/crm/lib/noteFiles.ts. */
 const noteAttachments = v.optional(
-  v.array(v.object({ storageId: v.id("_storage"), kind: v.union(v.literal("image"), v.literal("audio")), name: v.string(), contentType: v.string(), size: v.number() })),
+  v.array(v.object({ storageId: v.id("_storage"), kind: v.union(v.literal("image"), v.literal("audio"), v.literal("file")), name: v.string(), contentType: v.string(), size: v.number() })),
 );
 
 export const projectStatus = v.union(
@@ -292,6 +292,11 @@ export default defineSchema({
     salespersonId: v.optional(v.id("users")),
     /** "Service details" typed on a request made in the CRM (Jobber's New Request form). Requests from the customer form have none. */
     details: v.optional(v.string()),
+    /** The on-site assessment's instructions (Jobber's request page). Kept here so they survive an assessment with no date yet ("Schedule later"). */
+    assessmentInstructions: v.optional(v.string()),
+    /** The Overview as labelled answers (Jobber's request form), once someone has edited it. Until then the page builds it from the customer form
+     *  behind the request, or from `details`. Edits never touch the customer form's own rows. */
+    overviewFields: v.optional(v.array(v.object({ label: v.string(), value: v.string() }))),
     /** The request's Product / Service lines (Jobber's request page): what the client asked for, with a price to start from. Written only by crm/requests.ts. */
     lines: v.optional(v.array(v.object({ name: v.string(), description: v.string(), quantity: v.number(), unitPriceCents: v.number() }))),
     outcome: v.optional(v.union(v.literal("won"), v.literal("lost"))),
@@ -461,6 +466,8 @@ export default defineSchema({
     createdAt: v.number(),
     attachmentId: v.optional(v.id("_storage")),
     attachmentName: v.optional(v.string()),
+    /** Photos and voice notes (same as client and project notes). */
+    attachments: noteAttachments,
   }).index("by_quoteId", ["quoteId"]),
 
   /** Staff who can sign in to the CRM (D-046). Invite-only: a row exists first (invited), and the person claims it on their first
@@ -537,14 +544,30 @@ export default defineSchema({
     .index("by_quote_and_key", ["quoteId", "key"])
     .index("by_opportunity_and_key", ["opportunityId", "key"]),
 
+  /** Files kept on a project itself (D-077): site plans, photos, contract papers. Written only by crm/opportunityPage.ts. The signed contract and a
+   *  quote attachments are listed beside these on the opportunity page but stay where they were uploaded. */
+  opportunityFiles: defineTable({
+    businessId: v.id("businesses"),
+    opportunityId: v.id("opportunities"),
+    storageId: v.id("_storage"),
+    name: v.string(),
+    contentType: v.string(),
+    size: v.number(),
+    kind: v.union(v.literal("plan"), v.literal("photo"), v.literal("contract"), v.literal("other")),
+    uploadedByName: v.string(),
+    createdAt: v.number(),
+  }).index("by_opportunity", ["opportunityId", "createdAt"]),
+
   /** A person tagged in a note with @ (D-073): one row per note and tagged person, shown behind the top bar's bell until read. Written only
    *  by crm/lib/mentionNotify.ts. `excerpt` is a deliberate labelled copy of the start of the note, so the bell needs no lookup. */
   noteMentions: defineTable({
     businessId: v.id("businesses"),
     userId: v.id("users"),
     byName: v.string(),
-    byUserId: v.id("users"),
-    kind: v.union(v.literal("project"), v.literal("client"), v.literal("quote")),
+    /** Absent when the system made the stage move (an automation, the client's quote link). */
+    byUserId: v.optional(v.id("users")),
+    /** "project", "client" and "quote" are a person tagged in a note (D-073); "stage" is a project moving between stages (D-076). */
+    kind: v.union(v.literal("project"), v.literal("client"), v.literal("quote"), v.literal("stage")),
     opportunityId: v.optional(v.id("opportunities")),
     clientId: v.optional(v.id("clients")),
     quoteId: v.optional(v.id("quotes")),

@@ -412,7 +412,7 @@ export function PipelineBoard({ business }: { business: BusinessDoc }) {
             );
           })}
         </div>
-        {open && <PipelinePanel business={business} card={open} people={people} onClose={() => setOpenId(null)} onLost={() => setLost(open)} onWon={() => void won(open)} />}
+        {open && <PipelinePanel business={business} card={open} people={people} onClose={() => setOpenId(null)} />}
       </div>
 
       {closingWon && <CloseWonDialog projectId={closingWon.id} businessId={business._id} title={closingWon.title} onClose={() => setClosingWon(null)} />}

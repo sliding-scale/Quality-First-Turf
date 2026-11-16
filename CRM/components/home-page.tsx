@@ -1,41 +1,207 @@
 "use client";
 
-/* Home: greeting, workflow cards, today's appointments, my tasks (real), upcoming consultations. Sample data. */
+/* Home (PRD 3.1): the greeting, the workflow cards, today's appointments, my tasks and upcoming consultations. Everything comes from real
+   records (D-076): requests and quotes from their stats, appointments from the Schedule, tasks from the Tasks tab. Jobs and Invoices
+   are not built yet, so their cards say so instead of showing numbers. */
 
 import { useMutation, useQuery } from "convex/react";
 import Link from "next/link";
 import { useState, type CSSProperties } from "react";
 import { api } from "@/convex/_generated/api";
 import { useWorkspace } from "@/lib/clients";
-import { money0, quoteDate } from "@/lib/format";
-import { failure, todayBounds, useMinute } from "@/lib/pipeline";
+import { quoteDate } from "@/lib/format";
+import { failure, todayBounds, useMinute, usePeople } from "@/lib/pipeline";
+import { useQuoteStats } from "@/lib/quotes";
+import { useRequestStats } from "@/lib/requests";
+import { BUSINESS_TZ } from "@/lib/schedule";
 import { useIsClient } from "@/lib/store";
 import { Icon } from "./icon";
 import { HomeSkeleton } from "./skeletons";
 import { useStaff } from "./staff-context";
 import { useUI } from "./ui-provider";
 
-type Card = { bar: string; icon: string; name: string; big: number | string; label: string; lines: [string, number | string][] };
-
-const CARDS: Card[] = [
-  { bar: "var(--orange)", icon: "inbox", name: "Requests", big: 4, label: "New leads", lines: [["Approved leads", 2], ["Overdue follow-ups", 1]] },
-  { bar: "var(--burgundy)", icon: "quote", name: "Quotes", big: 4, label: "Pending", lines: [["Draft (2)", money0(5200)], ["Changes requested (1)", ""]] },
-  { bar: "var(--green)", icon: "hammer", name: "Jobs", big: 2, label: "Awaiting invoicing", lines: [["Active (5)", money0(38420)], ["Action required (1)", ""]] },
-  { bar: "var(--navy)", icon: "receipt", name: "Invoices", big: money0(12300), label: "Outstanding", lines: [["Draft (1)", ""], ["Past due (2)", money0(4150)]] },
-];
-
-type ApptState = "completed" | "active" | "upcoming";
-type Appt = { time: string; title: string; client: string; where: string; who: string; state: ApptState };
-
-const APPTS: Appt[] = [
-  { time: "8:30 AM", title: "Consultation", client: "Maria Alvarez", where: "1840 Oak Ridge Dr, Temecula", who: "Sal", state: "completed" },
-  { time: "11:00 AM", title: "Follow-up visit 1", client: "David Kim", where: "27310 Canyon View Rd, Murrieta", who: "Sal", state: "active" },
-  { time: "2:30 PM", title: "Consultation", client: "Rivera Landscape", where: "9120 Hillcrest Ave, Upland", who: "Robert", state: "upcoming" },
-];
-
+const DAY_MS = 86_400_000;
 const MAX_TASKS_SHOWN = 5;
+const MAX_CONSULTS_SHOWN = 5;
 
-/** My tasks: the signed-in person's open tasks, overdue and soonest first, from the Tasks tab's data. Tick one to complete it. */
+const clockTime = (ms: number) => new Date(ms).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: BUSINESS_TZ });
+const dayTime = (ms: number) =>
+  `${new Date(ms).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: BUSINESS_TZ })}, ${clockTime(ms)}`;
+
+type Item = NonNullable<ReturnType<typeof useToday>>["items"][number];
+type ApptState = "completed" | "active" | "upcoming" | "overdue";
+
+function useToday(businessId: string, now: number) {
+  const { todayStart, todayEnd } = todayBounds();
+  return useQuery(
+    api.crm.schedule.range,
+    { businessId: businessId as never, from: todayStart, to: todayEnd + 1, types: ["consultation", "visit", "event"], assigneeIds: [], statuses: [], now },
+  );
+}
+
+/** Where an appointment is now: finished, under way, late, or still to come. */
+function stateOf(i: Item, now: number): ApptState {
+  if (i.status === "completed") return "completed";
+  if (i.overdue) return "overdue";
+  if (!i.anytime && i.start <= now && now < i.end) return "active";
+  return "upcoming";
+}
+
+const STATE_LABEL: Record<ApptState, string> = { completed: "Completed", active: "In progress", upcoming: "Upcoming", overdue: "Overdue" };
+const STATE_PILL: Record<ApptState, string> = { completed: "active", active: "lead", upcoming: "draft", overdue: "overdue" };
+
+function Row({ a, now }: { a: Item; now: number }) {
+  const state = stateOf(a, now);
+  return (
+    <div className="appt">
+      <div className="time">{a.anytime ? "Anytime" : clockTime(a.start)}</div>
+      <div className="t">
+        <b>{a.title}{a.clientName && a.clientName !== a.title ? ` · ${a.clientName}` : ""}</b>
+      </div>
+      <span className={`pill ${STATE_PILL[state]}`}>{STATE_LABEL[state]}</span>
+    </div>
+  );
+}
+
+function Group({ label, list, emptyText, now }: { label: string; list: Item[]; emptyText: string; now: number }) {
+  return (
+    <>
+      <div className="group-label">{label} ({list.length})</div>
+      {list.length ? list.map((a) => <Row key={a.key} a={a} now={now} />) : <div className="empty">{emptyText}</div>}
+    </>
+  );
+}
+
+export function HomePage() {
+  // The greeting and date depend on the visitor's clock, so they render in the browser only.
+  return useIsClient() ? <Home /> : <HomeSkeleton />;
+}
+
+function Home() {
+  const staff = useStaff();
+  const ws = useWorkspace();
+  const businessId = ws.state === "ready" ? ws.business._id : undefined;
+  const now = useMinute();
+  const [mode, setMode] = useState<"Visit" | "Employee">("Visit");
+  const d = new Date();
+  const part = d.getHours() < 12 ? "morning" : d.getHours() < 18 ? "afternoon" : "evening";
+  const first = staff.name.trim().split(/\s+/)[0] || "there";
+
+  return (
+    <div className="fade-in">
+      <div className="home-top">
+        <div className="eyebrow">{d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</div>
+        <h1 className="greeting">Good {part}, {first}</h1>
+      </div>
+
+      <h2 className="section-title" style={{ marginTop: 0 }}>Workflow</h2>
+      {businessId ? <Workflow businessId={businessId} /> : <div className="wf-grid"><div className="sk" style={{ height: 150, gridColumn: "1 / -1" }} /></div>}
+
+      <div className="home-grid">
+        <div className="col">
+          <h2 className="section-title">Today&apos;s appointments</h2>
+          {businessId ? <Appointments businessId={businessId} now={now} mode={mode} setMode={setMode} /> : <div className="card"><div className="sk" style={{ height: 160, margin: 12 }} /></div>}
+        </div>
+        <div className="col aside">
+          <MyTasks />
+          {businessId && <Consultations businessId={businessId} now={now} />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---- Workflow cards ---- */
+
+function Workflow({ businessId }: { businessId: Parameters<typeof useRequestStats>[0] }) {
+  const requests = useRequestStats(businessId);
+  const quotes = useQuoteStats(businessId);
+  const loading = requests === undefined || quotes === undefined;
+  const bar = (c: string) => ({ "--bar": c }) as CSSProperties;
+  const num = (n: number | undefined) => (n === undefined ? "–" : n);
+  const q = quotes?.counts;
+  const r = requests?.counts;
+  return (
+    <div className="wf-grid">
+      <div className="wf-card" style={bar("var(--orange)")}>
+        <div className="top"><Icon name="inbox" size={20} /><span>Requests</span></div>
+        <div className="big">{loading ? <span className="sk sk-inline" style={{ width: 40, height: 32 }} /> : num(r?.New)}</div>
+        <div className="lbl">New requests</div>
+        <div className="ln"><span>Overdue follow-ups</span><span>{num(r?.Overdue)}</span></div>
+        <div className="ln"><span>In consultation</span><span>{num(r?.Consultation)}</span></div>
+      </div>
+      <div className="wf-card" style={bar("var(--burgundy)")}>
+        <div className="top"><Icon name="quote" size={20} /><span>Quotes</span></div>
+        <div className="big">{loading ? <span className="sk sk-inline" style={{ width: 40, height: 32 }} /> : num(q ? q["Awaiting response"] + q["Changes requested"] : undefined)}</div>
+        <div className="lbl">Pending</div>
+        <div className="ln"><span>Draft</span><span>{num(q?.Draft)}</span></div>
+        <div className="ln"><span>Approved</span><span>{num(q?.Approved)}</span></div>
+      </div>
+      <div className="wf-card" style={bar("var(--green)")}>
+        <div className="top"><Icon name="hammer" size={20} /><span>Jobs</span></div>
+        <div className="lbl muted" style={{ marginTop: 14 }}>Jobs are not available yet.</div>
+      </div>
+      <div className="wf-card" style={bar("var(--navy)")}>
+        <div className="top"><Icon name="receipt" size={20} /><span>Invoices</span></div>
+        <div className="lbl muted" style={{ marginTop: 14 }}>Invoices are not available yet.</div>
+      </div>
+    </div>
+  );
+}
+
+/* ---- Today's appointments ---- */
+
+function Appointments({ businessId, now, mode, setMode }: { businessId: string; now: number; mode: "Visit" | "Employee"; setMode: (m: "Visit" | "Employee") => void }) {
+  const data = useToday(businessId, now);
+  const people = usePeople(businessId as never);
+  if (data === undefined) {
+    return <div className="card"><div className="stats"><span className="sk" style={{ display: "block", height: 44, width: "100%" }} /></div><div className="sk" style={{ height: 120, margin: 12 }} /></div>;
+  }
+  const items = data.items;
+  const states = items.map((i) => ({ i, s: stateOf(i, now) }));
+  const of = (s: ApptState) => states.filter((x) => x.s === s).map((x) => x.i);
+  const nameOf = (id: string) => people?.find((p) => p.id === id)?.name ?? "Someone";
+  const byPerson = new Map<string, Item[]>();
+  for (const i of items) {
+    const keys = i.assigneeIds.length ? i.assigneeIds.map(nameOf) : ["Unassigned"];
+    for (const k of keys) byPerson.set(k, [...(byPerson.get(k) ?? []), i]);
+  }
+  return (
+    <div className="card">
+      <div className="stats">
+        <div className="stat"><div className="k">Total</div><div className="v">{items.length}</div></div>
+        <div className="stat"><div className="k">Active</div><div className="v">{of("active").length}</div></div>
+        <div className="stat"><div className="k">Completed</div><div className="v">{of("completed").length}</div></div>
+        <div className="stat"><div className="k">Overdue</div><div className="v">{of("overdue").length}</div></div>
+        <div className="stat"><div className="k">Remaining</div><div className="v">{of("upcoming").length + of("active").length}</div></div>
+        <Link className="btn" href="/schedule">View Schedule</Link>
+      </div>
+      <div className="seg" role="tablist">
+        <button type="button" className={mode === "Visit" ? "on" : ""} onClick={() => setMode("Visit")}>Visit</button>
+        <button type="button" className={mode === "Employee" ? "on" : ""} onClick={() => setMode("Employee")}>Employee</button>
+      </div>
+      {items.length === 0 ? (
+        <div className="empty" style={{ padding: "20px 16px" }}>Nothing is scheduled for today.</div>
+      ) : mode === "Visit" ? (
+        <div key="visit" className="fade-in">
+          <Group label="OVERDUE" list={of("overdue")} emptyText="No overdue events" now={now} />
+          <Group label="ACTIVE" list={of("active")} emptyText="No active events" now={now} />
+          <Group label="UPCOMING" list={of("upcoming")} emptyText="No upcoming events" now={now} />
+          <Group label="COMPLETED" list={of("completed")} emptyText="Nothing completed yet" now={now} />
+        </div>
+      ) : (
+        <div key="employee" className="fade-in">
+          {[...byPerson.entries()].map(([who, list]) => <Group key={who} label={who.toUpperCase()} list={list} emptyText="No events" now={now} />)}
+        </div>
+      )}
+      <div style={{ height: 8 }} />
+    </div>
+  );
+}
+
+/* ---- My tasks ---- */
+
+/** The signed-in person's open tasks, overdue and soonest first, from the Tasks tab's data. Tick one to complete it. */
 function MyTasks() {
   const { toast } = useUI();
   const { _id: me, canEdit } = useStaff();
@@ -76,131 +242,33 @@ function MyTasks() {
   );
 }
 
-const CONSULTS = [
-  { d: "Tomorrow, 9:00 AM", t: "Linda Foster", w: "Glendora · Sal" },
-  { d: "Fri, 1:30 PM", t: "Summit Builders", w: "Corona · Robert" },
-  { d: "Mon, 10:00 AM", t: "Kevin Tran", w: "Menifee · Sal" },
-];
+/* ---- Upcoming consultations ---- */
 
-const count = (s: ApptState) => APPTS.filter((a) => a.state === s).length;
-
-function Row({ a }: { a: Appt }) {
-  return (
-    <div className="appt">
-      <div className="time">{a.time}</div>
-      <div className="t">
-        <b>
-          {a.title} · {a.client}
-        </b>
-        <span className="muted">{a.where}</span>
-      </div>
-      <span className={`pill ${a.state === "completed" ? "active" : a.state === "active" ? "lead" : "draft"}`}>
-        {a.state === "completed" ? "Completed" : a.state === "active" ? "In progress" : "Upcoming"}
-      </span>
-    </div>
-  );
-}
-
-function Group({ label, list, emptyText }: { label: string; list: Appt[]; emptyText: string }) {
+/** Consultations booked in the next two weeks, soonest first. */
+function Consultations({ businessId, now }: { businessId: string; now: number }) {
+  const people = usePeople(businessId as never);
+  const data = useQuery(api.crm.schedule.range, { businessId: businessId as never, from: now, to: now + 14 * DAY_MS, types: ["consultation"], assigneeIds: [], statuses: [], now });
+  const list = (data?.items ?? []).filter((i) => i.status !== "completed").slice(0, MAX_CONSULTS_SHOWN);
+  const nameOf = (id: string) => people?.find((p) => p.id === id)?.name ?? "";
   return (
     <>
-      <div className="group-label">
-        {label} ({list.length})
+      <h2 className="section-title" style={{ marginTop: 0 }}>Upcoming consultations</h2>
+      <div className="card list-card">
+        {data === undefined ? (
+          <div className="task"><div style={{ flex: 1 }}><span className="sk" style={{ display: "block", height: 16, width: "60%" }} /></div></div>
+        ) : list.length === 0 ? (
+          <div className="empty">No consultations in the next two weeks.</div>
+        ) : (
+          list.map((c) => (
+            <div className="task" key={c.key}>
+              <div>
+                <b style={{ color: "var(--ink)" }}>{c.clientName || c.title}</b>
+                <div className="d">{c.anytime ? `${dayTime(c.start).split(",")[0]} · Anytime` : dayTime(c.start)}{c.assigneeIds.length ? ` · ${c.assigneeIds.map(nameOf).filter(Boolean).join(", ")}` : ""}</div>
+              </div>
+            </div>
+          ))
+        )}
       </div>
-      {list.length ? list.map((a) => <Row key={a.time} a={a} />) : <div className="empty">{emptyText}</div>}
     </>
-  );
-}
-
-export function HomePage() {
-  // The greeting and date depend on the visitor's clock, so they render in the browser only.
-  return useIsClient() ? <Home /> : <HomeSkeleton />;
-}
-
-function Home() {
-  const [mode, setMode] = useState<"Visit" | "Employee">("Visit");
-  const now = new Date();
-  const hour = now.getHours();
-  const part = hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening";
-
-  return (
-    <div className="fade-in">
-      <div className="home-top">
-        <div className="eyebrow">{now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</div>
-        <h1 className="greeting">Good {part}, Sal</h1>
-      </div>
-
-      <h2 className="section-title" style={{ marginTop: 0 }}>Workflow</h2>
-      <div className="wf-grid">
-        {CARDS.map((c) => (
-          <div className="wf-card" key={c.name} style={{ "--bar": c.bar } as CSSProperties}>
-            <div className="top">
-              <Icon name={c.icon} size={20} />
-              <span>{c.name}</span>
-            </div>
-            <div className="big">{c.big}</div>
-            <div className="lbl">{c.label}</div>
-            {c.lines.map((l) => (
-              <div className="ln" key={l[0]}>
-                <span>{l[0]}</span>
-                <span>{l[1]}</span>
-              </div>
-            ))}
-          </div>
-        ))}
-      </div>
-
-      <div className="home-grid">
-        <div className="col">
-          <h2 className="section-title">Today&apos;s appointments</h2>
-          <div className="card">
-            <div className="stats">
-              <div className="stat"><div className="k">Total</div><div className="v">{APPTS.length}</div></div>
-              <div className="stat"><div className="k">Active</div><div className="v">{count("active")}</div></div>
-              <div className="stat"><div className="k">Completed</div><div className="v">{count("completed")}</div></div>
-              <div className="stat"><div className="k">Overdue</div><div className="v">0</div></div>
-              <div className="stat"><div className="k">Remaining</div><div className="v">{count("upcoming") + count("active")}</div></div>
-              <button type="button" className="btn" disabled>View Schedule</button>
-            </div>
-            <div className="seg" role="tablist">
-              <button type="button" className={mode === "Visit" ? "on" : ""} onClick={() => setMode("Visit")}>Visit</button>
-              <button type="button" className={mode === "Employee" ? "on" : ""} onClick={() => setMode("Employee")}>Employee</button>
-            </div>
-            {mode === "Visit" ? (
-              <div key="visit" className="fade-in">
-                <Group label="OVERDUE" list={[]} emptyText="No overdue events" />
-                <Group label="ACTIVE" list={APPTS.filter((a) => a.state === "active")} emptyText="No active events" />
-                <Group label="UPCOMING" list={APPTS.filter((a) => a.state === "upcoming")} emptyText="No upcoming events" />
-                <Group label="COMPLETED" list={APPTS.filter((a) => a.state === "completed")} emptyText="Nothing completed yet" />
-              </div>
-            ) : (
-              <div key="employee" className="fade-in">
-                {["Sal", "Robert"].map((w) => (
-                  <Group key={w} label={w.toUpperCase()} list={APPTS.filter((a) => a.who === w)} emptyText="No events" />
-                ))}
-              </div>
-            )}
-            <div style={{ height: 8 }} />
-          </div>
-        </div>
-
-        <div className="col aside">
-          <MyTasks />
-          <h2 className="section-title" style={{ marginTop: 0 }}>Upcoming consultations</h2>
-          <div className="card list-card">
-            {CONSULTS.map((c) => (
-              <div className="task" key={c.t}>
-                <div>
-                  <b style={{ color: "var(--ink)" }}>{c.t}</b>
-                  <div className="d">
-                    {c.d} · {c.w}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
   );
 }

@@ -7,6 +7,7 @@ import { checkFile } from "./quoteDraft";
 import { quoteTotals } from "./lib/quoteMath";
 import { quoteMoneyOptions } from "./lib/quoteOptions";
 import { checkMove, CLOSED_STAGES, LEAD_SOURCES, NO_SOURCE, SALES_STAGES, timeInStage, type BoardGroup } from "./lib/stages";
+import { notifyStage } from "./lib/mentionNotify";
 
 /** The Sales pipeline board (D-061). `moveStage` below is the only place that changes a project's stage. */
 
@@ -79,6 +80,7 @@ export async function applyMove(ctx: MutationCtx, project: Doc<"opportunities">,
   await ctx.db.insert("stageHistory", {
     opportunityId: project._id, businessId: project.businessId, from, to, byName: staff.name, byUserId: staff.userId, at: now, ...(note ? { note } : {}),
   });
+  await notifyStage(ctx, { project, from, to, byName: staff.name, byUserId: staff.userId, now });
   return { from, to };
 }
 

@@ -3,6 +3,7 @@ import type { Doc, Id } from "../_generated/dataModel";
 import { mutation, query, type QueryCtx } from "../_generated/server";
 import { canSee, requireBusiness, requireEditor, requireStaff } from "./lib/access";
 import { deleteQuote } from "./lib/quoteData";
+import { attachmentLinks } from "./lib/noteFiles";
 import { DEFAULT_CONTRACT } from "./quoteDraft";
 import { quoteTotals } from "./lib/quoteMath";
 import { quoteMoneyOptions } from "./lib/quoteOptions";
@@ -256,6 +257,7 @@ export const get = query({
         createdAt: n.createdAt,
         attachmentName: n.attachmentName ?? null,
         attachmentUrl: n.attachmentId ? await ctx.storage.getUrl(n.attachmentId) : null,
+        files: await attachmentLinks(ctx, n.attachments),
       });
     }
 

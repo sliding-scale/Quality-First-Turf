@@ -10,7 +10,8 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useClient, type BusinessDoc } from "@/lib/clients";
 import { moneyCents, quoteDate, quoteDateTime } from "@/lib/format";
-import { LEAD_SOURCES, NO_SOURCE, failure, timeLabel, viewActions, type BoardCard } from "@/lib/pipeline";
+import { LEAD_SOURCES, NO_SOURCE, failure, timeLabel, type BoardCard } from "@/lib/pipeline";
+import { SendEmailDialog } from "./client-dialogs";
 import { FilterMenu } from "./filter-menus";
 import { Icon } from "./icon";
 import { NoteEditor, useUploadPending, type PendingFile } from "./note-editor";
@@ -21,13 +22,11 @@ import { useUI } from "./ui-provider";
 
 const EXIT_MS = 200; // keep in step with pl-panel-out in pipeline.css
 
-export function PipelinePanel({ business, card, people, onClose, onLost, onWon }: {
+export function PipelinePanel({ business, card, people, onClose }: {
   business: BusinessDoc;
   card: BoardCard;
   people: { id: Id<"users">; name: string }[];
   onClose: () => void;
-  onLost: () => void;
-  onWon: () => void;
 }) {
   const { popover, toast } = useUI();
   const { canEdit } = useStaff();
@@ -42,6 +41,7 @@ export function PipelinePanel({ business, card, people, onClose, onLost, onWon }
   const setLeadSource = useMutation(api.crm.pipeline.setLeadSource);
   const [leaving, setLeaving] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [emailing, setEmailing] = useState(false);
   const [note, setNote] = useState("");
   const [noteFiles, setNoteFiles] = useState<PendingFile[]>([]);
   const [savingNote, setSavingNote] = useState(false);
@@ -70,6 +70,18 @@ export function PipelinePanel({ business, card, people, onClose, onLost, onWon }
     return () => document.removeEventListener("keydown", onKey);
   }, [adding]);
 
+  // Clicking outside the window closes it (client, 2026-11-16). A board card is not "outside" (clicking one opens or switches the window by itself),
+  // and neither are the menus, pop-ups, dialogs, photo viewer and toasts that are drawn over the page.
+  useEffect(() => {
+    const onDown = (e: PointerEvent) => {
+      const el = e.target instanceof Element ? e.target : null;
+      if (!el || !el.isConnected || el.closest(".pl-panel, .pl-card, .menu, .create-pop, .modal-back, .viewer-back, .toast")) return;
+      if (!adding) setLeaving(true);
+    };
+    document.addEventListener("pointerdown", onDown);
+    return () => document.removeEventListener("pointerdown", onDown);
+  }, [adding]);
+
   const address = client ? [client.street1, [client.city, [client.state, client.zip].filter(Boolean).join(" ")].filter(Boolean).join(", ")].filter(Boolean) : [];
 
   return (
@@ -79,6 +91,10 @@ export function PipelinePanel({ business, card, people, onClose, onLost, onWon }
           <h2>{card.title} · {card.code}</h2>
           <div className="pl-panelvalue">{moneyCents(card.valueCents)}</div>
           <div className="pl-panelchips"><span className="pl-chip">{card.stage}</span><span className="pl-chip" data-tip="Time in this stage">{timeLabel(card.timeInStageMs)}</span></div>
+          <div className="pl-quickrow pl-headactions">
+            <button type="button" className="btn" disabled={!client} onClick={() => setEmailing(true)}><Icon name="mail" size={18} /> Email</button>
+            <Link className="btn" href={`/opportunities/${card.id}`}><Icon name="inbox" size={18} /> View opportunity</Link>
+          </div>
         </div>
         <button type="button" className="icon-btn" aria-label="Close" onClick={() => setLeaving(true)}><Icon name="x" size={22} /></button>
       </div>
@@ -98,21 +114,6 @@ export function PipelinePanel({ business, card, people, onClose, onLost, onWon }
             </div>
           )}
         </section>
-
-        <div className="pl-quick">
-          <h3>Quick actions</h3>
-          <div className="pl-quickrow">
-            {client?.email ? <a className="btn" href={`mailto:${client.email}`}><Icon name="mail" size={18} /> Email</a> : <button type="button" className="btn" disabled><Icon name="mail" size={18} /> Email</button>}
-            {viewActions(card).map((v) => {
-              const icon = <Icon name={v.key === "quote" ? "quote" : v.key === "schedule" ? "calendar" : "inbox"} size={18} />;
-              return v.href ? (
-                <Link key={v.key} className="btn" href={v.href}>{icon} {v.label}</Link>
-              ) : (
-                <button key={v.key} type="button" className="btn" disabled>{icon} {v.label}</button>
-              );
-            })}
-          </div>
-        </div>
 
         <dl className="pl-facts">
           <div>
@@ -173,12 +174,6 @@ export function PipelinePanel({ business, card, people, onClose, onLost, onWon }
           <div><dt>Requested</dt><dd>{quoteDate(card.requestedAt)}</dd></div>
         </dl>
 
-        {canEdit && (
-          <div className="pl-quickrow">
-            <button type="button" className="btn" disabled={card.stage === "Closed Won"} onClick={onWon}><Icon name="check" size={18} /> Mark as won</button>
-            <button type="button" className="btn" disabled={card.stage === "Closed Lost"} onClick={onLost}><Icon name="x" size={18} /> Mark as lost</button>
-          </div>
-        )}
 
         <section className="pl-section">
           <div className="pl-sectionhead">
@@ -248,6 +243,7 @@ export function PipelinePanel({ business, card, people, onClose, onLost, onWon }
         </section>
       </div>
       {adding && <AddTaskDialog projectId={card.id} businessId={business._id} people={people} onClose={() => setAdding(false)} />}
+      {emailing && client && <SendEmailDialog client={{ id: card.clientId, name: client.name, email: client.email }} onClose={() => setEmailing(false)} />}
     </aside>
   );
 }

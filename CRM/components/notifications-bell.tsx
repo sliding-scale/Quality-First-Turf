@@ -1,7 +1,7 @@
 "use client";
 
-/* The bell in the top bar (D-073): a count of the notes that tag the signed-in person with @, and a list of them. Opening one goes to
-   the project, client or quote the note is on and marks it read. */
+/* The bell in the top bar (D-073): a count of what is new for the signed-in person: notes that tag them with @ (D-073) and stage changes on their projects (D-076).
+   Opening one goes to the project, client or quote it is about and marks it read. */
 
 import { useMutation, useQuery } from "convex/react";
 import Link from "next/link";
@@ -44,7 +44,7 @@ function MentionsPanel({ close }: { close: () => void }) {
       {data === undefined ? (
         <div className="mn-empty"><span className="sk" style={{ display: "block", height: 14, width: "70%" }} /></div>
       ) : items.length === 0 ? (
-        <div className="mn-empty">Nothing yet. When someone tags you in a note with @, it shows here.</div>
+        <div className="mn-empty">Nothing yet. When someone tags you in a note with @, or a project you own changes stage, it shows here.</div>
       ) : (
         <ul>
           {items.map((m) => {
@@ -52,7 +52,7 @@ function MentionsPanel({ close }: { close: () => void }) {
               <>
                 {!m.read && <span className="mn-dot" aria-label="Unread" />}
                 <span className="mn-text">
-                  <b>{m.byName}</b> tagged you in {m.where}
+                  <b>{m.byName}</b> {m.kind === "stage" ? "moved" : "tagged you in"} {m.where}
                   <span className="mn-excerpt">{m.excerpt}</span>
                   <small>{quoteDateTime(m.at)}{m.businessName ? ` · ${m.businessName}` : ""}</small>
                 </span>

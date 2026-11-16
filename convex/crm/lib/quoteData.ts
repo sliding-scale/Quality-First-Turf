@@ -5,7 +5,7 @@ import type { MutationCtx } from "../../_generated/server";
 export async function deleteQuote(ctx: MutationCtx, quote: Doc<"quotes">) {
   const lines = await ctx.db.query("quoteLineItems").withIndex("by_quoteId_and_position", (q) => q.eq("quoteId", quote._id)).take(500);
   const notes = await ctx.db.query("quoteNotes").withIndex("by_quoteId", (q) => q.eq("quoteId", quote._id)).take(500);
-  const files = [quote.introImageId, quote.signatureImageId, ...lines.map((l) => l.imageId), ...notes.map((n) => n.attachmentId)];
+  const files = [quote.introImageId, quote.signatureImageId, ...lines.map((l) => l.imageId), ...notes.map((n) => n.attachmentId), ...notes.flatMap((n) => (n.attachments ?? []).map((a) => a.storageId))];
   for (const l of lines) await ctx.db.delete(l._id);
   for (const n of notes) await ctx.db.delete(n._id);
   await ctx.db.delete(quote._id);

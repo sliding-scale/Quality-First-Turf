@@ -7,12 +7,15 @@ import type { MutationCtx, QueryCtx } from "../../_generated/server";
 
 export const noteFilesArg = v.optional(v.array(v.object({ storageId: v.id("_storage"), name: v.string() })));
 
-export type NoteAttachment = { storageId: Id<"_storage">; kind: "image" | "audio"; name: string; contentType: string; size: number };
+export type NoteAttachment = { storageId: Id<"_storage">; kind: "image" | "audio" | "file"; name: string; contentType: string; size: number };
 
 
 export const MAX_NOTE_FILES = 10;
 const MAX_IMAGE = 15 * 1024 * 1024;
 const MAX_AUDIO = 25 * 1024 * 1024;
+const MAX_FILE = 15 * 1024 * 1024;
+/** Programs and scripts are never kept on a note. */
+const BLOCKED = /\.(exe|bat|cmd|com|msi|scr|js|vbs|ps1|sh|jar|dll|apk|app)$/i;
 
 /** Looks at what was really uploaded. Anything that is not an image or audio, or is too big, is refused. (A refused upload cannot be
  *  deleted here: the error undoes the whole call, so a refused file stays in storage unreferenced.) */
@@ -26,21 +29,21 @@ export async function checkNoteFiles(ctx: MutationCtx, files: { storageId: Id<"_
     const meta = await ctx.db.system.get("_storage", f.storageId);
     if (meta === null) throw new ConvexError("A file was not uploaded. Try again.");
     const type = (meta.contentType ?? "").toLowerCase();
-    const kind = type.startsWith("image/") ? "image" : type.startsWith("audio/") || type === "video/webm" ? "audio" : null;
-    if (kind === null) {
-      throw new ConvexError("Only photos and voice notes can be added to a note.");
+    const kind = type.startsWith("image/") ? "image" : type.startsWith("audio/") || type === "video/webm" ? "audio" : "file";
+    if (kind === "file" && BLOCKED.test(f.name.trim())) {
+      throw new ConvexError("That kind of file cannot be attached.");
     }
-    if (meta.size > (kind === "image" ? MAX_IMAGE : MAX_AUDIO)) {
-      throw new ConvexError(kind === "image" ? "A photo can be at most 15 MB." : "A voice note can be at most 25 MB.");
+    if (meta.size > (kind === "image" ? MAX_IMAGE : kind === "audio" ? MAX_AUDIO : MAX_FILE)) {
+      throw new ConvexError(kind === "image" ? "A photo can be at most 15 MB." : kind === "audio" ? "A voice note can be at most 25 MB." : "A file can be at most 15 MB.");
     }
-    out.push({ storageId: f.storageId, kind, name: f.name.trim().slice(0, 200) || (kind === "image" ? "Photo" : "Voice note"), contentType: type, size: meta.size });
+    out.push({ storageId: f.storageId, kind, name: f.name.trim().slice(0, 200) || (kind === "image" ? "Photo" : kind === "audio" ? "Voice note" : "File"), contentType: type, size: meta.size });
   }
   return out;
 }
 
 /** The attachments as the screen needs them: a link to each file instead of its storage id. */
 export async function attachmentLinks(ctx: QueryCtx, list: NoteAttachment[] | undefined) {
-  const out: { kind: "image" | "audio"; name: string; contentType: string; url: string }[] = [];
+  const out: { kind: "image" | "audio" | "file"; name: string; contentType: string; url: string }[] = [];
   for (const a of list ?? []) {
     const url = await ctx.storage.getUrl(a.storageId);
     if (url) out.push({ kind: a.kind, name: a.name, contentType: a.contentType, url });

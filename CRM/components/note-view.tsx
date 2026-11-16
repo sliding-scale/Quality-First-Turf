@@ -9,9 +9,10 @@ import { api } from "@/convex/_generated/api";
 import { splitTags, type Person } from "@/convex/crm/lib/mentions";
 import { parseNote } from "@/convex/crm/lib/noteText";
 import { useWorkspace } from "@/lib/clients";
+import { Icon } from "./icon";
 import { ImageViewer } from "./image-viewer";
 
-export type NoteFile = { kind: "image" | "audio"; name: string; contentType: string; url: string };
+export type NoteFile = { kind: "image" | "audio" | "file"; name: string; contentType: string; url: string };
 
 /** A line of a note, with the people tagged in it (@Name) in colour. */
 function Tagged({ text, people }: { text: string; people: readonly Person[] }) {
@@ -26,6 +27,7 @@ export function NoteBody({ text, files, canEdit, onToggle }: { text: string; fil
   const lines = parseNote(text);
   const photos = files.filter((f) => f.kind === "image");
   const voices = files.filter((f) => f.kind === "audio");
+  const docs = files.filter((f) => f.kind === "file");
   return (
     <div className="nv">
       {text.trim() !== "" && (
@@ -60,6 +62,12 @@ export function NoteBody({ text, files, canEdit, onToggle }: { text: string; fil
           <small>{v.name}</small>
           <audio controls preload="none" src={v.url} aria-label={v.name} />
         </div>
+      ))}
+      {docs.map((d) => (
+        <a key={d.url} className="nv-doc" href={d.url} target="_blank" rel="noreferrer" title={d.name}>
+          <Icon name="file" size={20} />
+          <span>{d.name}</span>
+        </a>
       ))}
       {viewing !== null && <ImageViewer images={photos.map((p) => ({ url: p.url, caption: p.name }))} start={viewing} onClose={() => setViewing(null)} />}
     </div>

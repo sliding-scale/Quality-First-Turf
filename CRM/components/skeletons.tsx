@@ -339,6 +339,21 @@ export function RequestSkeleton() {
   );
 }
 
+export function OpportunitySkeleton() {
+  return (
+    <Busy>
+      <div className="op-top"><Sk w={90} h={20} /><Sk w={220} h={38} r={8} /></div>
+      <div className="op-title"><h1><Sk w={300} h={36} /></h1><Sk w={90} h={24} r={999} /></div>
+      <div className="op-stages">{range(6).map((n) => <li key={n}><Sk w={90} h={16} /></li>)}</div>
+      <div className="op-tabs tabs">{range(5).map((n) => <Sk key={n} w={80} h={20} style={{ margin: "12px 14px" }} />)}</div>
+      <div className="op-body">
+        <div className="op-col">{range(3).map((n) => <div key={n} className="card op-card"><Sk w={140} h={22} /><Sk w="90%" h={16} style={{ marginTop: 10 }} /><Sk w="60%" h={16} style={{ marginTop: 6 }} /></div>)}</div>
+        <div className="op-col"><div className="card op-card"><Sk w={160} h={20} /><Sk w="70%" h={16} style={{ marginTop: 10 }} /></div><div className="card op-card"><Sk w="100%" h={120} /></div></div>
+      </div>
+    </Busy>
+  );
+}
+
 export function DisclaimersSkeleton() {
   return (
     <Busy>

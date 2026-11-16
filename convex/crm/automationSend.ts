@@ -51,18 +51,27 @@ async function accountId(ctx: ActionCtx, settings: Settings, token: string): Pro
   return found.accountId;
 }
 
-async function sendMail(ctx: ActionCtx, settings: Settings, mail: { to: string; subject: string; html: string }): Promise<void> {
+/** Sends one HTML email from the office mailbox through Zoho. Used by the automations and by the Email button on a client (D-077). */
+export async function sendMail(
+  ctx: ActionCtx, settings: Settings, mail: { to: string; subject: string; html: string; cc?: string; attachments?: { name: string; type: string; bytes: ArrayBuffer }[] },
+): Promise<void> {
   let token = await tokenForRead(ctx, settings);
   const account = await accountId(ctx, settings, token);
-  const url = `${settings.mailApiUrl}/api/accounts/${encodeURIComponent(account)}/messages`;
-  const payload = { fromAddress: settings.mailbox, toAddress: mail.to, subject: mail.subject, content: mail.html, mailFormat: "html", askReceipt: "no" };
+  const base = `${settings.mailApiUrl}/api/accounts/${encodeURIComponent(account)}/messages`;
+  const payload: Record<string, unknown> = { fromAddress: settings.mailbox, toAddress: mail.to, subject: mail.subject, content: mail.html, mailFormat: "html", askReceipt: "no", ...(mail.cc ? { ccAddress: mail.cc } : {}) };
+  // Zoho takes attachments in two steps: each file is uploaded on its own, and the message then lists what came back.
+  const attempt = async (accessToken: string) => {
+    const stored: unknown[] = [];
+    for (const f of mail.attachments ?? []) stored.push(await uploadAttachment(`${base}/attachments?uploadType=multipart`, accessToken, f));
+    await post(base, accessToken, stored.length ? { ...payload, attachments: stored } : payload);
+  };
   try {
-    await post(url, token, payload);
+    await attempt(token);
   } catch (err) {
     if (!(err instanceof ZohoAuthError)) throw err;
     token = await refresh(ctx, settings);
     try {
-      await post(url, token, payload);
+      await attempt(token);
     } catch (again) {
       if (again instanceof ZohoAuthError) throw new ZohoError("Zoho refused to send. The refresh token needs the ZohoMail.messages.CREATE scope.", again.status);
       throw again;
@@ -70,7 +79,20 @@ async function sendMail(ctx: ActionCtx, settings: Settings, mail: { to: string; 
   }
 }
 
-async function post(url: string, accessToken: string, payload: Record<string, string>): Promise<void> {
+/** Uploads one file to Zoho and returns what Zoho calls it (storeName, attachmentPath, attachmentName), to be listed on the message. */
+async function uploadAttachment(url: string, accessToken: string, file: { name: string; type: string; bytes: ArrayBuffer }): Promise<Record<string, unknown>> {
+  if (!url.startsWith("https://")) throw new ZohoError("Refusing a Zoho request that is not https.", 400);
+  const form = new FormData();
+  form.append("attach", new Blob([file.bytes], { type: file.type || "application/octet-stream" }), file.name);
+  const response = await fetch(url, { method: "POST", headers: { Accept: "application/json", Authorization: `Zoho-oauthtoken ${accessToken}` }, body: form });
+  const text = await response.text();
+  const data = unwrapZoho(response.status, text ? parseZohoJson(text) : {});
+  const first = Array.isArray(data) ? data[0] : data;
+  if (typeof first !== "object" || first === null) throw new ZohoError(`Zoho did not accept the file ${file.name}.`, 502);
+  return first as Record<string, unknown>;
+}
+
+async function post(url: string, accessToken: string, payload: Record<string, unknown>): Promise<void> {
   if (!url.startsWith("https://")) throw new ZohoError("Refusing a Zoho request that is not https.", 400);
   const response = await fetch(url, {
     method: "POST",

@@ -406,7 +406,7 @@ function Clients({ business, initialQuery, saved, list }: { business: BusinessDo
       </div>
 
       {tagging && <EditTagsDialog client={tagging} onClose={() => setTagging(null)} onSaved={() => toast("Tags saved")} />}
-      {emailing && <SendEmailDialog client={emailing} onClose={() => setEmailing(null)} />}
+      {emailing && <SendEmailDialog client={{ id: emailing._id, name: emailing.name, email: emailing.email }} onClose={() => setEmailing(null)} />}
       {deleting && (
         <DeleteClientsDialog
           ids={deleting}

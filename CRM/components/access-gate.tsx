@@ -11,6 +11,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { api } from "@/convex/_generated/api";
 import { getTokenInfo } from "./convex-provider";
 import { StaffProvider } from "./staff-context";
+import { WelcomeBar, WelcomeHead } from "./welcome-loading";
 
 /** `waiting` is what shows while sign-in is being confirmed; a page can pass its own so the screen does not change look half-way. */
 export function AccessGate({ children, waiting }: { children: ReactNode; waiting?: ReactNode }) {
@@ -62,15 +63,17 @@ function NotAccepted({ waiting }: { waiting: ReactNode }) {
   );
 }
 
-/** A welcome screen with a loading bar while the sign-in is being confirmed. */
+/** The same screen as the sign-in page while its form loads: logo, LaunchPad, Welcome back and a loading bar. */
 function Waiting() {
   return (
-    <div className="gate-page welcome-page" role="status" aria-busy="true">
-      <div className="welcome">
-        <h1>Welcome back</h1>
-        <p>Getting everything ready for you…</p>
-        <div className="welcome-bar" aria-hidden="true"><span /></div>
-      </div>
+    <div className="auth-page" role="status" aria-busy="true">
+      <main className="auth-main">
+        <div className="auth-col">
+          <Image className="auth-logo" src="/brand/logo-full.png" alt="Quality First Turf" width={190} height={147} priority />
+          <WelcomeHead line="Getting everything ready for you…" />
+          <WelcomeBar />
+        </div>
+      </main>
     </div>
   );
 }

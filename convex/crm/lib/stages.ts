@@ -101,7 +101,7 @@ export const CLOSED_STAGES = ["Closed Won", "Closed Lost"] as const;
 export type BoardGroup = PipelineGroup | "Closed";
 
 /** Jobber's lead sources. A project with none shows as "No source". */
-export const LEAD_SOURCES = ["Existing Client", "Facebook", "Flyer", "Google", "Instagram", "Other", "Referral", "Vehicle Wrap"] as const;
+export const LEAD_SOURCES = ["Existing Client", "Facebook", "Flyer", "Forms", "Google", "Instagram", "Other", "Referral", "Vehicle Wrap"] as const;
 export const NO_SOURCE = "No source";
 
 type MoveResult = { ok: true } | { ok: false; error: string };

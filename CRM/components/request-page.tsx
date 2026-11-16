@@ -8,23 +8,36 @@
 
 import Link from "next/link";
 import { useMutation, useQuery } from "convex/react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { LEAD_SOURCES, clock } from "@/lib/pipeline";
+import { clock } from "@/lib/pipeline";
 import { failure, usePeople, useRequest } from "@/lib/requests";
 import { quoteDate, quoteDateTime } from "@/lib/format";
+import { Checkbox } from "./checkbox";
 import { Icon } from "./icon";
 import { NoteEditor, useUploadPending, type PendingFile } from "./note-editor";
 import { NoteBody } from "./note-view";
-import { AssessmentModal, whenLabel, type AssessmentDraft } from "./request-assessment";
+import { AssessmentInline, whenLabel, type AssessmentInput } from "./request-assessment";
 import { RequestLinesEditor, RequestLinesView, checkRequestLines, newRequestLine, toRequestLines, type RequestLine } from "./request-lines";
 import { RequestSkeleton } from "./skeletons";
 import { useStaff } from "./staff-context";
-import { useUI } from "./ui-provider";
+import { useUI, type MenuItem } from "./ui-provider";
 
 const PILL = { New: "lead", Overdue: "overdue", Consultation: "consult", Converted: "active", Lost: "draft" } as const;
 const UNASSIGNED = "";
+
+/** Jobber's red "nobody" mark next to Unassigned: a person with a slash through it. */
+function NoOne() {
+  return (
+    <svg className="as-noone" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="8" r="3.5" />
+      <path d="M5 20c0-3.6 3-6 7-6s7 2.4 7 6" />
+      <path d="M4 4l16 16" />
+    </svg>
+  );
+}
 
 export function RequestPage({ id }: { id: string }) {
   const request = useRequest(id);
@@ -44,7 +57,8 @@ export function RequestPage({ id }: { id: string }) {
 type Request = NonNullable<ReturnType<typeof useRequest>>;
 
 function RequestView({ r }: { r: Request }) {
-  const { toast } = useUI();
+  const router = useRouter();
+  const { toast, dropdown } = useUI();
   const { canEdit } = useStaff();
   const people = usePeople(r.businessId);
   const setSalesperson = useMutation(api.crm.pipeline.setSalesperson);
@@ -53,12 +67,11 @@ function RequestView({ r }: { r: Request }) {
   const [pick, setPick] = useState<string>(UNASSIGNED);
   const [titleDraft, setTitleDraft] = useState("");
   const [titleBad, setTitleBad] = useState(false);
-  const [sourceDraft, setSourceDraft] = useState("");
   const [editingOverview, setEditingOverview] = useState(false);
-  const [detailsDraft, setDetailsDraft] = useState("");
+  const [fieldsDraft, setFieldsDraft] = useState<{ label: string; value: string }[]>([]);
   const [savingOverview, setSavingOverview] = useState(false);
   const updateRequest = useMutation(api.crm.requests.update);
-  const setLeadSource = useMutation(api.crm.pipeline.setLeadSource);
+  const removeEvent = useMutation(api.crm.schedule.remove);
   const [saving, setSaving] = useState(false);
 
   const book = useMutation(api.crm.schedule.book);
@@ -99,15 +112,26 @@ function RequestView({ r }: { r: Request }) {
       setSavingLines(false);
     }
   }
-  /** Books the assessment as a consultation on the Schedule, or changes the one that is booked. A clash throws and the pop-up shows it. */
-  async function saveAssessment(a: AssessmentDraft) {
+  /** Saves the assessment form: the instructions always, then the booking. A date books (or changes) the consultation on the Schedule, so a clash
+   *  with someone's time throws and the form shows it; "Schedule later" takes any booked time off the Schedule and keeps the instructions. */
+  async function saveAssessment(a: AssessmentInput) {
     const assigneeIds = a.assigneeIds as Id<"users">[];
-    if (r.assessment) {
+    await updateRequest({ id: r.id, assessmentInstructions: a.instructions });
+    if (a.scheduleLater) {
+      if (r.assessment) await removeEvent({ id: r.assessment.id });
+    } else if (r.assessment) {
       await updateEvent({ id: r.assessment.id, start: a.start, end: a.end, anytime: a.anytime, assigneeIds, notes: a.instructions, now: clock() });
     } else {
       await book({ businessId: r.businessId, type: "consultation", title: r.title, start: a.start, end: a.end, anytime: a.anytime, assigneeIds, notes: a.instructions, opportunityId: r.id, clientId: r.clientId, now: clock() });
     }
+    setAssessing(false);
     toast("The assessment is saved.");
+  }
+  async function deleteAssessment() {
+    if (r.assessment) await removeEvent({ id: r.assessment.id });
+    await updateRequest({ id: r.id, assessmentInstructions: "" });
+    setAssessing(false);
+    toast("The assessment is deleted.");
   }
   async function completeAssessment(done: boolean) {
     if (!r.assessment) return;
@@ -118,24 +142,27 @@ function RequestView({ r }: { r: Request }) {
     }
   }
 
+  // Only one section can be edited at a time: while one is open, every other pencil is off until it is saved or cancelled.
+  const anyEditing = editing || editingOverview || assessing || editingLines;
+  const lockedTip = "Save or cancel the section you are editing first";
+
   const c = r.client;
   const cityLine = [c.city, [c.state, c.zip].filter(Boolean).join(" ")].filter(Boolean).join(", ");
 
   function edit() {
     setPick(r.salespersonId ?? UNASSIGNED);
     setTitleDraft(r.title);
-    setSourceDraft(r.leadSource);
     setTitleBad(false);
     setEditing(true);
   }
   function editOverview() {
-    setDetailsDraft(r.details);
+    setFieldsDraft(r.overview.fields.map((f) => ({ ...f })));
     setEditingOverview(true);
   }
   async function saveOverview() {
     setSavingOverview(true);
     try {
-      await updateRequest({ id: r.id, details: detailsDraft });
+      await updateRequest({ id: r.id, overviewFields: fieldsDraft });
       setEditingOverview(false);
       toast("Overview saved.");
     } catch (e) {
@@ -152,7 +179,7 @@ function RequestView({ r }: { r: Request }) {
       toast(failure(e, "The request could not be restored."));
     }
   }
-  /** Saves what the header pencil edits: the title, the request source and the salesperson. Each is only sent if it changed. */
+  /** Saves what the title pencil edits, as in Jobber: the title and the salesperson. Each is only sent if it changed. */
   async function save() {
     if (!titleDraft.trim()) {
       setTitleBad(true);
@@ -162,7 +189,6 @@ function RequestView({ r }: { r: Request }) {
     setSaving(true);
     try {
       if (titleDraft.trim() !== r.title) await updateRequest({ id: r.id, title: titleDraft });
-      if (sourceDraft !== r.leadSource) await setLeadSource({ id: r.id, leadSource: sourceDraft || null });
       if (pick !== (r.salespersonId ?? UNASSIGNED)) await setSalesperson({ id: r.id, salespersonId: pick === UNASSIGNED ? null : (people?.find((p) => p.id === pick)?.id ?? null) });
       setEditing(false);
       toast("Request saved.");
@@ -173,11 +199,38 @@ function RequestView({ r }: { r: Request }) {
     }
   }
 
+  // Jobber's More menu on a request. Converting to a job, the booking email, archiving by hand and deleting are not built, so they are greyed.
+  const rule: MenuItem = { divider: true };
+  const moreItems: MenuItem[] = [
+    { label: "Email Booking Confirmation", icon: "mail", disabled: true },
+    rule,
+    { label: "Convert to Quote", icon: "quote", iconColor: "var(--green)", disabled: !canEdit, onSelect: () => router.push(`/quotes/new?clientId=${r.clientId}&projectId=${r.id}`) },
+    { label: "Convert to Job", icon: "hammer", iconColor: "var(--green)", disabled: true },
+    rule,
+    { label: "Archive", icon: "stage", disabled: true },
+    { label: "Print", icon: "pdf", onSelect: () => window.print() },
+    { label: "Delete", icon: "trash", danger: true, disabled: true },
+  ];
+  // The three dots on the client's card.
+  const clientItems: MenuItem[] = [
+    { label: "View client profile", icon: "eye", onSelect: () => router.push(`/clients/${r.clientId}`) },
+    { label: "Edit client details", icon: "pencil", disabled: !canEdit, onSelect: () => router.push(`/clients/${r.clientId}/edit`) },
+    { label: "Change property", icon: "home", disabled: true },
+  ];
+
   return (
     <div className="fade-in rq">
       <div className="rq-top">
-        <Link className="rq-back" href="/requests"><Icon name="chevleft" size={18} /> Requests</Link>
-        <span className={`pill ${PILL[r.status]}`}><span className="dot" />{r.status}</span>
+        <div className="rq-topl">
+          <Link className="rq-back" href="/requests"><Icon name="chevleft" size={18} /> Requests</Link>
+          <span className={`pill ${PILL[r.status]}`}><span className="dot" />{r.status}</span>
+        </div>
+        <div className="rq-topr">
+          <Link className="icon-btn" aria-label="View activity" title="View activity" href={`/opportunities/${r.id}?tab=activity`}><Icon name="history" size={24} /></Link>
+          <button className="btn more-btn" type="button" aria-label="More" aria-haspopup="menu" onClick={(e) => dropdown(e.currentTarget, moreItems, { alignRight: true, variant: "actions" })}>
+            <Icon name="more" size={24} /><span className="lbl">More</span>
+          </button>
+        </div>
       </div>
       {r.archivedAt !== null && (
         <div className="au-warn" role="status">
@@ -188,7 +241,7 @@ function RequestView({ r }: { r: Request }) {
       <div className="rq-title">
         {editing ? (
           <div className={`field rq-titlefield${titleBad ? " bad" : ""}`}>
-            <label htmlFor="rq-title-input">Title</label>
+            <label htmlFor="rq-title-input">Request title</label>
             <input id="rq-title-input" aria-invalid={titleBad} maxLength={200} value={titleDraft} disabled={saving} onChange={(e) => { setTitleDraft(e.target.value); setTitleBad(false); }} />
             <span className="err">Give the request a title.</span>
           </div>
@@ -196,7 +249,7 @@ function RequestView({ r }: { r: Request }) {
           <h1>{r.title} · {r.code}</h1>
         )}
         {canEdit && !editing && (
-          <button type="button" className="icon-btn" aria-label="Edit request details" onClick={edit}><Icon name="pencil" size={20} /></button>
+          <button type="button" className="icon-btn" aria-label="Edit request details" disabled={anyEditing} title={anyEditing ? lockedTip : undefined} onClick={edit}><Icon name="pencil" size={20} /></button>
         )}
       </div>
 
@@ -204,7 +257,10 @@ function RequestView({ r }: { r: Request }) {
       <div className="rq-main">
       <div className="rq-grid">
         <section className="card rq-client">
-          <Link href={`/clients/${r.clientId}`} className="rq-clientname">{c.name}</Link>
+          <div className="rq-clienthead">
+            <Link href={`/clients/${r.clientId}`} className="rq-clientname">{c.name}</Link>
+            <button type="button" className="icon-btn" aria-label="Client options" aria-haspopup="menu" onClick={(e) => dropdown(e.currentTarget, clientItems, { alignRight: true })}><Icon name="more" size={24} /></button>
+          </div>
           {c.street1 && <div>{c.street1}</div>}
           {cityLine && <div>{cityLine}</div>}
           {c.phone && <div className="rq-gap"><a href={`tel:${c.phone}`}>{c.phone}</a></div>}
@@ -212,21 +268,7 @@ function RequestView({ r }: { r: Request }) {
         </section>
 
         <dl className="rq-facts">
-          <div>
-            <dt>Request Source</dt>
-            <dd>
-              {editing ? (
-                <div className="field rq-select">
-                  <select aria-label="Request source" value={sourceDraft} disabled={saving} onChange={(e) => setSourceDraft(e.target.value)}>
-                    <option value="">None</option>
-                    {LEAD_SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </div>
-              ) : (
-                r.leadSource || "None"
-              )}
-            </dd>
-          </div>
+          <div><dt>Request Source</dt><dd>{r.leadSource || "None"}</dd></div>
           <div><dt>Requested</dt><dd>{quoteDate(r.requestedAt)}</dd></div>
           <div>
             <dt>Salesperson</dt>
@@ -253,62 +295,93 @@ function RequestView({ r }: { r: Request }) {
         </dl>
       </div>
 
-      <section className="card rq-overview" aria-label="Overview">
+      <section className={`card rq-overview${editingOverview ? " rq-editing" : ""}`} aria-label="Overview">
         <div className="rq-sechead">
           <h2>Overview</h2>
-          {canEdit && !editingOverview && <button type="button" className="icon-btn" aria-label="Edit the overview" onClick={editOverview}><Icon name="pencil" size={20} /></button>}
+          {canEdit && !editingOverview && <button type="button" className="icon-btn" aria-label="Edit the overview" disabled={anyEditing} title={anyEditing ? lockedTip : undefined} onClick={editOverview}><Icon name="pencil" size={20} /></button>}
         </div>
-        <h3>Service details</h3>
+        <div className="rq-qa-source">{r.overview.source}</div>
+        {r.overview.heading && <h3 className="rq-qa-head">{r.overview.heading}</h3>}
         {editingOverview ? (
           <>
-            <div className="field">
-              <textarea aria-label="Service details" rows={6} maxLength={5000} value={detailsDraft} disabled={savingOverview} onChange={(e) => setDetailsDraft(e.target.value)} autoFocus />
+            <div className="rq-qa">
+              {fieldsDraft.map((f, i) => (
+                <div key={i} className="rq-qa-row">
+                  <label htmlFor={`ov-${i}`}>{f.label}</label>
+                  <textarea id={`ov-${i}`} rows={3} maxLength={5000} value={f.value} disabled={savingOverview} onChange={(e) => setFieldsDraft(fieldsDraft.map((x, j) => (j === i ? { ...x, value: e.target.value } : x)))} autoFocus={i === 0} />
+                </div>
+              ))}
             </div>
-            <div className="rq-editbar rl-bar">
+            <div className="rq-stickybar">
+              <span className="grow" />
               <button type="button" className="btn" disabled={savingOverview} onClick={() => setEditingOverview(false)}>Cancel</button>
               <button type="button" className="btn primary" disabled={savingOverview} onClick={() => void saveOverview()}>{savingOverview ? "Saving…" : "Save"}</button>
             </div>
           </>
         ) : (
-          <p>{r.details || "—"}</p>
+          <div className="rq-qa">
+            {r.overview.fields.map((f, i) => (
+              <div key={i} className="rq-qa-row">
+                <div className="rq-label">{f.label}</div>
+                <p className="rq-text">{f.value || "—"}</p>
+              </div>
+            ))}
+          </div>
         )}
       </section>
 
-      <section className="card rq-overview" aria-label="On-site assessment">
+      <section className={`card rq-overview${assessing ? " rq-editing" : ""}`} aria-label="On-site assessment">
         <div className="rq-sechead">
           <h2>On-site assessment</h2>
-          {canEdit && <button type="button" className="icon-btn" aria-label="Edit the on-site assessment" onClick={() => setAssessing(true)}><Icon name="pencil" size={20} /></button>}
+          {canEdit && !assessing && <button type="button" className="icon-btn" aria-label="Edit the on-site assessment" disabled={anyEditing} title={anyEditing ? lockedTip : undefined} onClick={() => setAssessing(true)}><Icon name="pencil" size={20} /></button>}
         </div>
-        {r.assessment ? (
+        {assessing ? (
+          <AssessmentInline
+            people={people}
+            initial={r.assessment}
+            instructions={r.assessmentInstructions}
+            onSave={saveAssessment}
+            onDelete={deleteAssessment}
+            onCancel={() => setAssessing(false)}
+          />
+        ) : (
           <>
-            {r.assessment.instructions && <><h3>Instructions</h3><p>{r.assessment.instructions}</p></>}
-            <dl className="as-facts">
+            <div className="rq-label">Instructions</div>
+            {r.assessmentInstructions && <p className="rq-text">{r.assessmentInstructions}</p>}
+            <dl className="as-facts as-three as-view">
               <div>
                 <dt>Schedule</dt>
                 <dd>
-                  {whenLabel(r.assessment)}
-                  <label className="sc-check as-done">
-                    <input type="checkbox" checked={r.assessment.status === "completed"} disabled={!canEdit} onChange={(e) => void completeAssessment(e.target.checked)} /> Complete assessment
+                  {r.assessment ? whenLabel(r.assessment) : "Unscheduled"}
+                  <label className={`ai-check as-done${r.assessment ? "" : " off"}`} title={r.assessment ? undefined : "Schedule the assessment first"}>
+                    <Checkbox state={r.assessment?.status === "completed"} label="Complete assessment" disabled={!canEdit || !r.assessment} onChange={() => void completeAssessment(r.assessment?.status !== "completed")} />
+                    <span>Complete assessment</span>
                   </label>
                 </dd>
               </div>
-              <div><dt>Team</dt><dd>{teamNames || <i className="as-unassigned">Unassigned</i>}</dd></div>
+              <div><dt>Team</dt><dd>{teamNames || <span className="as-unassigned"><NoOne /><i>Unassigned</i></span>}</dd></div>
+              <div><dt>Checklists</dt><dd>—</dd></div>
             </dl>
+            <div className="as-reminder">
+              <div className="rq-label">Assessment Reminder</div>
+              <div>Remind client 1 hour before by text</div>
+              <div>Remind client 1 day before at 1:30 PM by email</div>
+              <small>Reminders are not sent yet.</small>
+            </div>
           </>
-        ) : (
-          <p className="muted">{canEdit ? "No assessment is booked yet. Use the pencil to schedule one." : "No assessment is booked."}</p>
         )}
       </section>
 
       <section className="card rq-overview" aria-label="Product / Service">
         <div className="rq-sechead">
           <h2>Product / Service</h2>
-          {canEdit && !editingLines && <button type="button" className="icon-btn" aria-label="Edit products and services" onClick={startLines}><Icon name="pencil" size={20} /></button>}
+          {canEdit && !editingLines && <button type="button" className="icon-btn" aria-label="Edit products and services" disabled={anyEditing} title={anyEditing ? lockedTip : undefined} onClick={startLines}><Icon name="pencil" size={20} /></button>}
         </div>
         {editingLines ? (
           <>
             <RequestLinesEditor lines={draftLines} onChange={(l) => { setDraftLines(l); setBadLines(new Set()); }} bad={badLines} />
-            <div className="rq-editbar rl-bar">
+            <div className="rq-stickybar">
+              <span className="grow" />
               <button type="button" className="btn" disabled={savingLines} onClick={() => setEditingLines(false)}>Cancel</button>
               <button type="button" className="btn primary" disabled={savingLines} onClick={() => void saveLines()}>{savingLines ? "Saving…" : "Save"}</button>
             </div>
@@ -318,7 +391,7 @@ function RequestView({ r }: { r: Request }) {
         ) : (
           <>
             <p className="muted">Keep everything on track by adding products and services.</p>
-            {canEdit && <button type="button" className="btn primary" onClick={startLines}>Add Line Item</button>}
+            {canEdit && <button type="button" className="btn primary" disabled={anyEditing} title={anyEditing ? lockedTip : undefined} onClick={startLines}>Add Line Item</button>}
           </>
         )}
       </section>
@@ -361,7 +434,6 @@ function RequestView({ r }: { r: Request }) {
       </aside>
       </div>
 
-      {assessing && <AssessmentModal people={people} initial={r.assessment} onSave={saveAssessment} onClose={() => setAssessing(false)} />}
     </div>
   );
 }

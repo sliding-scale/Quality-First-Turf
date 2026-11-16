@@ -259,7 +259,7 @@ function ClientView({ c }: { c: ClientDoc }) {
         </aside>
 
       {tagging && <EditTagsDialog client={c} onClose={() => setTagging(false)} onSaved={() => toast("Tags saved")} />}
-      {emailing && <SendEmailDialog client={c} onClose={() => setEmailing(false)} />}
+      {emailing && <SendEmailDialog client={{ id: c._id, name: c.name, email: c.email }} onClose={() => setEmailing(false)} />}
       {deleting && (
         <DeleteClientsDialog ids={[c._id]} onClose={() => setDeleting(false)} onDeleted={() => { toast("Client deleted"); router.push("/clients"); }} />
       )}

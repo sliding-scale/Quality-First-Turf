@@ -3,14 +3,16 @@
 /* The two pop-ups on a client's row in the Clients list (like Jobber's): Edit tags, and Send email. Plus the tag picker both the
    tag filter and the Edit tags pop-up use. */
 
-import { useMutation } from "convex/react";
+import { useAction, useMutation } from "convex/react";
 import { ConvexError } from "convex/values";
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { CLIENT_TAGS } from "@/convex/crm/lib/stages";
+import { failure } from "@/lib/pipeline";
 import { Checkbox } from "./checkbox";
 import { Icon } from "./icon";
+import { useUI } from "./ui-provider";
 
 const EXIT_MS = 160; // keep in step with modal-out in globals.css
 
@@ -152,11 +154,66 @@ export function EditTagsDialog({ client, onClose, onSaved }: { client: { _id: Id
   );
 }
 
-/** Jobber's Send email pop-up. Sending needs the email connection (Google Workspace, PRD 5.3), which is not built yet, so Send Email says so
- *  and keeps what was typed. */
-export function SendEmailDialog({ client, onClose }: { client: { name: string; email: string }; onClose: () => void }) {
+/** Jobber's Send email pop-up, and it sends (D-077): the message goes to the client from the office mailbox through Zoho, with a copy to the
+ *  person sending it when asked, and files attached (up to 19 MB in all, as in Jobber). */
+const MAX_ATTACH_BYTES = 19 * 1024 * 1024;
+const MAX_ATTACH_FILES = 10;
+const mb = (n: number) => (n / 1024 / 1024).toFixed(2);
+
+export function SendEmailDialog({ client, onClose }: { client: { id: Id<"clients">; name: string; email: string }; onClose: () => void }) {
+  const { toast } = useUI();
+  const send = useAction(api.crm.clientEmail.send);
+  const makeUrl = useMutation(api.crm.noteFiles.generateUploadUrl);
+  const picker = useRef<HTMLInputElement>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [to, setTo] = useState(client.email ? [client.email] : []);
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
   const [copy, setCopy] = useState(false);
+  const [tried, setTried] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const missing = { to: to.length === 0, subject: !subject.trim(), body: !body.trim() };
+  const attached = files.reduce((n, f) => n + f.size, 0);
+
+  function addFiles(list: FileList | null) {
+    if (!list) return;
+    const next = [...files];
+    let total = attached;
+    for (const f of Array.from(list)) {
+      if (next.length >= MAX_ATTACH_FILES) { setError(`You can attach up to ${MAX_ATTACH_FILES} files.`); break; }
+      if (total + f.size > MAX_ATTACH_BYTES) { setError(`${f.name} would go over the 19 MB limit, so it was not added.`); continue; }
+      next.push(f);
+      total += f.size;
+      setError("");
+    }
+    setFiles(next);
+    if (picker.current) picker.current.value = "";
+  }
+
+  async function submit(close: () => void) {
+    setTried(true);
+    if (missing.to || missing.subject || missing.body) return;
+    setBusy(true);
+    setError("");
+    try {
+      // Each file goes to storage first; the send checks them again, mails them and clears them out.
+      const stored: { storageId: Id<"_storage">; name: string }[] = [];
+      for (const f of files) {
+        const url = await makeUrl({});
+        const res = await fetch(url, { method: "POST", headers: { "Content-Type": f.type || "application/octet-stream" }, body: f });
+        if (!res.ok) throw new Error("A file could not be uploaded.");
+        stored.push({ storageId: ((await res.json()) as { storageId: Id<"_storage"> }).storageId, name: f.name });
+      }
+      await send({ clientId: client.id, to, subject, body, copyMe: copy, ...(stored.length ? { attachments: stored } : {}) });
+      toast(`Email sent to ${to.join(", ")}.`);
+      close();
+    } catch (e) {
+      setError(failure(e, "The email could not be sent. Try again."));
+      setBusy(false);
+    }
+  }
+
   return (
     <Modal title={`Send email to ${client.name}`} wide onClose={onClose}>
       {(close) => (
@@ -168,13 +225,14 @@ export function SendEmailDialog({ client, onClose }: { client: { name: string; e
                 {to.map((a) => (
                   <span className="chip cd-chip" key={a}>
                     {a}
-                    <button type="button" aria-label={`Remove ${a}`} onClick={() => setTo(to.filter((x) => x !== a))}><Icon name="x" size={14} /></button>
+                    <button type="button" aria-label={`Remove ${a}`} disabled={busy} onClick={() => setTo(to.filter((x) => x !== a))}><Icon name="x" size={14} /></button>
                   </span>
                 ))}
+                {to.length === 0 && <span className="cd-hint" style={tried ? { color: "#b3261e" } : undefined}>{client.email ? "Add back the address to send to." : "This client has no email address. Add one on their page first."}</span>}
               </div>
-              <input className="cd-input" placeholder="Subject" aria-label="Subject" />
-              <textarea className="cd-input cd-message" placeholder="Message" aria-label="Message" />
-              <p className="cd-hint">Your client will see a button to view the schedule and location of their upcoming appointments in their Client Hub</p>
+              <input className="cd-input" placeholder="Subject" aria-label="Subject" aria-invalid={tried && missing.subject} maxLength={200} value={subject} disabled={busy} onChange={(e) => setSubject(e.target.value)} />
+              <textarea className="cd-input cd-message" placeholder="Message" aria-label="Message" aria-invalid={tried && missing.body} value={body} disabled={busy} onChange={(e) => setBody(e.target.value)} />
+              {tried && (missing.subject || missing.body) && <p className="modal-error" role="alert">{missing.subject ? "Write a subject." : "Write a message."}</p>}
               <label className="modal-item">
                 <Checkbox state={copy} label="Send me a copy" onChange={() => setCopy((c) => !c)} />
                 <span>Send me a copy</span>
@@ -183,16 +241,29 @@ export function SendEmailDialog({ client, onClose }: { client: { name: string; e
             <div className="cd-mail-side">
               <b>Attachments</b>
               <div className="cd-drop">
-                <button type="button" className="btn small" disabled>Select</button>
-                <span>Select or drag files here to upload</span>
+                <input ref={picker} type="file" multiple hidden onChange={(e) => addFiles(e.target.files)} />
+                <button type="button" className="btn small" disabled={busy} onClick={() => picker.current?.click()}>Select</button>
+                <span>Select files to attach to the email</span>
               </div>
-              <span className="cd-hint">You&apos;ve attached 0.00 MB of the 19.00 MB limit.</span>
-              <div className="cd-meter"><span /></div>
+              {files.length > 0 && (
+                <ul className="cd-files">
+                  {files.map((f, i) => (
+                    <li key={`${f.name}-${i}`}>
+                      <span title={f.name}>{f.name}</span>
+                      <small>{mb(f.size)} MB</small>
+                      <button type="button" aria-label={`Remove ${f.name}`} disabled={busy} onClick={() => setFiles(files.filter((_, j) => j !== i))}><Icon name="x" size={14} /></button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <span className="cd-hint">You&apos;ve attached {mb(attached)} MB of the 19.00 MB limit.</span>
+              <div className="cd-meter"><span style={{ width: `${Math.min(100, (attached / MAX_ATTACH_BYTES) * 100)}%` }} /></div>
             </div>
           </div>
+          {error && <p className="modal-error" role="alert">{error}</p>}
           <div className="modal-foot">
-            <button type="button" className="btn plain" onClick={close}>Cancel</button>
-            <button type="button" className="btn primary" disabled>Send Email</button>
+            <button type="button" className="btn plain" onClick={close} disabled={busy}>Cancel</button>
+            <button type="button" className="btn primary" disabled={busy || to.length === 0} onClick={() => void submit(close)}>{busy ? "Sending…" : "Send Email"}</button>
           </div>
         </>
       )}

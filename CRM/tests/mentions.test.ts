@@ -2,7 +2,9 @@
 import { describe, expect, it } from "vitest";
 import { api } from "../../convex/_generated/api";
 import { excerpt, findTags, mentionedIds, splitTags, tagQuery } from "../../convex/crm/lib/mentions";
+import { signedInAs } from "./helpers";
 import { seeded } from "./pipelineSeed";
+import { signedQuote } from "./quoteSeed";
 
 const team = [{ id: "a", name: "Sam Sales" }, { id: "b", name: "Sam" }, { id: "c", name: "Pat PM" }];
 
@@ -72,5 +74,31 @@ describe("tagging a person in a note", () => {
     expect(items.map((i) => i.kind).sort()).toEqual(["client", "project"]);
     expect(items.find((i) => i.kind === "project")?.href).toBe(`/requests/${made}`);
     expect(items.find((i) => i.kind === "client")?.href).toBe(`/clients/${w.clientId}`);
+  });
+});
+
+describe("stage-change notifications", () => {
+  it("tells the salesperson when someone else moves their project, and nobody when they move it themselves", async () => {
+    const w = await seeded();
+    const sam = (await w.base.run((ctx) => ctx.db.query("users").collect())).find((u) => u.name === "Sam Sales")!;
+    await w.admin.mutation(api.crm.pipeline.setSalesperson, { id: w.project, salespersonId: sam._id });
+    await w.admin.mutation(api.crm.pipeline.moveStage, { id: w.project, to: "Schedule Onsite Consultation", now: 10 });
+    const { items, unread } = await w.sales.query(api.crm.mentions.mine, {});
+    expect(unread).toBe(1);
+    expect(items[0]).toMatchObject({ kind: "stage", where: "Test turf", href: `/requests/${w.project}`, excerpt: "New Request → Schedule Onsite Consultation" });
+    await w.sales.mutation(api.crm.pipeline.moveStage, { id: w.project, to: "Onsite Consultation", now: 11 });
+    expect((await w.sales.query(api.crm.mentions.mine, {})).unread).toBe(1); // moving it yourself tells you nothing
+  });
+
+  it("hands Closed Won over to the Office team", async () => {
+    const w = await seeded();
+    const office = await signedInAs(w.base, { key: "office-9", roles: ["office"], businessIds: [w.qft], name: "Olga Office" });
+    const outsiderOffice = await signedInAs(w.base, { key: "office-8", roles: ["office"], businessIds: [w.other], name: "Otto Office" });
+    await signedQuote(w);
+    await w.sales.mutation(api.crm.pipeline.moveStage, { id: w.project, to: "Closed Won", now: 20 });
+    const mine = await office.query(api.crm.mentions.mine, {});
+    expect(mine.items).toHaveLength(1);
+    expect(mine.items[0]).toMatchObject({ kind: "stage", excerpt: expect.stringContaining("Ready for Preplanning") });
+    expect((await outsiderOffice.query(api.crm.mentions.mine, {})).unread).toBe(0);
   });
 });

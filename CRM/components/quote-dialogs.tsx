@@ -18,7 +18,7 @@ import { Icon } from "./icon";
 import { PipelineModal } from "./pipeline-dialogs";
 import { SignaturePad } from "./signature-pad";
 import { useUI } from "./ui-provider";
-import { NoteEditor } from "./note-editor";
+import { NoteEditor, useUploadPending, type PendingFile } from "./note-editor";
 
 export const clientLink = (token: string) => `${window.location.origin}/q/${token}`;
 
@@ -230,7 +230,9 @@ export function WonRefusedDialog({ message, quoteId, onClose }: { message: strin
 export function NoteDialog({ quoteId, businessId, onClose }: { quoteId: Id<"quotes">; businessId: Id<"businesses">; onClose: () => void }) {
   const upload = useMutation(api.crm.quoteDraft.uploadUrl);
   const add = useMutation(api.crm.quoteDraft.addNote);
+  const uploadPending = useUploadPending();
   const [text, setText] = useState("");
+  const [files, setFiles] = useState<PendingFile[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [bad, setBad] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -242,12 +244,13 @@ export function NoteDialog({ quoteId, businessId, onClose }: { quoteId: Id<"quot
           noValidate
           onSubmit={async (e) => {
             e.preventDefault();
-            if (!text.trim() && !file) { setBad(true); return; }
+            if (!text.trim() && !file && files.length === 0) { setBad(true); return; }
             setBusy(true);
             setError("");
             try {
               const id = file ? await uploadFile(await upload({ businessId }), file) : undefined;
-              await add({ quoteId, text, ...(id ? { attachmentId: id, attachmentName: file!.name } : {}) });
+              const noteFiles = files.length ? await uploadPending(files) : undefined;
+              await add({ quoteId, text, ...(noteFiles ? { files: noteFiles } : {}), ...(id ? { attachmentId: id, attachmentName: file!.name } : {}) });
               close();
             } catch (err) {
               setError(failure(err, "The note could not be saved. Try again."));
@@ -257,7 +260,7 @@ export function NoteDialog({ quoteId, businessId, onClose }: { quoteId: Id<"quot
         >
           <div className={`field${bad ? " bad" : ""}`}>
             <label htmlFor="nt-text">Leave an internal note for yourself or a team member</label>
-            <NoteEditor id="nt-text" noFiles rows={6} value={text} onChange={(t) => { setText(t); setBad(false); }} files={[]} onFiles={() => undefined} />
+            <NoteEditor id="nt-text" rows={6} value={text} onChange={(t) => { setText(t); setBad(false); }} files={files} onFiles={setFiles} disabled={busy} />
             <span className="err">Write a note or add a file.</span>
           </div>
           <div className="field" style={{ marginTop: 12 }}>
@@ -270,6 +273,44 @@ export function NoteDialog({ quoteId, businessId, onClose }: { quoteId: Id<"quot
             <button type="submit" className="btn primary" disabled={busy}>{busy ? "Saving…" : "Save note"}</button>
           </div>
         </form>
+      )}
+    </PipelineModal>
+  );
+}
+
+
+/** Jobber's "Signature will be removed" warning (D-078): editing an approved quote takes off the client's signature and puts the quote back to
+ *  Draft. The person ticks "I understand" before the red button works; a quote that cannot be reopened (its project is Closed Won) says why. */
+export function SignatureWarningDialog({ quoteId, onClose, onReopened }: { quoteId: Id<"quotes">; onClose: () => void; onReopened: () => void }) {
+  const reopen = useMutation(api.crm.quoteFlow.reopenForEdit);
+  const [sure, setSure] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  return (
+    <PipelineModal title="Signature will be removed" onClose={onClose} busy={busy}>
+      {(close) => (
+        <div>
+          <p className="modal-note">Editing an approved quote will remove the client&apos;s signature. The quote goes back to a draft, and it has to be sent and approved again.</p>
+          <label className="sc-check" style={{ marginTop: 12 }}>
+            <input type="checkbox" checked={sure} disabled={busy} onChange={(e) => setSure(e.target.checked)} /> I understand
+          </label>
+          {error && <p className="modal-error" role="alert">{error}</p>}
+          <div className="modal-foot">
+            <button type="button" className="btn plain" onClick={close} disabled={busy}>Cancel</button>
+            <button
+              type="button"
+              className="btn danger"
+              disabled={!sure || busy}
+              onClick={() => {
+                setBusy(true);
+                setError("");
+                reopen({ id: quoteId, now: clock() }).then(() => { onReopened(); }).catch((e) => { setError(failure(e, "The quote could not be reopened.")); setBusy(false); });
+              }}
+            >
+              {busy ? "Removing…" : "Remove Signature"}
+            </button>
+          </div>
+        </div>
       )}
     </PipelineModal>
   );

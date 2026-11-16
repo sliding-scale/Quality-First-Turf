@@ -71,10 +71,13 @@ describe("notes with photos and voice notes", () => {
     await expect(w.sales.mutation(api.crm.opportunityTasks.addNote, { id: w.project, text: "  " })).rejects.toThrow(/Write something/);
   });
 
-  it("refuses files that are not photos or audio, and files that are too big", async () => {
+  it("keeps a PDF as a file, refuses programs, and refuses files that are too big", async () => {
     const w = await seeded();
     const pdf = await store(w, 100, "application/pdf");
-    await expect(w.sales.mutation(api.crm.clients.addNote, { clientId: w.clientId, text: "x", files: [{ storageId: pdf, name: "a.pdf" }] })).rejects.toThrow(/Only photos and voice notes/);
+    await w.sales.mutation(api.crm.clients.addNote, { clientId: w.clientId, text: "x", files: [{ storageId: pdf, name: "a.pdf" }] });
+    expect((await w.sales.query(api.crm.clients.notes, { clientId: w.clientId }))[0].files[0]).toMatchObject({ kind: "file", name: "a.pdf" });
+    const exe = await store(w, 100, "application/octet-stream");
+    await expect(w.sales.mutation(api.crm.clients.addNote, { clientId: w.clientId, text: "x", files: [{ storageId: exe, name: "setup.exe" }] })).rejects.toThrow(/cannot be attached/);
     const big = await store(w, 16 * 1024 * 1024, "image/png");
     await expect(w.sales.mutation(api.crm.clients.addNote, { clientId: w.clientId, text: "x", files: [{ storageId: big, name: "b.png" }] })).rejects.toThrow(/15 MB/);
   });

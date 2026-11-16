@@ -132,6 +132,54 @@ export const list = query({
   },
 });
 
+/** The Overview as Jobber shows a request: "Submitted by the customer" with a labelled answer each. Once someone edits it, their list is what shows.
+ *  Until then it is built from the customer form behind the request (name, phone, email, address, services and what was measured), or, for a
+ *  request made in the CRM, the one "Service details" answer. */
+async function overviewOf(ctx: QueryCtx, o: Doc<"opportunities">, client: Doc<"clients">): Promise<{ source: string; heading: string; fields: { label: string; value: string }[]; edited: boolean }> {
+  const business = await ctx.db.get(o.businessId);
+  const source = `Details from ${business?.name ?? "the customer"}`;
+  const heading = "Submitted by the customer";
+  if (o.overviewFields) return { source, heading, fields: o.overviewFields, edited: true };
+  const project = o.sourceProjectId ? await ctx.db.get(o.sourceProjectId) : null;
+  if (!project) {
+    // A request made in the CRM: the same categories, taken from the client and the request.
+    const address = [client.street1, client.street2, [client.city, client.state].filter(Boolean).join(", "), client.zip].filter(Boolean).join(", ");
+    const services = (o.lines ?? []).map((l) => l.name).join(", ") || o.title;
+    return {
+      source, heading, edited: false,
+      fields: [
+        { label: "Name", value: client.name },
+        { label: "Phone", value: client.phone },
+        { label: "Email", value: client.email },
+        { label: "Property address", value: address },
+        { label: "Services", value: services },
+        { label: "Customer type", value: client.type === "contractor" ? "Contractor" : "Homeowner" },
+        { label: "Service details", value: o.details ?? "" },
+        { label: "How did you hear about us?", value: o.leadSource ?? "" },
+      ],
+    };
+  }
+  const address = [project.street1, project.street2, [project.city, project.state].filter(Boolean).join(", "), project.zip].filter(Boolean).join(", ");
+  const fields = [
+    { label: "Name", value: `${project.firstName} ${project.lastName}`.trim() },
+    { label: "Phone", value: project.phone },
+    { label: "Email", value: project.email },
+    { label: "Property address", value: address },
+    { label: "Services", value: project.services.join(", ") },
+    { label: "Customer type", value: client.type === "contractor" ? "Contractor" : "Homeowner" },
+  ];
+  if (project.products.length) fields.push({ label: "Products", value: project.products.join(", ") });
+  if (project.addOns.length) fields.push({ label: "Add-ons", value: project.addOns.join(", ") });
+  for (const m of project.measurements.slice(0, 12)) {
+    const size = m.unmeasured ? "Not measured" : m.squareFeet !== null ? `${m.squareFeet} sq ft` : m.linearFeet !== null ? `${m.linearFeet} ft` : "";
+    fields.push({ label: `${m.service ? `${m.service} · ` : ""}${m.label}`, value: size });
+  }
+  if (project.notes.trim()) fields.push({ label: "Customer notes", value: project.notes });
+  fields.push({ label: "Service details", value: o.details ?? "" });
+  fields.push({ label: "How did you hear about us?", value: o.leadSource ?? "" });
+  return { source, heading, fields, edited: false };
+}
+
 /** One request, for its own page (laid out like Jobber's request page). null when it does not exist, is not in the Sales pipeline, or the caller has no access. */
 export const get = query({
   args: { id: v.id("opportunities"), today: v.number() },
@@ -160,6 +208,7 @@ export const get = query({
       requestedAt: o.requestedAt,
       leadSource: o.leadSource ?? "",
       details: o.details ?? "",
+      overview: await overviewOf(ctx, o, client),
       archivedAt: o.archivedAt ?? null,
       archivedReason: o.archivedReason ?? "",
       salespersonId: o.salespersonId,
@@ -167,8 +216,10 @@ export const get = query({
       assessmentAt: shownAt ?? null,
       /** The booked on-site assessment (a consultation on the Schedule), with the instructions kept in its notes. */
       assessment: shown
-        ? { id: shown._id, start: shown.start, end: shown.end, anytime: shown.anytime, assigneeIds: shown.assigneeIds, status: shown.status, instructions: shown.notes }
+        ? { id: shown._id, start: shown.start, end: shown.end, anytime: shown.anytime, assigneeIds: shown.assigneeIds, status: shown.status, instructions: o.assessmentInstructions ?? shown.notes }
         : null,
+      /** The instructions with or without a booked assessment. */
+      assessmentInstructions: o.assessmentInstructions ?? shown?.notes ?? "",
       lines: o.lines ?? [],
       client: { name: client.name, street1: client.street1, city: client.city, state: client.state, zip: client.zip, phone: client.phone, email: client.email },
     };
@@ -236,7 +287,11 @@ function cleanLines(lines: { name: string; description: string; quantity: number
 
 /** Changes a request's title and/or service details (the Overview). Each pencil on the request page sends only its own part. */
 export const update = mutation({
-  args: { id: v.id("opportunities"), title: v.optional(v.string()), details: v.optional(v.string()) },
+  args: {
+    id: v.id("opportunities"), title: v.optional(v.string()), details: v.optional(v.string()), assessmentInstructions: v.optional(v.string()),
+    /** The whole Overview as labelled answers (the pencil on Overview). */
+    overviewFields: v.optional(v.array(v.object({ label: v.string(), value: v.string() }))),
+  },
   handler: async (ctx, args) => {
     const o = await ctx.db.get(args.id);
     if (o === null || o.pipeline !== "Sales") throw new ConvexError("That request no longer exists.");
@@ -254,6 +309,21 @@ export const update = mutation({
       const details = args.details.trim();
       if (details.length > 5000) throw new ConvexError("The service details are too long (5,000 characters at most).");
       patch.details = details || undefined;
+    }
+    if (args.overviewFields !== undefined) {
+      if (args.overviewFields.length > 40) throw new ConvexError("The overview can have up to 40 answers.");
+      const fields = args.overviewFields.map((f) => ({ label: f.label.trim().slice(0, 100), value: f.value.trim() }));
+      if (fields.some((f) => !f.label)) throw new ConvexError("Every answer needs a label.");
+      if (fields.some((f) => f.value.length > 5000)) throw new ConvexError("An answer is too long (5,000 characters at most).");
+      patch.overviewFields = fields;
+      // "Service details" is also kept on the request itself, where the board and the lists read it.
+      const sd = fields.find((f) => f.label.toLowerCase() === "service details");
+      if (sd) patch.details = sd.value || undefined;
+    }
+    if (args.assessmentInstructions !== undefined) {
+      const text = args.assessmentInstructions.trim();
+      if (text.length > 2000) throw new ConvexError("The instructions are too long (2,000 characters at most).");
+      patch.assessmentInstructions = text || undefined;
     }
     await ctx.db.patch(o._id, patch);
   },

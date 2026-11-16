@@ -128,7 +128,7 @@ describe("board", () => {
     const none = await admin.query(api.crm.pipeline.board, { businessId: qft, ...boardArgs, leadSources: ["No source"] });
     expect(cardsOf(none).some((c) => c.id === project)).toBe(false);
     expect(none.total).toBeGreaterThan(0);
-    const dated = await admin.query(api.crm.pipeline.board, { businessId: qft, ...boardArgs, from: NOW - 2 * 3_600_000, to: NOW });
+    const dated = await admin.query(api.crm.pipeline.board, { businessId: qft, ...boardArgs, salespersonId: salesUser, from: NOW - 2 * 3_600_000, to: NOW });
     expect(cardsOf(dated).map((c) => c.id)).toEqual([project]);
     const found = await admin.query(api.crm.pipeline.board, { businessId: qft, ...boardArgs, search: "TST-001" });
     expect(cardsOf(found).map((c) => c.id)).toEqual([project]);

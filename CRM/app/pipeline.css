@@ -337,3 +337,6 @@ button.pl-iconbox:hover:not(:disabled) { background: #dcdad5; }
 .pl-noteform .ne-btn { font-size: 15px; }
 .pl-noteform > .btn { justify-self: end; }
 @media (max-width: 900px) { .pl-panelbody { grid-template-columns: minmax(0, 1fr); } .pl-panelhead > div { padding-left: 0; } }
+
+/* The card window's header now holds the Email and View opportunity buttons (client, 2026-11-16). */
+.pl-headactions { justify-content: center; margin-top: 16px; }

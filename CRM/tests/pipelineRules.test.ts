@@ -16,7 +16,7 @@ describe("pipeline stage rules", () => {
       "Quotes Approved — Contract Out for Signature",
     ]);
     expect([...CLOSED_STAGES]).toEqual(["Closed Won", "Closed Lost"]);
-    expect(LEAD_SOURCES).toHaveLength(8);
+    expect(LEAD_SOURCES).toHaveLength(9);
   });
 
   it("refuses a move to the stage the project is already in", () => {
