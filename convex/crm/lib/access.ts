@@ -57,6 +57,14 @@ export async function requireEditor(ctx: QueryCtx | MutationCtx, businessId: Id<
   return staff;
 }
 
+/** Moving a card inside Construction is also the Project Manager's job (PRD 4.6: job walks, progress, punch list), so that one move is open to
+ *  them. Everything else about a project still needs an editing role. */
+export async function requireMover(ctx: QueryCtx | MutationCtx, businessId: Id<"businesses">, pipeline: string): Promise<Staff> {
+  const staff = await requireBusiness(ctx, businessId);
+  if (!canEdit(staff) && !(pipeline === "Construction" && staff.roles.includes("pm"))) throw new ConvexError("Your role can view this but not change it.");
+  return staff;
+}
+
 export async function requireAdmin(ctx: QueryCtx | MutationCtx): Promise<Staff> {
   const staff = await requireStaff(ctx);
   if (!staff.isAdmin) throw new ConvexError("Only an Admin can do this.");

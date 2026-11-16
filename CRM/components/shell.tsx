@@ -43,13 +43,19 @@ const NAV: NavItem[] = [
 /** Only Admins see this, in the same group as Messages at the bottom of the sidebar (the backend refuses everyone else anyway). */
 const ADMIN_NAV: NavItem[] = [{ key: "team", label: "Manage Team", icon: "user", href: "/settings/users" }];
 
-/** The pipelines in the PRD. Only Sales is built; the others show greyed out under Pipeline. */
+/** The pipelines in the PRD. Finance is Milestone 5, so it stays greyed out. */
 const PIPELINES: { label: string; href?: string }[] = [
   { label: "Sales", href: "/pipeline" },
-  { label: "Preplanning" },
-  { label: "Construction" },
+  { label: "Preplanning", href: "/pipeline/preplanning" },
+  { label: "Construction", href: "/pipeline/construction" },
   { label: "Finance" },
 ];
+
+/** Sales lives at /pipeline, which is also the prefix of the other pipelines, so it must not match those. */
+function pipelineItemOn(href: string, pathname: string): boolean {
+  if (href === "/pipeline") return pathname === "/pipeline" || pathname.startsWith("/pipeline/edit");
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 const RAIL_KEY ="qft-mock-rail";
 
@@ -276,7 +282,7 @@ function ShellInner({ children }: { children: ReactNode }) {
                 forgetClientsPlace();
               };
               if (n.key === "pipeline") {
-                // Pipeline opens a list of pipelines under it. Sales is the one that exists and is selected; the rest are greyed out until they are built.
+                // Pipeline opens the list of pipelines. Finance stays greyed out until Milestone 5.
                 const open = pipeChoice && pipeChoice.path === pathname ? pipeChoice.open : on;
                 return (
                   <div key={n.key} className="nav-group">
@@ -303,7 +309,7 @@ function ShellInner({ children }: { children: ReactNode }) {
                       <div className="nav-sub-in">
                         {PIPELINES.map((p) =>
                           p.href ? (
-                            <Link key={p.label} className={on ? "subitem active" : "subitem"} href={p.href} aria-current={on ? "page" : undefined}>{p.label}</Link>
+                            <Link key={p.label} className={pipelineItemOn(p.href, pathname) ? "subitem active" : "subitem"} href={p.href} aria-current={pipelineItemOn(p.href, pathname) ? "page" : undefined}>{p.label}</Link>
                           ) : (
                             <span key={p.label} className="subitem soon" aria-disabled="true" title={`${p.label} is not available yet`}>{p.label}</span>
                           ),

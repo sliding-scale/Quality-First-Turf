@@ -6,11 +6,11 @@ import { requireBusiness, requireEditor } from "./lib/access";
 import { checkAssignee } from "./lib/assignees";
 import { checkNoteFiles, noteFilesArg } from "./lib/noteFiles";
 import { opportunitySearchText } from "./lib/clientInput";
-import { DAY_MS, REQUEST_STATUSES, SALES_STAGES, requestStatus, type RequestStatus } from "./lib/stages";
+import { DAY_MS, REQUEST_STATUSES, SALES_STAGES, isRequest, requestStatus, type RequestStatus } from "./lib/stages";
 import { notifyMentions } from "./lib/mentionNotify";
 
-/* Requests (D-039): not a table. A request is a Sales-pipeline project (`opportunities`) seen through its stage, and its
-   status is worked out from the stage and age here. Same bounded-read approach as clients.ts. */
+/* Requests (D-039): not a table. A request is a project (`opportunities`) seen through its stage, and its status is worked out from the stage
+   and age here. A won project stays in this list after it moves on to Preplanning or Construction, as Converted (D-080). Same bounded-read approach as clients.ts. */
 
 const MAX_REQUESTS = 2000;
 
@@ -54,9 +54,9 @@ async function loadSales(ctx: QueryCtx, a: Pick<FilterArgs, "businessId" | "from
   if (text) {
     const found = await ctx.db
       .query("opportunities")
-      .withSearchIndex("search_text", (q) => q.search("searchText", text).eq("businessId", a.businessId).eq("pipeline", "Sales"))
+      .withSearchIndex("search_text", (q) => q.search("searchText", text).eq("businessId", a.businessId))
       .take(MAX_REQUESTS);
-    return found.filter((o) => o.archivedAt === undefined && (a.from === null || o.requestedAt >= a.from) && (a.to === null || o.requestedAt <= a.to));
+    return found.filter((o) => isRequest(o) && o.archivedAt === undefined && (a.from === null || o.requestedAt >= a.from) && (a.to === null || o.requestedAt <= a.to));
   }
   return await ctx.db
     .query("opportunities")
@@ -67,7 +67,7 @@ async function loadSales(ctx: QueryCtx, a: Pick<FilterArgs, "businessId" | "from
       if (a.to !== null) return base.lte("requestedAt", a.to);
       return base;
     })
-    .filter((q) => q.and(q.eq(q.field("pipeline"), "Sales"), q.eq(q.field("archivedAt"), undefined)))
+    .filter((q) => q.and(q.or(q.eq(q.field("pipeline"), "Sales"), q.eq(q.field("outcome"), "won")), q.eq(q.field("archivedAt"), undefined)))
     .order("desc")
     .take(MAX_REQUESTS);
 }
@@ -180,12 +180,12 @@ async function overviewOf(ctx: QueryCtx, o: Doc<"opportunities">, client: Doc<"c
   return { source, heading, fields, edited: false };
 }
 
-/** One request, for its own page (laid out like Jobber's request page). null when it does not exist, is not in the Sales pipeline, or the caller has no access. */
+/** One request, for its own page (laid out like Jobber's request page). null when it does not exist, is not a request (a Sales or won project), or the caller has no access. */
 export const get = query({
   args: { id: v.id("opportunities"), today: v.number() },
   handler: async (ctx, args) => {
     const o = await ctx.db.get(args.id);
-    if (o === null || o.pipeline !== "Sales") return null;
+    if (o === null || !isRequest(o)) return null;
     await requireBusiness(ctx, o.businessId);
     const client = await ctx.db.get(o.clientId);
     if (client === null) return null;
@@ -294,7 +294,7 @@ export const update = mutation({
   },
   handler: async (ctx, args) => {
     const o = await ctx.db.get(args.id);
-    if (o === null || o.pipeline !== "Sales") throw new ConvexError("That request no longer exists.");
+    if (o === null || !isRequest(o)) throw new ConvexError("That request no longer exists.");
     await requireEditor(ctx, o.businessId);
     const patch: Partial<Doc<"opportunities">> = {};
     if (args.title !== undefined) {
@@ -334,7 +334,7 @@ export const setLines = mutation({
   args: { id: v.id("opportunities"), lines: linesArg },
   handler: async (ctx, args) => {
     const o = await ctx.db.get(args.id);
-    if (o === null || o.pipeline !== "Sales") throw new ConvexError("That request no longer exists.");
+    if (o === null || !isRequest(o)) throw new ConvexError("That request no longer exists.");
     await requireEditor(ctx, o.businessId);
     await ctx.db.patch(o._id, { lines: cleanLines(args.lines) });
   },

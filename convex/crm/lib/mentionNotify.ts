@@ -25,14 +25,14 @@ export async function notifyMentions(ctx: MutationCtx, a: { businessId: Id<"busi
   }
 }
 
-/** Tells the people who should know that a Sales project changed stage (D-076): its salesperson (unless they made the move), and, when it is
- *  Closed Won, the Office team of that business, as the hand-off. Called by every place that moves a project. */
-export async function notifyStage(ctx: MutationCtx, a: { project: Doc<"opportunities">; from: string; to: string; byName: string; byUserId?: Id<"users">; now: number }) {
+/** Tells the people who should know that a project changed stage (D-076): its salesperson (unless they made the move), and, when it is
+ *  Closed Won or a handoff asks (`office`), the Office team of that business. Called by every place that moves a project. */
+export async function notifyStage(ctx: MutationCtx, a: { project: Doc<"opportunities">; from: string; to: string; byName: string; byUserId?: Id<"users">; now: number; office?: boolean }) {
   if (a.from === a.to) return;
   const message = a.to === "Closed Won" ? `${a.from} → Closed Won. Ready for Preplanning.` : `${a.from} → ${a.to}`;
   const who = new Map<Id<"users">, string>();
   if (a.project.salespersonId && a.project.salespersonId !== a.byUserId) who.set(a.project.salespersonId, message);
-  if (a.to === "Closed Won") {
+  if (a.to === "Closed Won" || a.office) {
     const users = await ctx.db.query("users").take(500);
     for (const u of users) {
       if (u.status === "active" && u.roles.includes("office") && (u.businessIds.includes(a.project.businessId) || u.roles.includes("admin")) && u._id !== a.byUserId) who.set(u._id, message);

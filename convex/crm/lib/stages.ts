@@ -25,6 +25,22 @@ export const PREPLANNING_STAGES = [
   "Ready for Construction / Installs Scheduled",
 ] as const;
 
+/** Construction pipeline stages, verbatim from the PRD. The last one is refused until customer sign-off exists (rule 5). */
+export const CONSTRUCTION_STAGES = [
+  "Ready to Start",
+  "PM Job Walk & Mark-up",
+  "20% Completed",
+  "40% Completed",
+  "60% Completed",
+  "80% Completed",
+  "PM Job Walk with Client",
+  "Punch List / Corrections Needed",
+  "100% Completed & Sign-off",
+] as const;
+
+/** The construction stage that needs resolved punch items and a customer sign-off. */
+export const COMPLETION_STAGE = "100% Completed & Sign-off";
+
 /** Login roles (D-014: a person can hold several). Installers do not log in (D-010). */
 export const ROLES = ["admin", "sales", "office", "pm"] as const;
 export type Role = (typeof ROLES)[number];
@@ -32,8 +48,18 @@ export const ROLE_LABEL: Record<Role, string> = { admin: "Admin", sales: "Sales"
 /** Roles that may add and change clients, requests and notes. Project Managers can look but not change, for now (D-046). */
 export const EDIT_ROLES: readonly Role[] = ["admin", "sales", "office"];
 
-export const PIPELINES = ["Sales", "Preplanning"] as const;
+export const PIPELINES = ["Sales", "Preplanning", "Construction"] as const;
 export type Pipeline = (typeof PIPELINES)[number];
+/** The two pipelines after Sales. Finance is Milestone 5. */
+export const WORK_PIPELINES = ["Preplanning", "Construction"] as const;
+export type WorkPipeline = (typeof WORK_PIPELINES)[number];
+
+/** The stage names of one pipeline, in board order. An unknown pipeline reads as Sales. */
+export function stagesOf(pipeline: string): readonly string[] {
+  if (pipeline === "Preplanning") return PREPLANNING_STAGES;
+  if (pipeline === "Construction") return CONSTRUCTION_STAGES;
+  return SALES_STAGES;
+}
 
 export const CLIENT_TYPES = ["homeowner", "contractor"] as const;
 export type ClientType = (typeof CLIENT_TYPES)[number];
@@ -70,6 +96,8 @@ export const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** `now` is passed in (queries must not read the clock), as the start of today or the current time. */
 export function requestStatus(stage: string, requestedAt: number, now: number): RequestStatus {
+  // A project that has moved on to Preplanning or Construction is still the request it came from, and is Converted (D-080).
+  if (isWorkStage(stage)) return "Converted";
   const index = (SALES_STAGES as readonly string[]).indexOf(stage);
   if (index <= 0) return now - requestedAt > OVERDUE_AFTER_DAYS * DAY_MS ? "Overdue" : "New";
   if (index <= 2) return "Consultation"; // Schedule Onsite Consultation, Onsite Consultation
@@ -117,6 +145,29 @@ export function checkMove(from: string, to: string, opts: { isAdmin: boolean; re
   if (to === "Closed Lost" && !(opts.reason ?? "").trim()) return { ok: false, error: "Say why the project was lost." };
   // Closed Won is checked against the project's quote, in applyMove (convex/crm/pipeline.ts): it needs a signed quote, for everyone.
   return { ok: true };
+}
+
+/** Pure rules for moving a project inside Preplanning or Construction. `signOff` is true only once the customer has signed off
+ *  and every required punch item is resolved; until that exists the server passes false and the last stage is refused. */
+export function checkWorkMove(pipeline: WorkPipeline, from: string, to: string, opts: { signOff?: boolean } = {}): MoveResult {
+  const stages = stagesOf(pipeline);
+  if (!stages.includes(from)) return { ok: false, error: `"${from}" is not a ${pipeline} stage.` };
+  if (!stages.includes(to)) return { ok: false, error: `"${to}" is not a ${pipeline} stage.` };
+  if (from === to) return { ok: false, error: `The project is already in "${to}".` };
+  if (to === COMPLETION_STAGE && !opts.signOff) {
+    return { ok: false, error: "100% Completed & Sign-off needs the customer's sign-off, and every required punch item resolved." };
+  }
+  return { ok: true };
+}
+
+/** True for a stage of Preplanning or Construction. Their names are locked, so a custom Sales stage can never share one. */
+export function isWorkStage(stage: string): boolean {
+  return (PREPLANNING_STAGES as readonly string[]).includes(stage) || (CONSTRUCTION_STAGES as readonly string[]).includes(stage);
+}
+
+/** Whether a project is shown as a request: every Sales project, and every won project, whichever pipeline it has moved to since (D-080). */
+export function isRequest(p: { pipeline: string; outcome?: "won" | "lost" }): boolean {
+  return p.pipeline === "Sales" || p.outcome === "won";
 }
 
 /** How long a project has been in its stage. Projects from before stage times were kept count from when they were requested. */

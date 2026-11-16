@@ -24,7 +24,7 @@ const EXIT_MS = 200; // keep in step with pl-panel-out in pipeline.css
 
 export function PipelinePanel({ business, card, people, onClose }: {
   business: BusinessDoc;
-  card: BoardCard;
+  card: Pick<BoardCard, "id" | "code" | "title" | "clientId" | "clientName" | "stage" | "valueCents" | "timeInStageMs" | "salespersonName" | "leadSource" | "requestedAt">;
   people: { id: Id<"users">; name: string }[];
   onClose: () => void;
 }) {

@@ -13,6 +13,7 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { moneyCents, quoteDate, quoteDateTime } from "@/lib/format";
 import { clock, failure, timeLabel, useMinute } from "@/lib/pipeline";
+import { ConstructionTab } from "./construction-tab";
 import { QUOTE_PILL } from "@/lib/quotes";
 import { Icon } from "./icon";
 import { NoteEditor, useUploadPending, type PendingFile } from "./note-editor";
@@ -21,10 +22,14 @@ import { OpportunitySkeleton } from "./skeletons";
 import { useStaff } from "./staff-context";
 import { useUI } from "./ui-provider";
 
-const TABS = ["overview", "quotes", "visit", "files", "activity"] as const;
+const TABS = ["overview", "construction", "quotes", "visit", "files", "activity"] as const;
 type Tab = (typeof TABS)[number];
-const TAB_LABEL: Record<Tab, string> = { overview: "Overview", quotes: "Quotes", visit: "Visit", files: "Files", activity: "Activity" };
-const parseTab = (s: string | null): Tab => ((TABS as readonly string[]).includes(s ?? "") ? (s as Tab) : "overview");
+const TAB_LABEL: Record<Tab, string> = { overview: "Overview", construction: "Construction", quotes: "Quotes", visit: "Visit", files: "Files", activity: "Activity" };
+/** A project in Construction opens on its Construction tab; the others have no such tab (D-081). */
+const parseTab = (s: string | null, pipeline: string): Tab => {
+  const wanted = (TABS as readonly string[]).includes(s ?? "") ? (s as Tab) : pipeline === "Construction" ? "construction" : "overview";
+  return wanted === "construction" && pipeline !== "Construction" ? "overview" : wanted;
+};
 
 const size = (n: number) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : n >= 1024 ? `${Math.round(n / 1024)} KB` : n ? `${n} B` : "");
 
@@ -48,11 +53,14 @@ type Overview = NonNullable<FunctionReturnType<typeof api.crm.opportunityPage.ov
 function OpportunityView({ o }: { o: Overview }) {
   const router = useRouter();
   const params = useSearchParams();
-  const tab = parseTab(params.get("tab"));
+  const tab = parseTab(params.get("tab"), o.pipeline);
   const now = useMinute();
   const quotes = useQuery(api.crm.opportunityPage.quotes, { id: o.id });
   const files = useQuery(api.crm.opportunityPage.files, { id: o.id });
-  const go = (t: Tab) => router.replace(t === "overview" ? `/opportunities/${o.id}` : `/opportunities/${o.id}?tab=${t}`, { scroll: false });
+  // The first tab of the project has the plain address; every other tab has ?tab=.
+  const first: Tab = o.pipeline === "Construction" ? "construction" : "overview";
+  const go = (t: Tab) => router.replace(t === first ? `/opportunities/${o.id}` : `/opportunities/${o.id}?tab=${t}`, { scroll: false });
+  const tabs = TABS.filter((t) => t !== "construction" || o.pipeline === "Construction");
   const at = o.stages.indexOf(o.stage);
   const lost = o.stage === "Closed Lost";
   const timeIn = Math.max(0, now - o.stageEnteredAt);
@@ -60,9 +68,10 @@ function OpportunityView({ o }: { o: Overview }) {
   return (
     <div className="fade-in op">
       <div className="op-top">
-        <Link className="rq-back" href="/pipeline"><Icon name="chevleft" size={18} /> Pipeline</Link>
+        <Link className="rq-back" href={o.pipeline === "Preplanning" ? "/pipeline/preplanning" : o.pipeline === "Construction" ? "/pipeline/construction" : "/pipeline"}><Icon name="chevleft" size={18} /> {o.pipeline}</Link>
         <div className="op-actions">
-          <Link className="btn" href={`/requests/${o.id}`}><Icon name="pencil" size={18} /> Edit request</Link>
+          {/* A won project keeps its request page after it moves on to Preplanning or Construction; a project that never was a request has none. */}
+          {(o.pipeline === "Sales" || o.outcome === "won") && <Link className="btn" href={`/requests/${o.id}`}><Icon name="pencil" size={18} /> Edit request</Link>}
           <Link className="btn primary" href={`/quotes/new?clientId=${o.clientId}&projectId=${o.id}`}><Icon name="quote" size={18} /> New quote</Link>
         </div>
       </div>
@@ -72,13 +81,13 @@ function OpportunityView({ o }: { o: Overview }) {
         <span className={`pill tag ${o.outcome === "won" ? "active" : lost ? "overdue" : "lead"}`}><span className="dot" />{o.stage}</span>
         {o.archivedAt !== null && <span className="pill tag draft"><span className="dot" />Archived</span>}
       </div>
-      <ol className="op-stages" aria-label="Sales pipeline">
+      <ol className="op-stages" aria-label={`${o.pipeline} pipeline`}>
         {o.stages.map((s, i) => (
           <li key={s} className={s === o.stage ? (lost ? "now lost" : "now") : i < at && !lost ? "done" : undefined} aria-current={s === o.stage ? "step" : undefined}>{s}</li>
         ))}
       </ol>
       <div className="tabs op-tabs" role="tablist" aria-label="Opportunity sections">
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <button key={t} type="button" role="tab" aria-selected={tab === t} className={`tab${tab === t ? " active" : ""}`} onClick={() => go(t)}>
             {TAB_LABEL[t]}
             {t === "quotes" && quotes && quotes.length > 0 && <small>{quotes.length}</small>}
@@ -87,6 +96,7 @@ function OpportunityView({ o }: { o: Overview }) {
         ))}
       </div>
       {tab === "overview" && <OverviewTab o={o} timeIn={timeIn} />}
+      {tab === "construction" && <ConstructionTab id={o.id} businessId={o.businessId} title={o.title} />}
       {tab === "quotes" && <QuotesTab o={o} />}
       {tab === "visit" && <VisitTab id={o.id} />}
       {tab === "files" && <FilesTab o={o} />}
@@ -103,6 +113,8 @@ const CONTRACT: Record<Overview["contract"]["state"], { label: string; cls: stri
 };
 
 function nextStep(o: Overview): string {
+  if (o.pipeline === "Preplanning") return `In Preplanning: ${o.stage}.`;
+  if (o.pipeline === "Construction") return o.stage === "100% Completed & Sign-off" ? "Construction is signed off." : `In Construction: ${o.stage}.`;
   if (o.outcome === "won") return "Closed Won. Next is Preplanning.";
   if (o.outcome === "lost") return o.lostReason ? `Closed Lost: ${o.lostReason}` : "Closed Lost.";
   if (o.contract.state === "noquote") return "Next step: make a quote for this project.";

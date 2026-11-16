@@ -339,6 +339,20 @@ export function RequestSkeleton() {
   );
 }
 
+/** The Construction tab of a project (D-081): the status line, then the cards. */
+export function ConstructionSkeleton() {
+  return (
+    <Busy>
+      <div className="op-body one cn">
+        <Sk w="100%" h={46} r={6} />
+        {range(4).map((n) => (
+          <div key={n} className="card op-card"><Sk w={160} h={22} /><Sk w="90%" h={16} style={{ marginTop: 12 }} /><Sk w="60%" h={16} style={{ marginTop: 6 }} /><Sk w={130} h={40} r={6} style={{ marginTop: 14 }} /></div>
+        ))}
+      </div>
+    </Busy>
+  );
+}
+
 export function OpportunitySkeleton() {
   return (
     <Busy>
@@ -617,6 +631,62 @@ export function PipelineBoardSkeleton() {
   );
 }
 
+/** Preplanning and Construction: one rail and a row of stage columns, no Sales Outcomes tab. */
+export function WorkPipelineBoardSkeleton() {
+  return (
+    <Busy>
+      <div className="pl-tab">
+        <div className="pl-bar">
+          <div className="chips">
+            {[150, 44, 140, 150, 130].map((w, i) => (<Sk key={i} w={w} h={38} r={999} />))}
+          </div>
+          <Sk w={280} h={44} r={8} />
+        </div>
+        <div className="pl-boardwrap">
+          <div className="pl-board work">
+            <section className="pl-group">
+              <div className="pl-rail"><Sk w={22} h={22} r={999} /><Sk w={16} h={110} /></div>
+              <div className="pl-cols">
+                {range(4).map((i) => (
+                  <div key={i} className="pl-col">
+                    <div className="pl-colhead"><Sk w="80%" h={16} /><div className="pl-colstat"><Sk w={26} h={22} r={999} /><Sk w={36} h={14} /></div></div>
+                    <div className="pl-colbody">
+                      {i === 0 && (
+                        <div className="pl-card" style={{ cursor: "default" }}>
+                          <Sk w="80%" h={14} />
+                          <div style={{ height: 8 }} />
+                          <Sk w="55%" h={13} />
+                          <div style={{ height: 8 }} />
+                          <Sk w="65%" h={13} />
+                          <div style={{ height: 12 }} />
+                          <div className="pl-cardfoot"><Sk w={34} h={20} r={999} /><Sk w={50} h={14} /></div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </Busy>
+  );
+}
+
+export function WorkPipelineSkeleton() {
+  return (
+    <Busy>
+      <div className="pl">
+        <div className="pl-top">
+          <div className="pl-tabs"><Sk w={120} h={20} /></div>
+        </div>
+        <div className="pl-content"><WorkPipelineBoardSkeleton /></div>
+      </div>
+    </Busy>
+  );
+}
+
 export function PipelineSkeleton() {
   return (
     <Busy>
@@ -744,6 +814,18 @@ export function QuoteBuilderSkeleton() {
 }
 
 /* The client's quote page (D-063). */
+export function ClientSignoffSkeleton() {
+  return (
+    <Busy>
+      <main className="cq">
+        <header className="cq-head"><Sk w={140} h={16} /><div style={{ height: 8 }} /><Sk w="60%" h={30} /><div style={{ height: 8 }} /><Sk w="80%" h={14} /></header>
+        <section className="cq-card"><Sk w="40%" h={18} /><Sk w="100%" h={14} /><Sk w="90%" h={14} /></section>
+        <section className="cq-card"><Sk w="50%" h={20} /><Sk w="100%" h={44} /><Sk w="100%" h={44} /></section>
+      </main>
+    </Busy>
+  );
+}
+
 export function ClientQuoteSkeleton() {
   return (
     <Busy>

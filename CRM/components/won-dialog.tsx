@@ -61,8 +61,8 @@ export function CloseWonDialog({ projectId, businessId, title, onClose }: { proj
     setBusy("won");
     setError("");
     try {
-      await markOutcome({ id: projectId, outcome: "won", now: clock() });
-      toast(`${title} was marked as won.`);
+      const moved = await markOutcome({ id: projectId, outcome: "won", now: clock() });
+      toast(moved.handedOff ? `${title} was marked as won, and is now in Preplanning.` : `${title} was marked as won.`);
       close();
     } catch (e) {
       setError(failure(e, "The project could not be marked as won. Try again."));

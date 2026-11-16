@@ -10,7 +10,8 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { BUSINESS_TZ, dayKey, zonedToMs } from "@/convex/crm/lib/schedule";
 import { useKept } from "./clients";
 
-export { BUSINESS_TZ, ITEM_LABEL, ITEM_TYPES, REPEAT_LABEL, REPEATS, dayKey, localClock, zonedToMs, inWorkingHours } from "@/convex/crm/lib/schedule";
+export { BUSINESS_TZ, ITEM_LABEL, ITEM_TYPES, REPEAT_LABEL, REPEATS, VISIT_LABEL, dayKey, localClock, zonedToMs, inWorkingHours } from "@/convex/crm/lib/schedule";
+export type { VisitKind } from "@/convex/crm/lib/schedule";
 export type { ItemType, Repeat, WorkingHours } from "@/convex/crm/lib/schedule";
 
 export type View = "month" | "week" | "day";

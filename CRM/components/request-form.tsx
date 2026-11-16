@@ -20,16 +20,24 @@ import { EmptyBackend } from "./empty-backend";
 import { AssessmentModal, AssessmentPicker, type AssessmentDraft } from "./request-assessment";
 import { RequestLinesEditor, checkRequestLines, type RequestLine } from "./request-lines";
 import { Icon } from "./icon";
+import { NewRequestFlow } from "./intake/new-request-flow";
 import { NewClientDialog } from "./new-client-dialog";
 import { NoteEditor, useUploadPending, type PendingFile } from "./note-editor";
 import { NewRequestSkeleton } from "./skeletons";
 import { useStaff } from "./staff-context";
 import { useUI } from "./ui-provider";
 
+/** The business whose services the customer form asks about (the same slug the forms' enquiries are filed under, D-066). */
+const FORMS_BUSINESS_SLUG = "quality-first-turf";
+
 export function NewRequestPage() {
   const workspace = useWorkspace();
+  const staff = useStaff();
   if (workspace.state === "loading") return <NewRequestSkeleton />;
   if (workspace.state === "empty") return <EmptyBackend />;
+  // Quality First Turf Landscape gets the customer form's questions in the forms' look (D-079). The other businesses sell different
+  // services, which that form does not ask about, so they keep the Jobber-style form below.
+  if (workspace.business.slug === FORMS_BUSINESS_SLUG && staff.canEdit) return <NewRequestFlow key={workspace.business._id} business={workspace.business} />;
   return <Form business={workspace.business} />;
 }
 

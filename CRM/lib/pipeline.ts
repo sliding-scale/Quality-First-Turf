@@ -8,7 +8,7 @@ import { ConvexError } from "convex/values";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { DAY_MS, type BoardGroup } from "@/convex/crm/lib/stages";
+import { DAY_MS, type BoardGroup, type WorkPipeline } from "@/convex/crm/lib/stages";
 import { BUSINESS_TZ, dayKey } from "@/convex/crm/lib/schedule";
 import { rangeBounds, type DateRange } from "./dates";
 import { useKept } from "./clients";
@@ -43,6 +43,21 @@ export function useMinute(): number {
 export function rangeMs(range: DateRange): { from?: number; to?: number } {
   const { from, to } = rangeBounds(range);
   return { ...(from ? { from: from.getTime() } : {}), ...(to ? { to: to.getTime() + DAY_MS - 1 } : {}) };
+}
+
+export function useWorkBoard(businessId: Id<"businesses">, pipeline: WorkPipeline, f: BoardFilters, now: number) {
+  const args = {
+    businessId,
+    pipeline,
+    sortKey: f.sortKey,
+    dir: f.dir,
+    leadSources: f.leadSources,
+    search: f.search,
+    now,
+    ...(f.salespersonId ? { salespersonId: f.salespersonId } : {}),
+    ...rangeMs(f.range),
+  };
+  return useKept(useQuery(api.crm.pipeline.workBoard, args));
 }
 
 export function useBoard(businessId: Id<"businesses">, f: BoardFilters, now: number) {
@@ -91,6 +106,8 @@ export function wonBlock(e: unknown): { code: string; message: string; quoteId?:
 
 export type BoardData = NonNullable<ReturnType<typeof useBoard>>;
 export type BoardCard = BoardData["columns"][number]["cards"][number];
+export type WorkBoard = NonNullable<ReturnType<typeof useWorkBoard>>;
+export type WorkCard = WorkBoard["columns"][number]["cards"][number];
 
 /** The start and end of today in ms, for the Tasks tab. */
 export function todayBounds(): { todayStart: number; todayEnd: number } {

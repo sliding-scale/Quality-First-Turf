@@ -1,7 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { mutation, query, type MutationCtx, type QueryCtx } from "../_generated/server";
-import { requireBusiness, requireEditor } from "./lib/access";
+import { requireBusiness, requireEditor, requireMover } from "./lib/access";
 import { checkAssignee } from "./lib/assignees";
 import {
   BLOCKING, BUSINESS_TZ, DEFAULT_HOURS, expandRepeats, overlaps, type ItemType, type Repeat, type WorkingHours,
@@ -79,9 +79,13 @@ export const book = mutation({
     businessId: v.id("businesses"), type: typeV, title: v.string(), start: v.number(), end: v.number(), anytime: v.optional(v.boolean()),
     assigneeIds: v.array(v.id("users")), opportunityId: v.optional(v.id("opportunities")), clientId: v.optional(v.id("clients")),
     notes: v.optional(v.string()), repeat: v.optional(repeatV), repeatUntil: v.optional(v.number()), now: v.number(),
+    /** A construction visit (D-081): a job walk, an installation day or a reinspection, booked from the project's Construction tab. */
+    visitKind: v.optional(v.union(v.literal("jobWalk"), v.literal("install"), v.literal("reinspection"))),
   },
   handler: async (ctx, a) => {
-    const staff = await requireEditor(ctx, a.businessId);
+    // A Project Manager may book a construction visit for a project in Construction; every other booking needs an editing role.
+    const staff = a.visitKind !== undefined ? await requireMover(ctx, a.businessId, "Construction") : await requireEditor(ctx, a.businessId);
+    if (a.visitKind !== undefined && a.type !== "visit") throw new ConvexError("A job walk, installation day or reinspection is a visit.");
     const anytime = a.anytime ?? false;
     const title = checkFields({ title: a.title, start: a.start, end: a.end, anytime });
     const assigneeIds = [...new Set(a.assigneeIds)];
@@ -91,11 +95,13 @@ export const book = mutation({
       project = await ctx.db.get(a.opportunityId);
       if (project === null || project.businessId !== a.businessId) throw new ConvexError("That project is not in this business.");
     }
+    if (a.visitKind !== undefined && project?.pipeline !== "Construction") throw new ConvexError("Construction visits are booked for a project in Construction.");
     const repeat = a.repeat ?? "none";
     await checkConflicts(ctx, a.businessId, { type: a.type, start: a.start, end: a.end, anytime, assigneeIds, repeat, repeatUntil: a.repeatUntil });
     const id = await ctx.db.insert("calendarEvents", {
       businessId: a.businessId, type: a.type, title, opportunityId: a.opportunityId, clientId: a.clientId ?? project?.clientId, start: a.start, end: a.end, anytime,
       assigneeIds, status: "upcoming", notes: a.notes ?? "", repeat, repeatUntil: a.repeatUntil, createdBy: staff.userId, createdAt: a.now, updatedAt: a.now,
+      ...(a.visitKind ? { visitKind: a.visitKind } : {}),
     });
     await mirrorChanged(ctx, "event", id);
     // Booking a consultation for a project that was waiting for one moves it forward in the pipeline.
@@ -185,6 +191,8 @@ export type ScheduleItem = {
   clientId: Id<"clients"> | undefined;
   clientName: string;
   opportunityId: Id<"opportunities"> | undefined;
+  /** Set on a construction visit: a job walk, an installation day or a reinspection (D-081). */
+  visitKind: "jobWalk" | "install" | "reinspection" | undefined;
   notes: string;
   occurrence: number;
   /** The whole item's first start and end (a repeat is one item), so moving one occurrence can move the series. */
@@ -220,7 +228,7 @@ export const range = query({
         items.push({
           key: `${e._id}:${o.occurrence}`, id: e._id, kind: e.type, title: e.title, start: o.start, end: o.end, anytime: e.anytime, assigneeIds: e.assigneeIds,
           status: e.status, overdue: e.status !== "completed" && o.end < a.now, repeat: e.repeat, clientId: e.clientId, clientName: await clientName(e.clientId),
-          opportunityId: e.opportunityId, notes: e.notes, occurrence: o.occurrence, seriesStart: e.start, seriesEnd: e.end, zoho: e.source === "zoho",
+          opportunityId: e.opportunityId, visitKind: e.visitKind, notes: e.notes, occurrence: o.occurrence, seriesStart: e.start, seriesEnd: e.end, zoho: e.source === "zoho",
         });
       }
     }
@@ -231,7 +239,7 @@ export const range = query({
       items.push({
         key: `task:${t._id}`, id: t._id, kind: "task", title: t.title, start: t.startAt, end: t.endAt, anytime: false, assigneeIds: t.assigneeId ? [t.assigneeId] : [],
         status: t.done ? "completed" : "upcoming", overdue: !t.done && t.endAt < a.now, repeat: "none", clientId: project?.clientId, clientName: await clientName(project?.clientId),
-        opportunityId: t.opportunityId, notes: "", occurrence: 0, seriesStart: t.startAt, seriesEnd: t.endAt, zoho: false,
+        opportunityId: t.opportunityId, visitKind: undefined, notes: "", occurrence: 0, seriesStart: t.startAt, seriesEnd: t.endAt, zoho: false,
       });
     }
     const wantedStatus = new Set(a.statuses.filter((s) => (STATUS_KEYS as readonly string[]).includes(s)));

@@ -18,8 +18,8 @@ export const mine = query({
       const client = r.clientId ? await ctx.db.get(r.clientId) : null;
       const quote = r.quoteId ? await ctx.db.get(r.quoteId) : null;
       // Where it was said, in words, and the page to open.
-      const where = r.kind === "project" || r.kind === "stage" ? project?.title ?? "A project" : r.kind === "client" ? client?.name ?? "A client" : quote ? `Quote #${quote.number}` : "A quote";
-      const href = (r.kind === "project" || r.kind === "stage") && r.opportunityId ? `/requests/${r.opportunityId}` : r.kind === "client" && r.clientId ? `/clients/${r.clientId}` : r.quoteId ? `/quotes/${r.quoteId}` : null;
+      const where = r.kind === "project" || r.kind === "stage" || r.kind === "construction" ? project?.title ?? "A project" : r.kind === "client" ? client?.name ?? "A client" : quote ? `Quote #${quote.number}` : "A quote";
+      const href = r.kind === "construction" && r.opportunityId ? `/opportunities/${r.opportunityId}?tab=construction` : (r.kind === "project" || r.kind === "stage") && r.opportunityId ? `/requests/${r.opportunityId}` : r.kind === "client" && r.clientId ? `/clients/${r.clientId}` : r.quoteId ? `/quotes/${r.quoteId}` : null;
       out.push({ id: r._id, byName: r.byName, kind: r.kind, where, href, businessName: business?.name ?? "", excerpt: r.excerpt, at: r.at, read: r.readAt !== undefined });
     }
     return { items: out, unread: out.filter((m) => !m.read).length };

@@ -52,7 +52,7 @@ function MentionsPanel({ close }: { close: () => void }) {
               <>
                 {!m.read && <span className="mn-dot" aria-label="Unread" />}
                 <span className="mn-text">
-                  <b>{m.byName}</b> {m.kind === "stage" ? "moved" : "tagged you in"} {m.where}
+                  <b>{m.byName}</b> {m.kind === "stage" ? "moved" : m.kind === "construction" ? "updated" : "tagged you in"} {m.where}
                   <span className="mn-excerpt">{m.excerpt}</span>
                   <small>{quoteDateTime(m.at)}{m.businessName ? ` · ${m.businessName}` : ""}</small>
                 </span>

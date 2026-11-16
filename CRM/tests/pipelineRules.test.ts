@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkMove, timeInStage, PIPELINE_GROUPS, CLOSED_STAGES, LEAD_SOURCES } from "../../convex/crm/lib/stages";
+import { checkMove, checkWorkMove, timeInStage, PIPELINE_GROUPS, CLOSED_STAGES, LEAD_SOURCES, PREPLANNING_STAGES, CONSTRUCTION_STAGES } from "../../convex/crm/lib/stages";
 
 const staff = { isAdmin: false };
 const admin = { isAdmin: true };
@@ -47,6 +47,39 @@ describe("pipeline stage rules", () => {
   it("refuses unknown stages unless they are the business's custom stages", () => {
     expect(checkMove("New Request", "Made Up", staff).ok).toBe(false);
     expect(checkMove("New Request", "Site Survey", { isAdmin: false, custom: ["Site Survey"] }).ok).toBe(true);
+  });
+
+  it("lists the Preplanning and Construction stages in the PRD's order", () => {
+    expect([...PREPLANNING_STAGES]).toEqual([
+      "Ready for Preplanning",
+      "Contract & Scope of Work Review",
+      "Material Takeoff & Availability",
+      "Installer Work Package",
+      "Crew Alignment & Hold",
+      "Schedule & Access Confirmation",
+      "Order & Schedule Delivery for Materials",
+      "Ready for Construction / Installs Scheduled",
+    ]);
+    expect([...CONSTRUCTION_STAGES]).toEqual([
+      "Ready to Start",
+      "PM Job Walk & Mark-up",
+      "20% Completed",
+      "40% Completed",
+      "60% Completed",
+      "80% Completed",
+      "PM Job Walk with Client",
+      "Punch List / Corrections Needed",
+      "100% Completed & Sign-off",
+    ]);
+  });
+
+  it("moves freely inside Preplanning and Construction, and holds the last construction stage for sign-off", () => {
+    expect(checkWorkMove("Preplanning", "Ready for Preplanning", "Installer Work Package").ok).toBe(true);
+    expect(checkWorkMove("Construction", "Ready to Start", "80% Completed").ok).toBe(true);
+    expect(checkWorkMove("Construction", "Punch List / Corrections Needed", "100% Completed & Sign-off").ok).toBe(false);
+    expect(checkWorkMove("Construction", "Punch List / Corrections Needed", "100% Completed & Sign-off", { signOff: true }).ok).toBe(true);
+    expect(checkWorkMove("Preplanning", "Ready for Preplanning", "Ready to Start").ok).toBe(false);
+    expect(checkWorkMove("Construction", "Ready to Start", "Ready to Start").ok).toBe(false);
   });
 
   it("computes time in stage, falling back to the request time", () => {

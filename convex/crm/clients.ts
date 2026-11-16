@@ -5,6 +5,7 @@ import { internal } from "../_generated/api";
 import { canSee, requireBusiness, requireEditor, requireStaff } from "./lib/access";
 import { deleteQuote } from "./lib/quoteData";
 import { attachmentLinks, checkNoteFiles, deleteNoteFiles, noteFilesArg } from "./lib/noteFiles";
+import { deleteConstruction } from "./lib/construction";
 import { toggleCheckbox } from "./lib/noteText";
 import { clientInputFields, clientSearchText, normalizeClientInput, opportunitySearchText } from "./lib/clientInput";
 import { CLIENT_TAGS, DAY_MS, matchesClientStatusFilter, type ClientStatusFilter } from "./lib/stages";
@@ -265,7 +266,10 @@ export const remove = mutation({
       if (r.projects.length > MAX_RELATED || r.notes.length > MAX_RELATED || r.quotes.length > MAX_RELATED) {
         throw new ConvexError(`${client.name} has too much attached to delete in one go. Archive it instead.`);
       }
-      for (const p of r.projects) await ctx.db.delete(p._id);
+      for (const p of r.projects) {
+        await deleteConstruction(ctx, p._id); // progress, punch list and sign-offs, with their photos (D-081)
+        await ctx.db.delete(p._id);
+      }
       for (const n of r.notes) {
         await deleteNoteFiles(ctx, n.attachments);
         await ctx.db.delete(n._id);

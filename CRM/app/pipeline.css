@@ -12,6 +12,7 @@
 .pl-tab-btn { padding: 22px 4px 14px; border: 0; border-bottom: 3px solid transparent; margin-bottom: -1px; background: none; font-weight: 700; font-size: 16px; color: #49646f; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: color 0.15s ease, border-color 0.15s ease; }
 .pl-tab-btn:hover { color: var(--ink); border-bottom-color: #dadfe2; }
 .pl-tab-btn.active, .pl-tab-btn.active:hover { color: var(--ink); border-bottom-color: var(--green); }
+.pl-tab-btn.static { cursor: default; }
 .pl-actionrow { display: flex; justify-content: flex-end; padding: 22px 24px 0; }
 .pl-actions { display: flex; gap: 10px; }
 .pl-content { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: auto; }
@@ -42,6 +43,7 @@
 .pl-cols { display: flex; min-height: 0; overflow: hidden; max-width: 4000px; opacity: 1; transition: max-width 0.28s ease-out, opacity 0.2s ease-out; }
 .pl-group.folded .pl-cols { max-width: 0; opacity: 0; pointer-events: none; }
 .pl-col { width: 205px; flex: none; display: flex; flex-direction: column; min-height: 0; border-left: 1px solid #dadfe2; transition: background-color 0.15s ease; }
+.pl-board.work .pl-col { width: 260px; }
 .pl-group:last-child { margin-right: 0; }
 .pl-col.closed .pl-colhead h3 { color: var(--ink); }
 .pl-col.closed .pl-card { background: #fbfbfa; }
@@ -188,7 +190,7 @@ button.pl-iconbox:hover:not(:disabled) { background: #dcdad5; }
   /* One full column at a time. The next column starts at the edge, so its title is not cut in half. */
   .pl-board { container-type: inline-size; scroll-snap-type: x mandatory; }
   .pl-rail { position: sticky; left: 0; z-index: 2; }
-  .pl-col { width: calc(100cqw - 40px); scroll-snap-align: start; }
+  .pl-col, .pl-board.work .pl-col { width: calc(100cqw - 40px); scroll-snap-align: start; }
   .pl-title, .pl-service span { min-width: 0; }
   .pl-cardtop { min-width: 0; }
   /* The two groups stack, and each scrolls sideways on its own, so "Add a stage" is always in view. */

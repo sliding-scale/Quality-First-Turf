@@ -4,7 +4,7 @@ import { mutation, query, type QueryCtx } from "../_generated/server";
 import { requireBusiness, requireEditor } from "./lib/access";
 import { AUTOMATIONS } from "./lib/automationRules";
 import { lineTotalCents } from "./lib/quoteMath";
-import { PIPELINE_GROUPS, SALES_STAGES } from "./lib/stages";
+import { PIPELINE_GROUPS, stagesOf } from "./lib/stages";
 
 /* The opportunity page (D-077): one page per project, at its own address (/opportunities/<id>), with Overview, Quotes, Visit, Files and
    Activity. Everything here reads what already exists (the project, its quotes, the visit behind it from the customer form, its notes
@@ -46,7 +46,7 @@ export const overview = query({
     const group = o.stage === "Closed Won" || o.stage === "Closed Lost" ? "Closed" : (PIPELINE_GROUPS.Quotes as readonly string[]).includes(o.stage) ? "Quotes" : "Requests";
     return {
       id: o._id, businessId: o.businessId, clientId: o.clientId, code: o.code, title: o.title, pipeline: o.pipeline, stage: o.stage, group,
-      stages: [...SALES_STAGES] as string[], requestedAt: o.requestedAt, stageEnteredAt: o.stageEnteredAt ?? o.requestedAt, leadSource: o.leadSource ?? "", details: o.details ?? "",
+      stages: [...stagesOf(o.pipeline)], requestedAt: o.requestedAt, stageEnteredAt: o.stageEnteredAt ?? o.requestedAt, leadSource: o.leadSource ?? "", details: o.details ?? "",
       outcome: o.outcome ?? null, lostReason: o.lostReason ?? "", archivedAt: o.archivedAt ?? null, salespersonId: o.salespersonId ?? null, salespersonName: person?.name ?? "Unassigned",
       client: { name: client.name, street1: client.street1, street2: client.street2, city: client.city, state: client.state, zip: client.zip, phone: client.phone, email: client.email },
       assessment: assessment ? { start: assessment.start, anytime: assessment.anytime, status: assessment.status, instructions: assessment.notes } : null,

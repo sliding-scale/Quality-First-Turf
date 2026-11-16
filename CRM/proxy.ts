@@ -11,7 +11,9 @@ export default clerkMiddleware(async (auth, request) => {
   const isOpen =
     path === "/sign-in" || path.startsWith("/sign-in/") || path === "/accept-invite" || path.startsWith("/accept-invite/") || path === "/sales-access/signout" ||
     // The client's quote page: the secret link is the key (D-063). Every function behind it checks the token.
-    path.startsWith("/q/");
+    path.startsWith("/q/") ||
+    // The customer's completion sign-off page (D-081): the secret link is the key here too.
+    path.startsWith("/signoff/");
   if (!isOpen) await auth.protect();
 });
 

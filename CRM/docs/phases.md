@@ -86,19 +86,19 @@ PRD goal: the complete sales workflow, from enquiry to approved contract.
 PRD goal: from sales handoff through materials, installation and customer sign-off, on the same record.
 
 **UI/UX (sample data), steps 4.1 to 4.2**
-- [ ] 4.1 Preplanning: board (8 stages), material takeoff form, catalogue and units, crews and installers, installer budgets, work package. Formulas are placeholders
-- [ ] 4.2 Construction: board (9 stages), progress updates with photos, punch list, reinspection, completion sign-off (phone-first)
-- [ ] Customer and installer pages: work-package page `/wp/[token]`, completion sign-off page
+- [ ] 4.1 Preplanning: board (8 stages) **built on dev (D-080)**; still to do: material takeoff form, catalogue and units, crews and installers, installer budgets, work package. Formulas are placeholders
+- [x] 4.2 Construction: board (9 stages) (D-080), and the project's Construction tab (D-081, built on dev): project manager and crews, job walks, installation days and reinspections on the Schedule, progress updates with photos, punch list, reinspection, completion sign-off. The last stage needs every required punch item verified and the customer's signature, and signing moves the project there.
+- [~] Customer and installer pages: completion sign-off page `/signoff/[token]` built (D-081); the work-package page `/wp/[token]` is not
 
 **Backend wiring**
 - [ ] Schema: `products`, `materialFormulas`, `takeoffs`, `takeoffLines`, `suppliers`, `crews`, `installers`, `workPackages`, `workPackageLinks`, `purchaseOrders`, `punchItems`, `progressUpdates`, `signoffs`
-- [ ] Closed Won activates Preplanning on the same record, notifies the Office Team, carries forward contract, quote, site plan and customer details
+- [~] Closed Won sends the project to Preplanning by itself, on the same record (D-080), and the Office team is told. Contract, quote, site plan and customer details stay on that record. Still to do: takeoff, suppliers, crews and work packages.
 - [ ] Formula engine: safe expression evaluation (no `eval`), wastage rules, unit-tested
 - [ ] Material takeoff, supplier, stock and lead times, requirements summary
 - [ ] Installer budgets, labour costs, schedules; crews and installers are records, not users (D-010)
 - [ ] Work packages shared by secure expiring link
-- [ ] Final stage blocked until required punch items are resolved and customer sign-off is recorded
-- [ ] Digital completion sign-off
+- [x] Final stage blocked until required punch items are resolved and customer sign-off is recorded (D-081, backend)
+- [x] Digital completion sign-off (D-081): on a device or through the customer's link, kept with the punch list as it was; printable
 - [ ] Swap the Phase 4 screens to Convex
 
 **Needs:** product catalogue and units, formulas and wastage, suppliers, installer budget structure, sign-off template. This phase is blocked on them, so ask when it starts (D-018).

@@ -80,7 +80,7 @@ async function addProject(
   ctx: MutationCtx,
   p: {
     businessId: Doc<"businesses">["_id"]; clientId: Doc<"clients">["_id"]; client: Parameters<typeof clientSearchText>[0];
-    code: string; title: string; pipeline: "Sales" | "Preplanning"; stage: string; requestedAt: number; owner: string;
+    code: string; title: string; pipeline: "Sales" | "Preplanning" | "Construction"; stage: string; requestedAt: number; owner: string;
   },
 ) {
   const { client, ...rest } = p;

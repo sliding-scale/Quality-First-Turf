@@ -48,7 +48,9 @@ describe("Closed Won needs the signed quote, for everyone", () => {
     const w = await seeded();
     await signedQuote(w);
     await w.sales.mutation(api.crm.pipeline.moveStage, { id: w.project, to: "Closed Won", now: NOW });
-    expect((await w.base.run((ctx) => ctx.db.get(w.project)))?.stage).toBe("Closed Won");
+    // Closed Won hands the project straight to Preplanning, and the Closed Won move stays in its history.
+    expect(await w.base.run((ctx) => ctx.db.get(w.project))).toMatchObject({ outcome: "won", pipeline: "Preplanning", stage: "Ready for Preplanning" });
+    expect((await w.sales.query(api.crm.pipeline.history, { id: w.project })).map((r) => r.to).slice(0, 2)).toEqual(["Ready for Preplanning", "Closed Won"]);
   });
 
   it("does not count a quote that is Approved without a signature picture", async () => {
@@ -87,7 +89,7 @@ describe("an uploaded signed contract, and an optional invoice", () => {
     expect(r.contract.url).toBeTruthy();
     await w.admin.mutation(api.crm.pipeline.moveStage, { id: w.project, to: "Closed Won", now: NOW });
     const history = await w.sales.query(api.crm.pipeline.history, { id: w.project });
-    expect(history[0].note).toMatch(/signed contract uploaded/i);
+    expect(history.find((r) => r.to === "Closed Won")?.note).toMatch(/signed contract uploaded/i);
     const v = await seeded();
     await v.sales.mutation(api.crm.pipeline.attachContract, { id: v.project, storageId: await file(v, 800, "image/png"), name: "photo-of-contract.png", now: NOW });
     await v.sales.mutation(api.crm.pipeline.moveStage, { id: v.project, to: "Closed Won", now: NOW });

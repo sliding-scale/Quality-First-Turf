@@ -1,15 +1,17 @@
 import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { mutation, query, type MutationCtx, type QueryCtx } from "../_generated/server";
-import { requireBusiness, requireEditor, type Staff } from "./lib/access";
+import { requireBusiness, requireEditor, requireMover, type Staff } from "./lib/access";
 import { stageList } from "./lib/pipelineStages";
 import { checkFile } from "./quoteDraft";
 import { quoteTotals } from "./lib/quoteMath";
 import { quoteMoneyOptions } from "./lib/quoteOptions";
-import { checkMove, CLOSED_STAGES, LEAD_SOURCES, NO_SOURCE, SALES_STAGES, timeInStage, type BoardGroup } from "./lib/stages";
+import { checkMove, checkWorkMove, CLOSED_STAGES, COMPLETION_STAGE, CONSTRUCTION_STAGES, LEAD_SOURCES, NO_SOURCE, PREPLANNING_STAGES, SALES_STAGES, timeInStage, type BoardGroup } from "./lib/stages";
 import { notifyStage } from "./lib/mentionNotify";
+import { completionBlock, completionState } from "./lib/construction";
 
-/** The Sales pipeline board (D-061). `moveStage` below is the only place that changes a project's stage. */
+/** The pipeline boards (D-061, D-080). `moveStage` changes a stage inside the project's current pipeline.
+ *  `startPreplanning`, `startConstruction`, `returnToSales` and `returnToPreplanning` are the only moves between pipelines. */
 
 /** What Closed Won needs (D-063): the signed contract, either the project's quote approved and signed or a signed contract uploaded to the project,
  *  and, when a signed quote asks for a deposit, the deposit received. An invoice may be uploaded too, but it is never required. Nobody can skip
@@ -52,9 +54,34 @@ async function checkWon(ctx: MutationCtx, project: Doc<"opportunities">): Promis
   return r.contract.via === "quote" ? `Quote #${r.contract.quoteNumber} approved and signed` : "Signed contract uploaded";
 }
 
-/** One move: validates it, updates the project and writes the history row. Shared by moveStage and the card menu's won/lost. */
+/** A move inside Preplanning or Construction. The same rules as Sales for history and notifications; the outcome of the sale stays. */
+async function applyWorkMove(ctx: MutationCtx, project: Doc<"opportunities">, to: string, staff: Staff, now: number) {
+  if (project.pipeline !== "Preplanning" && project.pipeline !== "Construction") throw new ConvexError("This pipeline is not open yet.");
+  // The last construction stage needs every required punch item verified and the customer's sign-off (PRD 4.6, D-081).
+  let signOff = false;
+  if (to === COMPLETION_STAGE && project.pipeline === "Construction") {
+    const state = await completionState(ctx, project._id);
+    if (!state.ready) throw new ConvexError(completionBlock(state));
+    signOff = true;
+  }
+  const verdict = checkWorkMove(project.pipeline, project.stage, to, { signOff });
+  if (!verdict.ok) throw new ConvexError(verdict.error);
+  const from = project.stage;
+  await ctx.db.patch(project._id, {
+    stage: to,
+    stageEnteredAt: now,
+    searchText: project.searchText.endsWith(from) ? project.searchText.slice(0, -from.length) + to : `${project.searchText} ${to}`,
+  });
+  await ctx.db.insert("stageHistory", {
+    opportunityId: project._id, businessId: project.businessId, from, to, byName: staff.name, byUserId: staff.userId, at: now,
+  });
+  await notifyStage(ctx, { project, from, to, byName: staff.name, byUserId: staff.userId, now });
+  return { from, to, handedOff: false };
+}
+
+/** One move inside the current pipeline: validates it, updates the project and writes the history row. Shared by moveStage and won/lost. */
 export async function applyMove(ctx: MutationCtx, project: Doc<"opportunities">, to: string, staff: Staff, reason: string | undefined, now: number) {
-  if (project.pipeline !== "Sales") throw new ConvexError("Only Sales projects can be moved here.");
+  if (project.pipeline !== "Sales") return applyWorkMove(ctx, project, to, staff, now);
   const stages = await stageList(ctx, project.businessId);
   const open = stages.filter((s) => !s.hidden).map((s) => s.name);
   const custom = stages.filter((s) => s.custom).map((s) => s.name);
@@ -81,7 +108,17 @@ export async function applyMove(ctx: MutationCtx, project: Doc<"opportunities">,
     opportunityId: project._id, businessId: project.businessId, from, to, byName: staff.name, byUserId: staff.userId, at: now, ...(note ? { note } : {}),
   });
   await notifyStage(ctx, { project, from, to, byName: staff.name, byUserId: staff.userId, now });
-  return { from, to };
+  // Closed Won hands the same project to Preplanning at once (PRD 4.1). The Closed Won move above stays in the history. The Office team and the
+  // salesperson were already told by that move ("Ready for Preplanning"), so the handoff itself sends nothing more.
+  let handedOff = false;
+  if (to === "Closed Won" && project.archivedAt === undefined) {
+    const won = await ctx.db.get(project._id);
+    if (won !== null) {
+      await changePipeline(ctx, won, staff, { from: ["Sales", "Closed Won"], to: ["Preplanning", PREPLANNING_ENTRY], now, note: "Sent to Preplanning automatically", quiet: true });
+      handedOff = true;
+    }
+  }
+  return { from, to, handedOff };
 }
 
 export const moveStage = mutation({
@@ -89,7 +126,7 @@ export const moveStage = mutation({
   handler: async (ctx, args) => {
     const project = await ctx.db.get(args.id);
     if (project === null) throw new ConvexError("That project no longer exists.");
-    const staff = await requireEditor(ctx, project.businessId);
+    const staff = await requireMover(ctx, project.businessId, project.pipeline);
     return applyMove(ctx, project, args.to, staff, args.reason, args.now);
   },
 });
@@ -191,6 +228,66 @@ export const board = query({
   },
 });
 
+const workPipeline = v.union(v.literal("Preplanning"), v.literal("Construction"));
+
+/** The Preplanning or Construction board (D-080): one column per PRD stage, on the same project record. */
+export const workBoard = query({
+  args: {
+    businessId: v.id("businesses"),
+    pipeline: workPipeline,
+    sortKey,
+    dir,
+    salespersonId: v.optional(v.union(v.id("users"), v.literal("unassigned"))),
+    leadSources: v.array(v.string()),
+    from: v.optional(v.number()),
+    to: v.optional(v.number()),
+    search: v.string(),
+    now: v.number(),
+  },
+  handler: async (ctx, a) => {
+    await requireBusiness(ctx, a.businessId);
+    const text = a.search.trim();
+    const docs = text
+      ? await ctx.db.query("opportunities").withSearchIndex("search_text", (q) => q.search("searchText", text).eq("businessId", a.businessId).eq("pipeline", a.pipeline)).take(MAX_PROJECTS)
+      : await ctx.db.query("opportunities").withIndex("by_business_and_requestedAt", (q) => q.eq("businessId", a.businessId)).order("desc").take(MAX_PROJECTS);
+    const stageNames = a.pipeline === "Preplanning" ? PREPLANNING_STAGES : CONSTRUCTION_STAGES;
+    const values = await latestQuoteValues(ctx, a.businessId);
+    const people = new Map((await ctx.db.query("users").take(500)).map((u) => [u._id, u.name]));
+    const clients = new Map<Id<"clients">, string>();
+    const wanted = new Set(a.leadSources);
+    const cards = new Map<string, WorkCard[]>(stageNames.map((name) => [name, []]));
+    for (const p of docs) {
+      if (p.pipeline !== a.pipeline || p.businessId !== a.businessId || p.archivedAt !== undefined) continue;
+      const column = cards.get(p.stage);
+      if (!column) continue;
+      if (a.salespersonId === "unassigned" ? p.salespersonId !== undefined : a.salespersonId !== undefined && p.salespersonId !== a.salespersonId) continue;
+      if (wanted.size > 0 && !wanted.has(p.leadSource ?? NO_SOURCE)) continue;
+      if (a.from !== undefined && p.requestedAt < a.from) continue;
+      if (a.to !== undefined && p.requestedAt > a.to) continue;
+      if (!clients.has(p.clientId)) clients.set(p.clientId, (await ctx.db.get(p.clientId))?.name ?? "");
+      column.push({
+        id: p._id, code: p.code, title: p.title, clientId: p.clientId, clientName: clients.get(p.clientId) ?? "", stage: p.stage,
+        valueCents: values.get(p._id)?.totalCents ?? 0, quoteId: values.get(p._id)?.quoteId, timeInStageMs: timeInStage(p.stageEnteredAt, p.requestedAt, a.now), requestedAt: p.requestedAt,
+        salespersonId: p.salespersonId, salespersonName: p.salespersonId ? (people.get(p.salespersonId) ?? "") : "Unassigned", leadSource: p.leadSource ?? NO_SOURCE,
+        outcome: p.outcome ?? null,
+      });
+    }
+    const sign = a.dir === "asc" ? 1 : -1;
+    const by = (c: WorkCard) => (a.sortKey === "value" ? c.valueCents : a.sortKey === "createdDate" ? c.requestedAt : c.timeInStageMs);
+    const columns = stageNames.map((name) => {
+      const list = (cards.get(name) ?? []).sort((x, y) => (by(x) - by(y)) * sign || x.code.localeCompare(y.code));
+      return { name, count: list.length, totalCents: list.reduce((n, c) => n + c.valueCents, 0), cards: list };
+    });
+    return { columns, total: columns.reduce((n, c) => n + c.count, 0), capped: docs.length >= MAX_PROJECTS };
+  },
+});
+
+type WorkCard = {
+  id: Id<"opportunities">; code: string; title: string; clientId: Id<"clients">; clientName: string; stage: string; valueCents: number;
+  quoteId: Id<"quotes"> | undefined; timeInStageMs: number; requestedAt: number; salespersonId: Id<"users"> | undefined; salespersonName: string;
+  leadSource: string; outcome: "won" | "lost" | null;
+};
+
 export type Card = {
   /** The board group its column is in. */
   group: BoardGroup;
@@ -254,6 +351,101 @@ export const markOutcome = mutation({
   },
 });
 
+const PREPLANNING_ENTRY = PREPLANNING_STAGES[0];
+const PREPLANNING_LAST = PREPLANNING_STAGES[PREPLANNING_STAGES.length - 1];
+const CONSTRUCTION_ENTRY = CONSTRUCTION_STAGES[0];
+
+type Place = readonly [Doc<"opportunities">["pipeline"], string];
+
+/** Moves the same project into another pipeline and writes one history row. Stage changes do not happen anywhere else.
+ *  `quiet` skips the notification, for a move whose reason was already announced. */
+async function changePipeline(
+  ctx: MutationCtx,
+  project: Doc<"opportunities">,
+  staff: Staff,
+  m: { from: Place; to: Place; now: number; note: string; office?: boolean; quiet?: boolean; refuse?: string },
+) {
+  const [fromPipeline, fromStage] = m.from;
+  const [toPipeline, toStage] = m.to;
+  if (project.archivedAt !== undefined) throw new ConvexError("An archived project stays where it was archived.");
+  if (project.pipeline !== fromPipeline || project.stage !== fromStage) throw new ConvexError(m.refuse ?? `Only a project at "${fromStage}" can do this.`);
+  await ctx.db.patch(project._id, {
+    pipeline: toPipeline,
+    stage: toStage,
+    stageEnteredAt: m.now,
+    searchText: project.searchText.endsWith(fromStage) ? project.searchText.slice(0, -fromStage.length) + toStage : `${project.searchText} ${toStage}`,
+  });
+  await ctx.db.insert("stageHistory", {
+    opportunityId: project._id, businessId: project.businessId, from: fromStage, to: toStage, byName: staff.name, byUserId: staff.userId, at: m.now, note: m.note,
+  });
+  if (!m.quiet) await notifyStage(ctx, { project, from: fromStage, to: toStage, byName: staff.name, byUserId: staff.userId, now: m.now, office: m.office });
+  return { from: fromStage, to: toStage };
+}
+
+/** The customer's sign-off moves the project to the last construction stage by itself, once nothing else is missing (D-081), the way
+ *  Closed Won hands a project to Preplanning. The Office team is told, since billing comes next. Returns whether it moved. */
+export async function completeConstruction(ctx: MutationCtx, project: Doc<"opportunities">, by: { name: string; userId?: Id<"users"> }, now: number): Promise<boolean> {
+  if (project.pipeline !== "Construction" || project.stage === COMPLETION_STAGE || project.archivedAt !== undefined) return false;
+  if (!(await completionState(ctx, project._id)).ready) return false;
+  const from = project.stage;
+  await ctx.db.patch(project._id, {
+    stage: COMPLETION_STAGE,
+    stageEnteredAt: now,
+    searchText: project.searchText.endsWith(from) ? project.searchText.slice(0, -from.length) + COMPLETION_STAGE : `${project.searchText} ${COMPLETION_STAGE}`,
+  });
+  await ctx.db.insert("stageHistory", {
+    opportunityId: project._id, businessId: project.businessId, from, to: COMPLETION_STAGE, byName: by.name, ...(by.userId ? { byUserId: by.userId } : {}), at: now, note: "Customer signed off",
+  });
+  await notifyStage(ctx, { project, from, to: COMPLETION_STAGE, byName: by.name, ...(by.userId ? { byUserId: by.userId } : {}), now, office: true });
+  return true;
+}
+
+/** Closed Won → the first Preplanning stage. Closed Won does this by itself now; this is for a won project that was left on the Sales board
+ *  (won before the handoff was automatic, or sent back with Return to Sales). */
+export const startPreplanning = mutation({
+  args: { id: v.id("opportunities"), now: v.number() },
+  handler: async (ctx, args) => {
+    const project = await ctx.db.get(args.id);
+    if (project === null) throw new ConvexError("That project no longer exists.");
+    const staff = await requireEditor(ctx, project.businessId);
+    return changePipeline(ctx, project, staff, { from: ["Sales", "Closed Won"], to: ["Preplanning", PREPLANNING_ENTRY], now: args.now, note: "Sent to Preplanning", office: true, refuse: 'Only a project at "Closed Won" can start preplanning.' });
+  },
+});
+
+/** The last Preplanning stage → the first Construction stage, on the same project. */
+export const startConstruction = mutation({
+  args: { id: v.id("opportunities"), now: v.number() },
+  handler: async (ctx, args) => {
+    const project = await ctx.db.get(args.id);
+    if (project === null) throw new ConvexError("That project no longer exists.");
+    const staff = await requireEditor(ctx, project.businessId);
+    return changePipeline(ctx, project, staff, { from: ["Preplanning", PREPLANNING_LAST], to: ["Construction", CONSTRUCTION_ENTRY], now: args.now, note: "Sent to Construction", refuse: `Only a project at "${PREPLANNING_LAST}" can start construction.` });
+  },
+});
+
+/** Puts a won project back on the Sales board, at Closed Won. Only from the first Preplanning stage. */
+export const returnToSales = mutation({
+  args: { id: v.id("opportunities"), now: v.number() },
+  handler: async (ctx, args) => {
+    const project = await ctx.db.get(args.id);
+    if (project === null) throw new ConvexError("That project no longer exists.");
+    const staff = await requireEditor(ctx, project.businessId);
+    if (project.outcome !== "won") throw new ConvexError("Only a won project can go back to Sales.");
+    return changePipeline(ctx, project, staff, { from: ["Preplanning", PREPLANNING_ENTRY], to: ["Sales", "Closed Won"], now: args.now, note: "Returned to Sales", refuse: `Only a project at "${PREPLANNING_ENTRY}" can go back to Sales.` });
+  },
+});
+
+/** Puts a project back on the last Preplanning stage. Only from the first Construction stage. */
+export const returnToPreplanning = mutation({
+  args: { id: v.id("opportunities"), now: v.number() },
+  handler: async (ctx, args) => {
+    const project = await ctx.db.get(args.id);
+    if (project === null) throw new ConvexError("That project no longer exists.");
+    const staff = await requireEditor(ctx, project.businessId);
+    return changePipeline(ctx, project, staff, { from: ["Construction", CONSTRUCTION_ENTRY], to: ["Preplanning", PREPLANNING_LAST], now: args.now, note: "Returned to Preplanning", refuse: `Only a project at "${CONSTRUCTION_ENTRY}" can go back to Preplanning.` });
+  },
+});
+
 const outcomeSort = v.union(v.literal("title"), v.literal("name"), v.literal("createdOn"), v.literal("closedOn"), v.literal("total"));
 
 /** The Sales Outcomes table: won or lost projects closed in a date range. */
@@ -289,7 +481,7 @@ export const outcomes = query({
 /* ---- Edit Stages (D-061): the business's own stages and hiding. The nine PRD stages are locked: they cannot be renamed or deleted. ---- */
 
 const groupV = v.union(v.literal("Requests"), v.literal("Quotes"));
-const ALL_PRD_NAMES = [...SALES_STAGES].map((s) => s.toLowerCase());
+const ALL_PRD_NAMES = [...SALES_STAGES, ...PREPLANNING_STAGES, ...CONSTRUCTION_STAGES].map((s) => s.toLowerCase());
 
 async function projectsIn(ctx: QueryCtx, businessId: Id<"businesses">, stage: string) {
   const docs = await ctx.db.query("opportunities").withIndex("by_business_and_requestedAt", (q) => q.eq("businessId", businessId)).take(MAX_PROJECTS);

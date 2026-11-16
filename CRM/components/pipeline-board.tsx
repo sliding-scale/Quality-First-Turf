@@ -7,18 +7,18 @@
 import { useMutation } from "convex/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type TouchEvent as ReactTouchEvent } from "react";
+import { useState } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { BusinessDoc } from "@/lib/clients";
-import { ALL_TIME, rangeLabel } from "@/lib/dates";
 import { moneyCents } from "@/lib/format";
-import { LEAD_SOURCES, NO_SOURCE, SORT_LABEL, clock, failure, timeLabel, useBoard, useCoarsePointer, viewActions, useMinute, usePeople, type BoardCard, type BoardFilters, type BoardGroup, type SortKey } from "@/lib/pipeline";
-import { DateRangeMenu, FilterMenu } from "./filter-menus";
+import { clock, failure, timeLabel, useBoard, useCoarsePointer, viewActions, useMinute, usePeople, type BoardCard, type BoardGroup } from "@/lib/pipeline";
+import { FilterMenu } from "./filter-menus";
 import { Icon } from "./icon";
 import { LostReasonDialog } from "./pipeline-dialogs";
 import { CloseWonDialog } from "./won-dialog";
 import { PipelinePanel } from "./pipeline-panel";
+import { BoardBar, useBoardFilters, useTouchDrag } from "./pipeline-shared";
 import { PipelineBoardSkeleton } from "./skeletons";
 import { useStaff } from "./staff-context";
 import { useUI } from "./ui-provider";
@@ -32,33 +32,24 @@ export function PipelineBoard({ business }: { business: BusinessDoc }) {
   const { popover, dropdown, toast } = useUI();
   const { canEdit } = useStaff();
   const moveStage = useMutation(api.crm.pipeline.moveStage);
+  const startPreplanning = useMutation(api.crm.pipeline.startPreplanning);
   const markOutcome = useMutation(api.crm.pipeline.markOutcome);
   const setSalesperson = useMutation(api.crm.pipeline.setSalesperson);
   const now = useMinute();
   const people = usePeople(business._id);
 
-  const [filters, setFilters] = useState<BoardFilters>({ sortKey: "timeInStage", dir: "asc", salespersonId: null, leadSources: [], range: ALL_TIME, search: "" });
-  const [q, setQ] = useState("");
+  const { filters, set, q, setQ } = useBoardFilters();
   const [folded, setFolded] = useState<Record<BoardGroup, boolean>>({ Requests: false, Quotes: false, Closed: false });
   const coarse = useCoarsePointer();
-  const touchCleanup = useRef<(() => void) | null>(null);
   const [dragging, setDragging] = useState<BoardCard | null>(null);
   const [over, setOver] = useState<string | null>(null);
   const [lost, setLost] = useState<BoardCard | null>(null);
   const [closingWon, setClosingWon] = useState<BoardCard | null>(null);
   const [openId, setOpenId] = useState<Id<"opportunities"> | null>(null);
 
-  useEffect(() => {
-    const t = setTimeout(() => setFilters((f) => (f.search === q ? f : { ...f, search: q })), 250);
-    return () => clearTimeout(t);
-  }, [q]);
-
+  const touchStart = useTouchDrag<BoardCard>(canEdit);
   const board = useBoard(business._id, filters, now);
   if (board === undefined || people === undefined) return <PipelineBoardSkeleton />;
-
-  const set = (patch: Partial<BoardFilters>) => setFilters((f) => ({ ...f, ...patch }));
-  const personName = filters.salespersonId === null ? "All" : filters.salespersonId === "unassigned" ? "Unassigned" : (people.find((p) => p.id === filters.salespersonId)?.name ?? "All");
-  const sourceLabel = filters.leadSources.length === 0 ? "All" : filters.leadSources.length === 1 ? filters.leadSources[0] : `${filters.leadSources.length} selected`;
 
   async function move(card: BoardCard, to: string) {
     if (card.stage === to) return;
@@ -75,115 +66,6 @@ export function PipelineBoard({ business }: { business: BusinessDoc }) {
   /** Opens the "Close as won" checklist. The move itself is made from there, once the signed contract is in. */
   function won(card: BoardCard) {
     setClosingWon(card);
-  }
-
-  /** Touch: press and hold a card for a moment, then drag it over a column and let go. A swipe before that still scrolls the board.
-   *  Built for a high frame rate: while the finger moves, React is not involved at all. The columns' places are measured once when the
-   *  drag starts, the held card is a light copy moved with a GPU transform once per frame, and the column under the finger is lit by
-   *  switching a class on that one element. The board is only told once, at the end, to move the card. */
-  function touchStart(e: ReactTouchEvent<HTMLElement>, card: BoardCard) {
-    if (!canEdit || e.touches.length !== 1 || (e.target as HTMLElement).closest(".pl-more")) return;
-    touchCleanup.current?.();
-    const el = e.currentTarget;
-    const rect = el.getBoundingClientRect();
-    const t0 = e.touches[0];
-    let x = t0.clientX;
-    let y = t0.clientY;
-    let active = false;
-    let ghost: HTMLElement | null = null;
-    let edge: ReturnType<typeof setInterval> | null = null;
-    let edgeDir = 0;
-    let frame = 0;
-    let lit: HTMLElement | null = null;
-    const board = el.closest(".pl-board") as HTMLElement | null;
-    let spots: { col: HTMLElement; stage: string; left: number; right: number; top: number; bottom: number }[] = [];
-    let scroll0 = 0;
-
-    /** The column under the finger, from the places measured at the start (the board may have scrolled sideways since). */
-    const stageAt = () => {
-      const px = x + ((board?.scrollLeft ?? 0) - scroll0);
-      const s = spots.find((c) => px >= c.left && px <= c.right && y >= c.top && y <= c.bottom);
-      return s ?? null;
-    };
-    const light = () => {
-      const s = stageAt();
-      const col = s && s.stage !== card.stage ? s.col : null;
-      if (col === lit) return;
-      lit?.classList.remove("over");
-      col?.classList.add("over");
-      lit = col;
-    };
-    const paint = () => {
-      frame = 0;
-      if (ghost) ghost.style.transform = `translate3d(${x - t0.clientX}px, ${y - t0.clientY}px, 0) scale(1.03)`;
-      light();
-    };
-
-    const cleanup = () => {
-      clearTimeout(timer);
-      if (edge) clearInterval(edge);
-      if (frame) cancelAnimationFrame(frame);
-      ghost?.remove();
-      lit?.classList.remove("over");
-      if (active) {
-        board?.classList.remove("touch-drag");
-        board?.querySelectorAll(".pl-col.src").forEach((c) => c.classList.remove("src"));
-        delete el.dataset.touchDrag;
-      }
-      document.removeEventListener("touchmove", onTouchMove);
-      document.removeEventListener("touchend", end);
-      document.removeEventListener("touchcancel", cancel);
-      touchCleanup.current = null;
-    };
-    const onTouchMove = (ev: TouchEvent) => {
-      const t = ev.touches[0];
-      x = t.clientX;
-      y = t.clientY;
-      if (!active) {
-        if (Math.hypot(x - t0.clientX, y - t0.clientY) > 10) cleanup(); // it is a scroll
-        return;
-      }
-      ev.preventDefault(); // dragging now: do not scroll the page
-      if (!frame) frame = requestAnimationFrame(paint);
-      if (board) {
-        const b = board.getBoundingClientRect();
-        const dir = x < b.left + 48 ? -1 : x > b.right - 48 ? 1 : 0;
-        if (dir !== edgeDir) {
-          edgeDir = dir;
-          if (edge) { clearInterval(edge); edge = null; }
-          if (dir) edge = setInterval(() => { board.scrollLeft += dir * 12; light(); }, 16);
-        }
-      }
-    };
-    const end = (ev: TouchEvent) => {
-      const was = active;
-      const stage = was ? (stageAt()?.stage ?? null) : null;
-      if (was) ev.preventDefault(); // no click on the card after a drag
-      cleanup();
-      if (was && stage && stage !== card.stage) void move(card, stage);
-    };
-    const cancel = () => cleanup();
-    const timer = setTimeout(() => {
-      active = true;
-      navigator.vibrate?.(15);
-      scroll0 = board?.scrollLeft ?? 0;
-      spots = Array.from(document.querySelectorAll<HTMLElement>(".pl-col[data-stage]")).map((col) => {
-        const r = col.getBoundingClientRect();
-        return { col, stage: col.dataset.stage!, left: r.left, right: r.right, top: r.top, bottom: r.bottom };
-      });
-      board?.classList.add("touch-drag");
-      el.closest(".pl-col")?.classList.add("src");
-      el.dataset.touchDrag = "1";
-      ghost = el.cloneNode(true) as HTMLElement;
-      ghost.removeAttribute("data-touch-drag");
-      Object.assign(ghost.style, { position: "fixed", left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, margin: "0", zIndex: "200", pointerEvents: "none", opacity: "0.95", boxShadow: "0 6px 16px rgba(3,43,58,0.3)", transition: "none", willChange: "transform", contain: "layout paint" });
-      ghost.classList.add("pl-ghost");
-      document.body.appendChild(ghost);
-    }, 350);
-    document.addEventListener("touchmove", onTouchMove, { passive: false });
-    document.addEventListener("touchend", end, { passive: false });
-    document.addEventListener("touchcancel", cancel);
-    touchCleanup.current = cleanup;
   }
 
   function cardMenu(card: BoardCard, anchor: HTMLElement) {
@@ -238,6 +120,19 @@ export function PipelineBoard({ business }: { business: BusinessDoc }) {
             { className: "filter" },
           ),
       },
+      // Closed Won hands a project to Preplanning by itself. This is for a won project still on this board (won before that, or sent back).
+      ...(card.stage === "Closed Won"
+        ? [{
+            label: "Start preplanning",
+            icon: "stage",
+            disabled: !canEdit,
+            onSelect: () => {
+              void startPreplanning({ id: card.id, now: clock() })
+                .then(() => toast(`${card.title} is now in Preplanning.`))
+                .catch((e) => toast(failure(e, "The project could not be sent to Preplanning.")));
+            },
+          }]
+        : []),
       { divider: true },
       { label: "Mark as won", icon: "check", disabled: !canEdit || card.stage === "Closed Won", onSelect: () => void won(card) },
       { label: "Mark as Lost", icon: "x", disabled: !canEdit || card.stage === "Closed Lost", onSelect: () => setLost(card) },
@@ -248,89 +143,7 @@ export function PipelineBoard({ business }: { business: BusinessDoc }) {
 
   return (
     <div className="pl-tab">
-      <div className="pl-bar">
-        <div className="chips">
-          <button
-            type="button"
-            className="chip"
-            onClick={(e) =>
-              popover(
-                e.currentTarget,
-                (close) => (
-                  <FilterMenu
-                    placeholder="Search"
-                    options={(Object.keys(SORT_LABEL) as SortKey[]).map((k) => ({ label: SORT_LABEL[k] }))}
-                    selected={SORT_LABEL[filters.sortKey]}
-                    onSelect={(label) => set({ sortKey: (Object.keys(SORT_LABEL) as SortKey[]).find((k) => SORT_LABEL[k] === label) ?? "timeInStage" })}
-                    close={close}
-                  />
-                ),
-                { className: "filter" },
-              )
-            }
-          >
-            Sort by<span className="sep" /><b>{SORT_LABEL[filters.sortKey]}</b>
-          </button>
-          <button
-            type="button"
-            className="chip pl-dir"
-            aria-label={filters.dir === "asc" ? "Ascending. Switch to descending" : "Descending. Switch to ascending"}
-            data-tip={filters.dir === "asc" ? "Ascending" : "Descending"}
-            onClick={() => set({ dir: filters.dir === "asc" ? "desc" : "asc" })}
-          >
-            <span style={{ display: "inline-grid", transform: filters.dir === "asc" ? undefined : "rotate(180deg)", transition: "transform 0.15s ease" }}><Icon name="arrowup" size={18} /></span>
-          </button>
-          <button
-            type="button"
-            className="chip"
-            onClick={(e) =>
-              popover(
-                e.currentTarget,
-                (close) => (
-                  <FilterMenu
-                    placeholder="Search salesperson"
-                    options={[{ label: "All" }, { label: "Unassigned" }, ...people.map((p) => ({ label: p.name }))]}
-                    selected={personName}
-                    onSelect={(label) => set({ salespersonId: label === "All" ? null : label === "Unassigned" ? "unassigned" : (people.find((p) => p.name === label)?.id ?? null) })}
-                    close={close}
-                  />
-                ),
-                { className: "filter" },
-              )
-            }
-          >
-            Salesperson<span className="sep" /><b>{personName}</b>
-          </button>
-          <button
-            type="button"
-            className="chip"
-            onClick={(e) =>
-              popover(
-                e.currentTarget,
-                (close) => (
-                  <LeadSourceMenu selected={filters.leadSources} onChange={(leadSources) => set({ leadSources })} close={close} />
-                ),
-                { className: "filter" },
-              )
-            }
-          >
-            Lead source<span className="sep" /><b>{sourceLabel}</b>
-          </button>
-          <button
-            type="button"
-            className="chip icon"
-            onClick={(e) => popover(e.currentTarget, (close) => <DateRangeMenu value={filters.range} onChange={(range) => set({ range })} close={close} />, { className: "daterange" })}
-          >
-            <Icon name="calendar" size={20} />
-            Date<span className="sep" /><b>{rangeLabel(filters.range)}</b>
-          </button>
-          <span className="muted pl-count">({board.total} result{board.total === 1 ? "" : "s"})</span>
-        </div>
-        <div className="searchbox pl-search">
-          <span><Icon name="search" size={20} /></span>
-          <input type="search" placeholder="Search opportunities" aria-label="Search opportunities" value={q} onChange={(e) => setQ(e.target.value)} />
-        </div>
-      </div>
+      <BoardBar filters={filters} set={set} q={q} setQ={setQ} people={people} total={board.total} searchLabel="Search opportunities" />
 
       <div className="pl-boardwrap">
         <div className="pl-board" onDragEnd={() => { setDragging(null); setOver(null); }}>
@@ -377,7 +190,7 @@ export function PipelineBoard({ business }: { business: BusinessDoc }) {
                               key={card.id}
                               className={`pl-card${dragging?.id === card.id ? " dragging" : ""}${openId === card.id ? " open" : ""}`}
                               draggable={canEdit && !coarse}
-                              onTouchStart={(e) => touchStart(e, card)}
+                              onTouchStart={(e) => touchStart(e, card, (c, stage) => void move(c, stage))}
                               tabIndex={0}
                               onDragStart={(e) => { e.dataTransfer.setData("text/plain", card.id); e.dataTransfer.effectAllowed = "move"; setDragging(card); }}
                               onClick={() => setOpenId((id) => (id === card.id ? null : card.id))}
@@ -429,31 +242,3 @@ export function PipelineBoard({ business }: { business: BusinessDoc }) {
     </div>
   );
 }
-
-/** A searchable, tick-able list of lead sources (several can be chosen, as in Jobber), with "1 selected" and Clear. */
-function LeadSourceMenu({ selected, onChange, close }: { selected: string[]; onChange: (s: string[]) => void; close: () => void }) {
-  const [query, setQuery] = useState("");
-  const options = [...LEAD_SOURCES, NO_SOURCE];
-  const shown = options.filter((o) => o.toLowerCase().includes(query.trim().toLowerCase()));
-  const toggle = (o: string) => onChange(selected.includes(o) ? selected.filter((s) => s !== o) : [...selected, o]);
-  return (
-    <>
-      <input className="menu-search" type="search" placeholder="Search lead source" aria-label="Search lead source" value={query} onChange={(e) => setQuery(e.target.value)} autoFocus />
-      <div className="pl-leadhead">
-        <span>{selected.length === 0 ? "All" : `${selected.length} selected`}</span>
-        <button type="button" className="pl-clear" onClick={() => onChange([])} disabled={selected.length === 0}>Clear</button>
-      </div>
-      <div className="menu-list" role="listbox" aria-label="Lead source" aria-multiselectable="true">
-        {shown.map((o) => (
-          <button key={o} type="button" role="option" aria-selected={selected.includes(o)} className="opt" onClick={() => toggle(o)}>
-            <span>{o}</span>
-            {selected.includes(o) && <Icon name="check" size={22} className="tick" />}
-          </button>
-        ))}
-        {shown.length === 0 && <div className="menu-empty">No matches</div>}
-      </div>
-      <button type="button" className="pl-done" onClick={close}>Done</button>
-    </>
-  );
-}
-

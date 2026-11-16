@@ -8,6 +8,10 @@ export const ITEM_TYPES = ["consultation", "visit", "event", "reminder"] as cons
 export type ItemType = (typeof ITEM_TYPES)[number];
 export const ITEM_LABEL: Record<ItemType | "task", string> = { consultation: "Consultation", visit: "Follow-up visit", event: "Event", reminder: "Reminder", task: "Task" };
 
+/** The construction visits (D-081): a visit with one of these kinds is a job walk, an installation day or a reinspection of a project in Construction. */
+export const VISIT_LABEL = { jobWalk: "Job walk", install: "Installation", reinspection: "Reinspection" } as const;
+export type VisitKind = keyof typeof VISIT_LABEL;
+
 /** Items that keep a person busy: two of them for the same person may not overlap. Tasks and reminders never block. */
 export const BLOCKING: readonly ItemType[] = ["consultation", "visit", "event"];
 

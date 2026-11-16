@@ -9,7 +9,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { failure } from "@/lib/pipeline";
-import { ITEM_LABEL, KIND_STYLE, REPEAT_LABEL, dateText, timeText, type ScheduleItem } from "@/lib/schedule";
+import { ITEM_LABEL, KIND_STYLE, REPEAT_LABEL, VISIT_LABEL, dateText, timeText, type ScheduleItem } from "@/lib/schedule";
 import { FilterMenu } from "./filter-menus";
 import { Icon } from "./icon";
 import type { Person } from "./schedule-grid";
@@ -71,7 +71,7 @@ export function SchedulePopup({ item, anchor, people, canEdit, onClose, onFindTi
       <div className="sc-pophead">
         <div>
           <h3>{item.title}</h3>
-          <div className="sc-poptype">{ITEM_LABEL[item.kind]}{item.repeat !== "none" ? ` · ${REPEAT_LABEL[item.repeat]}` : ""}</div>
+          <div className="sc-poptype">{item.visitKind ? VISIT_LABEL[item.visitKind] : ITEM_LABEL[item.kind]}{item.repeat !== "none" ? ` · ${REPEAT_LABEL[item.repeat]}` : ""}</div>
         </div>
         <button type="button" className="icon-btn" aria-label="Close" onClick={() => setLeaving(true)}><Icon name="x" size={20} /></button>
       </div>
@@ -92,6 +92,7 @@ export function SchedulePopup({ item, anchor, people, canEdit, onClose, onFindTi
       )}
 
       {item.clientName && <div className="sc-popclient"><Icon name="contact" size={16} /> {item.clientName}</div>}
+      {item.visitKind && item.opportunityId && <div className="sc-popclient"><Icon name="hammer" size={16} /> <Link href={`/opportunities/${item.opportunityId}?tab=construction`}>Open the construction project</Link></div>}
 
       <div className="sc-label">Team</div>
       <div className="sc-chips">

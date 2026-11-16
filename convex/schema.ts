@@ -277,7 +277,7 @@ export default defineSchema({
     code: v.string(),
     /** The service requested, such as "Turf installation". */
     title: v.string(),
-    pipeline: v.union(v.literal("Sales"), v.literal("Preplanning")),
+    pipeline: v.union(v.literal("Sales"), v.literal("Preplanning"), v.literal("Construction")),
     /** A stage name from convex/crm/lib/stages.ts. */
     stage: v.string(),
     requestedAt: v.number(),
@@ -313,6 +313,9 @@ export default defineSchema({
     archivedAt: v.optional(v.number()),
     archivedReason: v.optional(v.string()),
     archivedFromStage: v.optional(v.string()),
+    /** Construction (PRD 4.6, D-081): the project manager (a CRM user) and the crews (records, not logins, D-010) on this project. */
+    projectManagerId: v.optional(v.id("users")),
+    crewIds: v.optional(v.array(v.id("crews"))),
   })
     .index("by_business_and_requestedAt", ["businessId", "requestedAt"])
     .index("by_clientId", ["clientId"])
@@ -566,8 +569,9 @@ export default defineSchema({
     byName: v.string(),
     /** Absent when the system made the stage move (an automation, the client's quote link). */
     byUserId: v.optional(v.id("users")),
-    /** "project", "client" and "quote" are a person tagged in a note (D-073); "stage" is a project moving between stages (D-076). */
-    kind: v.union(v.literal("project"), v.literal("client"), v.literal("quote"), v.literal("stage")),
+    /** "project", "client" and "quote" are a person tagged in a note (D-073); "stage" is a project moving between stages (D-076);
+     *  "construction" is a punch item given to someone or a customer's sign-off (D-081). */
+    kind: v.union(v.literal("project"), v.literal("client"), v.literal("quote"), v.literal("stage"), v.literal("construction")),
     opportunityId: v.optional(v.id("opportunities")),
     clientId: v.optional(v.id("clients")),
     quoteId: v.optional(v.id("quotes")),
@@ -623,7 +627,7 @@ export default defineSchema({
     .index("by_automation_and_item", ["automationId", "itemKey"])
     .index("by_business_and_at", ["businessId", "at"]),
 
-  /** Every move of a project between Sales stages: who, when, from, to (PRD 3.3). Written only by crm/pipeline.ts moveStage. */
+  /** Every move of a project between stages: who, when, from, to (PRD 3.3). Written only by crm/pipeline.ts. */
   stageHistory: defineTable({
     opportunityId: v.id("opportunities"),
     businessId: v.id("businesses"),
@@ -694,6 +698,8 @@ export default defineSchema({
     location: v.optional(v.string()),
     /** Last change by anyone or by the sync; decides who wins when the CRM and Zoho both changed an item. Absent: createdAt. */
     updatedAt: v.optional(v.number()),
+    /** A construction visit (D-081): a job walk, an installation day or a reinspection. Only on `type: "visit"`. */
+    visitKind: v.optional(v.union(v.literal("jobWalk"), v.literal("install"), v.literal("reinspection"))),
   })
     .index("by_business_and_start", ["businessId", "start"])
     .index("by_opportunity", ["opportunityId"]),
@@ -758,6 +764,73 @@ export default defineSchema({
   }).index("by_business", ["businessId"]),
 
   /** Internal notes on a project, newest first. */
+  /* ---- Construction management (PRD 4.6, D-081). Everything hangs off the project (`opportunities`, D-004). ---- */
+
+  /** Installation crews: records, not logins (D-010). Rates and availability come with PRD 4.4. */
+  crews: defineTable({
+    businessId: v.id("businesses"),
+    name: v.string(),
+    leadName: v.string(),
+    phone: v.string(),
+    notes: v.string(),
+    active: v.boolean(),
+    createdAt: v.number(),
+  }).index("by_business", ["businessId"]),
+
+  /** Progress updates on site: what was done, with photos, and the construction stage it was at. */
+  progressUpdates: defineTable({
+    opportunityId: v.id("opportunities"),
+    businessId: v.id("businesses"),
+    stage: v.string(),
+    text: v.string(),
+    attachments: noteAttachments,
+    author: v.string(),
+    byUserId: v.id("users"),
+    at: v.number(),
+  }).index("by_opportunity_and_at", ["opportunityId", "at"]),
+
+  /** Punch list: a correction to make before the customer signs off. Open → Fixed → Verified; a required item must be Verified before
+   *  the project can be signed off or reach the last construction stage. */
+  punchItems: defineTable({
+    opportunityId: v.id("opportunities"),
+    businessId: v.id("businesses"),
+    title: v.string(),
+    details: v.string(),
+    required: v.boolean(),
+    status: v.union(v.literal("open"), v.literal("fixed"), v.literal("verified")),
+    assigneeUserId: v.optional(v.id("users")),
+    assigneeCrewId: v.optional(v.id("crews")),
+    /** Photos of the problem, and photos of the fix. */
+    attachments: noteAttachments,
+    fixAttachments: noteAttachments,
+    createdBy: v.string(),
+    createdAt: v.number(),
+    fixedAt: v.optional(v.number()),
+    fixedBy: v.optional(v.string()),
+    verifiedAt: v.optional(v.number()),
+    verifiedBy: v.optional(v.string()),
+  }).index("by_opportunity", ["opportunityId"]),
+
+  /** The customer's completion sign-off. Made "pending" (with a secret link) once every required punch item is verified, then signed on
+   *  a staff device or through the link. The punch list and summary are kept as they were when it was made (a deliberate snapshot). */
+  signoffs: defineTable({
+    opportunityId: v.id("opportunities"),
+    businessId: v.id("businesses"),
+    status: v.union(v.literal("pending"), v.literal("signed"), v.literal("cancelled")),
+    summary: v.string(),
+    punchSnapshot: v.array(v.object({ title: v.string(), required: v.boolean(), status: v.string() })),
+    /** The customer's secret link while it is pending; cleared once signed or cancelled. */
+    shareToken: v.optional(v.string()),
+    createdBy: v.string(),
+    createdAt: v.number(),
+    signedBy: v.optional(v.string()),
+    signedAt: v.optional(v.number()),
+    signedVia: v.optional(v.union(v.literal("device"), v.literal("link"))),
+    signatureImageId: v.optional(v.id("_storage")),
+  })
+    .index("by_opportunity", ["opportunityId"])
+    .index("by_shareToken", ["shareToken"]),
+
   opportunityNotes: defineTable({
     opportunityId: v.id("opportunities"),
     text: v.string(),

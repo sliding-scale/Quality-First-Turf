@@ -11,7 +11,7 @@ describe("moveStage", () => {
   it("moves a project, saves the new stage time, and writes one history row", async () => {
     const { sales, project } = await seeded();
     const r = await sales.mutation(api.crm.pipeline.moveStage, { id: project, to: "Onsite Consultation", now: NOW });
-    expect(r).toEqual({ from: "New Request", to: "Onsite Consultation" });
+    expect(r).toEqual({ from: "New Request", to: "Onsite Consultation", handedOff: false });
     const rows = await historyOf(sales, project);
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ from: "New Request", to: "Onsite Consultation", byName: "Sam Sales", at: NOW });
@@ -50,7 +50,9 @@ describe("moveStage", () => {
     await sales.mutation(api.crm.pipeline.moveStage, { id: project, to: "Closed Won", now: NOW });
     expect(await base.run((ctx) => ctx.db.get(project))).toMatchObject({ outcome: "won", closedAt: NOW });
     const rows = await historyOf(admin, project);
-    expect(rows[0].note).toMatch(/approved and signed/);
+    expect(rows.find((r) => r.to === "Closed Won")?.note).toMatch(/approved and signed/);
+    // It is in Preplanning now; sending it back to Sales puts it at Closed Won, and only an Admin can reopen it from there.
+    await sales.mutation(api.crm.pipeline.returnToSales, { id: project, now: NOW });
     await expect(sales.mutation(api.crm.pipeline.moveStage, { id: project, to: "New Request", now: NOW + 1 })).rejects.toThrow(/Admin/);
     await admin.mutation(api.crm.pipeline.moveStage, { id: project, to: "New Request", now: NOW + 1 });
     const doc = await base.run((ctx) => ctx.db.get(project));
@@ -156,7 +158,9 @@ describe("board", () => {
     await admin.mutation(api.crm.pipeline.moveStage, { id: project, to: "Closed Won", now: NOW + 1 });
     const won = await admin.query(api.crm.pipeline.board, { businessId: qft, ...boardArgs });
     expect(won.columns.find((c) => c.name === "Closed Lost")!.cards.some((c) => c.id === project)).toBe(false);
-    expect(won.columns.find((c) => c.name === "Closed Won")!.cards.map((c) => c.id)).toContain(project);
+    // Won means it is in Preplanning at once, so it is no longer on the Sales board at all.
+    expect(won.columns.flatMap((c) => c.cards).some((c) => c.id === project)).toBe(false);
+    expect((await base.run((ctx) => ctx.db.get(project)))?.pipeline).toBe("Preplanning");
   });
 
   it("is closed to people from another business", async () => {
