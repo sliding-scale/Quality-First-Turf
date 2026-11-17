@@ -1,0 +1,12 @@
+Hi,
+
+An admin at Quality First Turf has added you to our team CRM. To finish setting up your login, open this link and choose a password:
+
+{{action_url}}
+
+The link works for 7 days. After that, sign in with this email address and the password you chose.
+
+If you weren't expecting this, you can ignore the email. Nothing happens unless you open the link.
+
+Thanks,
+Quality First Turf
