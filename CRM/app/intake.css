@@ -115,6 +115,10 @@
 }
 
 .nrf {
+  /* The scrollbar is always there, so the page does not jump sideways when a choice makes it long enough to scroll (D-088). Both are set:
+     scrollbar-gutter alone is ignored by some browsers on the page itself. */
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
   scroll-padding-top: calc(var(--header-height) + 1rem);
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
@@ -8029,6 +8033,31 @@
   background-image: none;
 }
 
+/* ...except the service cards, which slide open and shut (components/ui/collapse.tsx) and turn their chevron. The rule above is !important, so
+   these are too, and more specific. Keep the time in step with DURATION_MS in collapse.tsx. */
+.nrf .review-page .collapse {
+  transition:
+    grid-template-rows 700ms cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 700ms ease,
+    margin-bottom 700ms cubic-bezier(0.4, 0, 0.2, 1),
+    visibility 0s linear 700ms !important;
+}
+
+.nrf .review-page .collapse.is-open {
+  transition-delay: 0s !important;
+}
+
+.nrf .review-page .visit-service__toggle > svg:last-child {
+  transition: transform 400ms cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nrf .review-page .collapse,
+.nrf .review-page .visit-service__toggle > svg:last-child {
+    transition: none !important;
+  }
+}
+
 .nrf .review-page__bg {
   display: none !important;
 }
@@ -9838,9 +9867,11 @@
   grid-template-rows: 0fr;
   opacity: 0;
   visibility: hidden;
+  margin-bottom: calc(var(--collapse-gap, 0px) * -1);
   transition:
     grid-template-rows 700ms cubic-bezier(0.4, 0, 0.2, 1),
     opacity 700ms ease,
+    margin-bottom 700ms cubic-bezier(0.4, 0, 0.2, 1),
     visibility 0s linear 700ms;
 }
 
@@ -9848,6 +9879,7 @@
   grid-template-rows: 1fr;
   opacity: 1;
   visibility: visible;
+  margin-bottom: 0;
   transition-delay: 0s;
 }
 
@@ -9863,5 +9895,179 @@
 @media (prefers-reduced-motion: reduce) {
   .nrf .collapse {
     transition: none;
+  }
+}
+
+/* The "Your project" step and the "Where in your yard?" question (D-087). Cards share the look of the customer-type cards above. */
+.nrf .pj-group .pj-hint {
+  margin-left: 0.6rem;
+  color: #b4bfb4;
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.nrf .pj-chips {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.nrf .pj-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 3.5rem;
+  padding: 0.55rem 0.8rem;
+  border: 1.5px solid #39493d;
+  border-radius: 14px;
+  background: #101612;
+  color: #f4f6f1;
+  font-size: 0.95rem;
+  font-weight: 650;
+  line-height: 1.2;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.nrf .pj-chip:hover {
+  border-color: #5e7765;
+}
+
+.nrf .pj-chip.is-selected,
+.nrf .pj-place.is-selected {
+  border-color: #d7f33c;
+  background: #151c17;
+}
+
+.nrf .pj-chip:has(input:focus-visible),
+.nrf .pj-place:has(input:focus-visible),
+.nrf .pj-option:has(input:focus-visible) {
+  outline: 3px solid var(--color-focus, #6aa84f);
+  outline-offset: 2px;
+}
+
+.nrf .pj-chip__icon {
+  display: grid;
+  flex: none;
+  width: 2.1rem;
+  height: 2.1rem;
+  place-items: center;
+  border-radius: 9px;
+  background: #1d2720;
+  color: #d7f33c;
+}
+
+.nrf .pj-chip__icon svg {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.nrf .pj-options {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.nrf .pj-option {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.8rem;
+  min-height: 3.5rem;
+  padding: 0.7rem 0.95rem;
+  border: 1.5px solid #39493d;
+  border-radius: 14px;
+  background: #101612;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.nrf .pj-option:hover {
+  border-color: #5e7765;
+}
+
+.nrf .pj-option.is-selected {
+  border-color: #d7f33c;
+  background: #151c17;
+}
+
+.nrf .pj-option.is-selected .simple-audience__radio {
+  border-color: #d7f33c;
+}
+
+.nrf .pj-option.is-selected .simple-audience__radio span {
+  background: #d7f33c;
+}
+
+.nrf .pj-option.is-invalid:not(.is-selected) {
+  border-color: #b42318;
+}
+
+.nrf .pj-option__text {
+  display: grid;
+  min-width: 0;
+  gap: 0.1rem;
+}
+
+.nrf .pj-option__text strong {
+  color: #f4f6f1;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.nrf .pj-option__text small {
+  color: #b4bfb4;
+  font-size: 0.84rem;
+  line-height: 1.3;
+}
+
+.nrf .pj-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.nrf .pj-actions .intake-continue {
+  flex: 1;
+}
+
+.nrf .pj-places {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.nrf .pj-place {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0.4rem 1rem;
+  border: 1.5px solid #39493d;
+  border-radius: 999px;
+  background: #101612;
+  color: #f4f6f1;
+  font-size: 0.95rem;
+  font-weight: 650;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.nrf .pj-place:hover {
+  border-color: #5e7765;
+}
+
+.nrf .pj-where {
+  margin-bottom: 0.5rem;
+}
+
+@media (max-width: 639px) {
+  .nrf .pj-chips {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

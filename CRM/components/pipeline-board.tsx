@@ -52,7 +52,7 @@ export function PipelineBoard({ business }: { business: BusinessDoc }) {
   if (board === undefined || people === undefined) return <PipelineBoardSkeleton />;
 
   async function move(card: BoardCard, to: string) {
-    if (card.stage === to) return;
+    if (card.stage === to || card.movedTo) return;
     if (to === "Closed Won") return won(card);
     if (to === "Closed Lost") return setLost(card);
     try {
@@ -69,6 +69,8 @@ export function PipelineBoard({ business }: { business: BusinessDoc }) {
   }
 
   function cardMenu(card: BoardCard, anchor: HTMLElement) {
+    // A won project that has moved on is moved from its own board (Preplanning, Construction), so only what does not move it is offered here.
+    const moved = card.movedTo !== undefined;
     dropdown(anchor, [
       ...viewActions(card).map((v) => ({
         label: v.label,
@@ -98,7 +100,7 @@ export function PipelineBoard({ business }: { business: BusinessDoc }) {
             { className: "filter" },
           ),
       },
-      {
+      ...(moved ? [] : [{
         label: "Move to…",
         icon: "stage",
         disabled: !canEdit,
@@ -119,9 +121,9 @@ export function PipelineBoard({ business }: { business: BusinessDoc }) {
             ),
             { className: "filter" },
           ),
-      },
+      }]),
       // Closed Won hands a project to Preplanning by itself. This is for a won project still on this board (won before that, or sent back).
-      ...(card.stage === "Closed Won"
+      ...(card.stage === "Closed Won" && !moved
         ? [{
             label: "Start preplanning",
             icon: "stage",
@@ -133,9 +135,11 @@ export function PipelineBoard({ business }: { business: BusinessDoc }) {
             },
           }]
         : []),
-      { divider: true },
-      { label: "Mark as won", icon: "check", disabled: !canEdit || card.stage === "Closed Won", onSelect: () => void won(card) },
-      { label: "Mark as Lost", icon: "x", disabled: !canEdit || card.stage === "Closed Lost", onSelect: () => setLost(card) },
+      ...(moved ? [] : [
+        { divider: true as const },
+        { label: "Mark as won", icon: "check", disabled: !canEdit || card.stage === "Closed Won", onSelect: () => void won(card) },
+        { label: "Mark as Lost", icon: "x", disabled: !canEdit || card.stage === "Closed Lost", onSelect: () => setLost(card) },
+      ]),
     ]);
   }
 
@@ -189,8 +193,8 @@ export function PipelineBoard({ business }: { business: BusinessDoc }) {
                             <article
                               key={card.id}
                               className={`pl-card${dragging?.id === card.id ? " dragging" : ""}${openId === card.id ? " open" : ""}`}
-                              draggable={canEdit && !coarse}
-                              onTouchStart={(e) => touchStart(e, card, (c, stage) => void move(c, stage))}
+                              draggable={canEdit && !coarse && !card.movedTo}
+                              onTouchStart={(e) => { if (!card.movedTo) touchStart(e, card, (c, stage) => void move(c, stage)); }}
                               tabIndex={0}
                               onDragStart={(e) => { e.dataTransfer.setData("text/plain", card.id); e.dataTransfer.effectAllowed = "move"; setDragging(card); }}
                               onClick={() => setOpenId((id) => (id === card.id ? null : card.id))}
@@ -208,6 +212,7 @@ export function PipelineBoard({ business }: { business: BusinessDoc }) {
                                 ><Icon name="more" size={18} /></button>
                               </div>
                               <div className="pl-client">{card.clientName}</div>
+                              {card.movedTo && <div className="pl-movedto" data-tip="Moved on from Sales">In {card.movedTo}</div>}
                               <div className="pl-service"><Icon name="inbox" size={16} /><span>{card.title}</span></div>
                               <div className="pl-cardfoot">
                                 <span className="pl-time" data-tip="Time in this stage">{timeLabel(card.timeInStageMs)}</span>

@@ -147,7 +147,7 @@ function OverviewTab({ o, timeIn }: { o: Overview; timeIn: number }) {
           <h2>On-site assessment</h2>
           {o.assessment ? (
             <dl className="op-facts">
-              <div><dt>Schedule</dt><dd>{o.assessment.anytime ? `${quoteDate(o.assessment.start)} · Anytime` : quoteDateTime(o.assessment.start)} <span className={`pill tag ${o.assessment.status === "completed" ? "active" : "draft"}`}>{o.assessment.status === "completed" ? "Completed" : "Upcoming"}</span></dd></div>
+              <div><dt>Schedule</dt><dd>{o.assessment.anytime ? `${quoteDate(o.assessment.start)} · Anytime` : quoteDateTime(o.assessment.start)} <span className={`pill tag ${o.assessment.status === "completed" ? "active" : "draft"}`}>{o.assessment.status === "completed" ? "Completed" : o.assessment.status === "lost" ? "Lost" : "Upcoming"}</span></dd></div>
               {o.assessment.instructions && <div><dt>Instructions</dt><dd className="op-text">{o.assessment.instructions}</dd></div>}
             </dl>
           ) : (

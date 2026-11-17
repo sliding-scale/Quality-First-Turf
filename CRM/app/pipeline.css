@@ -70,6 +70,7 @@
 .pl-service { margin-top: 6px; display: flex; align-items: flex-start; gap: 6px; font-size: 13px; color: #49646f; }
 .pl-service .ic { flex: none; margin-top: 1px; }
 .pl-cardfoot { margin-top: 10px; display: flex; justify-content: space-between; align-items: center; }
+.pl-movedto { margin-top: 4px; padding: 1px 8px; width: fit-content; max-width: 100%; border-radius: 999px; background: #e8f2e4; color: var(--green, #388523); font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pl-time { padding: 1px 8px; border-radius: 999px; background: #eeece7; font-size: 12px; color: var(--ink); }
 .pl-value { font-size: 13px; font-weight: 700; color: var(--ink); }
 

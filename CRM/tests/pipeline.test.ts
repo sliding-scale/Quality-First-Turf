@@ -158,8 +158,8 @@ describe("board", () => {
     await admin.mutation(api.crm.pipeline.moveStage, { id: project, to: "Closed Won", now: NOW + 1 });
     const won = await admin.query(api.crm.pipeline.board, { businessId: qft, ...boardArgs });
     expect(won.columns.find((c) => c.name === "Closed Lost")!.cards.some((c) => c.id === project)).toBe(false);
-    // Won means it is in Preplanning at once, so it is no longer on the Sales board at all.
-    expect(won.columns.flatMap((c) => c.cards).some((c) => c.id === project)).toBe(false);
+    // Won means it is in Preplanning at once, but it stays in the Closed Won column (D-088), marked with where it is.
+    expect(won.columns.find((c) => c.name === "Closed Won")!.cards.find((c) => c.id === project)).toMatchObject({ movedTo: "Preplanning: Ready for Preplanning" });
     expect((await base.run((ctx) => ctx.db.get(project)))?.pipeline).toBe("Preplanning");
   });
 

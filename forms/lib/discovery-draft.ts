@@ -10,10 +10,16 @@ import {
   grassService,
   grassWork,
   grassWorkFromTypes,
-  hasFollowUp,
+  needsQuestions,
   normalizeDemoChoices,
   phoneInput,
   orderServices,
+  projectBudgets,
+  projectGoals,
+  projectSizes,
+  projectTimelines,
+  projectScopes,
+  yardPlaces,
   requiredContact,
   services,
   soilCondition,
@@ -32,7 +38,7 @@ const legacySpellings: [string, string][] = [
   ["Turf Stip", "Turf Strip"],
 ];
 
-export type DiscoveryStep = "property" | "services" | "details" | "confirmation";
+export type DiscoveryStep = "property" | "project" | "services" | "details" | "confirmation";
 
 export type DiscoveryDraft = {
   step: DiscoveryStep;
@@ -140,7 +146,35 @@ function formFrom(value: unknown): DiscoveryState {
     soil: soilCondition(value.soil),
     notes: stringRecord(value.notes),
     grassWork: savedWork || grassWorkFromTypes(installTypes[grassService] ?? []),
+    project: projectFrom(value.project),
+    where: whereFrom(value.where),
   }));
+}
+
+function oneOf(options: readonly { value: string }[], value: unknown): string {
+  return options.find((option) => option.value === value)?.value ?? "";
+}
+
+function projectFrom(value: unknown): DiscoveryState["project"] {
+  if (!isRecord(value)) return { scope: [], size: "", goal: "", timeline: "", budget: "" };
+  const scope = Array.isArray(value.scope) ? value.scope.filter((item) => (projectScopes as readonly unknown[]).includes(item)) : [];
+  return {
+    scope: [...new Set(scope as string[])],
+    size: oneOf(projectSizes, value.size),
+    goal: oneOf(projectGoals, value.goal),
+    timeline: oneOf(projectTimelines, value.timeline),
+    budget: oneOf(projectBudgets, value.budget),
+  };
+}
+
+function whereFrom(value: unknown): Record<string, string[]> {
+  const result: Record<string, string[]> = {};
+  for (const [service, places] of Object.entries(stringListRecord(value))) {
+    if (!knownServices.has(service)) continue;
+    const kept = yardPlaces.filter((place) => places.includes(place));
+    if (kept.length > 0) result[service] = [...kept];
+  }
+  return result;
 }
 
 function areasFrom(value: unknown): Record<string, AreaDraft[]> {
@@ -211,10 +245,10 @@ function squareFeetFrom(value: Record<string, unknown>): Record<string, string> 
 
 function stepFor(step: unknown, form: DiscoveryState): DiscoveryStep {
   const requested: DiscoveryStep =
-    step === "services" || step === "details" ? step : "property";
+    step === "project" || step === "services" || step === "details" ? step : "property";
   if (requested !== "property" && requiredContact(form) !== null) return "property";
-  if (requested === "details" && !form.services.some((service) => hasFollowUp(service))) {
-    return form.services.length > 0 ? "services" : "property";
+  if (requested === "details" && !needsQuestions(form.services)) {
+    return form.services.length > 0 ? "services" : "project";
   }
   return requested;
 }

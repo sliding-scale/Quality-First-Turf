@@ -686,7 +686,7 @@ export default defineSchema({
     /** Shown in the "Anytime" row rather than at a time of day. */
     anytime: v.boolean(),
     assigneeIds: v.array(v.id("users")),
-    status: v.union(v.literal("upcoming"), v.literal("completed"), v.literal("confirmed")),
+    status: v.union(v.literal("upcoming"), v.literal("completed"), v.literal("confirmed"), v.literal("lost")),
     notes: v.string(),
     repeat: v.union(v.literal("none"), v.literal("daily"), v.literal("weekdays"), v.literal("weekly"), v.literal("monthly")),
     repeatUntil: v.optional(v.number()),
@@ -700,6 +700,12 @@ export default defineSchema({
     updatedAt: v.optional(v.number()),
     /** A construction visit (D-081): a job walk, an installation day or a reinspection. Only on `type: "visit"`. */
     visitKind: v.optional(v.union(v.literal("jobWalk"), v.literal("install"), v.literal("reinspection"))),
+    /** A consultation sent to Jobber (D-085): the assessment on the project's Jobber request. */
+    jobberAssessmentId: v.optional(v.string()),
+    /** Why the last send to Jobber did not go through; cleared when one does. Shown on the request page with a retry. */
+    jobberError: v.optional(v.string()),
+    /** Marked done without a booking: the consultation happened offline (D-085). Never sent to Jobber. */
+    offline: v.optional(v.boolean()),
   })
     .index("by_business_and_start", ["businessId", "start"])
     .index("by_opportunity", ["opportunityId"]),

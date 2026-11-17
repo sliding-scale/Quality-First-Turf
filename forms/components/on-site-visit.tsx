@@ -1387,6 +1387,41 @@ export function OnSiteVisit({
               ) : null}
             </section>
 
+            {(() => {
+              // What the customer said they want (D-087): the goal and the budget are what the salesperson needs before the first call.
+              const facts: [string, string][] = [
+                ["Transforming", form.project.scope.join(", ")],
+                ["Space size", form.project.size],
+                ["Main goal", form.project.goal],
+                ["When", form.project.timeline],
+                ["Investment range", form.project.budget],
+                ...Object.entries(form.where).map(([service, places]): [string, string] => [`${serviceLabel(service)} location`, places.join(", ")]),
+              ];
+              const shown = facts.filter(([, value]) => value !== "");
+              if (shown.length === 0) return null;
+              return (
+                <section id="project" className="visit-card">
+                  <div className="visit-card__head">
+                    <div>
+                      <h2>
+                        <Sprout size={18} aria-hidden="true" />
+                        Their project
+                      </h2>
+                      <p>From the customer form</p>
+                    </div>
+                  </div>
+                  <dl className="visit-facts">
+                    {shown.map(([label, value]) => (
+                      <div key={label}>
+                        <dt>{label}</dt>
+                        <dd>{value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </section>
+              );
+            })()}
+
             <section id="services" className="visit-stack">
               <div className="visit-section-head">
                 <div>

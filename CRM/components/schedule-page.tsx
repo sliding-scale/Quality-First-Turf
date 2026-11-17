@@ -30,7 +30,7 @@ import { useUI } from "./ui-provider";
 
 const TYPE_OPTIONS = [...ITEM_TYPES, "task"] as const;
 const TYPE_NAME: Record<string, string> = { consultation: "Requests", visit: "Visits", task: "Tasks", event: "Events", reminder: "Reminders" };
-const STATUS_OPTIONS = [["completed", "Completed"], ["overdue", "Overdue"], ["upcoming", "Upcoming"], ["confirmed", "Confirmed by client"]] as const;
+const STATUS_OPTIONS = [["completed", "Completed"], ["overdue", "Overdue"], ["upcoming", "Upcoming"], ["confirmed", "Confirmed by client"], ["lost", "Lost"]] as const;
 
 export function SchedulePage() {
   const workspace = useWorkspace();

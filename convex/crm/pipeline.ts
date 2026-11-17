@@ -1,4 +1,5 @@
 import { ConvexError, v } from "convex/values";
+import { consultationsOnMove } from "./lib/consultationStage";
 import type { Doc, Id } from "../_generated/dataModel";
 import { mutation, query, type MutationCtx, type QueryCtx } from "../_generated/server";
 import { requireBusiness, requireEditor, requireMover, type Staff } from "./lib/access";
@@ -76,7 +77,17 @@ async function applyWorkMove(ctx: MutationCtx, project: Doc<"opportunities">, to
     opportunityId: project._id, businessId: project.businessId, from, to, byName: staff.name, byUserId: staff.userId, at: now,
   });
   await notifyStage(ctx, { project, from, to, byName: staff.name, byUserId: staff.userId, now });
-  return { from, to, handedOff: false };
+  // Reaching the last Preplanning stage hands the same project to Construction at once (D-088), as Closed Won hands it to Preplanning. The move
+  // into the last stage stays in the history, then "Sent to Construction automatically"; the one alert for that move is all that is sent.
+  let handedOff = false;
+  if (project.pipeline === "Preplanning" && to === PREPLANNING_LAST && project.archivedAt === undefined) {
+    const ready = await ctx.db.get(project._id);
+    if (ready !== null) {
+      await changePipeline(ctx, ready, staff, { from: ["Preplanning", PREPLANNING_LAST], to: ["Construction", CONSTRUCTION_ENTRY], now, note: "Sent to Construction automatically", quiet: true });
+      handedOff = true;
+    }
+  }
+  return { from, to, handedOff };
 }
 
 /** One move inside the current pipeline: validates it, updates the project and writes the history row. Shared by moveStage and won/lost. */
@@ -108,6 +119,7 @@ export async function applyMove(ctx: MutationCtx, project: Doc<"opportunities">,
     opportunityId: project._id, businessId: project.businessId, from, to, byName: staff.name, byUserId: staff.userId, at: now, ...(note ? { note } : {}),
   });
   await notifyStage(ctx, { project, from, to, byName: staff.name, byUserId: staff.userId, now });
+  await consultationsOnMove(ctx, project, from, to, now, staff.userId);
   // Closed Won hands the same project to Preplanning at once (PRD 4.1). The Closed Won move above stays in the history. The Office team and the
   // salesperson were already told by that move ("Ready for Preplanning"), so the handoff itself sends nothing more.
   let handedOff = false;
@@ -175,7 +187,7 @@ export const board = query({
     await requireBusiness(ctx, a.businessId);
     const text = a.search.trim();
     const docs = text
-      ? await ctx.db.query("opportunities").withSearchIndex("search_text", (q) => q.search("searchText", text).eq("businessId", a.businessId).eq("pipeline", "Sales")).take(MAX_PROJECTS)
+      ? await ctx.db.query("opportunities").withSearchIndex("search_text", (q) => q.search("searchText", text).eq("businessId", a.businessId)).take(MAX_PROJECTS)
       : await ctx.db.query("opportunities").withIndex("by_business_and_requestedAt", (q) => q.eq("businessId", a.businessId)).order("desc").take(MAX_PROJECTS);
     const stages = (await stageList(ctx, a.businessId)).filter((s) => !s.hidden);
     const values = await latestQuoteValues(ctx, a.businessId);
@@ -196,8 +208,10 @@ export const board = query({
     const cards = new Map<string, Card[]>(allColumns.map((s) => [s.name, []]));
     const groupOf = new Map(allColumns.map((s) => [s.name, s.group]));
     for (const p of docs) {
-      if (p.pipeline !== "Sales" || p.businessId !== a.businessId || p.archivedAt !== undefined) continue; // archived ones (D-065) are off the board
-      const column = cards.get(p.stage);
+      // A won project that has moved on to Preplanning or Construction stays in the Closed Won column (D-088), marked with where it is now.
+      const movedOn = p.pipeline !== "Sales" && p.outcome === "won";
+      if ((p.pipeline !== "Sales" && !movedOn) || p.businessId !== a.businessId || p.archivedAt !== undefined) continue; // archived ones (D-065) are off the board
+      const column = cards.get(movedOn ? "Closed Won" : p.stage);
       if (!column) continue;
       if (a.salespersonId === "unassigned" ? p.salespersonId !== undefined : a.salespersonId !== undefined && p.salespersonId !== a.salespersonId) continue;
       if (wanted.size > 0 && !wanted.has(p.leadSource ?? NO_SOURCE)) continue;
@@ -205,10 +219,11 @@ export const board = query({
       if (a.to !== undefined && p.requestedAt > a.to) continue;
       if (!clients.has(p.clientId)) clients.set(p.clientId, (await ctx.db.get(p.clientId))?.name ?? "");
       column.push({
-        group: groupOf.get(p.stage) ?? "Requests",
-        id: p._id, code: p.code, title: p.title, clientId: p.clientId, clientName: clients.get(p.clientId) ?? "", stage: p.stage,
+        group: groupOf.get(movedOn ? "Closed Won" : p.stage) ?? "Requests",
+        id: p._id, code: p.code, title: p.title, clientId: p.clientId, clientName: clients.get(p.clientId) ?? "", stage: movedOn ? "Closed Won" : p.stage,
+        movedTo: movedOn ? `${p.pipeline}: ${p.stage}` : undefined,
         consultationAt: consults.get(p._id),
-        valueCents: values.get(p._id)?.totalCents ?? 0, quoteId: values.get(p._id)?.quoteId, timeInStageMs: timeInStage(p.stageEnteredAt, p.requestedAt, a.now), requestedAt: p.requestedAt,
+        valueCents: values.get(p._id)?.totalCents ?? 0, quoteId: values.get(p._id)?.quoteId, timeInStageMs: timeInStage(movedOn ? (p.closedAt ?? p.stageEnteredAt) : p.stageEnteredAt, p.requestedAt, a.now), requestedAt: p.requestedAt,
         salespersonId: p.salespersonId, salespersonName: p.salespersonId ? (people.get(p.salespersonId) ?? "") : "Unassigned", leadSource: p.leadSource ?? NO_SOURCE,
       });
     }
@@ -248,7 +263,7 @@ export const workBoard = query({
     await requireBusiness(ctx, a.businessId);
     const text = a.search.trim();
     const docs = text
-      ? await ctx.db.query("opportunities").withSearchIndex("search_text", (q) => q.search("searchText", text).eq("businessId", a.businessId).eq("pipeline", a.pipeline)).take(MAX_PROJECTS)
+      ? await ctx.db.query("opportunities").withSearchIndex("search_text", (q) => q.search("searchText", text).eq("businessId", a.businessId)).take(MAX_PROJECTS)
       : await ctx.db.query("opportunities").withIndex("by_business_and_requestedAt", (q) => q.eq("businessId", a.businessId)).order("desc").take(MAX_PROJECTS);
     const stageNames = a.pipeline === "Preplanning" ? PREPLANNING_STAGES : CONSTRUCTION_STAGES;
     const values = await latestQuoteValues(ctx, a.businessId);
@@ -257,8 +272,10 @@ export const workBoard = query({
     const wanted = new Set(a.leadSources);
     const cards = new Map<string, WorkCard[]>(stageNames.map((name) => [name, []]));
     for (const p of docs) {
-      if (p.pipeline !== a.pipeline || p.businessId !== a.businessId || p.archivedAt !== undefined) continue;
-      const column = cards.get(p.stage);
+      // A project that has moved on from the last Preplanning stage to Construction stays in that column (D-089), marked with where it is now.
+      const movedOn = a.pipeline === "Preplanning" && p.pipeline === "Construction";
+      if ((p.pipeline !== a.pipeline && !movedOn) || p.businessId !== a.businessId || p.archivedAt !== undefined) continue;
+      const column = cards.get(movedOn ? PREPLANNING_LAST : p.stage);
       if (!column) continue;
       if (a.salespersonId === "unassigned" ? p.salespersonId !== undefined : a.salespersonId !== undefined && p.salespersonId !== a.salespersonId) continue;
       if (wanted.size > 0 && !wanted.has(p.leadSource ?? NO_SOURCE)) continue;
@@ -266,7 +283,8 @@ export const workBoard = query({
       if (a.to !== undefined && p.requestedAt > a.to) continue;
       if (!clients.has(p.clientId)) clients.set(p.clientId, (await ctx.db.get(p.clientId))?.name ?? "");
       column.push({
-        id: p._id, code: p.code, title: p.title, clientId: p.clientId, clientName: clients.get(p.clientId) ?? "", stage: p.stage,
+        id: p._id, code: p.code, title: p.title, clientId: p.clientId, clientName: clients.get(p.clientId) ?? "", stage: movedOn ? PREPLANNING_LAST : p.stage,
+        movedTo: movedOn ? `Construction: ${p.stage}` : undefined,
         valueCents: values.get(p._id)?.totalCents ?? 0, quoteId: values.get(p._id)?.quoteId, timeInStageMs: timeInStage(p.stageEnteredAt, p.requestedAt, a.now), requestedAt: p.requestedAt,
         salespersonId: p.salespersonId, salespersonName: p.salespersonId ? (people.get(p.salespersonId) ?? "") : "Unassigned", leadSource: p.leadSource ?? NO_SOURCE,
         outcome: p.outcome ?? null,
@@ -286,6 +304,8 @@ type WorkCard = {
   id: Id<"opportunities">; code: string; title: string; clientId: Id<"clients">; clientName: string; stage: string; valueCents: number;
   quoteId: Id<"quotes"> | undefined; timeInStageMs: number; requestedAt: number; salespersonId: Id<"users"> | undefined; salespersonName: string;
   leadSource: string; outcome: "won" | "lost" | null;
+  /** Set on a project that has moved on to Construction, "Construction: Ready to Start": it stays in the last Preplanning column (D-089). */
+  movedTo: string | undefined;
 };
 
 export type Card = {
@@ -296,6 +316,8 @@ export type Card = {
   consultationAt: number | undefined;
   /** The project's latest quote, if it has one (the card's "View Quote"). */
   quoteId: Id<"quotes"> | undefined;
+  /** Set on a won project that has moved on, "Preplanning: Ready for Preplanning": it stays in Closed Won (D-088) but is moved from its own board. */
+  movedTo: string | undefined;
   timeInStageMs: number; requestedAt: number; salespersonId: Id<"users"> | undefined; salespersonName: string; leadSource: string;
 };
 

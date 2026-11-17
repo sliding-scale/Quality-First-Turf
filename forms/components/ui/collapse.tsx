@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useEffect, useState } from "react";
+import { type CSSProperties, type ReactNode, useEffect, useState } from "react";
 
 /** How long a section takes to open or close. The same number is in the .collapse rules in globals.css. */
 const DURATION_MS = 700;
@@ -9,8 +9,11 @@ const DURATION_MS = 700;
  * Opens and closes a section with a slide instead of letting it pop in and out. Wrap the section's own element in it and pass
  * whether it should be open. A closing section stays on the page until the slide ends, then goes (or, with `lazy={false}`, stays
  * mounted but hidden and unreachable by keyboard, so whatever is inside keeps its own state).
+ *
+ * `gap` is the grid or flex gap of the group the section sits in. A closed section is empty but still counts a gap, so it gives that gap
+ * back (a negative margin, slid with the rest) and nothing jumps when it is finally taken off the page.
  */
-export function Collapse({ open, lazy = true, children }: { open: boolean; lazy?: boolean; children: ReactNode }) {
+export function Collapse({ open, lazy = true, gap, children }: { open: boolean; lazy?: boolean; gap?: string; children: ReactNode }) {
   const [present, setPresent] = useState(open); // the section is on the page
   const [ready, setReady] = useState(open); // it has been painted closed once, so it can slide open
   const [fullyOpen, setFullyOpen] = useState(open); // the slide has finished, so nothing inside needs clipping any more
@@ -43,7 +46,11 @@ export function Collapse({ open, lazy = true, children }: { open: boolean; lazy?
 
   if (lazy && !present) return null;
   return (
-    <div className={`collapse${shown ? " is-open" : ""}${settled ? " is-settled" : ""}`} inert={!open}>
+    <div
+      className={`collapse${shown ? " is-open" : ""}${settled ? " is-settled" : ""}`}
+      style={gap === undefined ? undefined : ({ "--collapse-gap": gap } as CSSProperties)}
+      inert={!open}
+    >
       <div className="collapse__inner">{children}</div>
     </div>
   );

@@ -1,5 +1,6 @@
 import type { Doc } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
+import { consultationsOnMove } from "./consultationStage";
 import { notifyStage } from "./mentionNotify";
 import { SALES_STAGES } from "./stages";
 
@@ -30,5 +31,6 @@ export async function systemMove(
     ...(opts.byUserId ? { byUserId: opts.byUserId } : {}), ...(opts.note ? { note: opts.note } : {}),
   });
   await notifyStage(ctx, { project, from, to, byName, ...(opts.byUserId ? { byUserId: opts.byUserId } : {}), now });
+  await consultationsOnMove(ctx, project, from, to, now, opts.byUserId);
   return true;
 }

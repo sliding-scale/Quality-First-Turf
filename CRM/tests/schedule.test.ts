@@ -78,15 +78,16 @@ describe("booking and double-booking", () => {
     await expect(outsider.query(api.crm.schedule.range, window(qft))).rejects.toThrow();
   });
 
-  it("moves a project to Onsite Consultation only when a consultation is booked from the right stage", async () => {
+  it("moves a project to Onsite Consultation when a consultation is booked at New Request or Schedule Onsite Consultation (D-085)", async () => {
     const { sales, base: db, qft, sam, project } = await world();
     await sales.mutation(api.crm.schedule.book, { ...base, businessId: qft, type: "consultation", title: "Walk the yard", start: at(10, 9), end: at(10, 10), assigneeIds: [sam], opportunityId: project });
-    expect((await db.run((ctx) => ctx.db.get(project)))?.stage).toBe("New Request"); // not at the scheduling stage: unchanged
-    await db.run((ctx) => ctx.db.patch(project, { stage: "Schedule Onsite Consultation" }));
-    await sales.mutation(api.crm.schedule.book, { ...base, businessId: qft, type: "consultation", title: "Walk the yard", start: at(11, 9), end: at(11, 10), assigneeIds: [sam], opportunityId: project });
     expect((await db.run((ctx) => ctx.db.get(project)))?.stage).toBe("Onsite Consultation");
     const history = await sales.query(api.crm.pipeline.history, { id: project });
-    expect(history[0]).toMatchObject({ from: "Schedule Onsite Consultation", to: "Onsite Consultation" });
+    expect(history[0]).toMatchObject({ from: "New Request", to: "Onsite Consultation" });
+    // Already there or further on: a second booking leaves the stage alone.
+    await db.run((ctx) => ctx.db.patch(project, { stage: "Quote Draft & Site Plan / Design" }));
+    await sales.mutation(api.crm.schedule.book, { ...base, businessId: qft, type: "consultation", title: "Walk the yard", start: at(11, 9), end: at(11, 10), assigneeIds: [sam], opportunityId: project });
+    expect((await db.run((ctx) => ctx.db.get(project)))?.stage).toBe("Quote Draft & Site Plan / Design");
   });
 
   it("changes status and assignment, and removes an item", async () => {

@@ -1,7 +1,7 @@
 import { flushSync } from "react-dom";
 import type { DiscoveryStep } from "@/lib/discovery-draft";
 
-const discoveryOrder: DiscoveryStep[] = ["property", "services", "details", "confirmation"];
+const discoveryOrder: DiscoveryStep[] = ["property", "project", "services", "details", "confirmation"];
 
 let active: { skipTransition: () => void } | null = null;
 

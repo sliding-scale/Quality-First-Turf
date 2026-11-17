@@ -24,7 +24,10 @@ describe("Preplanning and Construction", () => {
     const doc = await w.base.run((ctx) => ctx.db.get(w.project));
     expect(doc).toMatchObject({ pipeline: "Preplanning", stage: "Ready for Preplanning", outcome: "won", closedAt: NOW });
     const sales = await w.admin.query(api.crm.pipeline.board, { businessId: w.qft, ...boardArgs });
-    expect(sales.columns.flatMap((c) => c.cards).some((c) => c.id === w.project)).toBe(false);
+    // It stays in the Sales board's Closed Won column (D-088), marked with where it is now, and cannot be moved from there.
+    const stays = sales.columns.find((c) => c.name === "Closed Won")!.cards.find((c) => c.id === w.project);
+    expect(stays).toMatchObject({ stage: "Closed Won", movedTo: "Preplanning: Ready for Preplanning" });
+    await expect(w.sales.mutation(api.crm.pipeline.moveStage, { id: w.project, to: "Quote Draft & Site Plan / Design", now: NOW + 1 })).rejects.toThrow();
     const pre = await w.admin.query(api.crm.pipeline.workBoard, { businessId: w.qft, pipeline: "Preplanning", ...boardArgs });
     expect(names(pre)).toEqual([...PREPLANNING_STAGES]);
     expect(idsIn(pre, "Ready for Preplanning")).toContain(w.project);
@@ -55,9 +58,18 @@ describe("Preplanning and Construction", () => {
     await w.sales.mutation(api.crm.pipeline.moveStage, { id: w.project, to: "Material Takeoff & Availability", now: NOW + 2 });
     expect(await w.base.run((ctx) => ctx.db.get(w.project))).toMatchObject({ pipeline: "Preplanning", stage: "Material Takeoff & Availability", outcome: "won" });
     await expect(w.sales.mutation(api.crm.pipeline.moveStage, { id: w.project, to: "Closed Won", now: NOW + 3 })).rejects.toThrow(/not a Preplanning stage/);
-    await w.sales.mutation(api.crm.pipeline.moveStage, { id: w.project, to: PREPLANNING_STAGES[PREPLANNING_STAGES.length - 1], now: NOW + 4 });
-    await w.sales.mutation(api.crm.pipeline.startConstruction, { id: w.project, now: NOW + 5 });
+    // The last Preplanning stage hands the same project to Construction by itself (D-088): both moves are in the history, and the manual button has nothing to do.
+    const moved = await w.sales.mutation(api.crm.pipeline.moveStage, { id: w.project, to: PREPLANNING_STAGES[PREPLANNING_STAGES.length - 1], now: NOW + 4 });
+    expect(moved).toMatchObject({ handedOff: true });
     expect(await w.base.run((ctx) => ctx.db.get(w.project))).toMatchObject({ pipeline: "Construction", stage: "Ready to Start", outcome: "won" });
+    const trail = await w.admin.query(api.crm.pipeline.history, { id: w.project });
+    expect(trail.slice(0, 2).map((h) => [h.to, h.note])).toEqual([["Ready to Start", "Sent to Construction automatically"], [PREPLANNING_STAGES[PREPLANNING_STAGES.length - 1], undefined]]);
+    await expect(w.sales.mutation(api.crm.pipeline.startConstruction, { id: w.project, now: NOW + 5 })).rejects.toThrow(/Ready for Construction/);
+    // It stays in the last Preplanning column too (D-089), marked with where it is now, and cannot be moved from there.
+    const prep = await w.admin.query(api.crm.pipeline.workBoard, { businessId: w.qft, pipeline: "Preplanning", ...boardArgs });
+    const last = prep.columns.find((c) => c.name === PREPLANNING_STAGES[PREPLANNING_STAGES.length - 1])!;
+    expect(last.cards.find((c) => c.id === w.project)).toMatchObject({ movedTo: "Construction: Ready to Start" });
+    await expect(w.sales.mutation(api.crm.pipeline.moveStage, { id: w.project, to: "Material Takeoff & Availability", now: NOW + 6 })).rejects.toThrow();
 
     const site = await w.admin.query(api.crm.pipeline.workBoard, { businessId: w.qft, pipeline: "Construction", ...boardArgs });
     expect(names(site)).toEqual([...CONSTRUCTION_STAGES]);
@@ -91,7 +103,6 @@ describe("Preplanning and Construction", () => {
     await signedQuote(w);
     await w.admin.mutation(api.crm.pipeline.moveStage, { id: w.project, to: "Closed Won", now: NOW });
     await w.admin.mutation(api.crm.pipeline.moveStage, { id: w.project, to: PREPLANNING_STAGES[PREPLANNING_STAGES.length - 1], now: NOW + 1 });
-    await w.admin.mutation(api.crm.pipeline.startConstruction, { id: w.project, now: NOW + 2 });
 
     await w.pm.mutation(api.crm.pipeline.moveStage, { id: w.project, to: "PM Job Walk & Mark-up", now: NOW + 3 });
     expect(await w.base.run((ctx) => ctx.db.get(w.project))).toMatchObject({ pipeline: "Construction", stage: "PM Job Walk & Mark-up" });

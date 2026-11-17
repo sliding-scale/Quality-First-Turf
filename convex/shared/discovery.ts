@@ -307,6 +307,92 @@ export function soilCondition(value: unknown): SoilCondition | "" {
   return match ?? "";
 }
 
+/** The "Your project" step (D-087): what the customer wants, in their own terms, before the detailed service questions. */
+export const projectScopes = [
+  "Front yard",
+  "Backyard",
+  "Side yard / Dog run",
+  "Putting green",
+  "Patio / Pavers",
+  "Complete landscape redesign",
+] as const;
+
+export type ChoiceOption = { value: string; title: string; detail: string };
+
+export const projectSizes: ChoiceOption[] = [
+  { value: "Small (Under 500 sq. ft.)", title: "Small", detail: "Under 500 sq. ft. For example a dog run or side yard" },
+  { value: "Medium (500 - 1,500 sq. ft.)", title: "Medium", detail: "500 to 1,500 sq. ft. A standard yard" },
+  { value: "Large (1,500+ sq. ft.)", title: "Large", detail: "1,500+ sq. ft. The full property" },
+  { value: "Not sure yet (Needs a measurement)", title: "Not sure yet", detail: "We will measure it for you" },
+];
+
+export const projectGoals: ChoiceOption[] = [
+  { value: "Cut down on water bills and maintenance", title: "Lower water bills and less upkeep", detail: "" },
+  { value: "Pet-friendly, mud-free yard", title: "A pet-friendly, mud-free yard", detail: "" },
+  { value: "Kids' play area", title: "A play area for the kids", detail: "" },
+  { value: "Curb appeal and entertaining", title: "Curb appeal and entertaining", detail: "" },
+  { value: "Practice my short game (Putting green)", title: "Practice my short game", detail: "A putting green" },
+];
+
+export const projectTimelines: ChoiceOption[] = [
+  { value: "As soon as possible", title: "As soon as possible", detail: "" },
+  { value: "Within 1-3 months", title: "Within 1 to 3 months", detail: "" },
+  { value: "3+ months / Just budgeting right now", title: "3+ months", detail: "Just budgeting right now" },
+];
+
+export const projectBudgets: ChoiceOption[] = [
+  { value: "$3,000 - $7,000", title: "$3,000 to $7,000", detail: "Smaller yards, side yards or putting greens" },
+  { value: "$7,000 - $15,000", title: "$7,000 to $15,000", detail: "A standard full backyard or front yard transformation" },
+  { value: "$15,000 - $25,000+", title: "$15,000 to $25,000+", detail: "A large property, a complex landscape design, or pavers and turf" },
+  { value: "Not sure / Need a professional recommendation and quote", title: "I'm not sure", detail: "We will recommend an option and quote it" },
+];
+
+export type ProjectAnswers = { scope: string[]; size: string; goal: string; timeline: string; budget: string };
+
+export function emptyProject(): ProjectAnswers {
+  return { scope: [], size: "", goal: "", timeline: "", budget: "" };
+}
+
+/** The services a project scope already tells us about, so the next step can start with them ticked. */
+export const scopeServices: Record<string, string[]> = {
+  "Putting green": ["Putting Green"],
+  "Patio / Pavers": ["Pavers"],
+};
+
+/** Where in the yard a service goes (a service with its own yard-by-yard list, below, asks there instead). */
+export const yardPlaces = ["Front yard", "Back yard", "Side yard", "Other"] as const;
+
+/** Whether the Questions step asks "Where in your yard is this?" for a service. Demolition, putting greens and artificial grass already list their yards one by one. */
+export function asksWhere(service: string): boolean {
+  return service !== "Demo" && service !== "Putting Green" && service !== grassService;
+}
+
+/** Whether the Questions step has anything to ask for the chosen services. */
+export function needsQuestions(selected: readonly string[]): boolean {
+  return selected.some((service) => hasFollowUp(service) || asksWhere(service));
+}
+
+export function projectProblems(project: ProjectAnswers): Record<string, string> {
+  const problems: Record<string, string> = {};
+  const among = (options: ChoiceOption[], value: string) => options.some((option) => option.value === value);
+  if (project.scope.length === 0) problems["project-scope"] = "Choose what you would like to transform.";
+  if (!among(projectSizes, project.size)) problems["project-size"] = "Choose roughly how big the space is.";
+  if (!among(projectGoals, project.goal)) problems["project-goal"] = "Choose your main goal.";
+  if (!among(projectTimelines, project.timeline)) problems["project-timeline"] = "Choose when you hope to enjoy it.";
+  if (!among(projectBudgets, project.budget)) problems["project-budget"] = "Choose a target investment range.";
+  return problems;
+}
+
+export function whereProblems(form: DiscoveryState): Record<string, string> {
+  const problems: Record<string, string> = {};
+  for (const service of form.services) {
+    if (asksWhere(service) && (form.where[service] ?? []).length === 0) {
+      problems[fieldIdFor("where", service)] = `Choose where in your yard ${serviceLabel(service)} goes.`;
+    }
+  }
+  return problems;
+}
+
 export type DiscoveryState = {
   firstName: string;
   lastName: string;
@@ -337,6 +423,10 @@ export type DiscoveryState = {
   soil: SoilCondition | "";
   notes: Record<string, string>;
   grassWork: GrassWork | "";
+  /** The "Your project" answers (D-087). */
+  project: ProjectAnswers;
+  /** Where in the yard each service goes, for the services that ask (asksWhere). */
+  where: Record<string, string[]>;
 };
 
 export function emptyDiscovery(): DiscoveryState {
@@ -369,6 +459,8 @@ export function emptyDiscovery(): DiscoveryState {
     soil: "",
     notes: {},
     grassWork: "",
+    project: emptyProject(),
+    where: {},
   };
 }
 
@@ -742,7 +834,9 @@ function invalid(error: string, fieldId: string): DiscoveryBuild {
   return { error, fieldId, payload: null };
 }
 
-export function buildDiscovery(input: DiscoveryState): DiscoveryBuild {
+/** `requireProject` is true for the customer form and New Request, which always ask the project questions. The sales form leaves it off, so
+ *  a visit on a project that was submitted before those questions existed can still be saved. */
+export function buildDiscovery(input: DiscoveryState, options: { requireProject?: boolean } = {}): DiscoveryBuild {
   const contact = contactProblems(input);
   const contactId = Object.keys(contact)[0];
   if (contactId !== undefined) {
@@ -752,9 +846,34 @@ export function buildDiscovery(input: DiscoveryState): DiscoveryBuild {
     return invalid("Choose at least one service.", "services");
   }
 
+  if (options.requireProject) {
+    const project = projectProblems(input.project);
+    const projectId = Object.keys(project)[0];
+    if (projectId !== undefined) return invalid(project[projectId], projectId);
+    const where = whereProblems(input);
+    const whereId = Object.keys(where)[0];
+    if (whereId !== undefined) return invalid(where[whereId], whereId);
+  }
+
+  // The project answers and the yard locations come first, so they are never cut off where Jobber's request keeps only the first answers.
   const answers: { question: string; value: string }[] = [
     { question: "Customer type", value: input.customerType },
   ];
+  for (const scope of input.project.scope) answers.push({ question: "Project scope", value: scope });
+  for (const [question, value] of [
+    ["Space size", input.project.size],
+    ["Main goal", input.project.goal],
+    ["Timeline", input.project.timeline],
+    ["Investment range", input.project.budget],
+  ] as const) {
+    if (value !== "") answers.push({ question, value });
+  }
+  for (const service of services) {
+    if (!input.services.includes(service) || !asksWhere(service)) continue;
+    for (const place of yardPlaces) {
+      if ((input.where[service] ?? []).includes(place)) answers.push({ question: `${service} location`, value: place });
+    }
+  }
   const products: string[] = [];
   const addOns: string[] = [];
   const measurements: Measurement[] = [];
@@ -1413,6 +1532,19 @@ export function projectToForm(project: SavedProject): {
   const customerType = project.answers.find((answer) => answer.question === "Customer type")?.value;
   if (customerType === "Homeowner" || customerType === "Contractor") {
     form.customerType = customerType;
+  }
+
+  for (const answer of project.answers) {
+    if (answer.question === "Project scope") {
+      if (!form.project.scope.includes(answer.value)) form.project.scope.push(answer.value);
+    } else if (answer.question === "Space size") form.project.size = answer.value;
+    else if (answer.question === "Main goal") form.project.goal = answer.value;
+    else if (answer.question === "Timeline") form.project.timeline = answer.value;
+    else if (answer.question === "Investment range") form.project.budget = answer.value;
+    else if (answer.question.endsWith(" location")) {
+      const service = answer.question.slice(0, -" location".length);
+      if ((services as readonly string[]).includes(service)) form.where[service] = [...(form.where[service] ?? []), answer.value];
+    }
   }
 
   const grassTypes = installTypes[grassService] ?? [];

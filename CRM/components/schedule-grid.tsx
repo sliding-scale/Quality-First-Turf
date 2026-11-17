@@ -231,7 +231,7 @@ function TimeGrid(p: GridProps) {
                   return (
                     <article
                       key={s.item.key}
-                      className={`sc-item${s.item.status === "completed" ? " done" : ""}${s.item.overdue ? " overdue" : ""}`}
+                      className={`sc-item${s.item.status === "completed" ? " done" : ""}${s.item.status === "lost" ? " lost" : ""}${s.item.overdue ? " overdue" : ""}`}
                       style={{
                         top: (s.startMin / 60) * HOUR_PX, height: Math.max(22, ((endMin - s.startMin) / 60) * HOUR_PX - 2),
                         left: `calc(${(s.lane / s.lanes) * 100}% + 2px)`, width: `calc(${100 / s.lanes}% - 4px)`, background: style.bg, borderLeftColor: style.edge,
@@ -323,7 +323,7 @@ function MonthGrid(p: GridProps) {
               {shown.map((i) => (
                 <article
                   key={i.key}
-                  className={`sc-mchip${i.status === "completed" ? " done" : ""}`}
+                  className={`sc-mchip${i.status === "completed" ? " done" : ""}${i.status === "lost" ? " lost" : ""}`}
                   style={{ background: KIND_STYLE[i.kind].bg, borderLeftColor: KIND_STYLE[i.kind].edge }}
                   draggable={p.canEdit}
                   tabIndex={0}

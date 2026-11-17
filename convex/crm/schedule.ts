@@ -6,6 +6,7 @@ import { checkAssignee } from "./lib/assignees";
 import {
   BLOCKING, BUSINESS_TZ, DEFAULT_HOURS, expandRepeats, overlaps, type ItemType, type Repeat, type WorkingHours,
 } from "./lib/schedule";
+import { jobberChanged } from "./lib/jobberHooks";
 import { mirrorChanged, mirrorRemoved } from "./lib/mirror";
 import { applyMove } from "./pipeline";
 
@@ -17,7 +18,7 @@ const DAY = 86_400_000;
 const REPEAT_HORIZON = 180 * DAY;
 
 const typeV = v.union(v.literal("consultation"), v.literal("visit"), v.literal("event"), v.literal("reminder"));
-const statusV = v.union(v.literal("upcoming"), v.literal("completed"), v.literal("confirmed"));
+const statusV = v.union(v.literal("upcoming"), v.literal("completed"), v.literal("confirmed"), v.literal("lost"));
 const repeatV = v.union(v.literal("none"), v.literal("daily"), v.literal("weekdays"), v.literal("weekly"), v.literal("monthly"));
 
 const fmt = (ms: number) => new Intl.DateTimeFormat("en-US", { timeZone: BUSINESS_TZ, month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(ms);
@@ -104,8 +105,8 @@ export const book = mutation({
       ...(a.visitKind ? { visitKind: a.visitKind } : {}),
     });
     await mirrorChanged(ctx, "event", id);
-    // Booking a consultation for a project that was waiting for one moves it forward in the pipeline.
-    if (a.type === "consultation" && project && project.stage === "Schedule Onsite Consultation") {
+    // Booking a consultation for a project that was still at the start of the pipeline moves it to "Onsite Consultation" (D-085).
+    if (a.type === "consultation" && project && project.pipeline === "Sales" && (project.stage === "New Request" || project.stage === "Schedule Onsite Consultation")) {
       await applyMove(ctx, project, "Onsite Consultation", staff, undefined, a.now);
     }
     return id;
@@ -123,7 +124,8 @@ async function saveChanges(ctx: MutationCtx, event: Doc<"calendarEvents">, c: Ch
   const title = checkFields(next);
   if (c.assigneeIds) await checkAssignees(ctx, next.assigneeIds, event.businessId);
   await checkConflicts(ctx, event.businessId, { type: event.type, ...next }, event._id);
-  await ctx.db.patch(event._id, { ...next, title, updatedAt: Date.now() });
+  // A consultation marked done offline that is given a real time is a real booking from then on, so it can go to Jobber (D-085).
+  await ctx.db.patch(event._id, { ...next, title, updatedAt: Date.now(), ...(event.offline && !next.anytime ? { offline: undefined } : {}) });
   await mirrorChanged(ctx, "event", event._id);
 }
 
@@ -156,7 +158,8 @@ export const setStatus = mutation({
     const event = await ctx.db.get(args.id);
     if (event === null) throw new ConvexError("That item no longer exists.");
     await requireEditor(ctx, event.businessId);
-    await ctx.db.patch(args.id, { status: args.status });
+    await ctx.db.patch(args.id, { status: args.status, updatedAt: Date.now() });
+    await jobberChanged(ctx, args.id);
   },
 });
 
@@ -182,7 +185,8 @@ export type ScheduleItem = {
   end: number;
   anytime: boolean;
   assigneeIds: Id<"users">[];
-  status: "upcoming" | "completed" | "confirmed";
+  /** "lost": the project was Closed Lost, so the visit will not happen (D-085). Never overdue. */
+  status: "upcoming" | "completed" | "confirmed" | "lost";
   /** From someone's Zoho Calendar (D-069). */
   zoho: boolean;
   /** Worked out, never stored: not completed and already over. */
@@ -200,7 +204,7 @@ export type ScheduleItem = {
   seriesEnd: number;
 };
 
-const STATUS_KEYS = ["completed", "overdue", "upcoming", "confirmed"] as const;
+const STATUS_KEYS = ["completed", "overdue", "upcoming", "confirmed", "lost"] as const;
 
 export const range = query({
   args: {
@@ -209,7 +213,7 @@ export const range = query({
     types: v.array(v.string()),
     /** [] means everyone. */
     assigneeIds: v.array(v.union(v.id("users"), v.literal("unassigned"))),
-    /** [] means all: completed, overdue, upcoming, confirmed. */
+    /** [] means all: completed, overdue, upcoming, confirmed, lost. */
     statuses: v.array(v.string()),
     now: v.number(),
   },
@@ -227,7 +231,7 @@ export const range = query({
       for (const o of expandRepeats(e, a.from, a.to, BUSINESS_TZ)) {
         items.push({
           key: `${e._id}:${o.occurrence}`, id: e._id, kind: e.type, title: e.title, start: o.start, end: o.end, anytime: e.anytime, assigneeIds: e.assigneeIds,
-          status: e.status, overdue: e.status !== "completed" && o.end < a.now, repeat: e.repeat, clientId: e.clientId, clientName: await clientName(e.clientId),
+          status: e.status, overdue: e.status !== "completed" && e.status !== "lost" && o.end < a.now, repeat: e.repeat, clientId: e.clientId, clientName: await clientName(e.clientId),
           opportunityId: e.opportunityId, visitKind: e.visitKind, notes: e.notes, occurrence: o.occurrence, seriesStart: e.start, seriesEnd: e.end, zoho: e.source === "zoho",
         });
       }
@@ -247,7 +251,7 @@ export const range = query({
       if (a.types.length > 0 && !a.types.includes(i.kind)) return false;
       if (a.assigneeIds.length > 0 && !(i.assigneeIds.length === 0 ? a.assigneeIds.includes("unassigned") : i.assigneeIds.some((u) => a.assigneeIds.includes(u)))) return false;
       if (wantedStatus.size > 0) {
-        const keys = [i.status === "completed" ? "completed" : "", i.overdue ? "overdue" : "", i.status === "upcoming" && !i.overdue ? "upcoming" : "", i.status === "confirmed" ? "confirmed" : ""];
+        const keys = [i.status === "completed" ? "completed" : "", i.overdue ? "overdue" : "", i.status === "upcoming" && !i.overdue ? "upcoming" : "", i.status === "confirmed" ? "confirmed" : "", i.status === "lost" ? "lost" : ""];
         if (!keys.some((k) => k && wantedStatus.has(k))) return false;
       }
       return true;

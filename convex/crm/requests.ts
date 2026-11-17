@@ -168,6 +168,15 @@ async function overviewOf(ctx: QueryCtx, o: Doc<"opportunities">, client: Doc<"c
     { label: "Services", value: project.services.join(", ") },
     { label: "Customer type", value: client.type === "contractor" ? "Contractor" : "Homeowner" },
   ];
+  // The project questions (D-087): what the customer wants to transform, how big, why, when and the budget, then where each service goes.
+  const asked = (question: string) => project.answers.filter((x) => x.question === question).map((x) => x.value);
+  for (const [label, question] of [["Project scope", "Project scope"], ["Space size", "Space size"], ["Main goal", "Main goal"], ["Timeline", "Timeline"], ["Investment range", "Investment range"]] as const) {
+    const values = asked(question);
+    if (values.length) fields.push({ label, value: values.join(", ") });
+  }
+  const places = new Map<string, string[]>();
+  for (const x of project.answers) if (x.question.endsWith(" location")) places.set(x.question.slice(0, -" location".length), [...(places.get(x.question.slice(0, -" location".length)) ?? []), x.value]);
+  for (const [service, where] of places) fields.push({ label: `${service === "Demo" ? "Demolition" : service} location`, value: where.join(", ") });
   if (project.products.length) fields.push({ label: "Products", value: project.products.join(", ") });
   if (project.addOns.length) fields.push({ label: "Add-ons", value: project.addOns.join(", ") });
   for (const m of project.measurements.slice(0, 12)) {
@@ -216,7 +225,8 @@ export const get = query({
       assessmentAt: shownAt ?? null,
       /** The booked on-site assessment (a consultation on the Schedule), with the instructions kept in its notes. */
       assessment: shown
-        ? { id: shown._id, start: shown.start, end: shown.end, anytime: shown.anytime, assigneeIds: shown.assigneeIds, status: shown.status, instructions: o.assessmentInstructions ?? shown.notes }
+        ? { id: shown._id, start: shown.start, end: shown.end, anytime: shown.anytime, assigneeIds: shown.assigneeIds, status: shown.status, instructions: o.assessmentInstructions ?? shown.notes,
+            offline: shown.offline ?? false, inJobber: shown.jobberAssessmentId !== undefined, jobberError: shown.jobberError ?? null }
         : null,
       /** The instructions with or without a booked assessment. */
       assessmentInstructions: o.assessmentInstructions ?? shown?.notes ?? "",

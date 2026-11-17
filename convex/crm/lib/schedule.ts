@@ -20,7 +20,7 @@ export type Repeat = (typeof REPEATS)[number];
 export const REPEAT_LABEL: Record<Repeat, string> = { none: "Does not repeat", daily: "Every day", weekdays: "Every weekday", weekly: "Every week", monthly: "Every month" };
 
 /** Stored statuses. "Overdue" is worked out (not completed, and over), never stored. */
-export const STATUSES = ["upcoming", "completed", "confirmed"] as const;
+export const STATUSES = ["upcoming", "completed", "confirmed", "lost"] as const;
 export type ItemStatus = (typeof STATUSES)[number];
 
 export type Span = { start: number; end: number };

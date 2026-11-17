@@ -13,8 +13,8 @@ async function onSite() {
   const office = await signedInAs(w.base, { key: "office-9", roles: ["office"], businessIds: [w.qft], name: "Olga Office" });
   await signedQuote(w);
   await w.admin.mutation(api.crm.pipeline.moveStage, { id: w.project, to: "Closed Won", now: NOW });
+  // The last Preplanning stage hands the project to Construction by itself (D-088).
   await w.admin.mutation(api.crm.pipeline.moveStage, { id: w.project, to: PREPLANNING_STAGES[PREPLANNING_STAGES.length - 1], now: NOW + 1 });
-  await w.admin.mutation(api.crm.pipeline.startConstruction, { id: w.project, now: NOW + 2 });
   const picture = () => w.base.run((ctx) => ctx.storage.store(new Blob([new Uint8Array(300)], { type: "image/png" }))) as Promise<Id<"_storage">>;
   const doc = () => w.base.run((ctx) => ctx.db.get(w.project));
   return { ...w, office, picture, doc };

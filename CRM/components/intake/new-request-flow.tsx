@@ -19,8 +19,9 @@ import {
   contactProblems,
   type DiscoveryState,
   emptyDiscovery,
-  hasFollowUp,
   installTypes,
+  needsQuestions,
+  scopeServices,
   orderServices,
   phoneInput,
   serviceLabel,
@@ -29,13 +30,16 @@ import {
 import { US_STATES } from "@/convex/shared/usStates";
 import type { BusinessDoc } from "@/lib/clients";
 import { useClientSearch } from "@/lib/quotes";
+import { clock } from "@/lib/pipeline";
 import { failure, usePeople } from "@/lib/requests";
 import { type PendingFile, useUploadPending } from "../note-editor";
-import { useStaff } from "../staff-context";
 import { useUI } from "../ui-provider";
 import { contactFields, RequiredStar } from "./fields";
 import { blockEnterSubmit, toggleRadio } from "./inputs";
+import { transitionStep } from "./step-transition";
+import { ProjectStep } from "./project-step";
 import ServiceBoard from "./service-board";
+import { ConsultationPicker, type ConsultationDraft } from "./consultation-picker";
 import { ServiceQuestions } from "./sections";
 import "@/app/intake.css";
 import "@/app/intake-flow.css";
@@ -43,9 +47,10 @@ import "@/app/intake-flow.css";
 const plex = IBM_Plex_Sans({ variable: "--font-plex", subsets: ["latin"], weight: ["400", "500", "600", "700"] });
 const dmSans = DM_Sans({ variable: "--font-dm-sans", subsets: ["latin"] });
 
-type Step = "property" | "services" | "details" | "finish";
+type Step = "property" | "project" | "services" | "details" | "finish";
 const STEPS: { id: Step; label: string }[] = [
   { id: "property", label: "Client details" },
+  { id: "project", label: "Project" },
   { id: "services", label: "Services" },
   { id: "details", label: "Questions" },
   { id: "finish", label: "Notes and save" },
@@ -79,9 +84,10 @@ function contactOf(c: ClientRow): Partial<DiscoveryState> {
 export function NewRequestFlow({ business }: { business: BusinessDoc }) {
   const router = useRouter();
   const { toast } = useUI();
-  const staff = useStaff();
   const people = usePeople(business._id);
   const create = useMutation(api.crm.requestForm.create);
+  const book = useMutation(api.crm.schedule.book);
+  const moveStage = useMutation(api.crm.pipeline.moveStage);
   // The same action the customer form runs after it saves: it makes the client and request in Jobber (D-028 keeps Jobber working in full).
   const publishToJobber = useAction(api.projects.actions.publishVisit);
   const upload = useUploadPending();
@@ -93,6 +99,9 @@ export function NewRequestFlow({ business }: { business: BusinessDoc }) {
   const [picked, setPicked] = useState<Picked | null>(null);
   const [query, setQuery] = useState("");
   const [salesperson, setSalesperson] = useState<string | null>(null); // null until changed: then the signed-in person
+  const [consultation, setConsultation] = useState<ConsultationDraft | null>(null);
+  const [consultDropped, setConsultDropped] = useState(false);
+  const [consultDone, setConsultDone] = useState(false); // done offline: saved straight into "Onsite Consultation", marked complete
   const [note, setNote] = useState("");
   const [files, setFiles] = useState<PendingFile[]>([]);
   const [pending, setPending] = useState(false);
@@ -149,15 +158,20 @@ export function NewRequestFlow({ business }: { business: BusinessDoc }) {
 
   if (!mounted) return null;
 
-  const needsDetails = form.services.some((s) => hasFollowUp(s));
+  const needsDetails = needsQuestions(form.services);
   const shown = STEPS.filter((s) => s.id !== "details" || needsDetails || form.services.length === 0);
   const at = shown.findIndex((s) => s.id === step);
-  const chosen = salesperson ?? (people?.some((p) => p.id === staff._id) ? staff._id : "");
+  // Nobody is chosen for the person: who the request is assigned to is picked on purpose (D-088).
+  const chosen = salesperson ?? "";
+  const assignee = people?.find((p) => p.id === chosen) ?? null;
 
   function go(next: Step) {
-    setError(null);
-    setStep(next);
-    scroller.current?.scrollTo(0, 0);
+    // The page slides to the next step, as in the customer form (D-086).
+    transitionStep(step, next, () => {
+      setError(null);
+      setStep(next);
+      scroller.current?.scrollTo(0, 0);
+    }, STEPS.map((x) => x.id));
   }
 
   function patch(partial: Partial<DiscoveryState>) {
@@ -228,6 +242,15 @@ export function NewRequestFlow({ business }: { business: BusinessDoc }) {
       const message = Object.values(problems)[0];
       if (message !== undefined) return showProblems(problems, message);
       setFieldErrors({});
+      return go("project");
+    }
+    if (step === "project") {
+      // Optional here: staff on the phone may not have asked yet. A known scope still starts the services off.
+      if (form.services.length === 0) {
+        const known = form.project.scope.flatMap((scope) => scopeServices[scope] ?? []);
+        if (known.length > 0) setFormDirty((current) => ({ ...current, services: orderServices(known) }));
+      }
+      setFieldErrors({});
       return go("services");
     }
     if (step === "services") {
@@ -243,6 +266,10 @@ export function NewRequestFlow({ business }: { business: BusinessDoc }) {
   }
 
   async function save() {
+    if (chosen === "") {
+      showProblems({ "nrf-salesperson": "Choose who this request is assigned to." }, "Choose who this request is assigned to.");
+      return;
+    }
     const payload = checked();
     if (payload === null) return;
     setPending(true);
@@ -258,15 +285,38 @@ export function NewRequestFlow({ business }: { business: BusinessDoc }) {
       });
       setDirty(false);
       // The request is already saved, so a Jobber problem is reported but never undoes it. The forms' record keeps the error (status
-      // "needs attention"), as it does for a customer's submission.
+      // "needs attention"), as it does for a customer's submission. It goes first so the consultation below can be booked on its Jobber request.
       let jobber = "";
       try {
         const sent = await publishToJobber({ projectId: saved.projectId });
-        if (sent.integrationError !== null) jobber = " It could not be sent to Jobber yet.";
+        if (sent.integrationError !== null) jobber = " It could not be synced yet.";
       } catch {
-        jobber = " It could not be sent to Jobber yet.";
+        jobber = " It could not be synced yet.";
       }
-      toast(`${saved.createdClient ? "Request saved, and the client was added." : "Request saved."}${jobber}`);
+      // The consultation is booked on the assigned person's calendar now that the request exists, which also books it in Jobber and moves the
+      // request to "Onsite Consultation" (D-085). The server checks for a clash again (the calendar may have changed since Schedule was
+      // pressed); a refusal leaves the request saved and says so (as in D-070).
+      let booked = "";
+      if (consultDone) {
+        try {
+          await moveStage({ id: saved.opportunityId, to: "Onsite Consultation", now: clock() });
+          booked = " The consultation is marked done.";
+        } catch (e) {
+          booked = ` The consultation was not marked done: ${failure(e, "try again from the request page.")}`;
+        }
+      } else if (consultation && assignee) {
+        const name = `${form.firstName} ${form.lastName}`.trim();
+        try {
+          await book({
+            businessId: business._id, type: "consultation", title: `Consultation: ${name || "New request"}`, start: consultation.start, end: consultation.end,
+            anytime: false, assigneeIds: [assignee.id], notes: consultation.instructions, opportunityId: saved.opportunityId, clientId: saved.clientId, now: clock(),
+          });
+          booked = ` The consultation is on ${assignee.name}'s calendar.`;
+        } catch (e) {
+          booked = ` The consultation was not booked: ${failure(e, "the calendar could not be reached.")} Book it from the request page.`;
+        }
+      }
+      toast(`${saved.createdClient ? "Request saved, and the client was added." : "Request saved."}${booked}${jobber}`);
       router.push(`/requests/${saved.opportunityId}`);
     } catch (e) {
       setError(failure(e, "The request could not be saved. Check your connection and try again."));
@@ -299,7 +349,7 @@ export function NewRequestFlow({ business }: { business: BusinessDoc }) {
 
   return createPortal(
     <div ref={scroller} className={`nrf ${plex.variable} ${dmSans.variable}`} role="dialog" aria-modal="true" aria-label="New request">
-      <div className={step === "property" || step === "finish" ? "intake intake--simple" : "intake"}>
+      <div className={step === "property" || step === "project" || step === "finish" ? "intake intake--simple" : "intake"}>
         <header className="intake-header">
           <span className="brand-mark">
             <Image className="brand-mark__logo" src="/brand/logo-mark.png" alt="Quality First Turf" width={771} height={605} priority />
@@ -396,6 +446,21 @@ export function NewRequestFlow({ business }: { business: BusinessDoc }) {
           </main>
         )}
 
+        {step === "project" && (
+          <ProjectStep
+            form={form}
+            problems={fieldErrors}
+            pending={pending}
+            required={false}
+            onProject={(partial) => {
+              setDirty(true);
+              setForm((current) => ({ ...current, project: { ...current.project, ...partial } }));
+            }}
+            onSubmit={next}
+            onBack={() => go("property")}
+          />
+        )}
+
         {step === "services" && (
           <form className="services-page" onSubmit={next} noValidate>
             <div className="services-copy">
@@ -417,7 +482,7 @@ export function NewRequestFlow({ business }: { business: BusinessDoc }) {
               </p>
               <div className="services-actions">
                 {error !== null && error !== fieldErrors.services ? <p className="form-alert" role="alert">{error}</p> : null}
-                {back("property")}
+                {back("project")}
                 <button type="submit" className="services-continue">Continue <ArrowRight strokeWidth={2} aria-hidden="true" /></button>
               </div>
             </div>
@@ -460,11 +525,45 @@ export function NewRequestFlow({ business }: { business: BusinessDoc }) {
                 <fieldset className="intake-group">
                   <legend>Team</legend>
                   <div className="intake-field">
-                    <label htmlFor="nrf-salesperson"><span>Salesperson</span></label>
-                    <select id="nrf-salesperson" value={chosen} disabled={people === undefined} onChange={(e) => { setDirty(true); setSalesperson(e.target.value); }}>
-                      <option value="">Unassigned</option>
+                    <label htmlFor="nrf-salesperson"><span>Assign to</span><RequiredStar /></label>
+                    <select
+                      id="nrf-salesperson"
+                      aria-invalid={fieldErrors["nrf-salesperson"] ? true : undefined}
+                      value={chosen}
+                      disabled={people === undefined || pending}
+                      onChange={(e) => {
+                        setDirty(true);
+                        setSalesperson(e.target.value);
+                        clearProblem("nrf-salesperson");
+                        // A consultation was checked against one person's calendar; for someone else it has to be checked again.
+                        if (consultation) { setConsultation(null); setConsultDropped(true); }
+                      }}
+                    >
+                      <option value="" disabled>Choose a person</option>
                       {people?.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                     </select>
+                    {fieldErrors["nrf-salesperson"] ? <p className="field-error" role="alert">{fieldErrors["nrf-salesperson"]}</p> : null}
+                  </div>
+                  <div className="intake-field">
+                    <label><span>Consultation</span><span className="intake-field__hint">Optional</span></label>
+                    <label className={consultDone ? "nrf-done is-on" : "nrf-done"}>
+                      <input type="checkbox" checked={consultDone} disabled={pending} onChange={(e) => { setDirty(true); setConsultDone(e.target.checked); }} />
+                      <span><strong>Consultation already done</strong><small>It happened offline. The request goes to Onsite Consultation with the consultation marked complete.</small></span>
+                    </label>
+                    {consultDone ? null : assignee ? (
+                      <>
+                        <ConsultationPicker
+                          businessId={business._id}
+                          assignee={assignee}
+                          value={consultation}
+                          disabled={pending}
+                          onChange={(next) => { setDirty(true); setConsultDropped(false); setConsultation(next); }}
+                        />
+                        {consultDropped && <p className="nrf-consult__note" role="status">The consultation was removed because the person changed. Schedule it again for {assignee.name}.</p>}
+                      </>
+                    ) : (
+                      <p className="nrf-consult__note">Assign the request to someone to schedule a consultation on their calendar.</p>
+                    )}
                   </div>
                   <div className="intake-field">
                     <label htmlFor="nrf-note"><span>Internal note</span><span className="intake-field__hint">Optional</span></label>
@@ -495,7 +594,7 @@ export function NewRequestFlow({ business }: { business: BusinessDoc }) {
                 {error !== null ? <p className="form-alert" role="alert">{error}</p> : null}
                 <div className="nrf-finish">
                   {back(needsDetails ? "details" : "services")}
-                  <button className="intake-continue" type="submit" disabled={pending}>{pending ? "Saving and sending to Jobber" : "Save request"}</button>
+                  <button className="intake-continue" type="submit" disabled={pending}>{pending ? "Saving" : "Save request"}</button>
                 </div>
               </div>
             </form>

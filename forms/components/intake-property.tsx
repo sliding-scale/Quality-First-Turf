@@ -19,9 +19,10 @@ import {
 
 const quoteSteps: { id: DiscoveryStep; num: string; label: string }[] = [
   { id: "property", num: "01", label: "Your details" },
-  { id: "services", num: "02", label: "Services" },
-  { id: "details", num: "03", label: "Questions" },
-  { id: "confirmation", num: "04", label: "Confirmation" },
+  { id: "project", num: "02", label: "Your project" },
+  { id: "services", num: "03", label: "Services" },
+  { id: "details", num: "04", label: "Questions" },
+  { id: "confirmation", num: "05", label: "Confirmation" },
 ];
 
 const audiences = [
@@ -74,7 +75,7 @@ export function IntakeFrame({
     );
   }
 
-  if (step === "property") {
+  if (step === "property" || step === "project") {
     return (
       <div className="intake intake--simple">
         <IntakeHeader step={step} onStep={onStep} />

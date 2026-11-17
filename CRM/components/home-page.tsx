@@ -157,7 +157,7 @@ function Appointments({ businessId, now, mode, setMode }: { businessId: string; 
   if (data === undefined) {
     return <div className="card"><div className="stats"><span className="sk" style={{ display: "block", height: 44, width: "100%" }} /></div><div className="sk" style={{ height: 120, margin: 12 }} /></div>;
   }
-  const items = data.items;
+  const items = data.items.filter((i) => i.status !== "lost"); // a lost project has no visits to do
   const states = items.map((i) => ({ i, s: stateOf(i, now) }));
   const of = (s: ApptState) => states.filter((x) => x.s === s).map((x) => x.i);
   const nameOf = (id: string) => people?.find((p) => p.id === id)?.name ?? "Someone";
@@ -248,7 +248,7 @@ function MyTasks() {
 function Consultations({ businessId, now }: { businessId: string; now: number }) {
   const people = usePeople(businessId as never);
   const data = useQuery(api.crm.schedule.range, { businessId: businessId as never, from: now, to: now + 14 * DAY_MS, types: ["consultation"], assigneeIds: [], statuses: [], now });
-  const list = (data?.items ?? []).filter((i) => i.status !== "completed").slice(0, MAX_CONSULTS_SHOWN);
+  const list = (data?.items ?? []).filter((i) => i.status !== "completed" && i.status !== "lost").slice(0, MAX_CONSULTS_SHOWN);
   const nameOf = (id: string) => people?.find((p) => p.id === id)?.name ?? "";
   return (
     <>

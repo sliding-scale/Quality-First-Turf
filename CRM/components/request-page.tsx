@@ -77,6 +77,8 @@ function RequestView({ r }: { r: Request }) {
   const book = useMutation(api.crm.schedule.book);
   const updateEvent = useMutation(api.crm.schedule.update);
   const setStatus = useMutation(api.crm.schedule.setStatus);
+  const resendToJobber = useMutation(api.crm.jobberConsultation.resend);
+  const [resending, setResending] = useState(false);
   const setLines = useMutation(api.crm.requests.setLines);
   const addNote = useMutation(api.crm.opportunityTasks.addNote);
   const toggleLine = useMutation(api.crm.opportunityTasks.toggleNoteLine);
@@ -132,6 +134,18 @@ function RequestView({ r }: { r: Request }) {
     await updateRequest({ id: r.id, assessmentInstructions: "" });
     setAssessing(false);
     toast("The assessment is deleted.");
+  }
+  async function sendToJobber() {
+    if (!r.assessment) return;
+    setResending(true);
+    try {
+      await resendToJobber({ id: r.assessment.id });
+      toast("Sending the consultation to Jobber.");
+    } catch (e) {
+      toast(failure(e, "The consultation could not be sent to Jobber."));
+    } finally {
+      setResending(false);
+    }
   }
   async function completeAssessment(done: boolean) {
     if (!r.assessment) return;
@@ -362,6 +376,16 @@ function RequestView({ r }: { r: Request }) {
               <div><dt>Team</dt><dd>{teamNames || <span className="as-unassigned"><NoOne /><i>Unassigned</i></span>}</dd></div>
               <div><dt>Checklists</dt><dd>—</dd></div>
             </dl>
+            {r.assessment?.offline ? (
+              <p className="as-jobber">Done offline. Marked complete when the request moved to Onsite Consultation.</p>
+            ) : r.assessment?.jobberError ? (
+              <p className="as-jobber bad" role="status">
+                <span>Not in Jobber: {r.assessment.jobberError}</span>
+                {canEdit && <button type="button" className="btn small" disabled={resending} onClick={() => void sendToJobber()}>{resending ? "Sending…" : "Send to Jobber"}</button>}
+              </p>
+            ) : r.assessment?.inJobber ? (
+              <p className="as-jobber">Also booked in Jobber.</p>
+            ) : null}
             <div className="as-reminder">
               <div className="rq-label">Assessment Reminder</div>
               <div>Remind client 1 hour before by text</div>

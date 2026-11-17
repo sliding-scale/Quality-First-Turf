@@ -86,3 +86,13 @@ The git root is `Quality-First-Turf/` (one level above this folder). It holds `f
 - Report blockers early; blocking client questions come from the backlog in `docs/client-questions-later.docx` (D-018).
 - Delivery dates in the PRD are ignored (D-005). Don't rush scope to hit them.
 - Don't commit or push unless asked.
+
+## To do: check the Jobber link (D-085), on a machine where Jobber is connected
+The CRM sends consultations to Jobber (`convex/crm/jobberConsultation.ts`), but it was built on a machine where Jobber was not connected, so **no call to Jobber has ever been tried**. Do this in a new session on the dev deployment, then delete this section and note the result in D-085:
+1. Confirm the dev deployment is connected to Jobber (the forms app's connect link). Never use production for this test.
+2. Check the GraphQL names against Jobber's schema, especially `assessmentComplete(assessmentId:)`, `assessmentCreate`, `assessmentEdit`, `assessmentDelete`, `requestEdit` and `users { email { raw } }` (a throwaway internal action that introspects `__type(name: "Mutation")`, deleted afterwards, worked as a plan).
+3. In New Request (Quality First Turf Landscape): assign someone, Schedule consultation, save. Expect it in Jobber on the request, assigned to that person's Jobber user (or unassigned if their email is not a Jobber user), the sales form showing the same booking, and the request at Onsite Consultation.
+4. Move the time, change the person, mark it complete, and delete it from the CRM; each should follow in Jobber. Then move a request past the request stages with an open consultation and check it is completed in Jobber.
+5. Make a failure (disconnect Jobber, book): the CRM booking must stay, the request page must say "Not in Jobber: ..." and **Send to Jobber** must work once reconnected.
+6. Closed Lost: open visits become Lost on the Schedule and Jobber is untouched.
+Fix what does not match, then run `npx vitest run tests/consultationStage.test.ts tests/schedule.test.ts` (the 27 failures in `access.test.ts` and `invitations.test.ts` ("Unexpected field `url`") are older and unrelated).

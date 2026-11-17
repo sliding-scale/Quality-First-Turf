@@ -7,7 +7,7 @@
   position: fixed;
   inset: 0;
   z-index: 400;
-  overflow-y: auto;
+  overflow-y: scroll; /* always, so a step that is long enough to scroll does not shift the page sideways (D-088) */
   overscroll-behavior: contain;
   background: #101612;
   color: #f4f6f1;
@@ -117,4 +117,52 @@
   .nrf-close { margin-left: auto; }
   .nrf-close span { display: none; }
   .nrf .intake { --intake-header-height: 118px; }
+}
+
+/* Schedule consultation on the last step (D-084): the sales form's button and dialog (intake.css), laid out here. */
+.nrf-consult { display: flex; align-items: center; gap: 0.5rem; }
+.nrf .nrf-consult .consultation-btn {
+  display: inline-flex; flex: 1; align-items: center; gap: 0.6rem; min-height: 3rem; padding: 0.55rem 1.1rem; border: 1.5px dashed #7d8a80;
+  border-radius: 12px; background: transparent; color: #d7f33c; font: inherit; font-weight: 650; text-align: left; cursor: pointer;
+  transition: border-color 160ms ease-out, background 160ms ease-out;
+}
+.nrf .nrf-consult .consultation-btn:hover:not(:disabled) { border-color: #d7f33c; background: rgb(215 243 60 / 8%); }
+.nrf .nrf-consult .consultation-btn:active:not(:disabled) { background: rgb(215 243 60 / 14%); }
+.nrf .nrf-consult .consultation-btn.is-booked { border-style: solid; border-color: #d7f33c; background: rgb(215 243 60 / 7%); color: #f4f6f1; }
+.nrf-consult__remove {
+  display: grid; flex: none; width: 44px; height: 44px; place-items: center; padding: 0; border: 1px solid #39493d; border-radius: 50%;
+  background: transparent; color: #f4f6f1; cursor: pointer; transition: background 120ms ease-out, border-color 120ms ease-out;
+}
+.nrf-consult__remove:hover:not(:disabled) { border-color: #b42318; background: #b42318; }
+.nrf-consult__remove:disabled { opacity: 0.6; cursor: default; }
+.nrf .nrf-consult__note { margin: 0.35rem 0 0; color: #b4bfb4; font-size: 0.88rem; line-height: 1.4; }
+.nrf .consultation-busy { animation: nrf-in 160ms ease-out; }
+.nrf .consultation-form .visit-primary { cursor: pointer; transition: background 120ms ease-out; }
+.nrf .consultation-form .visit-icon-btn { cursor: pointer; }
+.nrf .consultation-form .visit-icon-btn:hover { border-color: #d7f33c; }
+@media (prefers-reduced-motion: reduce) { .nrf .consultation-busy { animation: none; } }
+/* "Consultation already done" (D-085). */
+.nrf .intake-field .nrf-done { display: flex; align-items: flex-start; gap: 0.75rem; font-size: 1rem; font-weight: 400; margin-bottom: 0.6rem; padding: 0.8rem 1rem; border: 1.5px solid #39493d; border-radius: 12px; cursor: pointer; transition: border-color 160ms ease-out, background 160ms ease-out; }
+.nrf .intake-field .nrf-done:hover { border-color: #7d8a80; }
+.nrf .intake-field .nrf-done.is-on { border-color: #d7f33c; background: rgb(215 243 60 / 7%); }
+.nrf .nrf-done input { flex: none; width: 20px; height: 20px; min-height: 0; margin: 0.15rem 0 0; accent-color: #d7f33c; cursor: pointer; }
+.nrf-done > span { display: grid; gap: 0.1rem; line-height: 1.35; }
+.nrf-done small { color: #b4bfb4; font-size: 0.86rem; }
+
+/* The CRM's own sidebar button is also called .collapse (globals.css: margin, padding, a hover background). Inside the flow the class means the
+   forms' sliding section (intake.css), which must not inherit any of that: it added a band of empty space under every closed card. */
+.nrf .collapse, .nrf .collapse:hover { margin-top: 0; margin-inline: 0; padding: 0; gap: 0; align-items: stretch; border-radius: 0; background: none; color: inherit; }
+
+/* Moving between steps slides the page, as in the customer form (step-transition.ts; <html data-step-dir> is set only while it runs). */
+html[data-step-dir="forward"]::view-transition-old(root) { animation: nrf-step-leave-forward 280ms ease-in both; }
+html[data-step-dir="forward"]::view-transition-new(root) { animation: nrf-step-enter-forward 460ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+html[data-step-dir="back"]::view-transition-old(root) { animation: nrf-step-leave-back 280ms ease-in both; }
+html[data-step-dir="back"]::view-transition-new(root) { animation: nrf-step-enter-back 460ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes nrf-step-leave-forward { to { opacity: 0; transform: translateX(-7%); } }
+@keyframes nrf-step-enter-forward { from { opacity: 0; transform: translateX(7%); } }
+@keyframes nrf-step-leave-back { to { opacity: 0; transform: translateX(7%); } }
+@keyframes nrf-step-enter-back { from { opacity: 0; transform: translateX(-7%); } }
+@media (prefers-reduced-motion: reduce) {
+  html[data-step-dir]::view-transition-old(root), html[data-step-dir]::view-transition-new(root) { animation-duration: 120ms; animation-name: nrf-step-fade; }
+  @keyframes nrf-step-fade { from { opacity: 0; } }
 }

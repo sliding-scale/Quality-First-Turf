@@ -56,7 +56,7 @@ export function WorkPipelineBoard({ pipeline, business }: { pipeline: WorkPipeli
     }
   }
   async function move(card: WorkCard, to: string) {
-    if (card.stage === to) return;
+    if (card.stage === to || card.movedTo) return;
     await act(card, `was moved to ${to}.`, () => moveStage({ id: card.id, to, now: clock() }));
   }
 
@@ -93,7 +93,8 @@ export function WorkPipelineBoard({ pipeline, business }: { pipeline: WorkPipeli
             { className: "filter" },
           ),
       },
-      {
+      // A project that has moved on to Construction is moved from the Construction board, so only what does not move it is offered here.
+      ...(card.movedTo ? [] : [{
         label: "Move to…",
         icon: "stage",
         disabled: !canMove,
@@ -111,8 +112,8 @@ export function WorkPipelineBoard({ pipeline, business }: { pipeline: WorkPipeli
             ),
             { className: "filter" },
           ),
-      },
-      ...(handoff ? [{ label: handoff.label, icon: "stage", disabled: !canEdit, onSelect: () => void act(card, handoff.done, handoff.go) }] : []),
+      }]),
+      ...(handoff && !card.movedTo ? [{ label: handoff.label, icon: "stage", disabled: !canEdit, onSelect: () => void act(card, handoff.done, handoff.go) }] : []),
     ]);
   }
 
@@ -148,8 +149,8 @@ export function WorkPipelineBoard({ pipeline, business }: { pipeline: WorkPipeli
                         <article
                           key={card.id}
                           className={`pl-card${dragging?.id === card.id ? " dragging" : ""}${openId === card.id ? " open" : ""}`}
-                          draggable={canMove && !coarse}
-                          onTouchStart={(e) => touchStart(e, card, (c, stage) => void move(c, stage))}
+                          draggable={canMove && !coarse && !card.movedTo}
+                          onTouchStart={(e) => { if (!card.movedTo) touchStart(e, card, (c, stage) => void move(c, stage)); }}
                           tabIndex={0}
                           onDragStart={(e) => { e.dataTransfer.setData("text/plain", card.id); e.dataTransfer.effectAllowed = "move"; setDragging(card); }}
                           onClick={() => setOpenId((id) => (id === card.id ? null : card.id))}
@@ -167,6 +168,7 @@ export function WorkPipelineBoard({ pipeline, business }: { pipeline: WorkPipeli
                             ><Icon name="more" size={18} /></button>
                           </div>
                           <div className="pl-client">{card.clientName}</div>
+                          {card.movedTo && <div className="pl-movedto" data-tip="Moved on to Construction">In {card.movedTo}</div>}
                           <div className="pl-service"><Icon name="inbox" size={16} /><span>{card.title}</span></div>
                           <div className="pl-cardfoot">
                             <span className="pl-time" data-tip="Time in this stage">{timeLabel(card.timeInStageMs)}</span>

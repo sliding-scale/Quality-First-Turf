@@ -60,6 +60,8 @@
 .sc-item:active { opacity: 0.85; }
 .sc-item.done { opacity: 0.6; }
 .sc-item.done b { text-decoration: line-through; }
+.sc-item.lost, .sc-mchip.lost { opacity: 0.5; filter: grayscale(1); }
+.sc-item.lost b { text-decoration: line-through; }
 .sc-item.overdue:not(.done) { box-shadow: inset 0 0 0 1px #b3261e; }
 .sc-itemtop { display: flex; align-items: center; gap: 5px; }
 .sc-itemtop b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

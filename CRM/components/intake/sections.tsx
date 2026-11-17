@@ -33,11 +33,13 @@ import {
   soilDetail,
   turfInstallTypes,
   withAddOn,
+  asksWhere,
 } from "@/convex/shared/discovery";
 import { AreaPlanner } from "@/components/intake/area-planner";
 import { InstallCard } from "@/components/intake/install-card";
 import { Collapse } from "@/components/intake/collapse";
 import { RequiredStar } from "@/components/intake/fields";
+import { WhereQuestion } from "@/components/intake/project-step";
 import { TextField, type TextFieldProps } from "@/components/intake/fields";
 import { toggleRadio } from "@/components/intake/inputs";
 
@@ -176,12 +178,13 @@ export function ServiceQuestions({
   return (
     <div className="review-cards">
       {orderServices(form.services)
-        .filter((service) => hasFollowUp(service))
+        .filter((service) => hasFollowUp(service) || asksWhere(service))
         .map((service) => {
           const Icon = serviceIcons[service] ?? Sprout;
           return (
             <ServiceFold key={service} label={serviceLabel(service)} Icon={Icon} hasErrors={Object.keys(problems).length > 0}>
-              {service === "Demo" ? (
+              {asksWhere(service) ? <WhereQuestion service={service} {...shared} /> : null}
+              {!hasFollowUp(service) ? null : service === "Demo" ? (
                 <DemoSection {...shared} />
               ) : service === "Underground" ? (
                 <UndergroundSection {...shared} />
@@ -301,10 +304,11 @@ function DemoSection({
           {(installTypes[service] ?? []).map((type) => {
             const checked = selected.includes(type);
             // Once a type is picked the others step aside; unselecting it brings them back.
-            if (selected.length > 0 && !checked) return null;
+            const stepsAside = selected.length > 0 && !checked;
             const areaKey = selectionKey(service, type);
             const panelId = `${fieldIdFor("install", service, type)}-panel`;
             return (
+              <Collapse key={type} open={!stepsAside} gap="0.75rem">
               <InstallCard
                 key={type}
                 title={choiceLabel(type)}
@@ -323,6 +327,7 @@ function DemoSection({
                   onChange={(next) => setForm((current) => ({ ...current, areas: { ...current.areas, [areaKey]: next } }))}
                 />
               </InstallCard>
+              </Collapse>
             );
           })}
         </div>
@@ -425,9 +430,10 @@ function PuttingGreenSection({
         ) : null}
         {puttingOptions.map((option) => {
           const checked = installType === option.value;
-          if (installType !== "" && !checked) return null;
+          const stepsAside = installType !== "" && !checked;
           const areaKey = selectionKey(service, option.value);
           return (
+            <Collapse key={option.value} open={!stepsAside} gap="0.75rem">
             <InstallCard
               key={option.value}
               single
@@ -475,6 +481,7 @@ function PuttingGreenSection({
                   onChange={(next) => setForm((current) => ({ ...current, areas: { ...current.areas, [areaKey]: next } }))}
                 />
             </InstallCard>
+            </Collapse>
           );
         })}
         {installType !== "" ? (
@@ -554,11 +561,12 @@ function UndergroundSection({
           {types.map((type) => {
             const checked = selected.includes(type);
             // Once a type is picked the others step aside; unselecting it brings them back.
-            if (selected.length > 0 && !checked) return null;
+            const stepsAside = selected.length > 0 && !checked;
             const expanded = checked && ((forceDetails && type === detailHost) || !folded[type]);
             const areaKey = selectionKey(service, type);
             const panelId = `${fieldIdFor("install", service, type)}-panel`;
             return (
+              <Collapse key={type} open={!stepsAside} gap="0.75rem">
               <div key={type} className={checked ? "demo-type is-on" : "demo-type"}>
                 <div className="demo-type__head">
                   <label className="demo-type__choice">
@@ -684,6 +692,7 @@ function UndergroundSection({
                   </div>
                 </Collapse>
               </div>
+              </Collapse>
             );
           })}
         </div>
@@ -746,11 +755,12 @@ function LightingSection({
         {(installTypes[service] ?? []).map((type) => {
           const checked = selected.includes(type);
           // Once a type is picked the others step aside; unselecting it brings them back.
-          if (selected.length > 0 && !checked) return null;
+          const stepsAside = selected.length > 0 && !checked;
           const expanded = checked && !folded[type];
           const areaKey = selectionKey(service, type);
           const panelId = `${fieldIdFor("install", service, type)}-panel`;
           return (
+            <Collapse key={type} open={!stepsAside} gap="0.75rem">
             <div key={type} className={checked ? "demo-type is-on" : "demo-type"}>
               <div className="demo-type__head">
                 <label className="demo-type__choice">
@@ -824,6 +834,7 @@ function LightingSection({
                 </div>
               </Collapse>
             </div>
+            </Collapse>
           );
         })}
       </div>
@@ -963,12 +974,13 @@ function FollowUp({
       {(installTypes[service] ?? []).map((type) => {
         const checked = selected.includes(type);
         // Once a type is picked the others step aside; unselecting it brings them back.
-        if (selected.length > 0 && !checked) return null;
+        const stepsAside = selected.length > 0 && !checked;
         const areaKey = selectionKey(service, type);
         const showExpand =
           checked &&
           (needsAreaName || asksForArea(service, type) || (selected.length === 1 && hasSharedFollowUp));
         return (
+          <Collapse key={type} open={!stepsAside} gap="var(--space-3)">
           <div key={type} className="install-block">
             <label className="choice-card">
               <input
@@ -1021,6 +1033,7 @@ function FollowUp({
               </div>
             </Collapse>
           </div>
+          </Collapse>
         );
       })}
       <Collapse open={selected.length > 1 && hasSharedFollowUp}>
@@ -1193,7 +1206,7 @@ function GrassFollowUp({
         })}
         {work !== "" ? <ChangeChoice label="Choose a different option" onClick={() => chooseWork("")} /> : null}
       </div>
-      {work === "Repair" ? (
+      <Collapse open={work === "Repair"}>
         <div className="grass-body">
           {jobAreaField("Artificial Grass Repair")}
           <Notes
@@ -1207,8 +1220,8 @@ function GrassFollowUp({
             }
           />
         </div>
-      ) : null}
-      {work === "Replacement" ? (
+      </Collapse>
+      <Collapse open={work === "Replacement"}>
         <div className="grass-body">
           {jobAreaField("Artificial Grass Replacement")}
           <div className="demo-types" id={replacementId}>
@@ -1221,8 +1234,9 @@ function GrassFollowUp({
             {turfInstallTypes.map((type) => {
               const meta = turfPackageMeta[type];
               const chosen = replacementInstall === type;
-              if (replacementInstall !== "" && !chosen) return null;
+              const stepsAside = replacementInstall !== "" && !chosen;
               return (
+                <Collapse key={type} open={!stepsAside} gap="0.75rem">
                 <InstallCard
                   key={type}
                   single
@@ -1260,6 +1274,7 @@ function GrassFollowUp({
                     sizeFirst
                   />
                 </InstallCard>
+                </Collapse>
               );
             })}
             {replacementInstall !== "" ? (
@@ -1276,8 +1291,8 @@ function GrassFollowUp({
             ) : null}
           </div>
         </div>
-      ) : null}
-      {work === "Installation" ? (
+      </Collapse>
+      <Collapse open={work === "Installation"}>
         <div className="grass-body" id={installId}>
           <div className="demo-types">
             <p className="grass-heading">Installation type<RequiredStar /></p>
@@ -1290,8 +1305,9 @@ function GrassFollowUp({
               const meta = turfPackageMeta[installType];
               const key = selectionKey(service, installType);
               // Once a package is picked the others step aside; unselecting it brings them back.
-              if (selected.length > 0 && !selected.includes(installType)) return null;
+              const stepsAside = selected.length > 0 && !selected.includes(installType);
               return (
+                <Collapse key={installType} open={!stepsAside} gap="0.75rem">
                 <InstallCard
                   key={installType}
                   title={choiceLabel(installType)}
@@ -1312,11 +1328,12 @@ function GrassFollowUp({
                     listAreas
                   />
                 </InstallCard>
+                </Collapse>
               );
             })}
           </div>
         </div>
-      ) : null}
+      </Collapse>
     </div>
     <AddOnAside
       service={service}
