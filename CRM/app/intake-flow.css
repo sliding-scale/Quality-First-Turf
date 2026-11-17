@@ -59,7 +59,8 @@
 .nrf-search__box { position: relative; }
 .nrf-search__box svg { position: absolute; top: 50%; left: 0.85rem; color: #b4bfb4; transform: translateY(-50%); pointer-events: none; }
 .nrf .nrf-search__box input { padding-left: 2.6rem; }
-.nrf-results { display: grid; gap: 2px; padding: 0.35rem; border: 1px solid #39493d; border-radius: 10px; background: #171f19; animation: nrf-in 160ms ease-out; }
+.nrf-search { position: relative; }
+.nrf-results { position: absolute; z-index: 20; top: 100%; right: 0; left: 0; margin-top: 0.35rem; max-height: 15rem; overflow-y: auto; overscroll-behavior: contain; box-shadow: 0 12px 28px rgb(0 0 0 / 40%); display: grid; gap: 2px; padding: 0.35rem; border: 1px solid #39493d; border-radius: 10px; background: #171f19; animation: nrf-in 160ms ease-out; }
 .nrf-results p { margin: 0; padding: 0.6rem 0.7rem; color: #b4bfb4; font-size: 0.92rem; line-height: 1.4; }
 .nrf-results button {
   display: grid; gap: 0.1rem; padding: 0.6rem 0.7rem; border: 0; border-radius: 7px; background: transparent; color: #f4f6f1; font: inherit; text-align: left; cursor: pointer;

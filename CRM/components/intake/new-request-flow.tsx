@@ -99,7 +99,19 @@ export function NewRequestFlow({ business }: { business: BusinessDoc }) {
   const [leaving, setLeaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
+
+  // The client results close on a click anywhere outside the search, or on Escape.
+  useEffect(() => {
+    if (!searchOpen) return;
+    const away = (e: PointerEvent) => { if (!searchRef.current?.contains(e.target as Node)) setSearchOpen(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setSearchOpen(false); };
+    document.addEventListener("pointerdown", away);
+    document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("pointerdown", away); document.removeEventListener("keydown", esc); };
+  }, [searchOpen]);
   const focusFirstError = useRef(false);
   const found = useClientSearch(business._id, query);
 
@@ -330,13 +342,13 @@ export function NewRequestFlow({ business }: { business: BusinessDoc }) {
                       <button type="button" onClick={() => setPicked(null)}>Change</button>
                     </div>
                   ) : (
-                    <div className="intake-field nrf-search">
+                    <div className="intake-field nrf-search" ref={searchRef}>
                       <label htmlFor="nrf-client"><span>Find an existing client</span><span className="intake-field__hint">Optional</span></label>
                       <div className="nrf-search__box">
                         <Search size={18} aria-hidden="true" />
-                        <input id="nrf-client" value={query} placeholder="Name, phone, email or address" autoComplete="off" onChange={(e) => setQuery(e.target.value)} />
+                        <input id="nrf-client" value={query} placeholder="Name, phone, email or address" autoComplete="off" onFocus={() => setSearchOpen(true)} onChange={(e) => { setQuery(e.target.value); setSearchOpen(true); }} />
                       </div>
-                      {query.trim() !== "" && found && (
+                      {searchOpen && query.trim() !== "" && found && (
                         <div className="nrf-results" role="listbox" aria-label="Matching clients">
                           {found.rows.length === 0 && <p>No client matches. Fill in the details below and a new client is made when you save.</p>}
                           {found.rows.map((c) => (

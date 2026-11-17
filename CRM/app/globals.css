@@ -1401,6 +1401,12 @@ a.qs-chip:active { background: var(--shell); }
 
 /* The shared Welcome back loading bar sits at the form's width. */
 .auth-bar { margin: 8px 4px 0; }
+/* The note under the bar when the wait gets long (components/slow-wait-note.tsx): reserved height so the screen does not jump when it appears. */
+.auth-slow { min-height: 160px; margin-top: 22px; text-align: center; color: var(--muted); font-size: 14px; display: grid; justify-items: center; align-content: start; gap: 8px; }
+.auth-slow p { margin: 0; }
+.auth-slow p b { color: var(--ink); }
+.auth-slow .btn { margin-top: 6px; animation: fade-in 0.25s ease-out both; }
+.auth-slow > * { animation: fade-in 0.25s ease-out both; }
 
 /* Files on a note, and the camera window */
 .ne-doc { display: flex; align-items: center; gap: 8px; padding: 8px 34px 8px 10px; max-width: 260px; }

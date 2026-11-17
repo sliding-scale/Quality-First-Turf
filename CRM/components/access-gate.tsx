@@ -10,6 +10,7 @@ import { Authenticated, AuthLoading, Unauthenticated, useMutation, useQuery } fr
 import { useEffect, useState, type ReactNode } from "react";
 import { api } from "@/convex/_generated/api";
 import { getTokenInfo } from "./convex-provider";
+import { SlowWaitNote } from "./slow-wait-note";
 import { StaffProvider } from "./staff-context";
 import { WelcomeBar, WelcomeHead } from "./welcome-loading";
 
@@ -72,6 +73,7 @@ function Waiting() {
           <Image className="auth-logo" src="/brand/logo-full.png" alt="Quality First Turf" width={190} height={147} priority />
           <WelcomeHead line="Getting everything ready for you…" />
           <WelcomeBar />
+          <SlowWaitNote />
         </div>
       </main>
     </div>
