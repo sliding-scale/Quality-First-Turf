@@ -59,6 +59,7 @@ export function UsersPage() {
   const update = useMutation(api.crm.users.update);
   const resend = useAction(api.crm.invitations.resend);
   const cancel = useAction(api.crm.invitations.cancel);
+  const makeLink = useAction(api.crm.invitations.link);
   const [deleting, setDeleting] = useState<UserDoc | null>(null);
   const [q, setQ] = useState("");
   const [search, setSearch] = useState(""); // what the server is asked, a moment after typing stops
@@ -122,6 +123,20 @@ export function UsersPage() {
     }
   }
 
+  async function copyLink(u: UserDoc) {
+    try {
+      const r = await makeLink({ id: u._id, origin: window.location.origin });
+      try {
+        await navigator.clipboard.writeText(r.url);
+        toast(`Link copied for ${u.email}. It works until ${day(r.expiresAt)}. Any earlier email link no longer works.`);
+      } catch {
+        toast(`Copy this link for ${u.email}: ${r.url}`); // the browser refused clipboard access
+      }
+    } catch (e) {
+      problem(e, "The link could not be made. Try again.");
+    }
+  }
+
   async function cancelInvite(u: UserDoc) {
     try {
       await cancel({ id: u._id });
@@ -139,12 +154,13 @@ export function UsersPage() {
     if (u.status === "invited" && !u.tokenIdentifier) {
       return [
         { label: "Send invitation again", onSelect: () => void sendAgain(u) },
+        { label: "Copy invitation link", onSelect: () => void copyLink(u) },
         { label: "Cancel invitation", onSelect: () => void cancelInvite(u) },
         edit,
         remove,
       ];
     }
-    if (u.status === "expired") return [{ label: "Send new invitation", onSelect: () => void sendAgain(u) }, edit, remove];
+    if (u.status === "expired") return [{ label: "Send new invitation", onSelect: () => void sendAgain(u) }, { label: "Copy invitation link", onSelect: () => void copyLink(u) }, edit, remove];
     return [
       edit,
       u.status === "deactivated"
@@ -314,7 +330,7 @@ function UserForm({ user, businesses, onDone }: { user: UserDoc | null; business
   const emailRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    (user ? nameRef : emailRef).current?.focus();
+    nameRef.current?.focus(); // Name comes first in the form, for a new person and for an edit
   }, [user]);
 
   const isAdmin = roles.includes("admin");

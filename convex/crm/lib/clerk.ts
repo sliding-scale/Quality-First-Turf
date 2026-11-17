@@ -50,17 +50,20 @@ async function call<T>(method: "GET" | "POST" | "DELETE", path: string, body?: u
   return { ok: false, status: res.status, code: first?.code ?? "error", message: first?.long_message ?? first?.message ?? `Clerk answered ${res.status}.` };
 }
 
-/** Emails the person a link that opens `redirectUrl`, where they create a password and are signed in. */
-export async function createInvitation(email: string, redirectUrl: string) {
-  const r = await call<{ id: string; expires_at?: number }>("POST", "/invitations", {
+/**
+ * Makes a link that opens `redirectUrl`, where the person creates a password and is signed in. By default Clerk emails it; with
+ * `notify: false` nothing is emailed and the link comes back in `url`, for an Admin to pass on themselves.
+ */
+export async function createInvitation(email: string, redirectUrl: string, options: { notify?: boolean } = {}) {
+  const r = await call<{ id: string; expires_at?: number; url?: string }>("POST", "/invitations", {
     email_address: email,
     redirect_url: redirectUrl,
-    notify: true,
+    notify: options.notify ?? true,
     ignore_existing: false,
     expires_in_days: INVITE_DAYS,
   });
   if (!r.ok) return r;
-  return { ok: true as const, status: r.status, body: { id: r.body.id, expiresAt: r.body.expires_at ?? Date.now() + INVITE_MS } };
+  return { ok: true as const, status: r.status, body: { id: r.body.id, expiresAt: r.body.expires_at ?? Date.now() + INVITE_MS, url: r.body.url } };
 }
 
 /** True when the link no longer works: just revoked, already revoked, or not there any more. A real failure comes back as a message. */

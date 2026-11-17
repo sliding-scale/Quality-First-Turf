@@ -9885,3 +9885,37 @@ video {
   border-radius: 14px;
   box-shadow: none;
 }
+
+/* Sections that open and close (see components/ui/collapse.tsx): a 0.7 s slide and fade. Keep the time in step with DURATION_MS there. */
+.collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    grid-template-rows 700ms cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 700ms ease,
+    visibility 0s linear 700ms;
+}
+
+.collapse.is-open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  visibility: visible;
+  transition-delay: 0s;
+}
+
+.collapse__inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.collapse.is-settled .collapse__inner {
+  overflow: visible;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .collapse {
+    transition: none;
+  }
+}

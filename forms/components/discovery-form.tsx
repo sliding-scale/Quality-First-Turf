@@ -43,6 +43,7 @@ import { IntakeFrame, PropertyStep } from "@/components/intake-property";
 import { AreaPlanner } from "@/components/area-planner";
 import ServiceBoard from "@/components/service-board";
 import { InstallCard } from "@/components/ui/install-card";
+import { Collapse } from "@/components/ui/collapse";
 import { RequiredStar } from "@/components/ui/fields";
 import { TextField, type TextFieldProps } from "@/components/ui/fields";
 import {
@@ -697,9 +698,9 @@ function ServiceFold({
         <span aria-hidden="true" />
         <ChevronDown size={18} aria-hidden="true" />
       </button>
-      <div className="service-fold__body" hidden={!open}>
-        {children}
-      </div>
+      <Collapse open={open} lazy={false}>
+        <div className="service-fold__body">{children}</div>
+      </Collapse>
     </article>
   );
 }
@@ -1062,7 +1063,7 @@ function UndergroundSection({
                     </span>
                   </button>
                 </div>
-                {expanded ? (
+                <Collapse open={expanded}>
                   <div className="ug-type__body" id={panelId}>
                     {needsAreaName ? (
                       <Field
@@ -1146,7 +1147,7 @@ function UndergroundSection({
                       </div>
                     ) : null}
                   </div>
-                ) : null}
+                </Collapse>
               </div>
             );
           })}
@@ -1254,7 +1255,7 @@ function LightingSection({
                   </span>
                 </button>
               </div>
-              {expanded ? (
+              <Collapse open={expanded}>
                 <div className="demo-type__body" id={panelId}>
                   <div className="demo-type__fields">
                     <Field
@@ -1286,7 +1287,7 @@ function LightingSection({
                     />
                   </div>
                 </div>
-              ) : null}
+              </Collapse>
             </div>
           );
         })}
@@ -1448,7 +1449,7 @@ function FollowUp({
                 ) : null}
               </span>
             </label>
-            {showExpand ? (
+            <Collapse open={showExpand}>
               <div className="service-expand">
                 {needsAreaName ? (
                   <Field
@@ -1483,11 +1484,13 @@ function FollowUp({
                 ) : null}
                 {selected.length === 1 && hasSharedFollowUp ? details : null}
               </div>
-            ) : null}
+            </Collapse>
           </div>
         );
       })}
-      {selected.length > 1 && hasSharedFollowUp ? <div className="service-expand">{details}</div> : null}
+      <Collapse open={selected.length > 1 && hasSharedFollowUp}>
+        <div className="service-expand">{details}</div>
+      </Collapse>
     </div>
     <AddOnAside
       service={service}

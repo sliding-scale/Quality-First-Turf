@@ -79,6 +79,40 @@ export const resend = action({
   },
 });
 
+/**
+ * For when the email does not arrive: makes a fresh link without emailing it and hands it back for the Admin to copy and send
+ * themselves (WhatsApp, text). Clerk cannot show an existing link again, so this replaces the pending invitation: the link in any earlier
+ * email stops working. Only for someone who has not signed in yet.
+ */
+export const link = action({
+  args: { id: v.id("users"), origin: v.optional(v.string()) },
+  handler: async (ctx, args): Promise<{ url: string; expiresAt: number }> => {
+    await adminOf(ctx);
+    assertConfigured();
+    const redirectUrl = acceptUrl(args.origin);
+    const row = await rowOf(ctx, args.id);
+    if (row.tokenIdentifier) throw new ConvexError("They have already signed in, so there is no link to send.");
+    if (row.status !== "invited" && row.status !== "expired") throw new ConvexError("This person has no pending invitation. Use Send invitation instead.");
+    if (row.clerkInvitationId) {
+      const revoked = await revokeInvitation(row.clerkInvitationId);
+      if (!revoked.done) throw new ConvexError(`The old invitation could not be cancelled: ${revoked.message}`);
+    }
+    const result = await createInvitation(row.email, redirectUrl, { notify: false });
+    if (!result.ok) {
+      await ctx.runMutation(internal.crm.users.markExpired, { id: row._id });
+      if (result.code === "form_identifier_exists") throw new ConvexError("They already have a login, so no link is needed. They can sign in with it.");
+      throw new ConvexError(`The link could not be made: ${result.message}`);
+    }
+    if (!result.body.url) {
+      await revokeInvitation(result.body.id);
+      await ctx.runMutation(internal.crm.users.markExpired, { id: row._id });
+      throw new ConvexError("Clerk did not return a link. Use Send invitation again instead.");
+    }
+    await ctx.runMutation(internal.crm.users.attachInvitation, { id: row._id, invitation: { id: result.body.id, expiresAt: result.body.expiresAt } });
+    return { url: result.body.url, expiresAt: result.body.expiresAt };
+  },
+});
+
 /** Cancels a pending invitation: the link stops working and the person shows as Expired. */
 export const cancel = action({
   args: { id: v.id("users") },

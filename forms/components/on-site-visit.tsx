@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import RetryImage from "@/components/ui/retry-image";
+import { Collapse } from "@/components/ui/collapse";
 import { createContext, FormEvent, ReactNode, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -1442,7 +1443,7 @@ export function OnSiteVisit({
                       <ChevronDown size={18} aria-hidden="true" />
                     </button>
 
-                    {open ? (
+                    <Collapse open={open}>
                       <div className="visit-service__body">
                         {serviceEstimates.length > 0 || serviceNeedsAreas(service) ? (
                           <p className="visit-estimate">{formatEstimates(serviceEstimates)}</p>
@@ -1663,7 +1664,7 @@ export function OnSiteVisit({
                           onNote={(value) => patchServicePhotos(service, (area) => ({ ...area, notes: value }))}
                         />
                       </div>
-                    ) : null}
+                    </Collapse>
                   </article>
                 );
               })}

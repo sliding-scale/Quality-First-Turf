@@ -3,6 +3,7 @@
 import { ChevronDown, ChevronUp } from "lucide-react";
 import type { ReactNode } from "react";
 import { toggleRadio } from "@/components/intake/inputs";
+import { Collapse } from "@/components/intake/collapse";
 
 /**
  * One installation type as a card: a tick box and name on top, a chevron that opens or
@@ -69,11 +70,11 @@ export function InstallCard({
           <span className="visually-hidden">{open ? `Hide ${title} details` : `Show ${title} details`}</span>
         </button>
       </div>
-      {open ? (
+      <Collapse open={open}>
         <div className="demo-type__body grass-card-body" id={panelId}>
           {children}
         </div>
-      ) : null}
+      </Collapse>
     </div>
   );
 }
