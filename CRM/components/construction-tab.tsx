@@ -200,13 +200,16 @@ function Visits({ site, id, businessId }: { site: Site; id: Id<"opportunities">;
 
 function Team({ site, id, businessId }: { site: Site; id: Id<"opportunities">; businessId: Id<"businesses"> }) {
   const { toast } = useUI();
-  const { canEdit } = useStaff();
+  const { canEdit, assignedOnly } = useStaff();
   const setTeam = useMutation(api.crm.construction.setTeam);
   const [crewsOpen, setCrewsOpen] = useState(false);
   const crewIds = site.crews.map((c) => c.id);
+  const installerIds = site.installers.map((i) => i.id);
+  // Choosing who works on a project is not for someone limited to their own records (an Installer).
+  const canTeam = site.canWork && !assignedOnly;
 
-  const save = (projectManagerId: Id<"users"> | null, ids: Id<"crews">[]) =>
-    setTeam({ id, projectManagerId, crewIds: ids, now: clock() }).then(() => toast("Team saved.")).catch((e) => toast(failure(e, "The team could not be saved.")));
+  const save = (projectManagerId: Id<"users"> | null, ids: Id<"crews">[], installers: Id<"users">[] = installerIds as Id<"users">[]) =>
+    setTeam({ id, projectManagerId, crewIds: ids, installerIds: installers, now: clock() }).then(() => toast("Team saved.")).catch((e) => toast(failure(e, "The team could not be saved.")));
 
   return (
     <section className="card op-card" aria-labelledby="cn-team">
@@ -218,7 +221,7 @@ function Team({ site, id, businessId }: { site: Site; id: Id<"opportunities">; b
         <div>
           <dt>Project manager</dt>
           <dd>
-            {site.canWork ? (
+            {canTeam ? (
               <select aria-label="Project manager" value={site.projectManager?.id ?? ""} onChange={(e) => void save((e.target.value || null) as Id<"users"> | null, crewIds as Id<"crews">[])}>
                 <option value="">Not assigned</option>
                 {site.managers.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
@@ -235,13 +238,33 @@ function Team({ site, id, businessId }: { site: Site; id: Id<"opportunities">; b
                   <label key={c.id} className="sc-check">
                     <input
                       type="checkbox"
-                      disabled={!site.canWork}
+                      disabled={!canTeam}
                       checked={crewIds.includes(c.id)}
                       onChange={(e) => void save((site.projectManager?.id ?? null) as Id<"users"> | null, (e.target.checked ? [...crewIds, c.id] : crewIds.filter((x) => x !== c.id)) as Id<"crews">[])}
                     /> {c.name}
                   </label>
                 ))}
                 {site.crews.filter((c) => !site.crewOptions.some((o) => o.id === c.id)).map((c) => <span key={c.id} className="muted">{c.name} (not active)</span>)}
+              </div>
+            )}
+          </dd>
+        </div>
+        <div>
+          <dt>Installers</dt>
+          <dd>
+            {site.installerOptions.length === 0 && site.installers.length === 0 ? <span className="muted">No installers on the team yet. Add one with the Installer role in Manage Team.</span> : (
+              <div className="cn-crews">
+                {site.installerOptions.map((p) => (
+                  <label key={p.id} className="sc-check">
+                    <input
+                      type="checkbox"
+                      disabled={!canTeam}
+                      checked={installerIds.includes(p.id)}
+                      onChange={(e) => void save((site.projectManager?.id ?? null) as Id<"users"> | null, crewIds as Id<"crews">[], (e.target.checked ? [...installerIds, p.id] : installerIds.filter((x) => x !== p.id)) as Id<"users">[])}
+                    /> {p.name}
+                  </label>
+                ))}
+                {site.installers.filter((i) => !site.installerOptions.some((o) => o.id === i.id)).map((i) => <span key={i.id} className="muted">{i.name}</span>)}
               </div>
             )}
           </dd>

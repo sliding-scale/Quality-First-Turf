@@ -1,16 +1,16 @@
 "use client";
 
-/* The Preplanning and Construction boards (D-080). Cards move inside the pipeline through crm/pipeline:moveStage.
+/* The Preplanning, Construction and Finance boards (D-080, PRD 5.1). Cards move inside the pipeline through crm/pipeline:moveStage.
    Crossing into the next pipeline is a menu action, so a drag never leaves this board. */
 
-import { useMutation } from "convex/react";
+import { useConvex, useMutation } from "convex/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { api } from "@/convex/_generated/api";
 import type { BusinessDoc } from "@/lib/clients";
 import { moneyCents } from "@/lib/format";
 import { clock, failure, timeLabel, useCoarsePointer, useMinute, usePeople, useWorkBoard, type WorkCard } from "@/lib/pipeline";
-import { CONSTRUCTION_STAGES, PREPLANNING_STAGES, type WorkPipeline } from "@/convex/crm/lib/stages";
+import { COMPLETION_STAGE, CONSTRUCTION_STAGES, FINANCE_ENTRY, FINANCE_STAGES, PREPLANNING_STAGES, type WorkPipeline } from "@/convex/crm/lib/stages";
 import { FilterMenu } from "./filter-menus";
 import { Icon } from "./icon";
 import { PipelinePanel } from "./pipeline-panel";
@@ -26,13 +26,16 @@ const FIRST_CONSTRUCTION = CONSTRUCTION_STAGES[0];
 export function WorkPipelineBoard({ pipeline, business }: { pipeline: WorkPipeline; business: BusinessDoc }) {
   const router = useRouter();
   const { popover, dropdown, toast } = useUI();
-  const { canEdit, roles } = useStaff();
-  // The Project Manager runs construction (PRD 4.6), so moving a card inside Construction is theirs too; everything else needs an editing role.
-  const canMove = canEdit || (pipeline === "Construction" && roles.includes("pm"));
+  const { canEdit, can } = useStaff();
+  // Each pipeline is its own permission module (PRD 5.5): Edit in it moves its cards. The backend checks the same.
+  const canMove = can(pipeline === "Preplanning" ? "pipelinePreplanning" : pipeline === "Construction" ? "pipelineConstruction" : "pipelineFinance", "edit");
   const moveStage = useMutation(api.crm.pipeline.moveStage);
   const startConstruction = useMutation(api.crm.pipeline.startConstruction);
   const returnToSales = useMutation(api.crm.pipeline.returnToSales);
   const returnToPreplanning = useMutation(api.crm.pipeline.returnToPreplanning);
+  const startFinance = useMutation(api.crm.pipeline.startFinance);
+  const returnToConstruction = useMutation(api.crm.pipeline.returnToConstruction);
+  const convex = useConvex();
   const setSalesperson = useMutation(api.crm.pipeline.setSalesperson);
   const now = useMinute();
   const people = usePeople(business._id);
@@ -67,10 +70,19 @@ export function WorkPipelineBoard({ pipeline, business }: { pipeline: WorkPipeli
         ? { label: "Return to Sales", done: "was returned to Sales.", go: () => returnToSales({ id: card.id, now: clock() }) }
         : pipeline === "Construction" && card.stage === FIRST_CONSTRUCTION
           ? { label: "Return to Preplanning", done: "was returned to Preplanning.", go: () => returnToPreplanning({ id: card.id, now: clock() }) }
-          : null;
+          : pipeline === "Construction" && card.stage === COMPLETION_STAGE
+            ? { label: "Start Finance", done: "is now in Finance.", go: () => startFinance({ id: card.id, now: clock() }) }
+            : pipeline === "Finance" && card.stage === FINANCE_ENTRY
+              ? { label: "Return to Construction", done: "was returned to Construction.", go: () => returnToConstruction({ id: card.id, now: clock() }) }
+              : null;
+    const money = pipeline === "Finance" ? [
+      { label: "Billing and invoices", icon: "receipt", onSelect: () => router.push(`/opportunities/${card.id}?tab=billing`) },
+      ...(card.stage === FINANCE_STAGES[3] ? [{ label: "Copy review link", icon: "newtab", onSelect: () => void copyReviewLink() }] : []),
+    ] : [];
     dropdown(anchor, [
       { label: "View opportunity", icon: "inbox", onSelect: () => router.push(`/opportunities/${card.id}`) },
       ...(card.quoteId ? [{ label: "View Quote", icon: "quote", onSelect: () => router.push(`/quotes/${card.quoteId}`) }] : []),
+      ...money,
       {
         label: "Salesperson",
         icon: "user",
@@ -115,6 +127,17 @@ export function WorkPipelineBoard({ pipeline, business }: { pipeline: WorkPipeli
       }]),
       ...(handoff && !card.movedTo ? [{ label: handoff.label, icon: "stage", disabled: !canEdit, onSelect: () => void act(card, handoff.done, handoff.go) }] : []),
     ]);
+  }
+
+  async function copyReviewLink() {
+    const settings = await convex.query(api.crm.invoiceSettings.get, { businessId: business._id });
+    if (!settings.reviewLink) return toast("No review link is set yet. An Admin adds it in Settings > Invoices.");
+    try {
+      await navigator.clipboard.writeText(settings.reviewLink);
+      toast("Review link copied. Send it to the client.");
+    } catch {
+      toast(settings.reviewLink);
+    }
   }
 
   const open = openId ? board.columns.flatMap((c) => c.cards).find((c) => c.id === openId) : undefined;
@@ -168,7 +191,8 @@ export function WorkPipelineBoard({ pipeline, business }: { pipeline: WorkPipeli
                             ><Icon name="more" size={18} /></button>
                           </div>
                           <div className="pl-client">{card.clientName}</div>
-                          {card.movedTo && <div className="pl-movedto" data-tip="Moved on to Construction">In {card.movedTo}</div>}
+                          {card.movedTo && <div className="pl-movedto" data-tip={`Moved on to ${card.movedTo.split(":")[0]}`}>In {card.movedTo}</div>}
+                          {card.balanceCents !== undefined && <div className={`pl-balance${card.balanceCents > 0 ? " owed" : ""}`}>{card.balanceCents > 0 ? `${moneyCents(card.balanceCents)} owed` : "Nothing owed"}</div>}
                           <div className="pl-service"><Icon name="inbox" size={16} /><span>{card.title}</span></div>
                           <div className="pl-cardfoot">
                             <span className="pl-time" data-tip="Time in this stage">{timeLabel(card.timeInStageMs)}</span>

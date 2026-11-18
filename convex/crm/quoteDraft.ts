@@ -1,7 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { mutation, type MutationCtx } from "../_generated/server";
-import { requireEditor } from "./lib/access";
+import { requireModule } from "./lib/access";
 import { quoteMoneyOptions } from "./lib/quoteOptions";
 import { quoteTotals } from "./lib/quoteMath";
 import { systemMove } from "./lib/systemMove";
@@ -51,7 +51,7 @@ export async function checkFile(ctx: MutationCtx, storageId: Id<"_storage">, wha
 export const create = mutation({
   args: { businessId: v.id("businesses"), clientId: v.id("clients"), opportunityId: v.optional(v.id("opportunities")), title: v.string(), now: v.optional(v.number()) },
   handler: async (ctx, a) => {
-    const staff = await requireEditor(ctx, a.businessId);
+    const staff = await requireModule(ctx, a.businessId, "quotes", "edit");
     const client = await ctx.db.get(a.clientId);
     if (client === null || client.businessId !== a.businessId) throw new ConvexError("That client is not in this business.");
     let project: Doc<"opportunities"> | null = null;
@@ -113,7 +113,7 @@ export const save = mutation({
   handler: async (ctx, a) => {
     const quote = await ctx.db.get(a.id);
     if (quote === null) throw new ConvexError("That quote no longer exists.");
-    await requireEditor(ctx, quote.businessId);
+    await requireModule(ctx, quote.businessId, "quotes", "edit");
     if ((LOCKED as readonly string[]).includes(quote.status)) throw new ConvexError("This quote can no longer be edited.");
     const title = a.title.trim();
     if (title.length < 1 || title.length > 200) throw new ConvexError("A quote title needs 1 to 200 characters.");
@@ -175,7 +175,7 @@ export const save = mutation({
 export const uploadUrl = mutation({
   args: { businessId: v.id("businesses") },
   handler: async (ctx, a) => {
-    await requireEditor(ctx, a.businessId);
+    await requireModule(ctx, a.businessId, "quotes", "edit");
     return ctx.storage.generateUploadUrl();
   },
 });
@@ -185,7 +185,7 @@ export const addAttachment = mutation({
   handler: async (ctx, a) => {
     const quote = await ctx.db.get(a.quoteId);
     if (quote === null) throw new ConvexError("That quote no longer exists.");
-    await requireEditor(ctx, quote.businessId);
+    await requireModule(ctx, quote.businessId, "quotes", "edit");
     const meta = await checkFile(ctx, a.storageId, "An attachment");
     await ctx.db.insert("quoteAttachments", { quoteId: quote._id, storageId: a.storageId, name: a.name.trim().slice(0, 200) || "Attachment", contentType: meta.contentType, size: meta.size, createdAt: Date.now() });
   },
@@ -197,7 +197,7 @@ export const removeAttachment = mutation({
     const att = await ctx.db.get(a.id);
     if (att === null) return;
     const quote = await ctx.db.get(att.quoteId);
-    if (quote) await requireEditor(ctx, quote.businessId);
+    if (quote) await requireModule(ctx, quote.businessId, "quotes", "edit");
     await ctx.db.delete(a.id);
     await ctx.storage.delete(att.storageId);
   },
@@ -211,7 +211,7 @@ export const editNote = mutation({
     if (note === null) throw new ConvexError("That note no longer exists.");
     const quote = await ctx.db.get(note.quoteId);
     if (quote === null) throw new ConvexError("That quote no longer exists.");
-    await requireEditor(ctx, quote.businessId);
+    await requireModule(ctx, quote.businessId, "quotes", "edit");
     const text = a.text.trim();
     if (!text && !note.attachmentId && !note.attachments?.length) throw new ConvexError("Write something first.");
     if (text.length > 5000) throw new ConvexError("Notes can be up to 5,000 characters.");
@@ -227,7 +227,7 @@ export const toggleNoteLine = mutation({
     if (note === null) throw new ConvexError("That note no longer exists.");
     const quote = await ctx.db.get(note.quoteId);
     if (quote === null) throw new ConvexError("That quote no longer exists.");
-    await requireEditor(ctx, quote.businessId);
+    await requireModule(ctx, quote.businessId, "quotes", "edit");
     const next = toggleCheckbox(note.text, a.line);
     if (next === null) throw new ConvexError("That line is not a checkbox.");
     await ctx.db.patch(note._id, { text: next });
@@ -239,7 +239,7 @@ export const addNote = mutation({
   handler: async (ctx, a) => {
     const quote = await ctx.db.get(a.quoteId);
     if (quote === null) throw new ConvexError("That quote no longer exists.");
-    const staff = await requireEditor(ctx, quote.businessId);
+    const staff = await requireModule(ctx, quote.businessId, "quotes", "edit");
     const text = a.text.trim();
     if (text.length > 5000) throw new ConvexError("Notes can be up to 5,000 characters.");
     const attachments = await checkNoteFiles(ctx, a.files);
@@ -256,7 +256,7 @@ export const duplicate = mutation({
   handler: async (ctx, a) => {
     const quote = await ctx.db.get(a.id);
     if (quote === null) throw new ConvexError("That quote no longer exists.");
-    const staff = await requireEditor(ctx, quote.businessId);
+    const staff = await requireModule(ctx, quote.businessId, "quotes", "edit");
     const number = await nextNumber(ctx, quote.businessId);
     const now = Date.now();
     const id = await ctx.db.insert("quotes", {
@@ -281,7 +281,7 @@ export const archive = mutation({
   handler: async (ctx, a) => {
     const quote = await ctx.db.get(a.id);
     if (quote === null) throw new ConvexError("That quote no longer exists.");
-    const staff = await requireEditor(ctx, quote.businessId);
+    const staff = await requireModule(ctx, quote.businessId, "quotes", "edit");
     if (quote.status === "Converted") throw new ConvexError("A converted quote cannot be archived.");
     await ctx.db.patch(a.id, { status: "Archived", shareToken: undefined });
     await logEvent(ctx, a.id, "archived", staff.name, "Quote archived", Date.now());

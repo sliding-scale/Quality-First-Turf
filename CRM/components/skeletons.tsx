@@ -837,3 +837,140 @@ export function ClientQuoteSkeleton() {
     </Busy>
   );
 }
+
+/* ---- Finance (PRD 5.1 and 5.2, design 2026-11-18-finance) ---- */
+
+export function InvoicesSkeleton() {
+  return (
+    <Busy>
+      <div className="page-head"><h1>Invoices</h1><div className="actions"><Sk w={130} h={38} r={8} /></div></div>
+      <div className="kpis compact four">
+        <div className="card kpi">
+          <div className="h"><Sk w={90} h={18} /></div>
+          <div style={{ display: "grid", gap: 9, marginTop: 16 }}>{range(3).map((i) => (<Sk key={i} w={`${80 - i * 8}%`} h={14} />))}</div>
+        </div>
+        {range(3).map((i) => (
+          <div className="card kpi" key={i}><div className="h"><Sk w={130} h={18} /></div><div className="s"><Sk w={80} h={13} /></div><div className="n"><Sk w={64} h={30} /></div></div>
+        ))}
+      </div>
+      <div className="list-head"><h2>All invoices</h2></div>
+      <div className="toolbar"><div className="chips"><Sk w={140} h={38} r={999} /><Sk w={120} h={38} r={999} /></div><Sk w={280} h={44} r={8} style={{ maxWidth: "100%" }} /></div>
+      <div className="table-wrap">
+        <table className="table single" id="tbl">
+          <colgroup><col style={{ width: 240 }} /><col style={{ width: 130 }} /><col style={{ width: 130 }} /><col style={{ width: 260 }} /><col style={{ width: 160 }} /><col style={{ width: 120 }} /><col style={{ width: 120 }} /></colgroup>
+          <thead><tr><th>Client</th><th>Invoice number</th><th>Due date</th><th>Subject</th><th>Status</th><th className="num">Total</th><th className="num">Balance</th></tr></thead>
+          <tbody>
+            {range(8).map((i) => (
+              <tr key={i}>
+                <td><Sk w="70%" h={16} /></td><td><Sk w={50} h={16} /></td><td><Sk w={80} h={16} /></td><td><Sk w="80%" h={16} /></td><td><Sk w={110} h={24} r={999} /></td>
+                <td className="num"><Sk w={70} h={16} style={{ marginLeft: "auto" }} /></td><td className="num"><Sk w={70} h={16} style={{ marginLeft: "auto" }} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Busy>
+  );
+}
+
+export function InvoiceFormSkeleton() {
+  return (
+    <Busy>
+      <div className="qb">
+        <div className="qb-top"><Sk w={200} h={32} /></div>
+        <section className="qb-card"><Sk w="100%" h={46} /><div style={{ height: 14 }} /><Sk w="55%" h={46} /></section>
+        <section className="qb-card"><Sk w={160} h={22} /><div style={{ height: 14 }} /><Sk w="100%" h={46} /><div style={{ height: 10 }} /><Sk w="100%" h={90} /></section>
+        <section className="qb-card"><Sk w="40%" h={22} /><div style={{ height: 14 }} /><Sk w="100%" h={120} /></section>
+      </div>
+    </Busy>
+  );
+}
+
+export function InvoiceSkeleton() {
+  return (
+    <Busy>
+      <div className="quote-shell">
+        <div className="quote-scroll">
+          <div className="quote-head">
+            <div className="qh-row"><div className="who"><Sk w={110} h={22} r={999} /></div><div className="qh-actions"><Sk w={40} h={40} r={8} /><Sk w={150} h={40} r={8} /><Sk w={92} h={40} r={8} /></div></div>
+            <div className="quote-title-row"><h1><Sk w={360} h={36} /></h1></div>
+          </div>
+          <div className="main-col">
+            <div className="quote-top">
+              <section className="card quote-client"><Sk w="70%" h={22} /><Sk w={110} h={14} style={{ marginTop: 18 }} /><Sk w="60%" h={16} style={{ marginTop: 8 }} /><Sk w="45%" h={16} style={{ marginTop: 18 }} /></section>
+              <dl className="quote-facts">{range(6).map((i) => (<div className="f" key={i}><dt><Sk w={90} h={16} /></dt><dd><Sk w="45%" h={16} /></dd></div>))}</dl>
+            </div>
+            <section className="card panel quote-section"><div className="ph"><Sk w={190} h={24} /></div><div className="qs-body"><Sk h={150} r={10} /></div></section>
+          </div>
+        </div>
+        <aside className="quote-side" aria-hidden="true"><div className="quote-side-inner"><section className="card quote-notes"><Sk w={80} h={24} /><Sk w="85%" h={14} style={{ marginTop: 14 }} /></section></div></aside>
+      </div>
+    </Busy>
+  );
+}
+
+export function PaymentsSkeleton() {
+  return (
+    <Busy>
+      <div className="page-head"><h1>Payments</h1><div className="actions"><Sk w={150} h={38} r={8} /></div></div>
+      <div className="kpis compact four">
+        {range(2).map((i) => (<div className="card kpi" key={i}><div className="h"><Sk w={150} h={18} /></div><div className="s"><Sk w={80} h={13} /></div><div className="n"><Sk w={64} h={30} /></div></div>))}
+      </div>
+      <div className="list-head"><h2>All payments</h2></div>
+      <div className="toolbar"><div className="chips"><Sk w={118} h={38} r={999} /><Sk w={130} h={38} r={999} /><Sk w={120} h={38} r={999} /></div><Sk w={280} h={44} r={8} style={{ maxWidth: "100%" }} /></div>
+      <div className="table-wrap">
+        <table className="table single" id="tbl">
+          <colgroup><col style={{ width: 300 }} /><col style={{ width: 150 }} /><col style={{ width: 160 }} /><col style={{ width: 170 }} /><col style={{ width: 150 }} /></colgroup>
+          <thead><tr><th>Client</th><th>Payment date</th><th>Payment status</th><th>Method</th><th className="num">Amount</th></tr></thead>
+          <tbody>
+            {range(6).map((i) => (
+              <tr key={i}><td><Sk w="70%" h={16} /></td><td><Sk w={80} h={16} /></td><td><Sk w={100} h={24} r={999} /></td><td><Sk w={90} h={16} /></td><td className="num"><Sk w={70} h={16} style={{ marginLeft: "auto" }} /></td></tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Busy>
+  );
+}
+
+export function CollectPaymentSkeleton() {
+  return (
+    <Busy>
+      <div className="qb">
+        <div className="qb-top"><Sk w={300} h={32} /></div>
+        <section className="qb-card"><Sk w={160} h={44} /><div style={{ height: 14 }} /><Sk w="100%" h={46} /><div style={{ height: 10 }} /><Sk w="100%" h={46} /></section>
+        <section className="qb-card"><Sk w={220} h={22} /><div style={{ height: 14 }} /><Sk w="100%" h={120} /></section>
+      </div>
+    </Busy>
+  );
+}
+
+export function BillingSkeleton() {
+  return (
+    <Busy>
+      <section className="card panel"><div className="ph"><Sk w={90} h={24} /></div><div className="qs-body"><Sk w="60%" h={18} /><Sk h={14} style={{ marginTop: 16 }} /><Sk h={120} r={10} style={{ marginTop: 16 }} /></div></section>
+    </Busy>
+  );
+}
+
+export function ClientInvoiceSkeleton() {
+  return (
+    <Busy>
+      <main className="cq">
+        <header className="cq-head"><Sk w={140} h={16} /><div style={{ height: 8 }} /><Sk w="60%" h={30} /><div style={{ height: 8 }} /><Sk w="80%" h={14} /></header>
+        <section className="cq-card"><Sk w="50%" h={20} /><Sk w="100%" h={56} /><Sk w="100%" h={56} /></section>
+      </main>
+    </Busy>
+  );
+}
+
+export function SettingsFormSkeleton() {
+  return (
+    <Busy>
+      <div className="qb">
+        <div className="qb-top"><Sk w={220} h={32} /></div>
+        <section className="qb-card"><Sk w="100%" h={46} /><div style={{ height: 14 }} /><Sk w="100%" h={90} /><div style={{ height: 14 }} /><Sk w="100%" h={46} /></section>
+      </div>
+    </Busy>
+  );
+}

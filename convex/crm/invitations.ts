@@ -56,6 +56,7 @@ export const send = action({
     const redirectUrl = acceptUrl(args.origin);
     const id: Id<"users"> = await ctx.runMutation(internal.crm.users.createInvited, {
       email: args.email, name: args.name, roles: args.roles, businessIds: args.businessIds, invitedBy: admin.email,
+      ...(args.permissions ? { permissions: args.permissions } : {}), ...(args.assignedOnly !== undefined ? { assignedOnly: args.assignedOnly } : {}),
     });
     return await deliver(ctx, await rowOf(ctx, id), redirectUrl, "discard");
   },

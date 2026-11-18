@@ -1,7 +1,8 @@
 import { ConvexError, v } from "convex/values";
 import type { Id } from "../_generated/dataModel";
 import { mutation, query, type MutationCtx } from "../_generated/server";
-import { requireBusiness, requireEditor, type Staff } from "./lib/access";
+import { requireModule, type Staff } from "./lib/access";
+import { allows } from "./lib/permissions";
 import { MAX_LIBRARY, STARTER_DISCLAIMERS, checkDisclaimer, sameTitle } from "./lib/disclaimers";
 
 /* The library of saved disclaimers (D-075) that a quote can attach. Anyone who works on the business can read it (the quote builder
@@ -10,15 +11,15 @@ import { MAX_LIBRARY, STARTER_DISCLAIMERS, checkDisclaimer, sameTitle } from "./
 
 /** Who may add, change or delete library entries: Admins and the Office team (user, 2026-11-13). */
 async function requireLibraryEditor(ctx: MutationCtx, businessId: Id<"businesses">): Promise<Staff> {
-  const staff = await requireBusiness(ctx, businessId);
-  if (!staff.isAdmin && !staff.roles.includes("office")) throw new ConvexError("Only an Admin or the Office team can change the disclaimers.");
+  const staff = await requireModule(ctx, businessId, "templates", "view");
+  if (!allows(staff.levels.templates, "edit")) throw new ConvexError("Only an Admin or the Office team can change the disclaimers.");
   return staff;
 }
 
 export const list = query({
   args: { businessId: v.id("businesses") },
   handler: async (ctx, a) => {
-    await requireBusiness(ctx, a.businessId);
+    await requireModule(ctx, a.businessId, "templates", "view");
     const rows = await ctx.db.query("disclaimers").withIndex("by_business", (q) => q.eq("businessId", a.businessId)).take(MAX_LIBRARY + 1);
     const defaults = await ctx.db.query("quoteDefaults").withIndex("by_business", (q) => q.eq("businessId", a.businessId)).first();
     return {
@@ -33,7 +34,7 @@ export const list = query({
 export const ensureDefaults = mutation({
   args: { businessId: v.id("businesses"), now: v.number() },
   handler: async (ctx, a) => {
-    const staff = await requireEditor(ctx, a.businessId);
+    const staff = await requireModule(ctx, a.businessId, "quotes", "edit");
     const row = await ctx.db.query("quoteDefaults").withIndex("by_business", (q) => q.eq("businessId", a.businessId)).first();
     if (row?.disclaimersSeededAt !== undefined) return null;
     const existing = await ctx.db.query("disclaimers").withIndex("by_business", (q) => q.eq("businessId", a.businessId)).take(MAX_LIBRARY);

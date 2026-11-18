@@ -70,8 +70,8 @@ describe("booking and double-booking", () => {
     await expect(b({ assigneeIds: [olive] })).rejects.toThrow(/not on this business/);
   });
 
-  it("refuses a Project Manager and a person from another business", async () => {
-    const { pm, outsider, qft, sam } = await world();
+  it("refuses a person who only looks (an Installer) and a person from another business", async () => {
+    const { installer: pm, outsider, qft, sam } = await world();
     const args = { ...base, businessId: qft, type: "visit", title: "T", start: at(10, 10), end: at(10, 11), assigneeIds: [sam] } as const;
     await expect(pm.mutation(api.crm.schedule.book, args)).rejects.toThrow();
     await expect(outsider.mutation(api.crm.schedule.book, args)).rejects.toThrow();

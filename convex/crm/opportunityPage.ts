@@ -1,7 +1,8 @@
 import { ConvexError, v } from "convex/values";
 import type { Id } from "../_generated/dataModel";
 import { mutation, query, type QueryCtx } from "../_generated/server";
-import { requireBusiness, requireEditor } from "./lib/access";
+import { requireModule, requireProject, requireStaff } from "./lib/access";
+import { allows, pipelineModule } from "./lib/permissions";
 import { AUTOMATIONS } from "./lib/automationRules";
 import { lineTotalCents } from "./lib/quoteMath";
 import { PIPELINE_GROUPS, stagesOf } from "./lib/stages";
@@ -16,7 +17,7 @@ const kindV = v.union(v.literal("plan"), v.literal("photo"), v.literal("contract
 async function load(ctx: QueryCtx, id: Id<"opportunities">) {
   const o = await ctx.db.get(id);
   if (o === null) return null;
-  await requireBusiness(ctx, o.businessId);
+  await requireProject(ctx, o, pipelineModule(o.pipeline), "view");
   return o;
 }
 
@@ -28,6 +29,8 @@ export const overview = query({
   handler: async (ctx, a) => {
     const o = await load(ctx, a.id);
     if (!o) return null;
+    // A person without "Show pricing" (an Installer) sees the project with every price and cost at zero (PRD 5.5).
+    const showPrices = allows((await requireStaff(ctx)).levels.prices, "view");
     const client = await ctx.db.get(o.clientId);
     if (client === null) return null;
     const person = o.salespersonId ? await ctx.db.get(o.salespersonId) : null;
@@ -37,7 +40,7 @@ export const overview = query({
     const lines = confirmed
       ? (await ctx.db.query("quoteLineItems").withIndex("by_quoteId_and_position", (q) => q.eq("quoteId", confirmed._id)).take(200))
           .filter((l) => l.kind !== "text" && (!l.optional || l.selected))
-          .map((l) => ({ name: l.name, description: l.description, quantity: l.quantity, unitPriceCents: l.unitPriceCents, totalCents: lineTotalCents(l) }))
+          .map((l) => ({ name: l.name, description: l.description, quantity: l.quantity, unitPriceCents: showPrices ? l.unitPriceCents : 0, totalCents: showPrices ? lineTotalCents(l) : 0 }))
       : [];
     const consults = (await ctx.db.query("calendarEvents").withIndex("by_opportunity", (q) => q.eq("opportunityId", o._id)).take(50)).filter((e) => e.type === "consultation");
     const assessment = consults.sort((x, y) => y.start - x.start)[0];
@@ -50,7 +53,7 @@ export const overview = query({
       outcome: o.outcome ?? null, lostReason: o.lostReason ?? "", archivedAt: o.archivedAt ?? null, salespersonId: o.salespersonId ?? null, salespersonName: person?.name ?? "Unassigned",
       client: { name: client.name, street1: client.street1, street2: client.street2, city: client.city, state: client.state, zip: client.zip, phone: client.phone, email: client.email },
       assessment: assessment ? { start: assessment.start, anytime: assessment.anytime, status: assessment.status, instructions: assessment.notes } : null,
-      requestedLines: (o.lines ?? []).map((l) => ({ ...l, totalCents: lineTotalCents(l) })),
+      requestedLines: (o.lines ?? []).map((l) => ({ ...l, unitPriceCents: showPrices ? l.unitPriceCents : 0, totalCents: showPrices ? lineTotalCents(l) : 0 })),
       confirmed: confirmed ? { quoteId: confirmed._id, number: confirmed.number, status: confirmed.status, lines } : null,
       contract: { state: contract as "signed" | "uploaded" | "out" | "none" | "noquote", signedAt: confirmed?.signedAt ?? o.signedContractAt ?? null },
       deposit:
@@ -66,6 +69,7 @@ export const quotes = query({
   handler: async (ctx, a) => {
     const o = await load(ctx, a.id);
     if (!o) return [];
+    await requireModule(ctx, o.businessId, "quotes", "view"); // quotes are prices: an Installer has none of them
     return (await quotesOf(ctx, o._id))
       .sort((x, y) => y.number - x.number)
       .map((q) => ({ id: q._id, number: q.number, title: q.title, status: q.status, totalCents: q.totalCents, createdAt: q.createdAt, sentAt: q.sentAt ?? null, approvedAt: q.approvedAt ?? null, signedAt: q.signedAt ?? null }));
@@ -133,7 +137,7 @@ export const addFile = mutation({
   handler: async (ctx, a) => {
     const o = await ctx.db.get(a.id);
     if (o === null) throw new ConvexError("That project no longer exists.");
-    const staff = await requireEditor(ctx, o.businessId);
+    const staff = await requireProject(ctx, o, pipelineModule(o.pipeline), "edit");
     const meta = await ctx.db.system.get("_storage", a.storageId);
     if (meta === null) throw new ConvexError("The file was not uploaded. Try again.");
     const type = (meta.contentType ?? "").toLowerCase();
@@ -149,7 +153,9 @@ export const removeFile = mutation({
   handler: async (ctx, a) => {
     const f = await ctx.db.get(a.fileId);
     if (f === null) return null;
-    await requireEditor(ctx, f.businessId);
+    const owner = await ctx.db.get(f.opportunityId);
+    if (owner) await requireProject(ctx, owner, pipelineModule(owner.pipeline), "edit");
+    else await requireModule(ctx, f.businessId, "requests", "edit");
     await ctx.storage.delete(f.storageId);
     await ctx.db.delete(f._id);
     return null;

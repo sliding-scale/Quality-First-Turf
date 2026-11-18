@@ -14,7 +14,7 @@ This folder is one app in a monorepo. The repo root `../CLAUDE.md` has the overa
 If a task conflicts with a recorded decision, say so instead of silently working around it.
 
 ## Current state
-The client is shifting off Jobber as PRD milestones ship (D-027), so each milestone is built to completion on the real backend and released in order. Inside a milestone the UI comes first. The Milestone 2 screens (Home, Clients, Client page, New/Edit client) are built in Next.js in this folder on sample data, behind `lib/clients.ts` (D-033). The HTML mockups were converted and removed. The Clients and Requests screens now read and write the Convex backend on the dev deployment (D-042; `convex/crm/`, access is Clerk sign-in, invite-only, with roles and per-business checks in `convex/crm/lib/access.ts`; D-046). Every new CRM function must start with one of those checks. Quotes (list and read-only quote page, D-056) are wired too; the quote builder is not built. The rest of the screens are not wired yet. Nothing else is built until the user approves that step's design (D-020). No questions go to the client now; ask only when one blocks a specific piece of work (D-018).
+The client is shifting off Jobber as PRD milestones ship (D-027), so each milestone is built to completion on the real backend and released in order. Inside a milestone the UI comes first. The Milestone 2 screens (Home, Clients, Client page, New/Edit client) are built in Next.js in this folder on sample data, behind `lib/clients.ts` (D-033). The HTML mockups were converted and removed. The Clients and Requests screens now read and write the Convex backend on the dev deployment (D-042; `convex/crm/`, access is Clerk sign-in, invite-only, with roles and per-business checks in `convex/crm/lib/access.ts`; D-046). Every new CRM function must start with `requireModule(ctx, businessId, module, level)` (or `requireProject` for a project), never a role check. Quotes (list and read-only quote page, D-056) are wired too; the quote builder is not built. Finance (invoices, payments, the project Billing tab, the Finance board, D-092) is built on the dev deployment and not yet clicked through in a browser. The rest of the screens are not wired yet. Nothing else is built until the user approves that step's design (D-020). No questions go to the client now; ask only when one blocks a specific piece of work (D-018).
 
 ## How to work with this user
 - Go step by step. Settle one thing, then the next.
@@ -51,7 +51,7 @@ The git root is `Quality-First-Turf/` (one level above this folder). It holds `f
 - Each business has its own client list: a client belongs to one business and lists are scoped to the selected business (D-031).
 - Client types: `homeowner`, `contractor`. The type comes from the customer form.
 - Three **businesses**: Quality First Turf Landscape, Quality First Turf Construction, Quality First Patios (D-016, D-066). Users can belong to several; a project and a client each belong to one. The landscape business keeps the slug `quality-first-turf`.
-- Login roles: Admin, Sales, Office Team, Project Managers. A user can hold several (D-014). Installers do not log in; they are records that receive work packages via secure links (D-010).
+- Login roles: Admin, Sales, Office Team, Project Managers, Installers. A user can hold several (D-014). Installers log in too, as the PRD says (D-090); secure work-package links (PRD 5.4) still stand. What each role can do is a level per module (None, View, Create and edit, Edit and delete) with the Admin's per-person overrides, enforced in the backend by `requireModule` in `convex/crm/lib/access.ts` (D-093); a person can also be limited to records assigned to them (an Installer is, by default).
 - Pipelines and their exact stage names are in `docs/prd.md`. Use those names verbatim as constants in one place.
 - United States, all states: tax and time zone vary by job (D-017).
 
@@ -86,6 +86,16 @@ The git root is `Quality-First-Turf/` (one level above this folder). It holds `f
 - Report blockers early; blocking client questions come from the backlog in `docs/client-questions-later.docx` (D-018).
 - Delivery dates in the PRD are ignored (D-005). Don't rush scope to hit them.
 - Don't commit or push unless asked.
+
+## Waiting on the user (remind them when they ask what is outstanding)
+The user said on 2026-11-18 that they will provide these later. When they ask what is pending, or when the material takeoff (PRD 4.2) is being built, remind them:
+1. **Product catalogue:** every product and material: name, code/SKU, category, the unit it is sold in, cost, supplier, size details (for example roll width).
+2. **Measurement units:** the units measured in and ordered in (sq ft, linear ft, rolls, bags, tons, cubic yards) and how they convert.
+
+To be asked of the client (user's call, 2026-11-18, because the PRD says the client supplies them and Jobber has nothing to copy):
+3. **Material formulas and wastage**, with 2 to 3 real jobs showing the measurements and the final material list.
+4. **A work package they have sent an installer**, and what one normally contains.
+Until they arrive, build on placeholders the team can edit (golden rule in `../CLAUDE.md`, D-091). Delete each item here once it is received.
 
 ## To do: check the Jobber link (D-085), on a machine where Jobber is connected
 The CRM sends consultations to Jobber (`convex/crm/jobberConsultation.ts`), but it was built on a machine where Jobber was not connected, so **no call to Jobber has ever been tried**. Do this in a new session on the dev deployment, then delete this section and note the result in D-085:

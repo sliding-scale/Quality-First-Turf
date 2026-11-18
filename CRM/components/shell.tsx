@@ -8,6 +8,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore, type MouseEvent, type ReactNode } from "react";
 import { api } from "@/convex/_generated/api";
+import type { Module } from "@/convex/crm/lib/permissions";
 import { setBusiness, useWorkspace } from "@/lib/clients";
 import { forgetClientsPlace } from "@/lib/clients-place";
 import { useStoredString, writeItem } from "@/lib/store";
@@ -31,8 +32,8 @@ const NAV: NavItem[] = [
   { key: "requests", label: "Requests", icon: "inbox", href: "/requests" },
   { key: "quotes", label: "Quotes", icon: "quote", href: "/quotes" },
   { key: "jobs", label: "Jobs", icon: "hammer" },
-  { key: "invoices", label: "Invoices", icon: "receipt" },
-  { key: "payments", label: "Payments", icon: "card" },
+  { key: "invoices", label: "Invoices", icon: "receipt", href: "/invoices" },
+  { key: "payments", label: "Payments", icon: "card", href: "/payments" },
   { divider: true },
   { key: "pipeline", label: "Pipeline", icon: "kanban", href: "/pipeline" },
   { key: "tasks", label: "Tasks", icon: "tasks", href: "/tasks" },
@@ -43,13 +44,28 @@ const NAV: NavItem[] = [
 /** Only Admins see this, in the same group as Messages at the bottom of the sidebar (the backend refuses everyone else anyway). */
 const ADMIN_NAV: NavItem[] = [{ key: "team", label: "Manage Team", icon: "user", href: "/settings/users" }];
 
-/** The pipelines in the PRD. Finance is Milestone 5, so it stays greyed out. */
+/** The pipelines in the PRD. */
 const PIPELINES: { label: string; href?: string }[] = [
   { label: "Sales", href: "/pipeline" },
   { label: "Preplanning", href: "/pipeline/preplanning" },
   { label: "Construction", href: "/pipeline/construction" },
-  { label: "Finance" },
+  { label: "Finance", href: "/pipeline/finance" },
 ];
+
+/** The permission module behind each sidebar item and each page (PRD 5.5). The backend refuses what a person may not do; this only keeps the
+ *  menu and the page tidy. null: open to everyone signed in. */
+const NAV_MODULE: Record<string, Module | undefined> = { clients: "clients", requests: "requests", quotes: "quotes", schedule: "schedule", invoices: "invoices", payments: "payments", tasks: "tasks" };
+const PIPELINE_MODULE: Record<string, Module> = { Sales: "pipelineSales", Preplanning: "pipelinePreplanning", Construction: "pipelineConstruction", Finance: "pipelineFinance" };
+function moduleOfPath(pathname: string): Module | null {
+  const first = NAV_MODULE[pathname.split("/")[1] ?? ""];
+  if (first) return first;
+  if (pathname === "/pipeline" || pathname.startsWith("/pipeline/edit")) return "pipelineSales";
+  if (pathname.startsWith("/pipeline/preplanning")) return "pipelinePreplanning";
+  if (pathname.startsWith("/pipeline/construction")) return "pipelineConstruction";
+  if (pathname.startsWith("/pipeline/finance")) return "pipelineFinance";
+  if (pathname.startsWith("/settings/invoices") || pathname.startsWith("/settings/disclaimers")) return "templates";
+  return null;
+}
 
 /** Sales lives at /pipeline, which is also the prefix of the other pipelines, so it must not match those. */
 function pipelineItemOn(href: string, pathname: string): boolean {
@@ -124,12 +140,35 @@ function Brand() {
   );
 }
 
+/** Shown in place of a page the person has no access to (PRD 5.5). */
+function NoAccess() {
+  return (
+    <div className="empty-state">
+      <h2>You do not have access to this</h2>
+      <p>Your role does not include this part of the CRM. An Admin can change that in Manage Team.</p>
+      <Link className="btn primary" href="/home">Back to Home</Link>
+    </div>
+  );
+}
+
 function ShellInner({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { popover, toggleCreate, createOpen } = useUI();
   const staff = useStaff();
-  const nav = staff.isAdmin ? [...NAV, ...ADMIN_NAV] : NAV;
+  const allowed = (n: NavItem) => {
+    if ("divider" in n && n.divider) return true;
+    const key = (n as { key: string }).key;
+    if (key === "pipeline") return Object.values(PIPELINE_MODULE).some((m) => staff.can(m));
+    const m = NAV_MODULE[key];
+    return m === undefined || staff.can(m);
+  };
+  // Dividers only between groups that still have something in them.
+  const shown = (staff.isAdmin ? [...NAV, ...ADMIN_NAV] : NAV).filter(allowed);
+  const nav = shown.filter((n, i) => !("divider" in n && n.divider) || (i > 0 && i < shown.length - 1 && !("divider" in shown[i - 1] && shown[i - 1].divider)));
+  const pageModule = moduleOfPath(pathname);
+  const blocked = pageModule !== null && !staff.can(pageModule);
+  const pipelines = PIPELINES.filter((p) => staff.can(PIPELINE_MODULE[p.label]));
   const mobile = useIsMobile();
   // The phone menu is open only for the page it was opened on, so going anywhere (any link in it) closes it without an effect.
   const [menuPath, setMenuPath] = useState<string | null>(null);
@@ -142,7 +181,7 @@ function ShellInner({ children }: { children: ReactNode }) {
   const searchRef = useRef<HTMLInputElement>(null);
   const mainRef = useRef<HTMLElement>(null);
 
-  const active = pathname === "/home" || pathname === "/" ? "home" : pathname.startsWith("/clients") ? "clients" : pathname.startsWith("/requests") ? "requests" : pathname.startsWith("/quotes") ? "quotes" : pathname.startsWith("/schedule") ? "schedule" : pathname.startsWith("/pipeline") ? "pipeline" : pathname.startsWith("/tasks") ? "tasks" : pathname.startsWith("/settings/users") ? "team" : "";
+  const active = pathname === "/home" || pathname === "/" ? "home" : pathname.startsWith("/clients") ? "clients" : pathname.startsWith("/requests") ? "requests" : pathname.startsWith("/quotes") ? "quotes" : pathname.startsWith("/invoices") ? "invoices" : pathname.startsWith("/payments") ? "payments" : pathname.startsWith("/schedule") ? "schedule" : pathname.startsWith("/pipeline") ? "pipeline" : pathname.startsWith("/tasks") ? "tasks" : pathname.startsWith("/settings/users") ? "team" : "";
 
   // The collapsed sidebar is a class on <html>, so a small script in layout.tsx can set it before first paint.
   useEffect(() => {
@@ -282,7 +321,7 @@ function ShellInner({ children }: { children: ReactNode }) {
                 forgetClientsPlace();
               };
               if (n.key === "pipeline") {
-                // Pipeline opens the list of pipelines. Finance stays greyed out until Milestone 5.
+                // Pipeline opens the list of pipelines.
                 const open = pipeChoice && pipeChoice.path === pathname ? pipeChoice.open : on;
                 return (
                   <div key={n.key} className="nav-group">
@@ -307,7 +346,7 @@ function ShellInner({ children }: { children: ReactNode }) {
                     </Link>
                     <div className={open ? "nav-sub open" : "nav-sub"} id="pipeline-sub" inert={!open}>
                       <div className="nav-sub-in">
-                        {PIPELINES.map((p) =>
+                        {pipelines.map((p) =>
                           p.href ? (
                             <Link key={p.label} className={pipelineItemOn(p.href, pathname) ? "subitem active" : "subitem"} href={p.href} aria-current={pipelineItemOn(p.href, pathname) ? "page" : undefined}>{p.label}</Link>
                           ) : (
@@ -339,7 +378,7 @@ function ShellInner({ children }: { children: ReactNode }) {
       </nav>
 
       <main className="main" id="main" ref={mainRef}>
-        <div className="page">{children}</div>
+        <div className="page">{blocked ? <NoAccess /> : children}</div>
       </main>
     </div>
   );

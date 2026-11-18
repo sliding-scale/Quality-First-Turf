@@ -14,6 +14,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
 import { ROLE_LABEL, ROLES, type Role } from "@/convex/crm/lib/stages";
+import { assignedOnlyOf, LEVEL_LABEL, levelsOf, MODULE_LABEL, MODULES, PRESET_BUTTONS, type Level, type Module } from "@/convex/crm/lib/permissions";
 import { useBusinesses, useKept } from "@/lib/clients";
 import { cleanEmail, cleanName } from "@/lib/fields";
 import { Icon } from "./icon";
@@ -321,6 +322,9 @@ function UserForm({ user, businesses, onDone }: { user: UserDoc | null; business
   const [email, setEmail] = useState(user?.email ?? "");
   const [roles, setRoles] = useState<Role[]>(user?.roles ?? []);
   const [businessIds, setBusinessIds] = useState<Id<"businesses">[]>(user?.businessIds ?? []);
+  // The Admin's overrides of the role presets for this person (PRD 5.5), and the assigned-only switch. Only what differs from the roles is kept.
+  const [overrides, setOverrides] = useState<Partial<Record<Module, Level>>>(user?.permissions ?? {});
+  const [assignedOnly, setAssignedOnly] = useState<boolean | undefined>(user?.assignedOnly);
   // Turning access on or off is in the row's three-dots menu; editing keeps whatever it is now.
   const active = user ? user.status !== "deactivated" : true;
   const [attempted, setAttempted] = useState(false);
@@ -343,6 +347,12 @@ function UserForm({ user, businesses, onDone }: { user: UserDoc | null; business
   };
   const bad = { name: attempted && problems.name, email: attempted && problems.email, roles: attempted && problems.roles, businesses: attempted && problems.businesses };
 
+  const base = levelsOf(roles);
+  const effective = { ...base, ...overrides };
+  const setLevel = (m: Module, level: Level) => setOverrides((o) => { const n = { ...o }; if (level === base[m]) delete n[m]; else n[m] = level; return n; });
+  const applyPreset = (levels: Record<Module, Level>) => setOverrides(Object.fromEntries(MODULES.filter((m) => levels[m] !== base[m]).map((m) => [m, levels[m]])) as Partial<Record<Module, Level>>);
+  const cleanOverrides = Object.keys(overrides).length ? overrides : undefined;
+
   const toggle = <T,>(list: T[], item: T) => (list.includes(item) ? list.filter((x) => x !== item) : [...list, item]);
 
   async function submit(e: FormEvent) {
@@ -356,10 +366,10 @@ function UserForm({ user, businesses, onDone }: { user: UserDoc | null; business
     setServerError("");
     try {
       if (user) {
-        await update({ id: user._id, active, name, roles, businessIds: isAdmin ? [] : businessIds });
+        await update({ id: user._id, active, name, roles, businessIds: isAdmin ? [] : businessIds, ...(cleanOverrides ? { permissions: cleanOverrides } : {}), ...(assignedOnly !== undefined ? { assignedOnly } : {}) });
         onDone();
       } else {
-        const sent = await invite({ email, name, roles, businessIds: isAdmin ? [] : businessIds, origin: window.location.origin });
+        const sent = await invite({ email, name, roles, businessIds: isAdmin ? [] : businessIds, ...(cleanOverrides ? { permissions: cleanOverrides } : {}), ...(assignedOnly !== undefined ? { assignedOnly } : {}), origin: window.location.origin });
         onDone(announce(email.trim().toLowerCase(), sent));
       }
     } catch (err) {
@@ -409,6 +419,38 @@ function UserForm({ user, businesses, onDone }: { user: UserDoc | null; business
         {isAdmin && <div className="muted">Admins work in every business.</div>}
         <div className="err">Choose at least one business.</div>
       </fieldset>
+
+      <details className="perm" open={!!cleanOverrides || assignedOnly !== undefined}>
+        <summary>Permissions</summary>
+        <p className="muted">Each role starts with the levels below. Change any module for this person only, or start from a preset.</p>
+        <div className="perm-presets" role="group" aria-label="Preset permission levels">
+          {PRESET_BUTTONS.map((b) => <button key={b.label} type="button" className="btn small" title={b.hint} onClick={() => applyPreset(b.levels)}>{b.label}</button>)}
+          <button type="button" className="btn small plain" disabled={!cleanOverrides} onClick={() => setOverrides({})}>Back to the roles&apos; levels</button>
+        </div>
+        <table className="table perm-table">
+          <colgroup><col /><col style={{ width: 210 }} /></colgroup>
+          <tbody>
+            {MODULES.map((m) => (
+              <tr key={m}>
+                <td><label htmlFor={`perm-${m}`}>{MODULE_LABEL[m]}</label>{overrides[m] !== undefined && <small className="perm-changed"> changed</small>}</td>
+                <td>
+                  <select id={`perm-${m}`} value={effective[m]} onChange={(e) => setLevel(m, e.target.value as Level)}>
+                    {(m === "prices" ? (["none", "view"] as const) : (["none", "view", "edit", "full"] as const)).map((l) => <option key={l} value={l}>{m === "prices" ? (l === "none" ? "Hidden" : "Shown") : LEVEL_LABEL[l]}</option>)}
+                  </select>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div className="field">
+          <label htmlFor="perm-assigned">Which records they see</label>
+          <select id="perm-assigned" value={assignedOnly === undefined ? "roles" : assignedOnly ? "own" : "all"} onChange={(e) => setAssignedOnly(e.target.value === "roles" ? undefined : e.target.value === "own")}>
+            <option value="roles">{assignedOnlyOf(roles, undefined) ? "Follow the roles: only records assigned to them (an Installer)" : "Follow the roles: everyone's records in their businesses"}</option>
+            <option value="own">Only records assigned to them</option>
+            <option value="all">Everyone&apos;s records in their businesses</option>
+          </select>
+        </div>
+      </details>
 
       {serverError && <div className="form-error" role="alert">{serverError}</div>}
       <div className="user-form-actions">

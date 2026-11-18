@@ -5,7 +5,7 @@ import { newShortCode } from "../projects/shortCode";
 import { answerValidator, measurementValidator } from "../schema";
 import { areaBandFor, contactProblems } from "../shared/discovery";
 import { US_STATES } from "../shared/usStates";
-import { requireEditor } from "./lib/access";
+import { requireModule } from "./lib/access";
 import { checkAssignee } from "./lib/assignees";
 import { clientSearchText, opportunitySearchText } from "./lib/clientInput";
 import { cleanEmail, cleanName, cleanZip, formatPhone } from "./lib/fields";
@@ -69,7 +69,7 @@ export const create = mutation({
     measurements: v.array(measurementValidator),
   },
   handler: async (ctx, args) => {
-    const staff = await requireEditor(ctx, args.businessId);
+    const staff = await requireModule(ctx, args.businessId, "requests", "edit");
     const problem = Object.values(contactProblems(args))[0];
     if (problem !== undefined) throw new ConvexError(problem);
     if (args.services.length === 0) throw new ConvexError("Choose at least one service.");

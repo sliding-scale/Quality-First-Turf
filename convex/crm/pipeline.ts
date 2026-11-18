@@ -2,12 +2,14 @@ import { ConvexError, v } from "convex/values";
 import { consultationsOnMove } from "./lib/consultationStage";
 import type { Doc, Id } from "../_generated/dataModel";
 import { mutation, query, type MutationCtx, type QueryCtx } from "../_generated/server";
-import { requireBusiness, requireEditor, requireMover, type Staff } from "./lib/access";
+import { requireBusiness, requireModule, requireProject, type Staff } from "./lib/access";
+import { allows, canSeeRecord, pipelineModule } from "./lib/permissions";
 import { stageList } from "./lib/pipelineStages";
 import { checkFile } from "./quoteDraft";
 import { quoteTotals } from "./lib/quoteMath";
 import { quoteMoneyOptions } from "./lib/quoteOptions";
-import { checkMove, checkWorkMove, CLOSED_STAGES, COMPLETION_STAGE, CONSTRUCTION_STAGES, LEAD_SOURCES, NO_SOURCE, PREPLANNING_STAGES, SALES_STAGES, timeInStage, type BoardGroup } from "./lib/stages";
+import { checkMove, checkWorkMove, CLOSED_STAGES, COMPLETION_STAGE, CONSTRUCTION_STAGES, FINANCE_ENTRY, FINANCE_PAID_STAGE, LEAD_SOURCES, NO_SOURCE, PREPLANNING_STAGES, SALES_STAGES, stagesOf, timeInStage, type BoardGroup } from "./lib/stages";
+import { assertPaidUp, projectMoney } from "./lib/billing";
 import { notifyStage } from "./lib/mentionNotify";
 import { completionBlock, completionState } from "./lib/construction";
 
@@ -57,7 +59,7 @@ async function checkWon(ctx: MutationCtx, project: Doc<"opportunities">): Promis
 
 /** A move inside Preplanning or Construction. The same rules as Sales for history and notifications; the outcome of the sale stays. */
 async function applyWorkMove(ctx: MutationCtx, project: Doc<"opportunities">, to: string, staff: Staff, now: number) {
-  if (project.pipeline !== "Preplanning" && project.pipeline !== "Construction") throw new ConvexError("This pipeline is not open yet.");
+  if (project.pipeline === "Sales") throw new ConvexError("This pipeline is not open yet.");
   // The last construction stage needs every required punch item verified and the customer's sign-off (PRD 4.6, D-081).
   let signOff = false;
   if (to === COMPLETION_STAGE && project.pipeline === "Construction") {
@@ -67,6 +69,8 @@ async function applyWorkMove(ctx: MutationCtx, project: Doc<"opportunities">, to
   }
   const verdict = checkWorkMove(project.pipeline, project.stage, to, { signOff });
   if (!verdict.ok) throw new ConvexError(verdict.error);
+  // Final Payment Received needs the project's sent invoices paid (PRD 5.1, design 2026-11-18). It moves there by itself when they are.
+  if (project.pipeline === "Finance" && to === FINANCE_PAID_STAGE) await assertPaidUp(ctx, project);
   const from = project.stage;
   await ctx.db.patch(project._id, {
     stage: to,
@@ -138,7 +142,8 @@ export const moveStage = mutation({
   handler: async (ctx, args) => {
     const project = await ctx.db.get(args.id);
     if (project === null) throw new ConvexError("That project no longer exists.");
-    const staff = await requireMover(ctx, project.businessId, project.pipeline);
+    // Each pipeline is its own module (PRD 5.5): Edit in that pipeline moves its cards, and an assigned-only person only their own projects.
+    const staff = await requireProject(ctx, project, pipelineModule(project.pipeline), "edit");
     return applyMove(ctx, project, args.to, staff, args.reason, args.now);
   },
 });
@@ -149,7 +154,7 @@ export const history = query({
   handler: async (ctx, args) => {
     const project = await ctx.db.get(args.id);
     if (project === null) return [];
-    await requireBusiness(ctx, project.businessId);
+    await requireProject(ctx, project, pipelineModule(project.pipeline), "view");
     const rows = await ctx.db.query("stageHistory").withIndex("by_opportunity", (q) => q.eq("opportunityId", args.id)).take(500);
     return rows.sort((a, b) => b.at - a.at || b._creationTime - a._creationTime);
   },
@@ -184,11 +189,12 @@ export const board = query({
     now: v.number(),
   },
   handler: async (ctx, a) => {
-    await requireBusiness(ctx, a.businessId);
+    const who = await requireModule(ctx, a.businessId, "pipelineSales", "view");
     const text = a.search.trim();
-    const docs = text
+    const docs = (text
       ? await ctx.db.query("opportunities").withSearchIndex("search_text", (q) => q.search("searchText", text).eq("businessId", a.businessId)).take(MAX_PROJECTS)
-      : await ctx.db.query("opportunities").withIndex("by_business_and_requestedAt", (q) => q.eq("businessId", a.businessId)).order("desc").take(MAX_PROJECTS);
+      : await ctx.db.query("opportunities").withIndex("by_business_and_requestedAt", (q) => q.eq("businessId", a.businessId)).order("desc").take(MAX_PROJECTS)
+    ).filter((p) => canSeeRecord({ assignedOnly: who.assignedOnly, userId: who.userId }, p));
     const stages = (await stageList(ctx, a.businessId)).filter((s) => !s.hidden);
     const values = await latestQuoteValues(ctx, a.businessId);
     const people = new Map((await ctx.db.query("users").take(500)).map((u) => [u._id, u.name]));
@@ -223,7 +229,7 @@ export const board = query({
         id: p._id, code: p.code, title: p.title, clientId: p.clientId, clientName: clients.get(p.clientId) ?? "", stage: movedOn ? "Closed Won" : p.stage,
         movedTo: movedOn ? `${p.pipeline}: ${p.stage}` : undefined,
         consultationAt: consults.get(p._id),
-        valueCents: values.get(p._id)?.totalCents ?? 0, quoteId: values.get(p._id)?.quoteId, timeInStageMs: timeInStage(movedOn ? (p.closedAt ?? p.stageEnteredAt) : p.stageEnteredAt, p.requestedAt, a.now), requestedAt: p.requestedAt,
+        valueCents: allows(who.levels.prices, "view") ? (values.get(p._id)?.totalCents ?? 0) : 0, quoteId: values.get(p._id)?.quoteId, timeInStageMs: timeInStage(movedOn ? (p.closedAt ?? p.stageEnteredAt) : p.stageEnteredAt, p.requestedAt, a.now), requestedAt: p.requestedAt,
         salespersonId: p.salespersonId, salespersonName: p.salespersonId ? (people.get(p.salespersonId) ?? "") : "Unassigned", leadSource: p.leadSource ?? NO_SOURCE,
       });
     }
@@ -243,9 +249,9 @@ export const board = query({
   },
 });
 
-const workPipeline = v.union(v.literal("Preplanning"), v.literal("Construction"));
+const workPipeline = v.union(v.literal("Preplanning"), v.literal("Construction"), v.literal("Finance"));
 
-/** The Preplanning or Construction board (D-080): one column per PRD stage, on the same project record. */
+/** The Preplanning, Construction or Finance board (D-080, PRD 5.1): one column per PRD stage, on the same project record. */
 export const workBoard = query({
   args: {
     businessId: v.id("businesses"),
@@ -260,22 +266,24 @@ export const workBoard = query({
     now: v.number(),
   },
   handler: async (ctx, a) => {
-    await requireBusiness(ctx, a.businessId);
+    const who = await requireModule(ctx, a.businessId, pipelineModule(a.pipeline), "view");
     const text = a.search.trim();
-    const docs = text
+    const docs = (text
       ? await ctx.db.query("opportunities").withSearchIndex("search_text", (q) => q.search("searchText", text).eq("businessId", a.businessId)).take(MAX_PROJECTS)
-      : await ctx.db.query("opportunities").withIndex("by_business_and_requestedAt", (q) => q.eq("businessId", a.businessId)).order("desc").take(MAX_PROJECTS);
-    const stageNames = a.pipeline === "Preplanning" ? PREPLANNING_STAGES : CONSTRUCTION_STAGES;
+      : await ctx.db.query("opportunities").withIndex("by_business_and_requestedAt", (q) => q.eq("businessId", a.businessId)).order("desc").take(MAX_PROJECTS)
+    ).filter((p) => canSeeRecord({ assignedOnly: who.assignedOnly, userId: who.userId }, p));
+    const stageNames = stagesOf(a.pipeline);
+    const lastStage = stageNames[stageNames.length - 1];
     const values = await latestQuoteValues(ctx, a.businessId);
     const people = new Map((await ctx.db.query("users").take(500)).map((u) => [u._id, u.name]));
     const clients = new Map<Id<"clients">, string>();
     const wanted = new Set(a.leadSources);
     const cards = new Map<string, WorkCard[]>(stageNames.map((name) => [name, []]));
     for (const p of docs) {
-      // A project that has moved on from the last Preplanning stage to Construction stays in that column (D-089), marked with where it is now.
-      const movedOn = a.pipeline === "Preplanning" && p.pipeline === "Construction";
+      // A project that has moved on from the last stage of this board to the next pipeline stays in that column (D-089), marked with where it is now.
+      const movedOn = (a.pipeline === "Preplanning" && p.pipeline === "Construction") || (a.pipeline === "Construction" && p.pipeline === "Finance");
       if ((p.pipeline !== a.pipeline && !movedOn) || p.businessId !== a.businessId || p.archivedAt !== undefined) continue;
-      const column = cards.get(movedOn ? PREPLANNING_LAST : p.stage);
+      const column = cards.get(movedOn ? lastStage : p.stage);
       if (!column) continue;
       if (a.salespersonId === "unassigned" ? p.salespersonId !== undefined : a.salespersonId !== undefined && p.salespersonId !== a.salespersonId) continue;
       if (wanted.size > 0 && !wanted.has(p.leadSource ?? NO_SOURCE)) continue;
@@ -283,9 +291,10 @@ export const workBoard = query({
       if (a.to !== undefined && p.requestedAt > a.to) continue;
       if (!clients.has(p.clientId)) clients.set(p.clientId, (await ctx.db.get(p.clientId))?.name ?? "");
       column.push({
-        id: p._id, code: p.code, title: p.title, clientId: p.clientId, clientName: clients.get(p.clientId) ?? "", stage: movedOn ? PREPLANNING_LAST : p.stage,
-        movedTo: movedOn ? `Construction: ${p.stage}` : undefined,
-        valueCents: values.get(p._id)?.totalCents ?? 0, quoteId: values.get(p._id)?.quoteId, timeInStageMs: timeInStage(p.stageEnteredAt, p.requestedAt, a.now), requestedAt: p.requestedAt,
+        id: p._id, code: p.code, title: p.title, clientId: p.clientId, clientName: clients.get(p.clientId) ?? "", stage: movedOn ? lastStage : p.stage,
+        movedTo: movedOn ? `${p.pipeline}: ${p.stage}` : undefined,
+        balanceCents: a.pipeline === "Finance" ? (await projectMoney(ctx, p)).outstandingCents : undefined,
+        valueCents: allows(who.levels.prices, "view") ? (values.get(p._id)?.totalCents ?? 0) : 0, quoteId: values.get(p._id)?.quoteId, timeInStageMs: timeInStage(p.stageEnteredAt, p.requestedAt, a.now), requestedAt: p.requestedAt,
         salespersonId: p.salespersonId, salespersonName: p.salespersonId ? (people.get(p.salespersonId) ?? "") : "Unassigned", leadSource: p.leadSource ?? NO_SOURCE,
         outcome: p.outcome ?? null,
       });
@@ -304,8 +313,10 @@ type WorkCard = {
   id: Id<"opportunities">; code: string; title: string; clientId: Id<"clients">; clientName: string; stage: string; valueCents: number;
   quoteId: Id<"quotes"> | undefined; timeInStageMs: number; requestedAt: number; salespersonId: Id<"users"> | undefined; salespersonName: string;
   leadSource: string; outcome: "won" | "lost" | null;
-  /** Set on a project that has moved on to Construction, "Construction: Ready to Start": it stays in the last Preplanning column (D-089). */
+  /** Set on a project that has moved on to the next pipeline, "Construction: Ready to Start": it stays in the last column of this board (D-089). */
   movedTo: string | undefined;
+  /** On the Finance board: what is still owed on the project's sent invoices. */
+  balanceCents: number | undefined;
 };
 
 export type Card = {
@@ -338,7 +349,7 @@ export const setSalesperson = mutation({
   handler: async (ctx, args) => {
     const project = await ctx.db.get(args.id);
     if (project === null) throw new ConvexError("That project no longer exists.");
-    await requireEditor(ctx, project.businessId);
+    await requireModule(ctx, project.businessId, "requests", "edit");
     if (args.salespersonId === null) {
       await ctx.db.patch(args.id, { salespersonId: undefined });
       return;
@@ -356,7 +367,7 @@ export const setLeadSource = mutation({
   handler: async (ctx, args) => {
     const project = await ctx.db.get(args.id);
     if (project === null) throw new ConvexError("That project no longer exists.");
-    await requireEditor(ctx, project.businessId);
+    await requireModule(ctx, project.businessId, "requests", "edit");
     if (args.leadSource !== null && !(LEAD_SOURCES as readonly string[]).includes(args.leadSource)) throw new ConvexError("Pick a lead source from the list.");
     await ctx.db.patch(args.id, { leadSource: args.leadSource ?? undefined });
   },
@@ -368,7 +379,7 @@ export const markOutcome = mutation({
   handler: async (ctx, args) => {
     const project = await ctx.db.get(args.id);
     if (project === null) throw new ConvexError("That project no longer exists.");
-    const staff = await requireEditor(ctx, project.businessId);
+    const staff = await requireModule(ctx, project.businessId, "pipelineSales", "edit");
     return applyMove(ctx, project, args.outcome === "won" ? "Closed Won" : "Closed Lost", staff, args.reason, args.now);
   },
 });
@@ -384,7 +395,7 @@ type Place = readonly [Doc<"opportunities">["pipeline"], string];
 async function changePipeline(
   ctx: MutationCtx,
   project: Doc<"opportunities">,
-  staff: Staff,
+  staff: { name: string; userId?: Id<"users"> },
   m: { from: Place; to: Place; now: number; note: string; office?: boolean; quiet?: boolean; refuse?: string },
 ) {
   const [fromPipeline, fromStage] = m.from;
@@ -398,9 +409,9 @@ async function changePipeline(
     searchText: project.searchText.endsWith(fromStage) ? project.searchText.slice(0, -fromStage.length) + toStage : `${project.searchText} ${toStage}`,
   });
   await ctx.db.insert("stageHistory", {
-    opportunityId: project._id, businessId: project.businessId, from: fromStage, to: toStage, byName: staff.name, byUserId: staff.userId, at: m.now, note: m.note,
+    opportunityId: project._id, businessId: project.businessId, from: fromStage, to: toStage, byName: staff.name, ...(staff.userId ? { byUserId: staff.userId } : {}), at: m.now, note: m.note,
   });
-  if (!m.quiet) await notifyStage(ctx, { project, from: fromStage, to: toStage, byName: staff.name, byUserId: staff.userId, now: m.now, office: m.office });
+  if (!m.quiet) await notifyStage(ctx, { project, from: fromStage, to: toStage, byName: staff.name, ...(staff.userId ? { byUserId: staff.userId } : {}), now: m.now, office: m.office });
   return { from: fromStage, to: toStage };
 }
 
@@ -419,6 +430,10 @@ export async function completeConstruction(ctx: MutationCtx, project: Doc<"oppor
     opportunityId: project._id, businessId: project.businessId, from, to: COMPLETION_STAGE, byName: by.name, ...(by.userId ? { byUserId: by.userId } : {}), at: now, note: "Customer signed off",
   });
   await notifyStage(ctx, { project, from, to: COMPLETION_STAGE, byName: by.name, ...(by.userId ? { byUserId: by.userId } : {}), now, office: true });
+  // Sign-off hands the same project to Finance at once (PRD 5.1, design 2026-11-18), as Closed Won hands it to Preplanning. The sign-off move
+  // above stays in the history, and the Office team was already told by it, so the handoff sends nothing more.
+  const signed = await ctx.db.get(project._id);
+  if (signed !== null) await changePipeline(ctx, signed, by, { from: ["Construction", COMPLETION_STAGE], to: ["Finance", FINANCE_ENTRY], now, note: "Sent to Finance automatically", quiet: true });
   return true;
 }
 
@@ -429,7 +444,7 @@ export const startPreplanning = mutation({
   handler: async (ctx, args) => {
     const project = await ctx.db.get(args.id);
     if (project === null) throw new ConvexError("That project no longer exists.");
-    const staff = await requireEditor(ctx, project.businessId);
+    const staff = await requireModule(ctx, project.businessId, "pipelinePreplanning", "edit");
     return changePipeline(ctx, project, staff, { from: ["Sales", "Closed Won"], to: ["Preplanning", PREPLANNING_ENTRY], now: args.now, note: "Sent to Preplanning", office: true, refuse: 'Only a project at "Closed Won" can start preplanning.' });
   },
 });
@@ -440,7 +455,7 @@ export const startConstruction = mutation({
   handler: async (ctx, args) => {
     const project = await ctx.db.get(args.id);
     if (project === null) throw new ConvexError("That project no longer exists.");
-    const staff = await requireEditor(ctx, project.businessId);
+    const staff = await requireModule(ctx, project.businessId, "pipelineConstruction", "edit");
     return changePipeline(ctx, project, staff, { from: ["Preplanning", PREPLANNING_LAST], to: ["Construction", CONSTRUCTION_ENTRY], now: args.now, note: "Sent to Construction", refuse: `Only a project at "${PREPLANNING_LAST}" can start construction.` });
   },
 });
@@ -451,7 +466,7 @@ export const returnToSales = mutation({
   handler: async (ctx, args) => {
     const project = await ctx.db.get(args.id);
     if (project === null) throw new ConvexError("That project no longer exists.");
-    const staff = await requireEditor(ctx, project.businessId);
+    const staff = await requireModule(ctx, project.businessId, "pipelineSales", "edit");
     if (project.outcome !== "won") throw new ConvexError("Only a won project can go back to Sales.");
     return changePipeline(ctx, project, staff, { from: ["Preplanning", PREPLANNING_ENTRY], to: ["Sales", "Closed Won"], now: args.now, note: "Returned to Sales", refuse: `Only a project at "${PREPLANNING_ENTRY}" can go back to Sales.` });
   },
@@ -463,7 +478,7 @@ export const returnToPreplanning = mutation({
   handler: async (ctx, args) => {
     const project = await ctx.db.get(args.id);
     if (project === null) throw new ConvexError("That project no longer exists.");
-    const staff = await requireEditor(ctx, project.businessId);
+    const staff = await requireModule(ctx, project.businessId, "pipelinePreplanning", "edit");
     return changePipeline(ctx, project, staff, { from: ["Construction", CONSTRUCTION_ENTRY], to: ["Preplanning", PREPLANNING_LAST], now: args.now, note: "Returned to Preplanning", refuse: `Only a project at "${CONSTRUCTION_ENTRY}" can go back to Preplanning.` });
   },
 });
@@ -477,7 +492,7 @@ export const outcomes = query({
     sortKey: outcomeSort, dir, page: v.number(), size: v.number(),
   },
   handler: async (ctx, a) => {
-    await requireBusiness(ctx, a.businessId);
+    await requireModule(ctx, a.businessId, "pipelineSales", "view");
     const docs = await ctx.db.query("opportunities").withIndex("by_business_and_requestedAt", (q) => q.eq("businessId", a.businessId)).order("desc").take(MAX_PROJECTS);
     const values = await latestQuoteValues(ctx, a.businessId);
     const clients = new Map<Id<"clients">, string>();
@@ -514,7 +529,7 @@ async function projectsIn(ctx: QueryCtx, businessId: Id<"businesses">, stage: st
 export const stagesForEdit = query({
   args: { businessId: v.id("businesses") },
   handler: async (ctx, args) => {
-    await requireBusiness(ctx, args.businessId);
+    await requireModule(ctx, args.businessId, "pipelineSales", "view");
     const stages = await stageList(ctx, args.businessId);
     const docs = await ctx.db.query("opportunities").withIndex("by_business_and_requestedAt", (q) => q.eq("businessId", args.businessId)).take(MAX_PROJECTS);
     const counts = new Map<string, number>();
@@ -526,7 +541,7 @@ export const stagesForEdit = query({
 export const addStage = mutation({
   args: { businessId: v.id("businesses"), group: groupV, name: v.string() },
   handler: async (ctx, args) => {
-    await requireEditor(ctx, args.businessId);
+    await requireModule(ctx, args.businessId, "pipelineSales", "edit");
     const name = args.name.trim();
     if (name.length < 1 || name.length > 60) throw new ConvexError("A stage name needs 1 to 60 characters.");
     const stages = await stageList(ctx, args.businessId);
@@ -541,7 +556,7 @@ export const addStage = mutation({
 export const renameStage = mutation({
   args: { businessId: v.id("businesses"), name: v.string(), newName: v.string() },
   handler: async (ctx, args) => {
-    await requireEditor(ctx, args.businessId);
+    await requireModule(ctx, args.businessId, "pipelineSales", "edit");
     const stages = await stageList(ctx, args.businessId);
     const stage = stages.find((s) => s.name === args.name && s.custom);
     if (!stage?.rowId) throw new ConvexError("Only your own stages can be renamed.");
@@ -561,7 +576,7 @@ export const renameStage = mutation({
 export const setStageHidden = mutation({
   args: { businessId: v.id("businesses"), name: v.string(), hidden: v.boolean() },
   handler: async (ctx, args) => {
-    await requireEditor(ctx, args.businessId);
+    await requireModule(ctx, args.businessId, "pipelineSales", "edit");
     const stages = await stageList(ctx, args.businessId);
     const stage = stages.find((s) => s.name === args.name);
     if (!stage) throw new ConvexError("That stage does not exist.");
@@ -576,7 +591,7 @@ export const setStageHidden = mutation({
 export const reorderStages = mutation({
   args: { businessId: v.id("businesses"), group: groupV, names: v.array(v.string()) },
   handler: async (ctx, args) => {
-    await requireEditor(ctx, args.businessId);
+    await requireModule(ctx, args.businessId, "pipelineSales", "edit");
     const stages = (await stageList(ctx, args.businessId)).filter((s) => s.group === args.group);
     const same = args.names.length === stages.length && stages.every((s) => args.names.includes(s.name)) && new Set(args.names).size === args.names.length;
     if (!same) throw new ConvexError("Send every stage in the group, once each.");
@@ -591,7 +606,7 @@ export const reorderStages = mutation({
 export const deleteStage = mutation({
   args: { businessId: v.id("businesses"), name: v.string() },
   handler: async (ctx, args) => {
-    await requireEditor(ctx, args.businessId);
+    await requireModule(ctx, args.businessId, "pipelineSales", "edit");
     const stage = (await stageList(ctx, args.businessId)).find((s) => s.name === args.name && s.custom);
     if (!stage?.rowId) throw new ConvexError("Only your own stages can be deleted.");
     if ((await projectsIn(ctx, args.businessId, args.name)).length > 0) throw new ConvexError("Move the projects out of this stage before deleting it. It still holds projects.");
@@ -605,7 +620,7 @@ export const wonRequirements = query({
   handler: async (ctx, a) => {
     const project = await ctx.db.get(a.id);
     if (project === null) throw new ConvexError("That project no longer exists.");
-    await requireBusiness(ctx, project.businessId);
+    await requireModule(ctx, project.businessId, "pipelineSales", "view");
     return requirements(ctx, project);
   },
 });
@@ -616,7 +631,7 @@ export const attachContract = mutation({
   handler: async (ctx, a) => {
     const project = await ctx.db.get(a.id);
     if (project === null) throw new ConvexError("That project no longer exists.");
-    await requireEditor(ctx, project.businessId);
+    await requireModule(ctx, project.businessId, "pipelineSales", "edit");
     await checkFile(ctx, a.storageId, "The signed contract");
     if (project.signedContractId) await ctx.storage.delete(project.signedContractId);
     await ctx.db.patch(a.id, { signedContractId: a.storageId, signedContractName: a.name.trim().slice(0, 200) || "Signed contract", signedContractAt: a.now });
@@ -629,7 +644,7 @@ export const attachInvoice = mutation({
   handler: async (ctx, a) => {
     const project = await ctx.db.get(a.id);
     if (project === null) throw new ConvexError("That project no longer exists.");
-    await requireEditor(ctx, project.businessId);
+    await requireModule(ctx, project.businessId, "pipelineSales", "edit");
     await checkFile(ctx, a.storageId, "The invoice");
     if (project.invoiceId) await ctx.storage.delete(project.invoiceId);
     await ctx.db.patch(a.id, { invoiceId: a.storageId, invoiceName: a.name.trim().slice(0, 200) || "Invoice" });
@@ -640,7 +655,32 @@ export const attachInvoice = mutation({
 export const uploadUrl = mutation({
   args: { businessId: v.id("businesses") },
   handler: async (ctx, a) => {
-    await requireEditor(ctx, a.businessId);
+    await requireModule(ctx, a.businessId, "pipelineSales", "edit");
     return ctx.storage.generateUploadUrl();
+  },
+});
+
+/** The last Construction stage → Send Final Invoice. Sign-off does this by itself now; this is for a project that was left at the last
+ *  Construction stage (signed off before Finance existed). It still needs the sign-off. */
+export const startFinance = mutation({
+  args: { id: v.id("opportunities"), now: v.number() },
+  handler: async (ctx, args) => {
+    const project = await ctx.db.get(args.id);
+    if (project === null) throw new ConvexError("That project no longer exists.");
+    const staff = await requireModule(ctx, project.businessId, "pipelineFinance", "edit");
+    if (project.pipeline === "Construction" && !(await completionState(ctx, project._id)).ready) throw new ConvexError(completionBlock(await completionState(ctx, project._id)));
+    return changePipeline(ctx, project, staff, { from: ["Construction", COMPLETION_STAGE], to: ["Finance", FINANCE_ENTRY], now: args.now, note: "Sent to Finance", office: true, refuse: `Only a project at "${COMPLETION_STAGE}" can go to Finance.` });
+  },
+});
+
+/** Puts a project back at the last Construction stage. Only from Send Final Invoice, and only while no invoice has been sent. */
+export const returnToConstruction = mutation({
+  args: { id: v.id("opportunities"), now: v.number() },
+  handler: async (ctx, args) => {
+    const project = await ctx.db.get(args.id);
+    if (project === null) throw new ConvexError("That project no longer exists.");
+    const staff = await requireModule(ctx, project.businessId, "pipelineFinance", "edit");
+    if (project.pipeline === "Finance" && (await projectMoney(ctx, project)).sentCount > 0) throw new ConvexError("An invoice was already sent for this project, so it cannot go back to Construction.");
+    return changePipeline(ctx, project, staff, { from: ["Finance", FINANCE_ENTRY], to: ["Construction", COMPLETION_STAGE], now: args.now, note: "Returned to Construction", refuse: `Only a project at "${FINANCE_ENTRY}" can go back to Construction.` });
   },
 });

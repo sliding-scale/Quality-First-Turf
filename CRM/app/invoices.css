@@ -1,0 +1,94 @@
+/* Finance (PRD 5.1 and 5.2, design 2026-11-18-finance): invoices, payments, a project's billing and the Finance board. Loaded after
+   construction.css. Built on the quote builder's and quote page's classes; only what is new is here. */
+
+/* Invoices list: the Overview card's rows carry a figure. */
+.inv-ov { display: flex; align-items: center; }
+.inv-ov > span:nth-child(2) { flex: 1; min-width: 0; }
+.inv-ov b { margin-left: auto; font-weight: 600; }
+
+/* The invoice form. */
+.inv-lines { width: 100%; }
+.inv-lines td .sub { color: var(--muted); font-size: 13px; }
+.inv-service { max-width: 220px; }
+.inv-dep { display: inline-flex; align-items: center; gap: 6px; }
+.inv-balance dt, .inv-balance dd { font-size: 18px; }
+.inv-find { display: grid; gap: 12px; min-width: min(420px, 82vw); }
+.inv-deps { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.inv-deps li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px solid #dadfe2; border-radius: 8px; transition: background-color 0.15s ease; }
+.inv-deps li:hover { background: #f6f8f8; }
+
+/* Collect Payment. */
+.cp-amount { display: flex; align-items: baseline; gap: 12px; }
+.cp-amount span { color: #49646f; }
+.cp-amount b { font-size: 38px; color: var(--ink); font-family: var(--font-figtree), inherit; }
+.cp-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+.cp-balance { display: grid; text-align: right; }
+.cp-balance small { color: #49646f; letter-spacing: 0.04em; font-weight: 600; }
+.cp-balance b { font-size: 24px; }
+.cp-selbar { display: flex; align-items: center; gap: 16px; color: #49646f; }
+.cp-deposit { max-width: 360px; }
+.cp-deposit input { text-align: right; }
+.table td .field input { width: 100%; height: 40px; border: 1px solid #dadfe2; border-radius: 8px; padding: 0 10px; text-align: right; background: #fff; }
+.table td .field input:disabled { background: #f6f6f3; color: var(--muted); }
+.table td .field.bad input { border-color: #b3261e; background: #fff6f5; }
+
+/* A project's Billing tab. */
+.bt { display: grid; gap: 16px; }
+.bt-body { display: grid; gap: 14px; padding: 4px 18px 18px; }
+.bt-body.flush { padding: 0 0 6px; }
+.bt-pad { padding: 8px 18px 14px; margin: 0; }
+.bt-save { display: flex; gap: 8px; }
+.bt-total { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.bt-total div small { display: block; color: #49646f; }
+.bt-total div b { font-size: 26px; }
+.bt-total-input { max-width: 200px; }
+.bt-bar { display: flex; height: 12px; border-radius: 999px; background: #e3e6e5; overflow: hidden; }
+.bt-bar span { display: block; height: 100%; transition: width 0.26s ease-out; }
+.bt-bar .paid, .bt-legend .paid { background: #388523; }
+.bt-bar .await, .bt-legend .await { background: #d8a600; }
+.bt-bar .draft, .bt-legend .draft { background: #b4bcc0; }
+.bt-legend { list-style: none; margin: 0; padding: 0; display: flex; gap: 18px; flex-wrap: wrap; font-size: 14px; color: #49646f; }
+.bt-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.bt-legend .rest { background: #e3e6e5; }
+.bt-table input, .bt-table select { height: 40px; border: 1px solid #dadfe2; border-radius: 8px; padding: 0 8px; background: #fff; }
+.bt-table input { width: 100%; }
+.bt-table input:disabled, .bt-table select:disabled { background: #f6f6f3; color: var(--muted); }
+.bt-amount { display: flex; gap: 6px; }
+.bt-amount input { min-width: 0; text-align: right; }
+.bt-table .field.bad input { border-color: #b3261e; background: #fff6f5; }
+.bt-rest { display: flex; justify-content: space-between; padding: 12px 14px; border-radius: 8px; background: #eeece7; transition: background-color 0.15s ease, color 0.15s ease; }
+.bt-rest.over { background: #fbe9e7; color: #b3261e; font-weight: 600; }
+
+/* The Finance board's cards. */
+.pl-balance { margin-top: 4px; font-size: 13px; color: #49646f; }
+.pl-balance.owed { color: #b3261e; font-weight: 600; }
+
+/* The client's invoice page (/i/<link>). */
+.ci-facts { margin: 12px 0 0; display: grid; gap: 4px; }
+.ci-facts div { display: flex; gap: 10px; }
+.ci-facts dt { color: #49646f; min-width: 64px; }
+.ci-facts dd { margin: 0; }
+.ci-late { margin-left: 10px; vertical-align: middle; font-size: 13px; }
+.ci-table { width: 100%; }
+.ci-table .sub { color: var(--muted); font-size: 13px; }
+.ci-totals { margin: 8px 0 0 auto; width: min(420px, 100%); }
+
+@media (max-width: 700px) {
+  .cp-amount b { font-size: 30px; }
+  .cp-balance { text-align: left; }
+  .bt-body { padding: 4px 12px 14px; }
+  .bt-table { min-width: 760px; }
+  .inv-find { min-width: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .bt-bar span, .bt-rest { transition: none; } }
+
+/* Manage Team: the Permissions section of the invite and edit form (PRD 5.5). */
+.perm { border: 1px solid #dadfe2; border-radius: 10px; padding: 4px 14px 14px; background: #fbfbfa; }
+.perm summary { cursor: pointer; font-weight: 700; padding: 10px 0; transition: color 0.15s ease; }
+.perm summary:hover { color: var(--green); }
+.perm-presets { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0 12px; }
+.perm-table { width: 100%; }
+.perm-table td { padding: 6px 4px; border-bottom: 1px solid #eeece7; }
+.perm-table select { width: 100%; height: 38px; border: 1px solid #dadfe2; border-radius: 8px; padding: 0 8px; background: #fff; }
+.perm-changed { color: var(--green); font-weight: 600; }
+@media (max-width: 700px) { .perm-table { display: block; } }

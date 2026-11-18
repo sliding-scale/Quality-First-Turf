@@ -42,9 +42,11 @@ describe("Construction management (D-081)", () => {
     expect((await w.doc())?.stage).toBe("Ready to Start");
     await w.pm.mutation(api.crm.construction.signOnDevice, { signoffId, signedBy: "Maya Patel", signatureStorageId: await w.picture(), now: NOW + 8 });
 
-    expect(await w.doc()).toMatchObject({ pipeline: "Construction", stage: FINAL });
+    // Sign-off moves the project to the last Construction stage, then hands it to Finance by itself (PRD 5.1).
+    expect(await w.doc()).toMatchObject({ pipeline: "Finance", stage: "Send Final Invoice" });
     const history = await w.admin.query(api.crm.pipeline.history, { id: w.project });
-    expect(history[0]).toMatchObject({ from: "Ready to Start", to: FINAL, note: "Customer signed off", byName: "Pat PM" });
+    expect(history[0]).toMatchObject({ from: FINAL, to: "Send Final Invoice", note: "Sent to Finance automatically" });
+    expect(history[1]).toMatchObject({ from: "Ready to Start", to: FINAL, note: "Customer signed off", byName: "Pat PM" });
     const told = await w.office.query(api.crm.mentions.mine, {});
     expect(told.items.some((i) => i.excerpt.includes(FINAL))).toBe(true);
 
@@ -56,20 +58,20 @@ describe("Construction management (D-081)", () => {
       { title: "Sweep the drive", required: false, status: "open" },
     ]);
     expect(page?.completion).toMatchObject({ ready: true, signed: true, openRequired: 0 });
-    await expect(w.pm.mutation(api.crm.construction.requestSignoff, { id: w.project, summary: "", now: NOW + 9 })).rejects.toThrow(/already signed/);
+    await expect(w.pm.mutation(api.crm.construction.requestSignoff, { id: w.project, summary: "", now: NOW + 9 })).rejects.toThrow(/not in Construction/);
   });
 
   it("lets the customer sign through the secret link, once, and shows them only this project", async () => {
     const w = await onSite();
-    const { token } = await w.sales.mutation(api.crm.construction.requestSignoff, { id: w.project, summary: "All done", now: NOW + 3 });
+    const { token } = await w.office.mutation(api.crm.construction.requestSignoff, { id: w.project, summary: "All done", now: NOW + 3 });
     const shown = await w.base.query(api.crm.clientSignoff.get, { token });
     expect(shown).toMatchObject({ title: "Test turf", code: "TST-001", summary: "All done", punch: [] });
     expect(await w.base.query(api.crm.clientSignoff.get, { token: "x".repeat(64) })).toBeNull();
 
     await expect(w.base.mutation(api.crm.clientSignoff.sign, { token, signedBy: " ", signatureStorageId: await w.picture() })).rejects.toThrow(/name/);
     await w.base.mutation(api.crm.clientSignoff.sign, { token, signedBy: "Maya Patel", signatureStorageId: await w.picture() });
-    expect((await w.doc())?.stage).toBe(FINAL);
-    expect((await w.admin.query(api.crm.pipeline.history, { id: w.project }))[0]).toMatchObject({ byName: "Maya Patel", note: "Customer signed off" });
+    expect(await w.doc()).toMatchObject({ pipeline: "Finance", stage: "Send Final Invoice" });
+    expect((await w.admin.query(api.crm.pipeline.history, { id: w.project }))[1]).toMatchObject({ byName: "Maya Patel", note: "Customer signed off" });
     // The link closes once it is used.
     expect(await w.base.query(api.crm.clientSignoff.get, { token })).toBeNull();
     await expect(w.base.mutation(api.crm.clientSignoff.sign, { token, signedBy: "Maya Patel", signatureStorageId: await w.picture() })).rejects.toThrow(/no longer open/);
@@ -100,7 +102,7 @@ describe("Construction management (D-081)", () => {
     const salesId = (await w.base.run((ctx) => ctx.db.query("users").collect())).find((u) => u.name === "Sam Sales")!._id;
     const crew = await w.admin.mutation(api.crm.construction.saveCrew, { businessId: w.qft, name: "Crew A", leadName: "Luis", phone: "9515550101", notes: "", active: true, now: NOW });
     await expect(w.admin.mutation(api.crm.construction.saveCrew, { businessId: w.qft, name: "crew a", leadName: "", phone: "", notes: "", active: true, now: NOW })).rejects.toThrow(/already a crew/);
-    await expect(w.pm.mutation(api.crm.construction.saveCrew, { businessId: w.qft, name: "Crew B", leadName: "", phone: "", notes: "", active: true, now: NOW })).rejects.toThrow(/not change/);
+    await expect(w.sales.mutation(api.crm.construction.saveCrew, { businessId: w.qft, name: "Crew B", leadName: "", phone: "", notes: "", active: true, now: NOW })).rejects.toThrow(/not change/);
 
     await expect(w.admin.mutation(api.crm.construction.setTeam, { id: w.project, projectManagerId: salesId, crewIds: [], now: NOW })).rejects.toThrow(/Project Manager/);
     await w.admin.mutation(api.crm.construction.setTeam, { id: w.project, projectManagerId: pmId, crewIds: [crew], now: NOW });
@@ -125,7 +127,7 @@ describe("Construction management (D-081)", () => {
     const w = await onSite();
     const visit = { businessId: w.qft, type: "visit" as const, title: "Job walk", start: NOW + 86_400_000, end: NOW + 86_400_000 + 3_600_000, assigneeIds: [], opportunityId: w.project, now: NOW };
     await w.pm.mutation(api.crm.schedule.book, { ...visit, visitKind: "jobWalk" });
-    await expect(w.pm.mutation(api.crm.schedule.book, { ...visit, title: "Other" })).rejects.toThrow(/not change/);
+    await expect(w.sales.mutation(api.crm.schedule.book, { ...visit, visitKind: "install" })).rejects.toThrow(/not change/); // Sales only look at Construction
     await expect(w.admin.mutation(api.crm.schedule.book, { ...visit, type: "event", visitKind: "install" })).rejects.toThrow(/is a visit/);
     expect((await w.admin.query(api.crm.construction.get, { id: w.project }))!.visits).toMatchObject([{ kind: "jobWalk", title: "Job walk" }]);
     // The Schedule shows it as a job walk, with the project to open from it (D-081).

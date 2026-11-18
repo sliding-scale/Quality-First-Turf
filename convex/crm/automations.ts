@@ -2,7 +2,7 @@ import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { env, internalMutation, internalQuery, mutation, query, type MutationCtx, type QueryCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
-import { requireAdmin, requireBusiness, requireEditor } from "./lib/access";
+import { requireAdmin, requireBusiness, requireModule } from "./lib/access";
 import {
   AUTOMATIONS, AUTOMATION_KEYS, DEFAULT_BODY, DEFAULT_COMPANY_PHONE, DEFAULT_SUBJECT, DEFAULT_TEXT, MAX_DAYS, MIN_DAYS,
   QUOTE_ARCHIVE_STATUSES, QUOTE_FOLLOW_UP_STATUSES, QUOTE_UNANSWERED_STATUSES, automationTitle, decide, followUpHtml, isDue, isEmail,
@@ -184,7 +184,7 @@ export const restoreRequest = mutation({
   handler: async (ctx, a) => {
     const project = await ctx.db.get(a.id);
     if (!project) throw new ConvexError("That request no longer exists.");
-    const staff = await requireEditor(ctx, project.businessId);
+    const staff = await requireModule(ctx, project.businessId, "requests", "edit");
     if (project.archivedAt === undefined) throw new ConvexError("This request is not archived.");
     const back = project.archivedFromStage ?? "New Request";
     const wasClosed = project.stage;

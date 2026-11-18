@@ -110,16 +110,16 @@ PRD goal: from sales handoff through materials, installation and customer sign-o
 PRD goal: the final workflow, communication integrations and production deployment.
 
 **UI/UX (sample data), steps 5.1 to 5.2**
-- [ ] 5.1 Finance: board (6 stages), invoices, payments, outstanding balances
+- [x] 5.1 Finance: board (6 stages), invoices, payments, outstanding balances **built on dev (D-092)**; not clicked through in a browser yet
 - [ ] 5.2 Messages and export: communication log, export screen
 
 **Backend wiring**
-- [ ] Schema: `invoices`, `invoiceLines`, `payments`, `communications`, `integrationCredentials` (server-side only)
-- [ ] Finance pipeline entered from construction sign-off; invoices, deposits, final payments, dashboard pending payments
+- [~] Schema: `invoices`, `invoiceLines`, `payments` (+ allocations, schedule, plans, settings) done (D-092); `communications`, `integrationCredentials` (server-side only) still to do
+- [x] Finance pipeline entered from construction sign-off; invoices, deposits, final payments, dashboard pending payments (D-092)
 - [ ] Phone and SMS: multiple numbers, calls, texts, communication log against client, project and user (provider: Q-006)
 - [x] Zoho Mail, read-only, into the client Communication tab: `office@qualityfirstturf.com`, Inbox and Sent, no sending or mailbox changes (D-064)
 - [ ] WhatsApp Business: send work packages, log against the project
-- [ ] Permissions hardening across Admin, Sales, Office Team, Project Managers (multi-role)
+- [x] Permissions: levels per module, Installer role, assigned-only, Manage Team Permissions form (PRD 5.5, D-093); to check in a browser as an Installer
 - [ ] Export for clients, projects, quotes and invoices
 
 **Launch and ending Jobber**

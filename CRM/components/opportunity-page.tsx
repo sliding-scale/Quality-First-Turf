@@ -13,6 +13,7 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { moneyCents, quoteDate, quoteDateTime } from "@/lib/format";
 import { clock, failure, timeLabel, useMinute } from "@/lib/pipeline";
+import { BillingTab } from "./billing-tab";
 import { ConstructionTab } from "./construction-tab";
 import { QUOTE_PILL } from "@/lib/quotes";
 import { Icon } from "./icon";
@@ -22,13 +23,16 @@ import { OpportunitySkeleton } from "./skeletons";
 import { useStaff } from "./staff-context";
 import { useUI } from "./ui-provider";
 
-const TABS = ["overview", "construction", "quotes", "visit", "files", "activity"] as const;
+const TABS = ["overview", "construction", "billing", "quotes", "visit", "files", "activity"] as const;
 type Tab = (typeof TABS)[number];
-const TAB_LABEL: Record<Tab, string> = { overview: "Overview", construction: "Construction", quotes: "Quotes", visit: "Visit", files: "Files", activity: "Activity" };
-/** A project in Construction opens on its Construction tab; the others have no such tab (D-081). */
+const TAB_LABEL: Record<Tab, string> = { overview: "Overview", construction: "Construction", billing: "Billing", quotes: "Quotes", visit: "Visit", files: "Files", activity: "Activity" };
+/** A project in Construction opens on its Construction tab and one in Finance on its Billing tab; the others have no such tab (D-081, PRD 5.1).
+ *  Billing shows once the sale is won (Preplanning, Construction, Finance). */
+const firstTab = (pipeline: string): Tab => (pipeline === "Construction" ? "construction" : pipeline === "Finance" ? "billing" : "overview");
+const hasTab = (t: Tab, pipeline: string) => (t === "construction" ? pipeline === "Construction" : t === "billing" ? pipeline !== "Sales" : true);
 const parseTab = (s: string | null, pipeline: string): Tab => {
-  const wanted = (TABS as readonly string[]).includes(s ?? "") ? (s as Tab) : pipeline === "Construction" ? "construction" : "overview";
-  return wanted === "construction" && pipeline !== "Construction" ? "overview" : wanted;
+  const wanted = (TABS as readonly string[]).includes(s ?? "") ? (s as Tab) : firstTab(pipeline);
+  return hasTab(wanted, pipeline) ? wanted : "overview";
 };
 
 const size = (n: number) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : n >= 1024 ? `${Math.round(n / 1024)} KB` : n ? `${n} B` : "");
@@ -55,12 +59,15 @@ function OpportunityView({ o }: { o: Overview }) {
   const params = useSearchParams();
   const tab = parseTab(params.get("tab"), o.pipeline);
   const now = useMinute();
-  const quotes = useQuery(api.crm.opportunityPage.quotes, { id: o.id });
+  const staff = useStaff();
+  // Quotes are prices: a person without the Quotes module (an Installer) neither sees the tab nor asks for the list.
+  const seesQuotes = staff.can("quotes");
+  const quotes = useQuery(api.crm.opportunityPage.quotes, seesQuotes ? { id: o.id } : "skip");
   const files = useQuery(api.crm.opportunityPage.files, { id: o.id });
   // The first tab of the project has the plain address; every other tab has ?tab=.
-  const first: Tab = o.pipeline === "Construction" ? "construction" : "overview";
+  const first: Tab = firstTab(o.pipeline);
   const go = (t: Tab) => router.replace(t === first ? `/opportunities/${o.id}` : `/opportunities/${o.id}?tab=${t}`, { scroll: false });
-  const tabs = TABS.filter((t) => t !== "construction" || o.pipeline === "Construction");
+  const tabs = TABS.filter((t) => hasTab(t, o.pipeline) && (t !== "quotes" || seesQuotes) && (t !== "billing" || staff.can("invoices")));
   const at = o.stages.indexOf(o.stage);
   const lost = o.stage === "Closed Lost";
   const timeIn = Math.max(0, now - o.stageEnteredAt);
@@ -68,11 +75,11 @@ function OpportunityView({ o }: { o: Overview }) {
   return (
     <div className="fade-in op">
       <div className="op-top">
-        <Link className="rq-back" href={o.pipeline === "Preplanning" ? "/pipeline/preplanning" : o.pipeline === "Construction" ? "/pipeline/construction" : "/pipeline"}><Icon name="chevleft" size={18} /> {o.pipeline}</Link>
+        <Link className="rq-back" href={o.pipeline === "Preplanning" ? "/pipeline/preplanning" : o.pipeline === "Construction" ? "/pipeline/construction" : o.pipeline === "Finance" ? "/pipeline/finance" : "/pipeline"}><Icon name="chevleft" size={18} /> {o.pipeline}</Link>
         <div className="op-actions">
           {/* A won project keeps its request page after it moves on to Preplanning or Construction; a project that never was a request has none. */}
-          {(o.pipeline === "Sales" || o.outcome === "won") && <Link className="btn" href={`/requests/${o.id}`}><Icon name="pencil" size={18} /> Edit request</Link>}
-          <Link className="btn primary" href={`/quotes/new?clientId=${o.clientId}&projectId=${o.id}`}><Icon name="quote" size={18} /> New quote</Link>
+          {staff.can("requests") && (o.pipeline === "Sales" || o.outcome === "won") && <Link className="btn" href={`/requests/${o.id}`}><Icon name="pencil" size={18} /> Edit request</Link>}
+          {staff.can("quotes", "edit") && <Link className="btn primary" href={`/quotes/new?clientId=${o.clientId}&projectId=${o.id}`}><Icon name="quote" size={18} /> New quote</Link>}
         </div>
       </div>
       <div className="op-title">
@@ -97,7 +104,8 @@ function OpportunityView({ o }: { o: Overview }) {
       </div>
       {tab === "overview" && <OverviewTab o={o} timeIn={timeIn} />}
       {tab === "construction" && <ConstructionTab id={o.id} businessId={o.businessId} title={o.title} />}
-      {tab === "quotes" && <QuotesTab o={o} />}
+      {tab === "billing" && staff.can("invoices") && <BillingTab id={o.id} />}
+      {tab === "quotes" && seesQuotes && <QuotesTab o={o} />}
       {tab === "visit" && <VisitTab id={o.id} />}
       {tab === "files" && <FilesTab o={o} />}
       {tab === "activity" && <ActivityTab id={o.id} />}
@@ -115,6 +123,7 @@ const CONTRACT: Record<Overview["contract"]["state"], { label: string; cls: stri
 function nextStep(o: Overview): string {
   if (o.pipeline === "Preplanning") return `In Preplanning: ${o.stage}.`;
   if (o.pipeline === "Construction") return o.stage === "100% Completed & Sign-off" ? "Construction is signed off." : `In Construction: ${o.stage}.`;
+  if (o.pipeline === "Finance") return `In Finance: ${o.stage}.`;
   if (o.outcome === "won") return "Closed Won. Next is Preplanning.";
   if (o.outcome === "lost") return o.lostReason ? `Closed Lost: ${o.lostReason}` : "Closed Lost.";
   if (o.contract.state === "noquote") return "Next step: make a quote for this project.";

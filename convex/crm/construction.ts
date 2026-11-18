@@ -1,7 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { mutation, query, type MutationCtx } from "../_generated/server";
-import { canEdit, requireBusiness, requireEditor, type Staff } from "./lib/access";
+import { requireModule, requireProject, type Staff } from "./lib/access";
 import { checkAssignee } from "./lib/assignees";
 import {
   MAX_PROGRESS,
@@ -59,7 +59,7 @@ export const get = query({
   handler: async (ctx, args) => {
     const project = await ctx.db.get(args.id);
     if (project === null) return null;
-    const staff = await requireBusiness(ctx, project.businessId);
+    const staff = await requireProject(ctx, project, "pipelineConstruction", "view");
     const users = await ctx.db.query("users").take(500);
     const team = users.filter((u) => u.status === "active" && (u.roles.includes("admin") || u.businessIds.includes(project.businessId)));
     const nameOf = new Map(users.map((u) => [u._id as string, u.name]));
@@ -101,13 +101,15 @@ export const get = query({
       pipeline: project.pipeline,
       stage: project.stage,
       /** Whether this person can change anything here (an editing role or a Project Manager, and the project is in Construction). */
-      canWork: project.pipeline === "Construction" && (canEdit(staff) || staff.roles.includes("pm")),
+      canWork: project.pipeline === "Construction" && (staff.levels.pipelineConstruction === "edit" || staff.levels.pipelineConstruction === "full"),
       projectManager: project.projectManagerId ? { id: project.projectManagerId, name: nameOf.get(project.projectManagerId) ?? "" } : null,
       crews: (project.crewIds ?? []).map((id) => crews.find((c) => c._id === id)).filter((c): c is Doc<"crews"> => c !== undefined).map((c) => ({ id: c._id, name: c.name, leadName: c.leadName, phone: c.phone })),
       crewOptions: crews.filter((c) => c.active).map((c) => ({ id: c._id, name: c.name })),
       /** Who can be the project manager: active Project Managers and Admins of the business. Anyone on the team can be given a punch item. */
       managers: team.filter((u) => u.roles.includes("pm") || u.roles.includes("admin")).map((u) => ({ id: u._id, name: u.name })),
       people: team.map((u) => ({ id: u._id, name: u.name })),
+      installers: (project.installerIds ?? []).map((id) => ({ id, name: nameOf.get(id as string) ?? "" })),
+      installerOptions: team.filter((u) => u.roles.includes("installer")).map((u) => ({ id: u._id, name: u.name })),
       visits,
       progress,
       punch,
@@ -129,9 +131,10 @@ export const uploadUrl = mutation({
 /* ---- Team ---- */
 
 export const setTeam = mutation({
-  args: { id: v.id("opportunities"), projectManagerId: v.union(v.id("users"), v.null()), crewIds: v.array(v.id("crews")), now: v.number() },
+  args: { id: v.id("opportunities"), projectManagerId: v.union(v.id("users"), v.null()), crewIds: v.array(v.id("crews")), installerIds: v.optional(v.array(v.id("users"))), now: v.number() },
   handler: async (ctx, args) => {
     const { project, staff } = await loadProject(ctx, args.id);
+    if (staff.assignedOnly) throw new ConvexError("Your role can view this but not change it."); // choosing who works on a project is not an Installer's job
     if (args.projectManagerId !== null) {
       const pm = await ctx.db.get(args.projectManagerId);
       if (pm === null || pm.status !== "active" || !(pm.roles.includes("pm") || pm.roles.includes("admin")) || !(pm.roles.includes("admin") || pm.businessIds.includes(project.businessId))) {
@@ -141,7 +144,19 @@ export const setTeam = mutation({
     const crewIds = [...new Set(args.crewIds)];
     if (crewIds.length > 20) throw new ConvexError("A project can have up to 20 crews.");
     for (const id of crewIds) await checkCrew(ctx, id, project.businessId);
-    await ctx.db.patch(project._id, { projectManagerId: args.projectManagerId ?? undefined, crewIds });
+    // The Installers on the work team (PRD 5.5): people who log in, and who then see this project and nothing else.
+    const installerIds = args.installerIds === undefined ? project.installerIds : [...new Set(args.installerIds)];
+    if ((installerIds ?? []).length > 20) throw new ConvexError("A project can have up to 20 installers.");
+    for (const id of args.installerIds === undefined ? [] : installerIds ?? []) {
+      const u = await ctx.db.get(id);
+      if (u === null || u.status !== "active" || !u.roles.includes("installer") || !(u.roles.includes("admin") || u.businessIds.includes(project.businessId))) {
+        throw new ConvexError("Pick an Installer on this business.");
+      }
+    }
+    await ctx.db.patch(project._id, { projectManagerId: args.projectManagerId ?? undefined, crewIds, ...(args.installerIds !== undefined ? { installerIds } : {}) });
+    for (const id of installerIds ?? []) {
+      if (!(project.installerIds ?? []).includes(id) && id !== staff.userId) await tellPerson(ctx, { project, userId: id, by: staff, text: `You are on the work team for ${project.title}.`, now: args.now });
+    }
     if (args.projectManagerId !== null && args.projectManagerId !== project.projectManagerId) {
       await tellPerson(ctx, { project, userId: args.projectManagerId, by: staff, text: `You are the project manager on ${project.title}.`, now: args.now });
     }
@@ -152,7 +167,7 @@ export const setTeam = mutation({
 export const crews = query({
   args: { businessId: v.id("businesses") },
   handler: async (ctx, args) => {
-    await requireBusiness(ctx, args.businessId);
+    await requireModule(ctx, args.businessId, "pipelineConstruction", "view");
     const rows = await ctx.db.query("crews").withIndex("by_business", (q) => q.eq("businessId", args.businessId)).take(MAX_CREWS);
     return rows.sort((a, b) => Number(b.active) - Number(a.active) || a.name.localeCompare(b.name)).map((c) => ({ id: c._id, name: c.name, leadName: c.leadName, phone: c.phone, notes: c.notes, active: c.active }));
   },
@@ -162,7 +177,7 @@ export const crews = query({
 export const saveCrew = mutation({
   args: { businessId: v.id("businesses"), id: v.optional(v.id("crews")), name: v.string(), leadName: v.string(), phone: v.string(), notes: v.string(), active: v.boolean(), now: v.number() },
   handler: async (ctx, args) => {
-    await requireEditor(ctx, args.businessId);
+    await requireModule(ctx, args.businessId, "pipelineConstruction", "edit");
     const name = text(args.name, 100, "The crew name");
     if (!name) throw new ConvexError("Give the crew a name.");
     const fields = { name, leadName: text(args.leadName, 100, "The lead's name"), phone: formatPhone(args.phone), notes: text(args.notes, 2000, "The notes"), active: args.active };

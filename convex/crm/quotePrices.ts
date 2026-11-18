@@ -3,7 +3,7 @@ import { query } from "../_generated/server";
 import { catalogue } from "../shared/catalogue";
 import { retailPrice, priceUnit } from "../shared/priceList";
 import { planQuoteLines } from "../shared/quoteLines";
-import { requireBusiness } from "./lib/access";
+import { requireModule } from "./lib/access";
 
 /** The price list for the quote builder (D-063): the shared catalogue (the same names and 2026 prices the customer form uses), priced for
  *  the client's type, and "Fill from the site visit", which proposes lines from a project that came from the customer form. Prices the
@@ -14,7 +14,7 @@ const toCents = (dollars: number | null) => (dollars === null ? null : Math.roun
 export const search = query({
   args: { businessId: v.id("businesses"), clientId: v.optional(v.id("clients")), search: v.string() },
   handler: async (ctx, a) => {
-    await requireBusiness(ctx, a.businessId);
+    await requireModule(ctx, a.businessId, "quotes", "view");
     const client = a.clientId ? await ctx.db.get(a.clientId) : null;
     const type = client?.type === "contractor" ? "Contractor" : "Homeowner";
     const words = a.search.toLowerCase().split(/\s+/).filter(Boolean);
@@ -37,7 +37,7 @@ export const fromVisit = query({
   handler: async (ctx, a) => {
     const opportunity = await ctx.db.get(a.opportunityId);
     if (opportunity === null) return { lines: [], missing: "That project no longer exists." };
-    await requireBusiness(ctx, opportunity.businessId);
+    await requireModule(ctx, opportunity.businessId, "quotes", "view");
     if (!opportunity.sourceProjectId) return { lines: [], missing: "This project was not made from the customer form, so there is no visit to read." };
     const project = await ctx.db.get(opportunity.sourceProjectId);
     if (project === null) return { lines: [], missing: "The customer form behind this project is gone." };

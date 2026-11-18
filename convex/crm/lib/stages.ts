@@ -38,26 +38,40 @@ export const CONSTRUCTION_STAGES = [
   "100% Completed & Sign-off",
 ] as const;
 
+/** Finance pipeline stages, verbatim from the PRD (5.1). A project enters at the first one once the customer has signed off (design 2026-11-18). */
+export const FINANCE_STAGES = [
+  "Send Final Invoice",
+  "Pending Final Payment",
+  "Final Payment Received",
+  "Get Client Review",
+  "Consolidate Files",
+  "Archive",
+] as const;
+export const FINANCE_ENTRY = FINANCE_STAGES[0];
+/** Moving here needs the project fully paid. */
+export const FINANCE_PAID_STAGE = "Final Payment Received";
+
 /** The construction stage that needs resolved punch items and a customer sign-off. */
 export const COMPLETION_STAGE = "100% Completed & Sign-off";
 
-/** Login roles (D-014: a person can hold several). Installers do not log in (D-010). */
-export const ROLES = ["admin", "sales", "office", "pm"] as const;
+/** Login roles (D-014: a person can hold several). Installers log in too, as the PRD says (D-090). */
+export const ROLES = ["admin", "sales", "office", "pm", "installer"] as const;
 export type Role = (typeof ROLES)[number];
-export const ROLE_LABEL: Record<Role, string> = { admin: "Admin", sales: "Sales", office: "Office Team", pm: "Project Manager" };
+export const ROLE_LABEL: Record<Role, string> = { admin: "Admin", sales: "Sales", office: "Office Team", pm: "Project Manager", installer: "Installer" };
 /** Roles that may add and change clients, requests and notes. Project Managers can look but not change, for now (D-046). */
 export const EDIT_ROLES: readonly Role[] = ["admin", "sales", "office"];
 
-export const PIPELINES = ["Sales", "Preplanning", "Construction"] as const;
+export const PIPELINES = ["Sales", "Preplanning", "Construction", "Finance"] as const;
 export type Pipeline = (typeof PIPELINES)[number];
-/** The two pipelines after Sales. Finance is Milestone 5. */
-export const WORK_PIPELINES = ["Preplanning", "Construction"] as const;
+/** The pipelines after Sales. */
+export const WORK_PIPELINES = ["Preplanning", "Construction", "Finance"] as const;
 export type WorkPipeline = (typeof WORK_PIPELINES)[number];
 
 /** The stage names of one pipeline, in board order. An unknown pipeline reads as Sales. */
 export function stagesOf(pipeline: string): readonly string[] {
   if (pipeline === "Preplanning") return PREPLANNING_STAGES;
   if (pipeline === "Construction") return CONSTRUCTION_STAGES;
+  if (pipeline === "Finance") return FINANCE_STAGES;
   return SALES_STAGES;
 }
 
@@ -162,7 +176,7 @@ export function checkWorkMove(pipeline: WorkPipeline, from: string, to: string, 
 
 /** True for a stage of Preplanning or Construction. Their names are locked, so a custom Sales stage can never share one. */
 export function isWorkStage(stage: string): boolean {
-  return (PREPLANNING_STAGES as readonly string[]).includes(stage) || (CONSTRUCTION_STAGES as readonly string[]).includes(stage);
+  return (PREPLANNING_STAGES as readonly string[]).includes(stage) || (CONSTRUCTION_STAGES as readonly string[]).includes(stage) || (FINANCE_STAGES as readonly string[]).includes(stage);
 }
 
 /** Whether a project is shown as a request: every Sales project, and every won project, whichever pipeline it has moved to since (D-080). */

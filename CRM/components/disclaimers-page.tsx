@@ -30,7 +30,7 @@ export function DisclaimersPage() {
   const [editing, setEditing] = useState<Item | "new" | null>(null);
   const [deleting, setDeleting] = useState<Item | null>(null);
   const seeding = useRef(false);
-  const canManage = staff.isAdmin || staff.roles.includes("office");
+  const canManage = staff.can("templates", "edit");
 
   // The starter disclaimers are added once, the first time someone who can change them opens this.
   useEffect(() => {

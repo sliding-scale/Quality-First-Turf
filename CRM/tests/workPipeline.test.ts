@@ -14,12 +14,12 @@ describe("Preplanning and Construction", () => {
   it("Closed Won sends the project into Preplanning by itself, on the same record, tells the office once, and it can be sent back", async () => {
     const w = await seeded();
     const office = await signedInAs(w.base, { key: "office-4", roles: ["office"], businessIds: [w.qft], name: "Olga Office" });
-    await expect(w.sales.mutation(api.crm.pipeline.startPreplanning, { id: w.project, now: NOW })).rejects.toThrow(/Closed Won/);
+    await expect(w.office.mutation(api.crm.pipeline.startPreplanning, { id: w.project, now: NOW })).rejects.toThrow(/Closed Won/);
     await signedQuote(w);
     const moved = await w.sales.mutation(api.crm.pipeline.moveStage, { id: w.project, to: "Closed Won", now: NOW });
     expect(moved).toMatchObject({ to: "Closed Won", handedOff: true });
     // Already in Preplanning, so the manual button has nothing to do.
-    await expect(w.sales.mutation(api.crm.pipeline.startPreplanning, { id: w.project, now: NOW + 1 })).rejects.toThrow(/Closed Won/);
+    await expect(w.office.mutation(api.crm.pipeline.startPreplanning, { id: w.project, now: NOW + 1 })).rejects.toThrow(/Closed Won/);
 
     const doc = await w.base.run((ctx) => ctx.db.get(w.project));
     expect(doc).toMatchObject({ pipeline: "Preplanning", stage: "Ready for Preplanning", outcome: "won", closedAt: NOW });
@@ -54,22 +54,22 @@ describe("Preplanning and Construction", () => {
     const w = await seeded();
     await signedQuote(w);
     await w.sales.mutation(api.crm.pipeline.moveStage, { id: w.project, to: "Closed Won", now: NOW });
-    await expect(w.sales.mutation(api.crm.pipeline.startConstruction, { id: w.project, now: NOW + 2 })).rejects.toThrow(/Ready for Construction/);
-    await w.sales.mutation(api.crm.pipeline.moveStage, { id: w.project, to: "Material Takeoff & Availability", now: NOW + 2 });
+    await expect(w.office.mutation(api.crm.pipeline.startConstruction, { id: w.project, now: NOW + 2 })).rejects.toThrow(/Ready for Construction/);
+    await w.office.mutation(api.crm.pipeline.moveStage, { id: w.project, to: "Material Takeoff & Availability", now: NOW + 2 });
     expect(await w.base.run((ctx) => ctx.db.get(w.project))).toMatchObject({ pipeline: "Preplanning", stage: "Material Takeoff & Availability", outcome: "won" });
-    await expect(w.sales.mutation(api.crm.pipeline.moveStage, { id: w.project, to: "Closed Won", now: NOW + 3 })).rejects.toThrow(/not a Preplanning stage/);
+    await expect(w.office.mutation(api.crm.pipeline.moveStage, { id: w.project, to: "Closed Won", now: NOW + 3 })).rejects.toThrow(/not a Preplanning stage/);
     // The last Preplanning stage hands the same project to Construction by itself (D-088): both moves are in the history, and the manual button has nothing to do.
-    const moved = await w.sales.mutation(api.crm.pipeline.moveStage, { id: w.project, to: PREPLANNING_STAGES[PREPLANNING_STAGES.length - 1], now: NOW + 4 });
+    const moved = await w.office.mutation(api.crm.pipeline.moveStage, { id: w.project, to: PREPLANNING_STAGES[PREPLANNING_STAGES.length - 1], now: NOW + 4 });
     expect(moved).toMatchObject({ handedOff: true });
     expect(await w.base.run((ctx) => ctx.db.get(w.project))).toMatchObject({ pipeline: "Construction", stage: "Ready to Start", outcome: "won" });
     const trail = await w.admin.query(api.crm.pipeline.history, { id: w.project });
     expect(trail.slice(0, 2).map((h) => [h.to, h.note])).toEqual([["Ready to Start", "Sent to Construction automatically"], [PREPLANNING_STAGES[PREPLANNING_STAGES.length - 1], undefined]]);
-    await expect(w.sales.mutation(api.crm.pipeline.startConstruction, { id: w.project, now: NOW + 5 })).rejects.toThrow(/Ready for Construction/);
+    await expect(w.office.mutation(api.crm.pipeline.startConstruction, { id: w.project, now: NOW + 5 })).rejects.toThrow(/Ready for Construction/);
     // It stays in the last Preplanning column too (D-089), marked with where it is now, and cannot be moved from there.
     const prep = await w.admin.query(api.crm.pipeline.workBoard, { businessId: w.qft, pipeline: "Preplanning", ...boardArgs });
     const last = prep.columns.find((c) => c.name === PREPLANNING_STAGES[PREPLANNING_STAGES.length - 1])!;
     expect(last.cards.find((c) => c.id === w.project)).toMatchObject({ movedTo: "Construction: Ready to Start" });
-    await expect(w.sales.mutation(api.crm.pipeline.moveStage, { id: w.project, to: "Material Takeoff & Availability", now: NOW + 6 })).rejects.toThrow();
+    await expect(w.office.mutation(api.crm.pipeline.moveStage, { id: w.project, to: "Material Takeoff & Availability", now: NOW + 6 })).rejects.toThrow();
 
     const site = await w.admin.query(api.crm.pipeline.workBoard, { businessId: w.qft, pipeline: "Construction", ...boardArgs });
     expect(names(site)).toEqual([...CONSTRUCTION_STAGES]);
@@ -77,28 +77,28 @@ describe("Preplanning and Construction", () => {
     const found = await w.admin.query(api.crm.pipeline.workBoard, { businessId: w.qft, pipeline: "Construction", ...boardArgs, search: "TST-001" });
     expect(found.columns.flatMap((c) => c.cards).map((c) => c.id)).toEqual([w.project]);
 
-    await w.sales.mutation(api.crm.pipeline.moveStage, { id: w.project, to: "80% Completed", now: NOW + 6 });
-    await expect(w.sales.mutation(api.crm.pipeline.moveStage, { id: w.project, to: "100% Completed & Sign-off", now: NOW + 7 })).rejects.toThrow(/sign-off/);
+    await w.office.mutation(api.crm.pipeline.moveStage, { id: w.project, to: "80% Completed", now: NOW + 6 });
+    await expect(w.office.mutation(api.crm.pipeline.moveStage, { id: w.project, to: "100% Completed & Sign-off", now: NOW + 7 })).rejects.toThrow(/sign-off/);
     expect(await w.base.run((ctx) => ctx.db.get(w.project))).toMatchObject({ stage: "80% Completed" });
-    await expect(w.sales.mutation(api.crm.pipeline.returnToPreplanning, { id: w.project, now: NOW + 8 })).rejects.toThrow(/Ready to Start/);
+    await expect(w.office.mutation(api.crm.pipeline.returnToPreplanning, { id: w.project, now: NOW + 8 })).rejects.toThrow(/Ready to Start/);
 
     const page = await w.admin.query(api.crm.opportunityPage.overview, { id: w.project });
     expect(page?.pipeline).toBe("Construction");
     expect(page?.stages).toEqual([...CONSTRUCTION_STAGES]);
   });
 
-  it("refuses a Project Manager in Preplanning and someone from another business", async () => {
+  it("refuses Sales in Preplanning, which they only look at, and someone from another business", async () => {
     const w = await seeded();
     await signedQuote(w);
     await w.admin.mutation(api.crm.pipeline.moveStage, { id: w.project, to: "Closed Won", now: NOW });
-    await expect(w.pm.mutation(api.crm.pipeline.startPreplanning, { id: w.project, now: NOW })).rejects.toThrow(/not change/);
+    await expect(w.sales.mutation(api.crm.pipeline.startPreplanning, { id: w.project, now: NOW })).rejects.toThrow(/not change/);
     await expect(w.outsider.mutation(api.crm.pipeline.startPreplanning, { id: w.project, now: NOW })).rejects.toThrow();
-    await expect(w.pm.mutation(api.crm.pipeline.moveStage, { id: w.project, to: "Installer Work Package", now: NOW + 2 })).rejects.toThrow(/not change/);
+    await expect(w.sales.mutation(api.crm.pipeline.moveStage, { id: w.project, to: "Installer Work Package", now: NOW + 2 })).rejects.toThrow(/not change/);
     await expect(w.outsider.query(api.crm.pipeline.workBoard, { businessId: w.qft, pipeline: "Preplanning", ...boardArgs })).rejects.toThrow();
     await expect(w.admin.mutation(api.crm.pipeline.addStage, { businessId: w.qft, group: "Quotes", name: "Ready for Preplanning" })).rejects.toThrow(/already/i);
   });
 
-  it("lets a Project Manager move a project inside Construction, and nowhere else", async () => {
+  it("lets a Project Manager move a project inside Construction, and Sales not at all", async () => {
     const w = await seeded();
     await signedQuote(w);
     await w.admin.mutation(api.crm.pipeline.moveStage, { id: w.project, to: "Closed Won", now: NOW });
@@ -112,7 +112,7 @@ describe("Preplanning and Construction", () => {
     await expect(w.pm.mutation(api.crm.pipeline.moveStage, { id: w.project, to: "100% Completed & Sign-off", now: NOW + 4 })).rejects.toThrow(/sign-off/);
     // Not leaving the pipeline, not other changes, and not another business.
     await w.admin.mutation(api.crm.pipeline.moveStage, { id: w.project, to: "Ready to Start", now: NOW + 5 });
-    await expect(w.pm.mutation(api.crm.pipeline.returnToPreplanning, { id: w.project, now: NOW + 6 })).rejects.toThrow(/not change/);
+    await expect(w.sales.mutation(api.crm.pipeline.returnToPreplanning, { id: w.project, now: NOW + 6 })).rejects.toThrow(/not change/);
     await expect(w.pm.mutation(api.crm.pipeline.setSalesperson, { id: w.project, salespersonId: null })).rejects.toThrow(/not change/);
     await expect(w.outsider.mutation(api.crm.pipeline.moveStage, { id: w.project, to: "20% Completed", now: NOW + 7 })).rejects.toThrow();
   });
@@ -123,7 +123,7 @@ describe("Preplanning and Construction", () => {
     const list = { businessId: w.qft, status: "All", from: null, to: null, search: "", sortKey: "requestedAt", dir: "desc", today, page: 1, size: 100 } as const;
     await signedQuote(w);
     await w.sales.mutation(api.crm.pipeline.moveStage, { id: w.project, to: "Closed Won", now: NOW });
-    await w.sales.mutation(api.crm.pipeline.moveStage, { id: w.project, to: "Material Takeoff & Availability", now: NOW + 1 });
+    await w.office.mutation(api.crm.pipeline.moveStage, { id: w.project, to: "Material Takeoff & Availability", now: NOW + 1 });
 
     const rows = await w.admin.query(api.crm.requests.list, list);
     expect(rows.rows.find((r) => r.id === w.project)).toMatchObject({ status: "Converted", stage: "Material Takeoff & Availability", code: "TST-001" });

@@ -52,3 +52,8 @@ Branch `monorepo` holds the restructure: forms moved into `forms/` (`201de5c`, p
 - The user dictates by text-to-speech, so words and letters can be wrong: "V2.1" means "B2.1", "version deployment" meant "Vercel deployment". Read it in context and say which reading you used when it changes what you do.
 - The user answers with decisions. Record them in `CRM/docs/decisions.md` as you go.
 - No questions go to the client now; ask only when one blocks a specific piece of work (D-018).
+- **Golden rule: assume first, ask last (the user's standing rule, D-091).** We are Sliding Scale Technologies, and a company assumes whatever the client did not specify. Before any question goes to the client:
+  1. **Assume it.** Pick the sensible default (Jobber's way, for the CRM) and record it.
+  2. **If it cannot be assumed, put up something temporary** and ask the client at the end for the formal replacement. Example: deploy on a Vercel address now and ask for the domain later.
+  3. **If there are several options and no answer, make it a field the client fills in themselves** (free text, or a dropdown where it fits: a setting, an editable list, an editable formula) and refine it once their feedback comes.
+  4. **Only what none of these can cover becomes a question**, and it is asked as late as the work allows, unless it has a long lead time (for example carrier registration for business texting).

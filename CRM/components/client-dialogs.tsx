@@ -160,15 +160,15 @@ const MAX_ATTACH_BYTES = 19 * 1024 * 1024;
 const MAX_ATTACH_FILES = 10;
 const mb = (n: number) => (n / 1024 / 1024).toFixed(2);
 
-export function SendEmailDialog({ client, onClose }: { client: { id: Id<"clients">; name: string; email: string }; onClose: () => void }) {
+export function SendEmailDialog({ client, onClose, preset }: { client: { id: Id<"clients">; name: string; email: string }; onClose: () => void; preset?: { subject: string; body: string } }) {
   const { toast } = useUI();
   const send = useAction(api.crm.clientEmail.send);
   const makeUrl = useMutation(api.crm.noteFiles.generateUploadUrl);
   const picker = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [to, setTo] = useState(client.email ? [client.email] : []);
-  const [subject, setSubject] = useState("");
-  const [body, setBody] = useState("");
+  const [subject, setSubject] = useState(preset?.subject ?? "");
+  const [body, setBody] = useState(preset?.body ?? "");
   const [copy, setCopy] = useState(false);
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);

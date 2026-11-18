@@ -20,13 +20,18 @@ export function SettingsNav() {
           My calendar
         </Link>
       </div>
-      {(staff.isAdmin || staff.roles.includes("office")) && (
+      {(staff.isAdmin || staff.can("templates")) && (
         <div className="group">
           <div className="group-title">Business management</div>
           {staff.isAdmin && <button type="button" disabled>Businesses</button>}
           {staff.isAdmin && (
             <Link href="/settings/automations" className={pathname.startsWith("/settings/automations") ? "active" : undefined} aria-current={pathname.startsWith("/settings/automations") ? "page" : undefined}>
               Automations
+            </Link>
+          )}
+          {staff.can("templates") && (
+            <Link href="/settings/invoices" className={pathname.startsWith("/settings/invoices") ? "active" : undefined} aria-current={pathname.startsWith("/settings/invoices") ? "page" : undefined}>
+              Invoices
             </Link>
           )}
           <Link href="/settings/disclaimers" className={pathname.startsWith("/settings/disclaimers") ? "active" : undefined} aria-current={pathname.startsWith("/settings/disclaimers") ? "page" : undefined}>

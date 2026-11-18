@@ -2,7 +2,7 @@ import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { mutation, query, type QueryCtx } from "../_generated/server";
 import { newShortCode } from "../projects/shortCode";
-import { requireBusiness, requireEditor } from "./lib/access";
+import { requireModule } from "./lib/access";
 import { checkAssignee } from "./lib/assignees";
 import { checkNoteFiles, noteFilesArg } from "./lib/noteFiles";
 import { opportunitySearchText } from "./lib/clientInput";
@@ -123,7 +123,7 @@ async function matching(ctx: QueryCtx, a: FilterArgs) {
 export const list = query({
   args: { ...filterArgs, page: v.number(), size: v.number() },
   handler: async (ctx, args) => {
-    await requireBusiness(ctx, args.businessId);
+    await requireModule(ctx, args.businessId, "requests", "view");
     const { rows, capped } = await matching(ctx, args);
     const size = Math.min(Math.max(Math.floor(args.size), 1), 100);
     const pages = Math.max(1, Math.ceil(rows.length / size));
@@ -195,7 +195,7 @@ export const get = query({
   handler: async (ctx, args) => {
     const o = await ctx.db.get(args.id);
     if (o === null || !isRequest(o)) return null;
-    await requireBusiness(ctx, o.businessId);
+    await requireModule(ctx, o.businessId, "requests", "view");
     const client = await ctx.db.get(o.clientId);
     if (client === null) return null;
     const person = o.salespersonId ? await ctx.db.get(o.salespersonId) : null;
@@ -239,7 +239,7 @@ export const get = query({
 export const exportRows = query({
   args: filterArgs,
   handler: async (ctx, args) => {
-    await requireBusiness(ctx, args.businessId);
+    await requireModule(ctx, args.businessId, "requests", "view");
     return (await matching(ctx, args)).rows;
   },
 });
@@ -248,7 +248,7 @@ export const exportRows = query({
 export const stats = query({
   args: { businessId: v.id("businesses"), today: v.number() },
   handler: async (ctx, args) => {
-    await requireBusiness(ctx, args.businessId);
+    await requireModule(ctx, args.businessId, "requests", "view");
     const docs = await loadSales(ctx, { businessId: args.businessId, from: null, to: null, search: "" });
     const counts = Object.fromEntries(REQUEST_STATUSES.map((s) => [s, 0])) as Record<RequestStatus, number>;
     const since = args.today - 30 * DAY_MS;
@@ -305,7 +305,7 @@ export const update = mutation({
   handler: async (ctx, args) => {
     const o = await ctx.db.get(args.id);
     if (o === null || !isRequest(o)) throw new ConvexError("That request no longer exists.");
-    await requireEditor(ctx, o.businessId);
+    await requireModule(ctx, o.businessId, "requests", "edit");
     const patch: Partial<Doc<"opportunities">> = {};
     if (args.title !== undefined) {
       const title = args.title.trim();
@@ -345,7 +345,7 @@ export const setLines = mutation({
   handler: async (ctx, args) => {
     const o = await ctx.db.get(args.id);
     if (o === null || !isRequest(o)) throw new ConvexError("That request no longer exists.");
-    await requireEditor(ctx, o.businessId);
+    await requireModule(ctx, o.businessId, "requests", "edit");
     await ctx.db.patch(o._id, { lines: cleanLines(args.lines) });
   },
 });
@@ -363,7 +363,7 @@ export const create = mutation({
     noteFiles: noteFilesArg,
   },
   handler: async (ctx, args) => {
-    const staff = await requireEditor(ctx, args.businessId);
+    const staff = await requireModule(ctx, args.businessId, "requests", "edit");
     const title = args.title.trim();
     if (!title) throw new ConvexError("Give the request a title.");
     if (title.length > 200) throw new ConvexError("The title is too long.");

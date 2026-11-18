@@ -4,7 +4,7 @@ import type { Id } from "../../convex/_generated/dataModel";
 import schema from "../../convex/schema";
 
 type T = TestConvex<typeof schema>;
-type Role = "admin" | "sales" | "office" | "pm";
+type Role = "admin" | "sales" | "office" | "pm" | "installer";
 
 const ISSUER = "https://clerk.test";
 

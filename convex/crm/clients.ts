@@ -2,7 +2,7 @@ import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { mutation, query, type QueryCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
-import { canSee, requireBusiness, requireEditor, requireStaff } from "./lib/access";
+import { canSee, requireStaff, requireModule } from "./lib/access";
 import { deleteQuote } from "./lib/quoteData";
 import { attachmentLinks, checkNoteFiles, deleteNoteFiles, noteFilesArg } from "./lib/noteFiles";
 import { deleteConstruction } from "./lib/construction";
@@ -75,7 +75,7 @@ async function matching(ctx: QueryCtx, a: FilterArgs) {
 export const list = query({
   args: { ...filterArgs, page: v.number(), size: v.number() },
   handler: async (ctx, args) => {
-    await requireBusiness(ctx, args.businessId);
+    await requireModule(ctx, args.businessId, "clients", "view");
     const { rows, capped } = await matching(ctx, args);
     const size = Math.min(Math.max(Math.floor(args.size), 1), 100);
     const pages = Math.max(1, Math.ceil(rows.length / size));
@@ -88,7 +88,7 @@ export const list = query({
 export const exportRows = query({
   args: filterArgs,
   handler: async (ctx, args) => {
-    await requireBusiness(ctx, args.businessId);
+    await requireModule(ctx, args.businessId, "clients", "view");
     return (await matching(ctx, args)).rows;
   },
 });
@@ -97,7 +97,7 @@ export const exportRows = query({
 export const stats = query({
   args: { businessId: v.id("businesses"), today: v.number() },
   handler: async (ctx, args) => {
-    await requireBusiness(ctx, args.businessId);
+    await requireModule(ctx, args.businessId, "clients", "view");
     const docs = await ctx.db
       .query("clients")
       .withIndex("by_business_and_lastActivityAt", (q) => q.eq("businessId", args.businessId))
@@ -130,14 +130,36 @@ export const get = query({
     const id = ctx.db.normalizeId("clients", args.id);
     const client = id === null ? null : await ctx.db.get(id);
     // A client in a business the person does not belong to looks the same as one that does not exist.
-    return client && canSee(staff, client.businessId) ? client : null;
+    return client && canSee(staff, client.businessId) ? await withRealBilling(ctx, client) : null;
   },
 });
+
+/** The client page's Billing card, balance and lifetime value (Jobber's copies are only a starting point, D-060): once the client has a real
+ *  invoice or payment here, they come from those, so nothing is counted twice. An invoice adds to the balance, a payment takes from it. */
+async function withRealBilling(ctx: QueryCtx, client: Doc<"clients">): Promise<Doc<"clients">> {
+  const payments = await ctx.db.query("payments").withIndex("by_clientId", (q) => q.eq("clientId", client._id)).order("desc").take(200);
+  const invoices = await ctx.db.query("invoices").withIndex("by_clientId", (q) => q.eq("clientId", client._id)).take(500);
+  if (payments.length === 0 && invoices.length === 0) return client;
+  const rows: NonNullable<Doc<"clients">["billing"]> = [];
+  for (const i of invoices) {
+    if (i.status === "Draft" || i.status === "Void") continue;
+    rows.push({ kind: "Invoice", appliedTo: `#${i.number} ${i.subject}`, at: i.issuedAt ?? i.createdAt, cents: i.totalCents });
+  }
+  for (const p of payments) {
+    const alloc = await ctx.db.query("paymentAllocations").withIndex("by_paymentId", (q) => q.eq("paymentId", p._id)).first();
+    const inv = alloc ? await ctx.db.get(alloc.invoiceId) : null;
+    const quote = p.quoteId ? await ctx.db.get(p.quoteId) : null;
+    rows.push({ kind: `Payment (${p.method})`, appliedTo: inv ? `Invoice #${inv.number}` : quote ? `Quote #${quote.number}` : "Deposit", at: p.paidAt, cents: -p.amountCents });
+  }
+  rows.sort((a, b) => b.at - a.at);
+  const balanceCents = invoices.filter((i) => i.status === "Sent").reduce((n, i) => n + Math.max(0, i.totalCents - i.paidCents), 0);
+  return { ...client, billing: rows, balanceCents, lifetimeValueCents: payments.reduce((n, p) => n + p.amountCents, 0) };
+}
 
 export const create = mutation({
   args: { businessId: v.id("businesses"), ...clientInputFields },
   handler: async (ctx, args) => {
-    await requireEditor(ctx, args.businessId);
+    await requireModule(ctx, args.businessId, "clients", "edit");
     if ((await ctx.db.get(args.businessId)) === null) throw new ConvexError("That business does not exist.");
     const { businessId, first, last, ...rest } = args;
     const fields = normalizeClientInput({ ...rest, first, last });
@@ -160,8 +182,8 @@ export const update = mutation({
     const existing = await ctx.db.get(args.id);
     if (existing === null) throw new ConvexError("That client no longer exists.");
     // Changing a client needs the editor role in its business, and moving it needs the same in the business it goes to.
-    await requireEditor(ctx, existing.businessId);
-    await requireEditor(ctx, args.businessId);
+    await requireModule(ctx, existing.businessId, "clients", "edit");
+    await requireModule(ctx, args.businessId, "clients", "edit");
     if ((await ctx.db.get(args.businessId)) === null) throw new ConvexError("That business does not exist.");
     const { id, businessId, first, last, ...rest } = args;
     const fields = normalizeClientInput({ ...rest, first, last });
@@ -187,7 +209,7 @@ export const setTags = mutation({
   handler: async (ctx, args) => {
     const client = await ctx.db.get(args.id);
     if (client === null) throw new ConvexError("That client no longer exists.");
-    await requireEditor(ctx, client.businessId);
+    await requireModule(ctx, client.businessId, "clients", "edit");
     const known: readonly string[] = CLIENT_TAGS;
     const tags = [...new Set(args.tags)];
     if (tags.some((t) => !known.includes(t))) throw new ConvexError("One of those tags does not exist.");
@@ -205,7 +227,7 @@ export const archive = mutation({
     for (const id of new Set(args.ids)) {
       const client = await ctx.db.get(id);
       if (client === null || client.status === "archived") continue;
-      await requireEditor(ctx, client.businessId);
+      await requireModule(ctx, client.businessId, "clients", "edit");
       await ctx.db.patch(id, { status: "archived" });
       archived += 1;
     }
@@ -240,7 +262,7 @@ export const deletePreview = query({
     for (const id of args.ids) {
       const client = await ctx.db.get(id);
       if (client === null) continue;
-      await requireEditor(ctx, client.businessId);
+      await requireModule(ctx, client.businessId, "clients", "edit");
       const r = await related(ctx, id);
       projects += r.projects.length;
       notes += r.notes.length;
@@ -261,7 +283,10 @@ export const remove = mutation({
     for (const id of new Set(args.ids)) {
       const client = await ctx.db.get(id);
       if (client === null) continue;
-      await requireEditor(ctx, client.businessId);
+      await requireModule(ctx, client.businessId, "clients", "edit");
+      // Money records are kept for the books (design 2026-11-18-finance): a client with invoices or payments is archived, never deleted.
+      const money = (await ctx.db.query("invoices").withIndex("by_clientId", (q) => q.eq("clientId", id)).first()) ?? (await ctx.db.query("payments").withIndex("by_clientId", (q) => q.eq("clientId", id)).first());
+      if (money !== null) throw new ConvexError(`${client.name} has invoices or payments, which are kept for the books. Archive the client instead.`);
       const r = await related(ctx, id);
       if (r.projects.length > MAX_RELATED || r.notes.length > MAX_RELATED || r.quotes.length > MAX_RELATED) {
         throw new ConvexError(`${client.name} has too much attached to delete in one go. Archive it instead.`);
@@ -288,7 +313,7 @@ export const notes = query({
   handler: async (ctx, args) => {
     const client = await ctx.db.get(args.clientId);
     if (client === null) return [];
-    await requireBusiness(ctx, client.businessId);
+    await requireModule(ctx, client.businessId, "clients", "view");
     const rows = await ctx.db.query("clientNotes").withIndex("by_clientId", (q) => q.eq("clientId", args.clientId)).order("desc").take(100);
     const out = [];
     for (const n of rows) out.push({ _id: n._id, _creationTime: n._creationTime, text: n.text, author: n.author, files: await attachmentLinks(ctx, n.attachments) });
@@ -301,7 +326,7 @@ export const addNote = mutation({
   handler: async (ctx, args) => {
     const client = await ctx.db.get(args.clientId);
     if (client === null) throw new ConvexError("That client no longer exists.");
-    const staff = await requireEditor(ctx, client.businessId);
+    const staff = await requireModule(ctx, client.businessId, "clients", "edit");
     const text = args.text.trim();
     if (text.length > 5000) throw new ConvexError("Notes can be up to 5,000 characters.");
     const attachments = await checkNoteFiles(ctx, args.files);
@@ -320,7 +345,7 @@ export const toggleNoteLine = mutation({
     if (note === null) throw new ConvexError("That note no longer exists.");
     const client = await ctx.db.get(note.clientId);
     if (client === null) throw new ConvexError("That client no longer exists.");
-    await requireEditor(ctx, client.businessId);
+    await requireModule(ctx, client.businessId, "clients", "edit");
     const next = toggleCheckbox(note.text, args.line);
     if (next === null) throw new ConvexError("That line is not a checkbox.");
     await ctx.db.patch(note._id, { text: next });

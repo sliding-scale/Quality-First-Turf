@@ -18,6 +18,14 @@ export const answerValidator = v.object({
   value: v.string(),
 });
 
+const levelValidator = v.union(v.literal("none"), v.literal("view"), v.literal("edit"), v.literal("full"));
+/** A level per permission module (convex/crm/lib/permissions.ts). Every module is optional: an absent one follows the person's roles. */
+export const permissionsValidator = v.object({
+  clients: v.optional(levelValidator), requests: v.optional(levelValidator), quotes: v.optional(levelValidator), schedule: v.optional(levelValidator), tasks: v.optional(levelValidator),
+  pipelineSales: v.optional(levelValidator), pipelinePreplanning: v.optional(levelValidator), pipelineConstruction: v.optional(levelValidator), pipelineFinance: v.optional(levelValidator),
+  invoices: v.optional(levelValidator), payments: v.optional(levelValidator), prices: v.optional(levelValidator), templates: v.optional(levelValidator), settings: v.optional(levelValidator),
+});
+
 export const measurementValidator = v.object({
   label: v.string(),
   length: v.union(v.number(), v.null()),
@@ -277,7 +285,7 @@ export default defineSchema({
     code: v.string(),
     /** The service requested, such as "Turf installation". */
     title: v.string(),
-    pipeline: v.union(v.literal("Sales"), v.literal("Preplanning"), v.literal("Construction")),
+    pipeline: v.union(v.literal("Sales"), v.literal("Preplanning"), v.literal("Construction"), v.literal("Finance")),
     /** A stage name from convex/crm/lib/stages.ts. */
     stage: v.string(),
     requestedAt: v.number(),
@@ -316,6 +324,8 @@ export default defineSchema({
     /** Construction (PRD 4.6, D-081): the project manager (a CRM user) and the crews (records, not logins, D-010) on this project. */
     projectManagerId: v.optional(v.id("users")),
     crewIds: v.optional(v.array(v.id("crews"))),
+    /** The Installers (users) on the project's work team: the records an assigned-only person may see (PRD 5.5). */
+    installerIds: v.optional(v.array(v.id("users"))),
   })
     .index("by_business_and_requestedAt", ["businessId", "requestedAt"])
     .index("by_clientId", ["clientId"])
@@ -479,8 +489,12 @@ export default defineSchema({
     /** Lower-case, and unique among users. */
     email: v.string(),
     name: v.string(),
-    /** A user can hold several roles (D-014). Installers do not log in (D-010). */
-    roles: v.array(v.union(v.literal("admin"), v.literal("sales"), v.literal("office"), v.literal("pm"))),
+    /** A user can hold several roles (D-014). Installers log in too (D-090). */
+    roles: v.array(v.union(v.literal("admin"), v.literal("sales"), v.literal("office"), v.literal("pm"), v.literal("installer"))),
+    /** An Admin's override of the role presets for this person: a level for any module (PRD 5.5, design 2026-11-18-permissions). Absent modules follow the roles. */
+    permissions: v.optional(permissionsValidator),
+    /** An Admin's switch for "only records assigned to them". Absent: on for someone who is only an Installer, off otherwise. */
+    assignedOnly: v.optional(v.boolean()),
     /** The businesses they can work in (D-016, D-031). An Admin sees all of them whatever this says. */
     businessIds: v.array(v.id("businesses")),
     /** "expired": the invitation ran out (7 days) or an Admin cancelled it, and the person has never signed in (D-055). */
@@ -941,4 +955,133 @@ export default defineSchema({
     messageId: v.id("clientMailMessages"),
     html: v.string(),
   }).index("by_message", ["messageId"]),
+
+  /* ---- Finance (Milestone 5, PRD 5.1 and 5.2; design 2026-11-18-finance). Amounts are whole cents. ---- */
+
+  /** An invoice. `totalCents` and `paidCents` are labelled copies, kept by the one place that writes lines and allocations (crm/lib/billing.ts),
+   *  so the lists can sort and add up without reading every line. "Past due" and "Awaiting payment" are never stored (they depend on today). */
+  invoices: defineTable({
+    businessId: v.id("businesses"),
+    clientId: v.id("clients"),
+    /** The project it bills, if any. */
+    opportunityId: v.optional(v.id("opportunities")),
+    /** Invoice number, unique within the business. */
+    number: v.number(),
+    subject: v.string(),
+    status: v.union(v.literal("Draft"), v.literal("Sent"), v.literal("Paid"), v.literal("Bad debt"), v.literal("Void")),
+    createdAt: v.number(),
+    /** Set when it is sent or marked sent. */
+    issuedAt: v.optional(v.number()),
+    termsKey: v.string(),
+    dueAt: v.optional(v.number()),
+    /** Only for the "Custom date" term. */
+    customDueAt: v.optional(v.number()),
+    salesperson: v.string(),
+    clientMessage: v.string(),
+    contract: v.string(),
+    discountKind: v.optional(v.union(v.literal("amount"), v.literal("percent"))),
+    discountValue: v.optional(v.number()),
+    taxPercent: v.optional(v.number()),
+    /** What the client sees (Jobber's "Client view"). */
+    clientView: v.object({ quantities: v.boolean(), unitPrices: v.boolean(), lineTotals: v.boolean(), accountBalance: v.boolean(), lateStamp: v.boolean() }),
+    /** The payment-schedule row this invoice was made from. */
+    scheduleItemId: v.optional(v.id("paymentScheduleItems")),
+    totalCents: v.number(),
+    paidCents: v.number(),
+    shareToken: v.optional(v.string()),
+    sentAt: v.optional(v.number()),
+    viewedAt: v.optional(v.number()),
+    /** Internal notes, never shown to the client. */
+    notes: v.optional(v.array(v.object({ text: v.string(), byName: v.string(), at: v.number() }))),
+    /** Search only, a deliberate labelled copy: client name, address, invoice number and subject. */
+    searchText: v.string(),
+  })
+    .index("by_business_and_number", ["businessId", "number"])
+    .index("by_business_and_createdAt", ["businessId", "createdAt"])
+    .index("by_clientId", ["clientId"])
+    .index("by_opportunityId", ["opportunityId"])
+    .index("by_shareToken", ["shareToken"])
+    .searchIndex("search_text", { searchField: "searchText", filterFields: ["businessId"] }),
+
+  invoiceLines: defineTable({
+    invoiceId: v.id("invoices"),
+    position: v.number(),
+    name: v.string(),
+    description: v.string(),
+    quantity: v.number(),
+    unitPriceCents: v.number(),
+    /** This invoice's share of the line, when it was made from a payment-schedule row ("Due this invoice"). */
+    dueCents: v.optional(v.number()),
+    serviceDate: v.optional(v.number()),
+  }).index("by_invoiceId_and_position", ["invoiceId", "position"]),
+
+  /** What happened to an invoice, in order: created, edited, sent, viewed, payment, status changes. */
+  invoiceEvents: defineTable({
+    invoiceId: v.id("invoices"),
+    at: v.number(),
+    kind: v.string(),
+    byName: v.string(),
+    detail: v.string(),
+  }).index("by_invoiceId", ["invoiceId", "at"]),
+
+  /** How a project is billed (Jobber's job Billing section): a reminder to invoice at the end, or a payment schedule. `totalCents` is a labelled
+   *  snapshot of the approved quote's total when the schedule was made. */
+  billingPlans: defineTable({
+    opportunityId: v.id("opportunities"),
+    businessId: v.id("businesses"),
+    mode: v.union(v.literal("remind"), v.literal("schedule")),
+    totalCents: v.number(),
+  }).index("by_opportunityId", ["opportunityId"]),
+
+  /** One row of a project's payment schedule: a percent or an amount of the billing total, and the invoice made from it. */
+  paymentScheduleItems: defineTable({
+    opportunityId: v.id("opportunities"),
+    position: v.number(),
+    description: v.string(),
+    kind: v.union(v.literal("percent"), v.literal("amount")),
+    /** 0 to 100 for "percent", cents for "amount". */
+    value: v.number(),
+    invoiceId: v.optional(v.id("invoices")),
+  }).index("by_opportunityId_and_position", ["opportunityId", "position"]),
+
+  /** Money received. A payment with cents not yet applied to an invoice is a deposit the invoice form can apply. */
+  payments: defineTable({
+    businessId: v.id("businesses"),
+    clientId: v.id("clients"),
+    opportunityId: v.optional(v.id("opportunities")),
+    /** Set on a payment that came from a quote's deposit. */
+    quoteId: v.optional(v.id("quotes")),
+    method: v.string(),
+    paidAt: v.number(),
+    reference: v.string(),
+    details: v.string(),
+    amountCents: v.number(),
+    source: v.union(v.literal("manual"), v.literal("quote deposit")),
+    byName: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_business_and_paidAt", ["businessId", "paidAt"])
+    .index("by_clientId", ["clientId"])
+    .index("by_opportunityId", ["opportunityId"])
+    .index("by_quoteId", ["quoteId"]),
+
+  /** The part of a payment that pays an invoice. An invoice's balance is its total minus its allocations. */
+  paymentAllocations: defineTable({
+    paymentId: v.id("payments"),
+    invoiceId: v.id("invoices"),
+    amountCents: v.number(),
+    at: v.number(),
+  })
+    .index("by_paymentId", ["paymentId"])
+    .index("by_invoiceId", ["invoiceId"]),
+
+  /** Each business's invoice defaults (Admin edits them). */
+  invoiceSettings: defineTable({
+    businessId: v.id("businesses"),
+    defaultTermsKey: v.string(),
+    defaultClientMessage: v.string(),
+    defaultContract: v.string(),
+    /** Where "Get Client Review" sends the client (for example a Google review link). */
+    reviewLink: v.string(),
+  }).index("by_business", ["businessId"]),
 });

@@ -84,7 +84,7 @@ describe("notes with photos and voice notes", () => {
 
   it("lets only people who can edit get an upload link or tick a box", async () => {
     const w = await seeded();
-    await expect(w.pm.mutation(api.crm.noteFiles.generateUploadUrl, {})).rejects.toThrow(/view this but not change/);
+    await expect(w.installer.mutation(api.crm.noteFiles.generateUploadUrl, {})).rejects.toThrow(/view this but not change/);
     expect(typeof (await w.sales.mutation(api.crm.noteFiles.generateUploadUrl, {}))).toBe("string");
     const id = await w.sales.mutation(api.crm.clients.addNote, { clientId: w.clientId, text: "- [ ] a" });
     await expect(w.pm.mutation(api.crm.clients.toggleNoteLine, { noteId: id, line: 0 })).rejects.toThrow();

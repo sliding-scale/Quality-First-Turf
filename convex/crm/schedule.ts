@@ -1,7 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { mutation, query, type MutationCtx, type QueryCtx } from "../_generated/server";
-import { requireBusiness, requireEditor, requireMover } from "./lib/access";
+import { requireModule } from "./lib/access";
 import { checkAssignee } from "./lib/assignees";
 import {
   BLOCKING, BUSINESS_TZ, DEFAULT_HOURS, expandRepeats, overlaps, type ItemType, type Repeat, type WorkingHours,
@@ -85,7 +85,7 @@ export const book = mutation({
   },
   handler: async (ctx, a) => {
     // A Project Manager may book a construction visit for a project in Construction; every other booking needs an editing role.
-    const staff = a.visitKind !== undefined ? await requireMover(ctx, a.businessId, "Construction") : await requireEditor(ctx, a.businessId);
+    const staff = a.visitKind !== undefined ? await requireModule(ctx, a.businessId, "pipelineConstruction", "edit") : await requireModule(ctx, a.businessId, "schedule", "edit");
     if (a.visitKind !== undefined && a.type !== "visit") throw new ConvexError("A job walk, installation day or reinspection is a visit.");
     const anytime = a.anytime ?? false;
     const title = checkFields({ title: a.title, start: a.start, end: a.end, anytime });
@@ -137,7 +137,7 @@ export const update = mutation({
   handler: async (ctx, { id, now: _now, ...changes }) => {
     const event = await ctx.db.get(id);
     if (event === null) throw new ConvexError("That item no longer exists.");
-    await requireEditor(ctx, event.businessId);
+    await requireModule(ctx, event.businessId, "schedule", "edit");
     await saveChanges(ctx, event, changes);
   },
 });
@@ -147,7 +147,7 @@ export const assign = mutation({
   handler: async (ctx, args) => {
     const event = await ctx.db.get(args.id);
     if (event === null) throw new ConvexError("That item no longer exists.");
-    await requireEditor(ctx, event.businessId);
+    await requireModule(ctx, event.businessId, "schedule", "edit");
     await saveChanges(ctx, event, { assigneeIds: args.assigneeIds });
   },
 });
@@ -157,7 +157,7 @@ export const setStatus = mutation({
   handler: async (ctx, args) => {
     const event = await ctx.db.get(args.id);
     if (event === null) throw new ConvexError("That item no longer exists.");
-    await requireEditor(ctx, event.businessId);
+    await requireModule(ctx, event.businessId, "schedule", "edit");
     await ctx.db.patch(args.id, { status: args.status, updatedAt: Date.now() });
     await jobberChanged(ctx, args.id);
   },
@@ -168,7 +168,7 @@ export const remove = mutation({
   handler: async (ctx, args) => {
     const event = await ctx.db.get(args.id);
     if (event === null) return;
-    await requireEditor(ctx, event.businessId);
+    await requireModule(ctx, event.businessId, "schedule", "edit");
     await mirrorRemoved(ctx, "event", args.id);
     await ctx.db.delete(args.id);
   },
@@ -218,7 +218,7 @@ export const range = query({
     now: v.number(),
   },
   handler: async (ctx, a) => {
-    await requireBusiness(ctx, a.businessId);
+    const who = await requireModule(ctx, a.businessId, "schedule", "view");
     const events = await ctx.db.query("calendarEvents").withIndex("by_business_and_start", (q) => q.eq("businessId", a.businessId).lt("start", a.to)).order("desc").take(MAX_ROWS);
     const clients = new Map<Id<"clients">, string>();
     const clientName = async (id: Id<"clients"> | undefined) => {
@@ -248,6 +248,7 @@ export const range = query({
     }
     const wantedStatus = new Set(a.statuses.filter((s) => (STATUS_KEYS as readonly string[]).includes(s)));
     const shown = items.filter((i) => {
+      if (who.assignedOnly && !i.assigneeIds.includes(who.userId)) return false; // a person limited to their own records sees only their own items (PRD 5.5)
       if (a.types.length > 0 && !a.types.includes(i.kind)) return false;
       if (a.assigneeIds.length > 0 && !(i.assigneeIds.length === 0 ? a.assigneeIds.includes("unassigned") : i.assigneeIds.some((u) => a.assigneeIds.includes(u)))) return false;
       if (wantedStatus.size > 0) {
@@ -265,7 +266,8 @@ export const range = query({
 export const unscheduled = query({
   args: { businessId: v.id("businesses"), sort: v.union(v.literal("oldest"), v.literal("newest")) },
   handler: async (ctx, a) => {
-    await requireBusiness(ctx, a.businessId);
+    const who = await requireModule(ctx, a.businessId, "schedule", "view");
+    if (who.assignedOnly) return []; // the Unscheduled panel is the office's to-do list
     const projects = await ctx.db.query("opportunities").withIndex("by_business_and_requestedAt", (q) => q.eq("businessId", a.businessId)).order("desc").take(MAX_ROWS);
     const rows: { kind: "request" | "task"; id: string; title: string; clientName: string; createdAt: number; opportunityId: Id<"opportunities"> | undefined; clientId: Id<"clients"> | undefined }[] = [];
     for (const p of projects) {
@@ -294,7 +296,7 @@ async function hoursOf(ctx: QueryCtx, businessId: Id<"businesses">): Promise<Wor
 export const availability = query({
   args: { businessId: v.id("businesses"), userIds: v.array(v.id("users")), from: v.number(), to: v.number() },
   handler: async (ctx, a) => {
-    await requireBusiness(ctx, a.businessId);
+    await requireModule(ctx, a.businessId, "schedule", "view");
     const busy = [...(await busyFor(ctx, a.businessId, a.userIds, a.from, a.to)), ...externalBusy()];
     return { hours: await hoursOf(ctx, a.businessId), busy: busy.map((b) => ({ id: b.id, userId: b.userId, title: b.title, start: b.start, end: b.end, external: b.external })) };
   },
@@ -303,7 +305,7 @@ export const availability = query({
 export const settings = query({
   args: { businessId: v.id("businesses") },
   handler: async (ctx, a) => {
-    await requireBusiness(ctx, a.businessId);
+    await requireModule(ctx, a.businessId, "schedule", "view");
     return hoursOf(ctx, a.businessId);
   },
 });
@@ -311,7 +313,7 @@ export const settings = query({
 export const saveSettings = mutation({
   args: { businessId: v.id("businesses"), days: v.array(v.number()), startMin: v.number(), endMin: v.number() },
   handler: async (ctx, a) => {
-    await requireEditor(ctx, a.businessId);
+    await requireModule(ctx, a.businessId, "schedule", "edit");
     const days = [...new Set(a.days)].sort();
     if (days.length === 0 || days.some((d) => !Number.isInteger(d) || d < 0 || d > 6)) throw new ConvexError("Pick at least one working day.");
     if (!Number.isInteger(a.startMin) || !Number.isInteger(a.endMin) || a.startMin < 0 || a.endMin > 1440 || a.startMin >= a.endMin) {
@@ -329,7 +331,7 @@ export const saveSettings = mutation({
 export const bulkReschedule = mutation({
   args: { businessId: v.id("businesses"), ids: v.array(v.id("calendarEvents")), shiftMs: v.optional(v.number()), assigneeIds: v.optional(v.array(v.id("users"))), now: v.number() },
   handler: async (ctx, a) => {
-    await requireEditor(ctx, a.businessId);
+    await requireModule(ctx, a.businessId, "schedule", "edit");
     if (a.ids.length === 0) throw new ConvexError("Pick at least one item.");
     if ((a.shiftMs ?? 0) === 0 && a.assigneeIds === undefined) throw new ConvexError("Choose a new time or new people.");
     for (const id of new Set(a.ids)) {
@@ -346,7 +348,7 @@ export const bulkReschedule = mutation({
 export const projectOptions = query({
   args: { businessId: v.id("businesses"), search: v.string() },
   handler: async (ctx, a) => {
-    await requireBusiness(ctx, a.businessId);
+    await requireModule(ctx, a.businessId, "schedule", "view");
     const text = a.search.trim();
     const docs = text
       ? await ctx.db.query("opportunities").withSearchIndex("search_text", (q) => q.search("searchText", text).eq("businessId", a.businessId).eq("pipeline", "Sales")).take(20)

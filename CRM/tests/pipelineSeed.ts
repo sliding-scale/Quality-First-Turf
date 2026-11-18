@@ -21,6 +21,8 @@ export async function seeded() {
   const other = businesses[1]._id as Id<"businesses">;
   const sales = await signedInAs(base, { key: "sales-1", roles: ["sales"], businessIds: [qft], name: "Sam Sales" });
   const pm = await signedInAs(base, { key: "pm-1", roles: ["pm"], businessIds: [qft], name: "Pat PM" });
+  const office = await signedInAs(base, { key: "office-1", roles: ["office"], businessIds: [qft], name: "Olga Office" });
+  const installer = await signedInAs(base, { key: "inst-1", roles: ["installer"], businessIds: [qft], name: "Ivan Installer" });
   const outsider = await signedInAs(base, { key: "sales-2", roles: ["sales"], businessIds: [other], name: "Olive Outsider" });
   const project = await base.run(async (ctx) => {
     const client = (await ctx.db.query("clients").collect()).find((c) => c.businessId === qft)!;
@@ -30,6 +32,6 @@ export async function seeded() {
     });
     return { id, clientId: client._id };
   });
-  return { base, admin, sales, pm, outsider, qft, other, project: project.id, clientId: project.clientId };
+  return { base, admin, sales, pm, office, installer, outsider, qft, other, project: project.id, clientId: project.clientId };
 }
 

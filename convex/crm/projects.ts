@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { query } from "../_generated/server";
-import { requireBusiness } from "./lib/access";
+import { requireModule } from "./lib/access";
 
 /** A client's projects, newest first, for the Related projects table on the client page. */
 export const byClient = query({
@@ -8,7 +8,7 @@ export const byClient = query({
   handler: async (ctx, args) => {
     const client = await ctx.db.get(args.clientId);
     if (client === null) return [];
-    await requireBusiness(ctx, client.businessId);
+    await requireModule(ctx, client.businessId, "clients", "view");
     const rows = await ctx.db.query("opportunities").withIndex("by_clientId", (q) => q.eq("clientId", args.clientId)).take(50);
     return rows.sort((a, b) => b.requestedAt - a.requestedAt);
   },

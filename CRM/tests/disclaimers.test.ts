@@ -49,8 +49,7 @@ describe("the disclaimer library", () => {
     await w.admin.mutation(api.crm.disclaimers.save, { businessId: w.qft, id, title: "Gate codes", text: "Call first, please.", now: 2 });
     const { items } = await w.admin.query(api.crm.disclaimers.list, { businessId: w.qft });
     expect(items.find((i) => i.id === id)).toMatchObject({ title: "Gate codes", text: "Call first, please." });
-    const office = await signedInAs(w.base, { key: "office-1", roles: ["office"], businessIds: [w.qft], name: "Olga Office" });
-    await office.mutation(api.crm.disclaimers.save, { businessId: w.qft, title: "From the office", text: "Hello.", now: 3 });
+    await w.office.mutation(api.crm.disclaimers.save, { businessId: w.qft, title: "From the office", text: "Hello.", now: 3 });
     await expect(w.sales.mutation(api.crm.disclaimers.save, { businessId: w.qft, title: "Nope", text: "x", now: 3 })).rejects.toThrow(/Admin or the Office/);
     await expect(w.pm.mutation(api.crm.disclaimers.remove, { id })).rejects.toThrow();
     await expect(w.outsider.query(api.crm.disclaimers.list, { businessId: w.qft })).rejects.toThrow();

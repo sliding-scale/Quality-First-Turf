@@ -4,6 +4,8 @@ import { internal } from "../_generated/api";
 import { env, internalMutation, internalQuery, mutation, query, type MutationCtx, type QueryCtx } from "../_generated/server";
 import { requireAdmin } from "./lib/access";
 import { cleanEmail, cleanName, isValidEmail } from "./lib/fields";
+import { assignedOnlyOf, levelsOf } from "./lib/permissions";
+import { permissionsValidator } from "../schema";
 import { ROLE_LABEL } from "./lib/stages";
 
 /* Users and sign-in (D-046, D-055). Invite-only: an Admin adds a person's email, roles and businesses and Clerk emails them an
@@ -35,7 +37,7 @@ function emailFrom(identity: Identity): { email: string; source: string; claimNa
   return { email: "", source: "none", claimNames };
 }
 
-const role = v.union(v.literal("admin"), v.literal("sales"), v.literal("office"), v.literal("pm"));
+const role = v.union(v.literal("admin"), v.literal("sales"), v.literal("office"), v.literal("pm"), v.literal("installer"));
 
 /** What the app needs to know about the signed-in person. Never throws, so the app can decide what to show. */
 export const me = query({
@@ -51,7 +53,11 @@ export const me = query({
     if (user.status !== "active") return { state: "deactivated" as const, email: user.email };
     return {
       state: "active" as const,
-      user: { _id: user._id, name: user.name, email: user.email, roles: user.roles, isAdmin: user.roles.includes("admin"), businessIds: user.businessIds },
+      user: {
+        _id: user._id, name: user.name, email: user.email, roles: user.roles, isAdmin: user.roles.includes("admin"), businessIds: user.businessIds,
+        // What the menu and the buttons follow (the backend checks every call again, CRM rule 3).
+        levels: levelsOf(user.roles, user.permissions), assignedOnly: assignedOnlyOf(user.roles, user.assignedOnly),
+      },
     };
   },
 });
@@ -157,6 +163,9 @@ export const userFields = {
   name: v.string(),
   roles: v.array(role),
   businessIds: v.array(v.id("businesses")),
+  /** The Admin's override of the role presets for this person, and the assigned-only switch (PRD 5.5). Absent: follow the roles. */
+  permissions: v.optional(permissionsValidator),
+  assignedOnly: v.optional(v.boolean()),
 };
 
 function checked(input: { name: string; roles: Doc<"users">["roles"]; businessIds: Doc<"users">["businessIds"] }) {
@@ -182,7 +191,10 @@ export const createInvited = internalMutation({
     if (existing?.status === "deleted") throw new ConvexError("That person was deleted from the team. Show deleted people and choose Restore to invite them again.");
     if (existing) throw new ConvexError("That email is already a user.");
     for (const id of args.businessIds) if ((await ctx.db.get(id)) === null) throw new ConvexError("That business does not exist.");
-    return await ctx.db.insert("users", { email, ...checked(args), status: "invited", invitedBy: args.invitedBy });
+    return await ctx.db.insert("users", {
+      email, ...checked(args), ...(args.permissions ? { permissions: args.permissions } : {}), ...(args.assignedOnly !== undefined ? { assignedOnly: args.assignedOnly } : {}),
+      status: "invited", invitedBy: args.invitedBy,
+    });
   },
 });
 
@@ -206,7 +218,7 @@ export const update = mutation({
     // A person who has never signed in goes back to "invited" (or "expired", if their invitation has run out); deactivating is reversible.
     const lapsed = target.status === "expired" || (target.invitationExpiresAt !== undefined && Date.now() > target.invitationExpiresAt);
     const status = !args.active ? ("deactivated" as const) : target.tokenIdentifier ? ("active" as const) : lapsed ? ("expired" as const) : ("invited" as const);
-    await ctx.db.patch(args.id, { ...fields, status });
+    await ctx.db.patch(args.id, { ...fields, permissions: args.permissions, assignedOnly: args.assignedOnly, status });
     if (!args.active) await endSalesSessions(ctx, target.email);
     return args.id;
   },

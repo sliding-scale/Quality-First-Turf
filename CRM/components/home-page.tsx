@@ -1,16 +1,17 @@
 "use client";
 
 /* Home (PRD 3.1): the greeting, the workflow cards, today's appointments, my tasks and upcoming consultations. Everything comes from real
-   records (D-076): requests and quotes from their stats, appointments from the Schedule, tasks from the Tasks tab. Jobs and Invoices
-   are not built yet, so their cards say so instead of showing numbers. */
+   records (D-076): requests, quotes and invoices from their stats, appointments from the Schedule, tasks from the Tasks tab. Jobs do not
+   exist (a project is the job), so that card says so. */
 
 import { useMutation, useQuery } from "convex/react";
 import Link from "next/link";
 import { useState, type CSSProperties } from "react";
 import { api } from "@/convex/_generated/api";
 import { useWorkspace } from "@/lib/clients";
-import { quoteDate } from "@/lib/format";
+import { moneyCents, quoteDate } from "@/lib/format";
 import { failure, todayBounds, useMinute, usePeople } from "@/lib/pipeline";
+import { useInvoiceStats } from "@/lib/invoices";
 import { useQuoteStats } from "@/lib/quotes";
 import { useRequestStats } from "@/lib/requests";
 import { BUSINESS_TZ } from "@/lib/schedule";
@@ -94,8 +95,13 @@ function Home() {
         <h1 className="greeting">Good {part}, {first}</h1>
       </div>
 
-      <h2 className="section-title" style={{ marginTop: 0 }}>Workflow</h2>
-      {businessId ? <Workflow businessId={businessId} /> : <div className="wf-grid"><div className="sk" style={{ height: 150, gridColumn: "1 / -1" }} /></div>}
+      {/* The workflow cards read requests, quotes and invoices, so they show only to someone who can look at all three (PRD 5.5). */}
+      {staff.can("requests") && staff.can("quotes") && staff.can("invoices") && (
+        <>
+          <h2 className="section-title" style={{ marginTop: 0 }}>Workflow</h2>
+          {businessId ? <Workflow businessId={businessId} /> : <div className="wf-grid"><div className="sk" style={{ height: 150, gridColumn: "1 / -1" }} /></div>}
+        </>
+      )}
 
       <div className="home-grid">
         <div className="col">
@@ -116,7 +122,8 @@ function Home() {
 function Workflow({ businessId }: { businessId: Parameters<typeof useRequestStats>[0] }) {
   const requests = useRequestStats(businessId);
   const quotes = useQuoteStats(businessId);
-  const loading = requests === undefined || quotes === undefined;
+  const invoices = useInvoiceStats(businessId);
+  const loading = requests === undefined || quotes === undefined || invoices === undefined;
   const bar = (c: string) => ({ "--bar": c }) as CSSProperties;
   const num = (n: number | undefined) => (n === undefined ? "–" : n);
   const q = quotes?.counts;
@@ -143,7 +150,10 @@ function Workflow({ businessId }: { businessId: Parameters<typeof useRequestStat
       </div>
       <div className="wf-card" style={bar("var(--navy)")}>
         <div className="top"><Icon name="receipt" size={20} /><span>Invoices</span></div>
-        <div className="lbl muted" style={{ marginTop: 14 }}>Invoices are not available yet.</div>
+        <div className="big">{loading ? <span className="sk sk-inline" style={{ width: 40, height: 32 }} /> : num(invoices ? invoices.pastDue.count + invoices.notDue.count : undefined)}</div>
+        <div className="lbl">Pending payments{invoices && invoices.pastDue.cents + invoices.notDue.cents > 0 ? ` · ${moneyCents(invoices.pastDue.cents + invoices.notDue.cents).replace(/\.00$/, "")}` : ""}</div>
+        <div className="ln"><span>Past due</span><span>{num(invoices?.pastDue.count)}</span></div>
+        <div className="ln"><span>Awaiting invoicing</span><span>{num(invoices?.awaitingInvoicing)}</span></div>
       </div>
     </div>
   );

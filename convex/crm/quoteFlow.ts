@@ -1,11 +1,12 @@
 import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { mutation, query, type MutationCtx } from "../_generated/server";
-import { requireBusiness, requireEditor, type Staff } from "./lib/access";
+import { type Staff, requireModule } from "./lib/access";
 import { checkFile, checkImage, logEvent } from "./quoteDraft";
 import { quoteTotals } from "./lib/quoteMath";
 import { quoteMoneyOptions } from "./lib/quoteOptions";
 import { systemMove } from "./lib/systemMove";
+import { writeQuoteDepositPayment } from "./lib/billing";
 
 /** Sending a quote and what staff do at the other end of it (D-063): the secret link and revisions, marking it awaiting, collecting a
  *  signature in person, recording a deposit. The client's own answers are in clientQuote.ts. Email and text delivery are not built
@@ -20,7 +21,7 @@ function newToken(): string {
 async function load(ctx: MutationCtx, id: Id<"quotes">) {
   const quote = await ctx.db.get(id);
   if (quote === null) throw new ConvexError("That quote no longer exists.");
-  const staff = await requireEditor(ctx, quote.businessId);
+  const staff = await requireModule(ctx, quote.businessId, "quotes", "edit");
   return { quote, staff };
 }
 
@@ -108,6 +109,8 @@ export const recordDeposit = mutation({
       ...(a.proofStorageId ? { depositProofId: a.proofStorageId, depositProofName: (a.proofName ?? "Proof of payment").slice(0, 200) } : {}),
     });
     await logEvent(ctx, quote._id, "deposit", staff.name, `Deposit received: ${(a.amountCents / 100).toFixed(2)}${a.proofStorageId ? " (with proof)" : ""}`, a.receivedAt);
+    // The same money is a payment, so it shows in Payments and can be applied to the project's first invoice (design 2026-11-18-finance).
+    await writeQuoteDepositPayment(ctx, quote, a.amountCents, a.receivedAt, staff.name, a.receivedAt);
   },
 });
 
@@ -117,7 +120,7 @@ export const events = query({
   handler: async (ctx, a) => {
     const quote = await ctx.db.get(a.id);
     if (quote === null) return [];
-    await requireBusiness(ctx, quote.businessId);
+    await requireModule(ctx, quote.businessId, "quotes", "view");
     const rows = await ctx.db.query("quoteEvents").withIndex("by_quoteId", (q) => q.eq("quoteId", a.id)).take(500);
     return rows.sort((x, y) => x.at - y.at || x._creationTime - y._creationTime);
   },
@@ -129,7 +132,7 @@ export const revisions = query({
   handler: async (ctx, a) => {
     const quote = await ctx.db.get(a.id);
     if (quote === null) return [];
-    await requireBusiness(ctx, quote.businessId);
+    await requireModule(ctx, quote.businessId, "quotes", "view");
     const rows = await ctx.db.query("quoteRevisions").withIndex("by_quoteId", (q) => q.eq("quoteId", a.id)).take(200);
     return rows.sort((x, y) => y.revision - x.revision);
   },

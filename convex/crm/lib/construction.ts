@@ -1,7 +1,7 @@
 import { ConvexError } from "convex/values";
 import type { Doc, Id } from "../../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../_generated/server";
-import { requireMover, type Staff } from "./access";
+import { requireProject, type Staff } from "./access";
 import { deleteNoteFiles } from "./noteFiles";
 
 /* Construction management (PRD 4.6, D-081): shared rules for the project's team, progress, punch list and completion sign-off.
@@ -11,10 +11,10 @@ export const MAX_PUNCH = 200;
 export const MAX_PROGRESS = 200;
 const MAX_SIGNOFFS = 50;
 
-/** Who may work on a project's construction: an editing role, or a Project Manager (PRD 4.6 makes construction theirs). The project must
- *  be in Construction. */
+/** Who may work on a project's construction: a level of Edit in Pipeline: Construction (Admin, Office, Project Manager, or an Installer on the
+ *  project's work team). The project must be in Construction. */
 export async function requireSite(ctx: QueryCtx | MutationCtx, project: Doc<"opportunities">): Promise<Staff> {
-  const staff = await requireMover(ctx, project.businessId, "Construction");
+  const staff = await requireProject(ctx, project, "pipelineConstruction", "edit");
   if (project.pipeline !== "Construction") throw new ConvexError("This project is not in Construction.");
   return staff;
 }

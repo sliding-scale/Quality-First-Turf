@@ -13,7 +13,9 @@ export default clerkMiddleware(async (auth, request) => {
     // The client's quote page: the secret link is the key (D-063). Every function behind it checks the token.
     path.startsWith("/q/") ||
     // The customer's completion sign-off page (D-081): the secret link is the key here too.
-    path.startsWith("/signoff/");
+    path.startsWith("/signoff/") ||
+    // The client's invoice page (design 2026-11-18-finance): the secret link is the key here too.
+    path.startsWith("/i/");
   if (!isOpen) await auth.protect();
 });
 

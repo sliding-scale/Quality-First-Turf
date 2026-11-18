@@ -486,7 +486,7 @@ function DisclaimerPicker({ businessId, chosen, onChange }: { businessId: Id<"bu
     seeding.current = true;
     void seed({ businessId, now: Date.now() }).catch(() => { seeding.current = false; });
   }, [library, staff.canEdit, seed, businessId]);
-  const canManage = staff.isAdmin || staff.roles.includes("office");
+  const canManage = staff.can("templates", "edit");
   const has = (title: string) => chosen.some((c) => sameTitle(c.title, title));
   const toggle = (item: DisclaimerCopy) => onChange(has(item.title) ? chosen.filter((c) => !sameTitle(c.title, item.title)) : [...chosen, { title: item.title, text: item.text }]);
   // Attached ones whose library entry was renamed or deleted since still show, so they can be removed.

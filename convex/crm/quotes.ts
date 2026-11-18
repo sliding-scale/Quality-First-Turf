@@ -1,7 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { mutation, query, type QueryCtx } from "../_generated/server";
-import { canSee, requireBusiness, requireEditor, requireStaff } from "./lib/access";
+import { canSee, requireStaff, requireModule } from "./lib/access";
 import { deleteQuote } from "./lib/quoteData";
 import { attachmentLinks } from "./lib/noteFiles";
 import { DEFAULT_CONTRACT } from "./quoteDraft";
@@ -128,7 +128,7 @@ async function matching(ctx: QueryCtx, a: FilterArgs) {
 export const list = query({
   args: { ...filterArgs, page: v.number(), size: v.number() },
   handler: async (ctx, args) => {
-    await requireBusiness(ctx, args.businessId);
+    await requireModule(ctx, args.businessId, "quotes", "view");
     const { rows, capped } = await matching(ctx, args);
     const size = Math.min(Math.max(Math.floor(args.size), 1), 100);
     const pages = Math.max(1, Math.ceil(rows.length / size));
@@ -140,7 +140,7 @@ export const list = query({
 export const exportRows = query({
   args: filterArgs,
   handler: async (ctx, args) => {
-    await requireBusiness(ctx, args.businessId);
+    await requireModule(ctx, args.businessId, "quotes", "view");
     return (await matching(ctx, args)).rows;
   },
 });
@@ -149,7 +149,7 @@ export const exportRows = query({
 export const salespeople = query({
   args: { businessId: v.id("businesses") },
   handler: async (ctx, args) => {
-    await requireBusiness(ctx, args.businessId);
+    await requireModule(ctx, args.businessId, "quotes", "view");
     const docs = await ctx.db.query("quotes").withIndex("by_business_and_createdAt", (q) => q.eq("businessId", args.businessId)).order("desc").take(MAX_QUOTES);
     return [...new Set(docs.map((q) => q.salesperson).filter(Boolean))].sort((a, b) => a.localeCompare(b));
   },
@@ -163,7 +163,7 @@ export const salespeople = query({
 export const stats = query({
   args: { businessId: v.id("businesses"), today: v.number() },
   handler: async (ctx, args) => {
-    await requireBusiness(ctx, args.businessId);
+    await requireModule(ctx, args.businessId, "quotes", "view");
     const docs = await loadQuotes(ctx, { businessId: args.businessId, from: null, to: null, search: "" });
     const counts = Object.fromEntries(QUOTE_STATUSES.map((s) => [s, 0])) as Record<QuoteStatus, number>;
     const since = args.today - 30 * DAY_MS;
@@ -209,7 +209,7 @@ export const byClient = query({
   handler: async (ctx, args) => {
     const client = await ctx.db.get(args.clientId);
     if (client === null) return [];
-    await requireBusiness(ctx, client.businessId);
+    await requireModule(ctx, client.businessId, "quotes", "view");
     const rows = await ctx.db.query("quotes").withIndex("by_clientId", (q) => q.eq("clientId", args.clientId)).take(100);
     return rows
       .sort((a, b) => b.createdAt - a.createdAt)
@@ -325,7 +325,7 @@ export const remove = mutation({
   handler: async (ctx, args) => {
     const quote = await ctx.db.get(args.id);
     if (quote === null) throw new ConvexError("That quote no longer exists.");
-    await requireEditor(ctx, quote.businessId);
+    await requireModule(ctx, quote.businessId, "quotes", "edit");
     await deleteQuote(ctx, quote);
     return quote.number;
   },
@@ -335,7 +335,7 @@ export const remove = mutation({
 export const contractDefault = query({
   args: { businessId: v.id("businesses") },
   handler: async (ctx, a) => {
-    await requireBusiness(ctx, a.businessId);
+    await requireModule(ctx, a.businessId, "quotes", "view");
     const row = await ctx.db.query("quoteDefaults").withIndex("by_business", (q) => q.eq("businessId", a.businessId)).first();
     return row?.contract ?? DEFAULT_CONTRACT;
   },

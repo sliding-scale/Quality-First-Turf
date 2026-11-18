@@ -86,7 +86,7 @@ describe("project tasks and notes", () => {
   });
 
   it("gives a task to someone else on the team, or to nobody", async () => {
-    const { sales, admin, base, qft, project, pm } = await seeded();
+    const { sales, admin, base, qft, project, pm, installer } = await seeded();
     const people = await admin.query(api.crm.pipeline.people, { businessId: qft });
     const sam = people.find((p) => p.name === "Sam Sales")!;
     const sal = people.find((p) => p.name === "Sal")!;
@@ -99,7 +99,7 @@ describe("project tasks and notes", () => {
     expect(tasks[0].assigneeId).toBeUndefined();
     const olive = await base.run(async (ctx) => (await ctx.db.query("users").collect()).find((u) => u.name === "Olive Outsider")!._id);
     await expect(sales.mutation(api.crm.opportunityTasks.setTime, { taskId: id, startAt: NOW, endAt: NOW + 3_600_000, assigneeId: olive })).rejects.toThrow(/not on this business/);
-    await expect(pm.mutation(api.crm.opportunityTasks.setTime, { taskId: id, startAt: NOW, endAt: NOW + 3_600_000, assigneeId: sal.id })).rejects.toThrow();
+    await expect(installer.mutation(api.crm.opportunityTasks.setTime, { taskId: id, startAt: NOW, endAt: NOW + 3_600_000, assigneeId: sal.id })).rejects.toThrow();
   });
 
   it("filters by assignee", async () => {
@@ -122,9 +122,9 @@ describe("project tasks and notes", () => {
     await expect(sales.mutation(api.crm.opportunityTasks.addNote, { id: project, text: " " })).rejects.toThrow();
   });
 
-  it("refuses a Project Manager's changes and anyone from another business", async () => {
-    const { pm, outsider, qft, project } = await seeded();
-    await expect(pm.mutation(api.crm.opportunityTasks.addTask, { id: project, title: "nope" })).rejects.toThrow();
+  it("refuses a person who only looks (an Installer) and anyone from another business", async () => {
+    const { installer, pm, outsider, qft, project } = await seeded();
+    await expect(installer.mutation(api.crm.opportunityTasks.addTask, { id: project, title: "nope" })).rejects.toThrow();
     await expect(outsider.mutation(api.crm.opportunityTasks.addTask, { id: project, title: "nope" })).rejects.toThrow();
     await expect(outsider.query(api.crm.opportunityTasks.listForProject, { id: project })).rejects.toThrow();
     await expect(outsider.query(api.crm.opportunityTasks.listAll, { businessId: qft, now: NOW, todayStart, todayEnd })).rejects.toThrow();

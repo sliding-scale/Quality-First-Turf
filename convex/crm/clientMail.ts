@@ -3,7 +3,7 @@ import { paginationOptsValidator } from "convex/server";
 import { env, internalMutation, internalQuery, query, type MutationCtx } from "../_generated/server";
 import type { Doc, Id } from "../_generated/dataModel";
 import { internal } from "../_generated/api";
-import { requireAdmin, requireBusiness, requireStaff } from "./lib/access";
+import { requireAdmin, requireStaff, requireModule } from "./lib/access";
 import {
   OFFICE_MAILBOX,
   addressesOnClient,
@@ -84,7 +84,7 @@ export const list = query({
   handler: async (ctx, args) => {
     const client = await ctx.db.get(args.clientId);
     if (!client) throw new ConvexError("Client not found.");
-    await requireBusiness(ctx, client.businessId);
+    await requireModule(ctx, client.businessId, "clients", "view");
     return await ctx.db
       .query("clientMailThreads")
       .withIndex("by_client_and_latestAt", (q) => q.eq("clientId", args.clientId))
@@ -99,7 +99,7 @@ export const threadMessages = query({
   handler: async (ctx, args) => {
     const client = await ctx.db.get(args.clientId);
     if (!client) throw new ConvexError("Client not found.");
-    await requireBusiness(ctx, client.businessId);
+    await requireModule(ctx, client.businessId, "clients", "view");
     const rows = await ctx.db
       .query("clientMailMessages")
       .withIndex("by_client_and_thread", (q) => q.eq("clientId", args.clientId).eq("threadId", args.threadId))
@@ -128,7 +128,7 @@ export const detail = query({
   handler: async (ctx, args) => {
     const row = await ctx.db.get(args.messageId);
     if (!row) return null;
-    await requireBusiness(ctx, row.businessId);
+    await requireModule(ctx, row.businessId, "clients", "view");
     const body = row.contentStatus === "stored"
       ? await ctx.db.query("clientMailBodies").withIndex("by_message", (q) => q.eq("messageId", row._id)).unique()
       : null;
@@ -366,7 +366,7 @@ export const getForContent = internalQuery({
   handler: async (ctx, args) => {
     const row = await ctx.db.get(args.messageId);
     if (!row) throw new ConvexError("That email is no longer available.");
-    await requireBusiness(ctx, row.businessId);
+    await requireModule(ctx, row.businessId, "clients", "view");
     if (row.contentStatus !== "pending") return null;
     return { accountId: row.zohoAccountId, folderId: row.folderId, zohoMessageId: row.zohoMessageId };
   },

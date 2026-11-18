@@ -1,7 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import type { Id } from "../_generated/dataModel";
 import { mutation, query } from "../_generated/server";
-import { requireAdmin, requireBusiness, requireEditor } from "./lib/access";
+import { requireAdmin, requireModule, requireProject } from "./lib/access";
 import { checkAssignee } from "./lib/assignees";
 import { attachmentLinks, checkNoteFiles, noteFilesArg } from "./lib/noteFiles";
 import { mirrorChanged, mirrorRemoved } from "./lib/mirror";
@@ -23,8 +23,8 @@ export const listForProject = query({
   handler: async (ctx, args) => {
     const project = await ctx.db.get(args.id);
     if (project === null) return { tasks: [], notes: [] };
-    await requireBusiness(ctx, project.businessId);
-    const tasks = await ctx.db.query("opportunityTasks").withIndex("by_opportunity", (q) => q.eq("opportunityId", args.id)).take(200);
+    const who = await requireProject(ctx, project, "tasks", "view");
+    const tasks = (await ctx.db.query("opportunityTasks").withIndex("by_opportunity", (q) => q.eq("opportunityId", args.id)).take(200)).filter((t) => !who.assignedOnly || t.assigneeId === who.userId);
     const notes = await ctx.db.query("opportunityNotes").withIndex("by_opportunity", (q) => q.eq("opportunityId", args.id)).take(200);
     // Open tasks first, soonest due first (undated last); notes newest first.
     tasks.sort((a, b) => Number(a.done) - Number(b.done) || (a.dueAt ?? Infinity) - (b.dueAt ?? Infinity) || a.createdAt - b.createdAt);
@@ -40,7 +40,7 @@ export const addTask = mutation({
   handler: async (ctx, args) => {
     const project = await ctx.db.get(args.id);
     if (project === null) throw new ConvexError("That project no longer exists.");
-    await requireEditor(ctx, project.businessId);
+    await requireModule(ctx, project.businessId, "tasks", "edit");
     const title = cleanTitle(args.title);
     await checkAssignee(ctx, args.assigneeId, project.businessId);
     return ctx.db.insert("opportunityTasks", {
@@ -73,7 +73,7 @@ export const setTime = mutation({
   handler: async (ctx, args) => {
     const task = await ctx.db.get(args.taskId);
     if (task === null) throw new ConvexError("That task no longer exists.");
-    await requireEditor(ctx, task.businessId);
+    await requireModule(ctx, task.businessId, "tasks", "edit");
     const who: { assigneeId?: Id<"users"> } = {};
     if (args.assigneeId !== undefined) {
       who.assigneeId = args.assigneeId ?? undefined;
@@ -96,7 +96,7 @@ export const setDone = mutation({
   handler: async (ctx, args) => {
     const task = await ctx.db.get(args.taskId);
     if (task === null) throw new ConvexError("That task no longer exists.");
-    await requireEditor(ctx, task.businessId);
+    await requireModule(ctx, task.businessId, "tasks", "edit");
     await ctx.db.patch(args.taskId, { done: args.done, completedAt: args.done ? Date.now() : undefined });
   },
 });
@@ -106,7 +106,7 @@ export const addNote = mutation({
   handler: async (ctx, args) => {
     const project = await ctx.db.get(args.id);
     if (project === null) throw new ConvexError("That project no longer exists.");
-    const staff = await requireEditor(ctx, project.businessId);
+    const staff = await requireModule(ctx, project.businessId, "tasks", "edit");
     const text = args.text.trim();
     if (text.length > 5000) throw new ConvexError("Notes can be up to 5,000 characters.");
     const attachments = await checkNoteFiles(ctx, args.files);
@@ -123,9 +123,10 @@ export const addNote = mutation({
 export const listAll = query({
   args: { businessId: v.id("businesses"), assigneeId: v.optional(v.id("users")), now: v.number(), todayStart: v.number(), todayEnd: v.number() },
   handler: async (ctx, a) => {
-    await requireBusiness(ctx, a.businessId);
+    const who = await requireModule(ctx, a.businessId, "tasks", "view");
     const tasks = await ctx.db.query("opportunityTasks").withIndex("by_business", (q) => q.eq("businessId", a.businessId)).take(MAX_TASKS);
-    const mine = tasks.filter((t) => a.assigneeId === undefined || t.assigneeId === a.assigneeId);
+    const assignee = who.assignedOnly ? who.userId : a.assigneeId; // a person limited to their own records sees only their own tasks (PRD 5.5)
+    const mine = tasks.filter((t) => assignee === undefined || t.assigneeId === assignee);
     const open = mine.filter((t) => !t.done);
     const finished = mine.filter((t) => t.done).sort((x, y) => (y.completedAt ?? 0) - (x.completedAt ?? 0) || y._creationTime - x._creationTime);
     const projects = new Map<Id<"opportunities">, { projectTitle: string; code: string; clientName: string }>();
@@ -167,7 +168,7 @@ export const toggleNoteLine = mutation({
     if (note === null) throw new ConvexError("That note no longer exists.");
     const project = await ctx.db.get(note.opportunityId);
     if (project === null) throw new ConvexError("That project no longer exists.");
-    await requireEditor(ctx, project.businessId);
+    await requireModule(ctx, project.businessId, "tasks", "edit");
     const next = toggleCheckbox(note.text, args.line);
     if (next === null) throw new ConvexError("That line is not a checkbox.");
     await ctx.db.patch(note._id, { text: next });

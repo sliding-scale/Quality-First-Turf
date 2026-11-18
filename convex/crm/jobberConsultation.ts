@@ -6,7 +6,7 @@ import { jobberGraphql } from "../jobber/client";
 import { accessTokenFor } from "../projects/actions";
 import { formatShortCode } from "../shared/errors";
 import { zonedWallClock } from "../shared/zonedTime";
-import { requireEditor } from "./lib/access";
+import { requireModule } from "./lib/access";
 import { jobberChanged } from "./lib/jobberHooks";
 
 /* Consultations booked in the CRM are also booked in Jobber (D-085), as the assessment on the project's Jobber request, the same place the
@@ -234,7 +234,7 @@ export const resend = mutation({
   handler: async (ctx, { id }) => {
     const event = await ctx.db.get(id);
     if (event === null) throw new ConvexError("That consultation no longer exists.");
-    await requireEditor(ctx, event.businessId);
+    await requireModule(ctx, event.businessId, "schedule", "edit");
     await jobberChanged(ctx, id as Id<"calendarEvents">);
   },
 });

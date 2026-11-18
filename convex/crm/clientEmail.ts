@@ -3,7 +3,7 @@ import { internal } from "../_generated/api";
 import { action, internalQuery } from "../_generated/server";
 import { sendMail } from "./automationSend";
 import { followUpHtml, isEmail } from "./lib/automationRules";
-import { EDIT_ROLES } from "./lib/stages";
+import { allows, levelsOf } from "./lib/permissions";
 import { ZohoError } from "./lib/zohoMail";
 import { safeMessage, zohoSettings } from "./zohoMailSync";
 
@@ -23,7 +23,7 @@ export const prepare = internalQuery({
   handler: async (ctx, a) => {
     const user = await ctx.db.query("users").withIndex("by_tokenIdentifier", (q) => q.eq("tokenIdentifier", a.tokenIdentifier)).unique();
     if (!user || user.status !== "active") throw new ConvexError("No access.");
-    if (!user.roles.some((r) => (EDIT_ROLES as readonly string[]).includes(r))) throw new ConvexError("Your role can view this but not change it.");
+    if (!allows(levelsOf(user.roles, user.permissions).clients, "edit")) throw new ConvexError("Your role can view this but not change it.");
     const client = await ctx.db.get(a.clientId);
     if (!client) throw new ConvexError("That client no longer exists.");
     if (!user.roles.includes("admin") && !user.businessIds.includes(client.businessId)) throw new ConvexError("No access to this business.");
