@@ -26,6 +26,7 @@ import { ActivityDialog, DepositDialog, SendDialog, SignDialog, SignatureWarning
 import { NoteEditor, useUploadPending, type PendingFile } from "./note-editor";
 import { QuoteSkeleton } from "./skeletons";
 import { useStaff } from "./staff-context";
+import { useConvertToJob } from "./use-convert-to-job";
 import { useUI, type MenuItem } from "./ui-provider";
 import { NoteBody } from "./note-view";
 
@@ -104,6 +105,7 @@ function QuoteNote({ n, canEdit, editingId, setEditingId }: { n: Quote["notes"][
 
 function QuoteView({ q }: { q: Quote }) {
   const router = useRouter();
+  const convertToJob = useConvertToJob();
   const { dropdown, toast } = useUI();
   const { canEdit } = useStaff();
   const addNote = useMutation(api.crm.quoteDraft.addNote);
@@ -168,7 +170,7 @@ function QuoteView({ q }: { q: Quote }) {
     ...(q.request ? ([["From Request", <Link key="r" href={`/clients/${q.request.clientId}`}>{quoteDate(q.request.requestedAt)}</Link>]] as [string, React.ReactNode][]) : []),
   ];
 
-  // Jobber's More menu. Converting to a job and sending email or text from the CRM stay greyed (Jobs; the Zoho connection). A role that can
+  // Jobber's More menu. Sending email or text from the CRM stays greyed (the Zoho connection). A role that can
   // only look gets only the items that do not change anything.
   const later = (label: string, icon: string, extra: object = {}): MenuItem => ({ label, icon, disabled: true, ...extra });
   const rule: MenuItem = { divider: true };
@@ -176,7 +178,7 @@ function QuoteView({ q }: { q: Quote }) {
   const moreItems: MenuItem[] = [
     ...(canEdit
       ? [
-          later("Convert to Job", "hammer", { iconColor: "var(--green)" }),
+          { label: "Convert to Job", icon: "hammer", iconColor: "var(--green)", disabled: !q.request || !(q.status === "Approved" || q.status === "Converted"), onSelect: () => void convertToJob(q.request?.id as Id<"opportunities"> | undefined) } as MenuItem,
           rule,
           { heading: "Send as..." } as MenuItem,
           { label: q.shareToken ? "Client link" : "Create the client link", icon: "newtab", onSelect: () => (q.shareToken ? setDialog("send") : void sendNow()), disabled: !(q.shareToken || q.status === "Draft") } as MenuItem,

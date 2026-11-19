@@ -111,6 +111,7 @@ PRD goal: the final workflow, communication integrations and production deployme
 
 **UI/UX (sample data), steps 5.1 to 5.2**
 - [x] 5.1 Finance: board (6 stages), invoices, payments, outstanding balances **built on dev (D-092)**; not clicked through in a browser yet
+- [x] Jobs (list, job page, Close Job, Convert to Job, New Job by hand) and the Products & Services list **built on dev (D-094)**; costs on a job, Labor, Expenses, checklists, recurring jobs and emails follow
 - [ ] 5.2 Messages and export: communication log, export screen
 
 **Backend wiring**

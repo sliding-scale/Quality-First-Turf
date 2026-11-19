@@ -31,7 +31,7 @@ const NAV: NavItem[] = [
   { key: "clients", label: "Clients", icon: "contact", href: "/clients" },
   { key: "requests", label: "Requests", icon: "inbox", href: "/requests" },
   { key: "quotes", label: "Quotes", icon: "quote", href: "/quotes" },
-  { key: "jobs", label: "Jobs", icon: "hammer" },
+  { key: "jobs", label: "Jobs", icon: "hammer", href: "/jobs" },
   { key: "invoices", label: "Invoices", icon: "receipt", href: "/invoices" },
   { key: "payments", label: "Payments", icon: "card", href: "/payments" },
   { divider: true },
@@ -54,7 +54,7 @@ const PIPELINES: { label: string; href?: string }[] = [
 
 /** The permission module behind each sidebar item and each page (PRD 5.5). The backend refuses what a person may not do; this only keeps the
  *  menu and the page tidy. null: open to everyone signed in. */
-const NAV_MODULE: Record<string, Module | undefined> = { clients: "clients", requests: "requests", quotes: "quotes", schedule: "schedule", invoices: "invoices", payments: "payments", tasks: "tasks" };
+const NAV_MODULE: Record<string, Module | undefined> = { clients: "clients", requests: "requests", quotes: "quotes", schedule: "schedule", jobs: "jobs", invoices: "invoices", payments: "payments", tasks: "tasks" };
 const PIPELINE_MODULE: Record<string, Module> = { Sales: "pipelineSales", Preplanning: "pipelinePreplanning", Construction: "pipelineConstruction", Finance: "pipelineFinance" };
 function moduleOfPath(pathname: string): Module | null {
   const first = NAV_MODULE[pathname.split("/")[1] ?? ""];

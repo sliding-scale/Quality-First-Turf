@@ -873,6 +873,81 @@ export function InvoicesSkeleton() {
   );
 }
 
+export function JobsSkeleton() {
+  return (
+    <Busy>
+      <div className="page-head"><h1>Jobs</h1><div className="actions"><Sk w={110} h={38} r={8} /><Sk w={140} h={38} r={8} /></div></div>
+      <div className="kpis compact four">
+        <div className="card kpi">
+          <div className="h"><Sk w={90} h={18} /></div>
+          <div style={{ display: "grid", gap: 9, marginTop: 16 }}>{range(5).map((i) => (<Sk key={i} w={`${84 - i * 6}%`} h={14} />))}</div>
+        </div>
+        {range(2).map((i) => (
+          <div className="card kpi" key={i}><div className="h"><Sk w={130} h={18} /></div><div className="s"><Sk w={80} h={13} /></div><div className="n"><Sk w={64} h={30} /></div></div>
+        ))}
+      </div>
+      <div className="list-head"><h2>All jobs</h2></div>
+      <div className="toolbar"><div className="chips"><Sk w={140} h={38} r={999} /><Sk w={140} h={38} r={999} /></div><Sk w={280} h={44} r={8} style={{ maxWidth: "100%" }} /></div>
+      <div className="table-wrap">
+        <table className="table" id="tbl">
+          <colgroup><col style={{ width: 200 }} /><col style={{ width: 190 }} /><col style={{ width: 280 }} /><col style={{ width: 130 }} /><col style={{ width: 170 }} /><col style={{ width: 120 }} /></colgroup>
+          <thead><tr><th>Client</th><th>Job number</th><th>Property</th><th>Schedule</th><th>Status</th><th className="num">Total</th></tr></thead>
+          <tbody>
+            {range(8).map((i) => (
+              <tr key={i}>
+                <td><Sk w="70%" h={16} /></td><td><Sk w={90} h={16} /></td><td><Sk w="80%" h={16} /></td><td><Sk w={80} h={16} /></td><td><Sk w={110} h={24} r={999} /></td>
+                <td className="num"><Sk w={70} h={16} style={{ marginLeft: "auto" }} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Busy>
+  );
+}
+
+export function JobSkeleton() {
+  return (
+    <Busy>
+      <div className="op-top"><Sk w={90} h={20} /><div className="op-actions"><Sk w={44} h={38} r={8} /><Sk w={96} h={38} r={8} /></div></div>
+      <div className="op-title"><Sk w={90} h={26} r={999} /><Sk w={260} h={32} /></div>
+      <div className="op-body">
+        <div className="op-col">
+          <section className="card op-card"><Sk w="40%" h={20} /><div style={{ height: 12 }} /><Sk w="70%" h={14} /><div style={{ height: 8 }} /><Sk w="55%" h={14} /></section>
+          <section className="card op-card"><Sk w={160} h={22} /><div style={{ height: 14 }} /><Sk w="100%" h={90} /></section>
+          <section className="card op-card"><Sk w={120} h={22} /><div style={{ height: 14 }} /><Sk w="100%" h={50} /></section>
+          <section className="card op-card"><Sk w={160} h={22} /><div style={{ height: 14 }} /><Sk w="100%" h={110} /></section>
+        </div>
+        <div className="op-col">
+          <section className="card op-card"><Sk w={180} h={22} /><div style={{ height: 14 }} /><Sk w={120} h={34} /><div style={{ height: 14 }} /><Sk w="100%" h={90} /></section>
+          <section className="card op-card"><Sk w={90} h={22} /><div style={{ height: 14 }} /><Sk w="100%" h={120} /></section>
+        </div>
+      </div>
+    </Busy>
+  );
+}
+
+export function CatalogueSkeleton() {
+  return (
+    <Busy>
+      <div className="page-head"><h1>Products &amp; services</h1><Sk w={100} h={38} r={8} /></div>
+      <Sk w="70%" h={18} style={{ marginBottom: 22 }} />
+      <div className="toolbar"><Sk w={300} h={44} r={8} style={{ maxWidth: "100%" }} /></div>
+      <div className="table-wrap">
+        <table className="table cat-table">
+          <colgroup><col style={{ width: "42%" }} /><col /><col style={{ width: 120 }} /></colgroup>
+          <thead><tr><th>Name</th><th>Description</th><th>Type</th></tr></thead>
+          <tbody>
+            {range(8).map((i) => (
+              <tr key={i}><td><Sk w="85%" h={16} /></td><td><Sk w="80%" h={16} /></td><td><Sk w={60} h={16} /></td></tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Busy>
+  );
+}
+
 export function InvoiceFormSkeleton() {
   return (
     <Busy>

@@ -12,6 +12,7 @@ import { useWorkspace } from "@/lib/clients";
 import { moneyCents, quoteDate } from "@/lib/format";
 import { failure, todayBounds, useMinute, usePeople } from "@/lib/pipeline";
 import { useInvoiceStats } from "@/lib/invoices";
+import { useJobCounts } from "@/lib/jobs";
 import { useQuoteStats } from "@/lib/quotes";
 import { useRequestStats } from "@/lib/requests";
 import { BUSINESS_TZ } from "@/lib/schedule";
@@ -95,8 +96,8 @@ function Home() {
         <h1 className="greeting">Good {part}, {first}</h1>
       </div>
 
-      {/* The workflow cards read requests, quotes and invoices, so they show only to someone who can look at all three (PRD 5.5). */}
-      {staff.can("requests") && staff.can("quotes") && staff.can("invoices") && (
+      {/* The workflow cards read requests, quotes, jobs and invoices, so they show only to someone who can look at all four (PRD 5.5). */}
+      {staff.can("requests") && staff.can("quotes") && staff.can("jobs") && staff.can("invoices") && (
         <>
           <h2 className="section-title" style={{ marginTop: 0 }}>Workflow</h2>
           {businessId ? <Workflow businessId={businessId} /> : <div className="wf-grid"><div className="sk" style={{ height: 150, gridColumn: "1 / -1" }} /></div>}
@@ -123,7 +124,8 @@ function Workflow({ businessId }: { businessId: Parameters<typeof useRequestStat
   const requests = useRequestStats(businessId);
   const quotes = useQuoteStats(businessId);
   const invoices = useInvoiceStats(businessId);
-  const loading = requests === undefined || quotes === undefined || invoices === undefined;
+  const jobs = useJobCounts(businessId);
+  const loading = requests === undefined || quotes === undefined || invoices === undefined || jobs === undefined;
   const bar = (c: string) => ({ "--bar": c }) as CSSProperties;
   const num = (n: number | undefined) => (n === undefined ? "–" : n);
   const q = quotes?.counts;
@@ -146,7 +148,10 @@ function Workflow({ businessId }: { businessId: Parameters<typeof useRequestStat
       </div>
       <div className="wf-card" style={bar("var(--green)")}>
         <div className="top"><Icon name="hammer" size={20} /><span>Jobs</span></div>
-        <div className="lbl muted" style={{ marginTop: 14 }}>Jobs are not available yet.</div>
+        <div className="big">{loading ? <span className="sk sk-inline" style={{ width: 40, height: 32 }} /> : num(jobs ? jobs.all - jobs.byStatus.Archived : undefined)}</div>
+        <div className="lbl">Active jobs</div>
+        <div className="ln"><span>Late</span><span>{num(jobs?.byStatus.Late)}</span></div>
+        <div className="ln"><span>Requires invoicing</span><span>{num(jobs?.byStatus["Requires Invoicing"])}</span></div>
       </div>
       <div className="wf-card" style={bar("var(--navy)")}>
         <div className="top"><Icon name="receipt" size={20} /><span>Invoices</span></div>

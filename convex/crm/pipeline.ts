@@ -10,6 +10,7 @@ import { quoteTotals } from "./lib/quoteMath";
 import { quoteMoneyOptions } from "./lib/quoteOptions";
 import { checkMove, checkWorkMove, CLOSED_STAGES, COMPLETION_STAGE, CONSTRUCTION_STAGES, FINANCE_ENTRY, FINANCE_PAID_STAGE, LEAD_SOURCES, NO_SOURCE, PREPLANNING_STAGES, SALES_STAGES, stagesOf, timeInStage, type BoardGroup } from "./lib/stages";
 import { assertPaidUp, projectMoney } from "./lib/billing";
+import { assignJobNumber } from "./lib/jobNumber";
 import { notifyStage } from "./lib/mentionNotify";
 import { completionBlock, completionState } from "./lib/construction";
 
@@ -117,6 +118,7 @@ export async function applyMove(ctx: MutationCtx, project: Doc<"opportunities">,
   else if (to === "Closed Lost") Object.assign(patch, { outcome: "lost", closedAt: now, lostReason: (reason ?? "").trim() });
   else Object.assign(patch, { outcome: undefined, closedAt: undefined, lostReason: undefined });
   await ctx.db.patch(project._id, patch);
+  if (to === "Closed Won") await assignJobNumber(ctx, project);
 
   const note = wonNote ?? (to === "Closed Lost" ? (reason ?? "").trim() : undefined);
   await ctx.db.insert("stageHistory", {
@@ -392,7 +394,7 @@ type Place = readonly [Doc<"opportunities">["pipeline"], string];
 
 /** Moves the same project into another pipeline and writes one history row. Stage changes do not happen anywhere else.
  *  `quiet` skips the notification, for a move whose reason was already announced. */
-async function changePipeline(
+export async function changePipeline(
   ctx: MutationCtx,
   project: Doc<"opportunities">,
   staff: { name: string; userId?: Id<"users"> },

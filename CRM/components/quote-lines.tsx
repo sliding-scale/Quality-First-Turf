@@ -169,7 +169,7 @@ export function QuoteLines({ businessId, clientId, projectId, lines, onChange, b
                   clientId={clientId}
                   close={close}
                   onPick={(it) => {
-                    const added = newLine("item", { name: it.name, price: it.priceCents === null ? "0.00" : centsToInput(it.priceCents), catalogueName: it.name, description: it.priceCents === null ? "" : `Priced per ${it.unit}.` });
+                    const added = newLine("item", { name: it.name, price: it.priceCents === null ? "0.00" : centsToInput(it.priceCents), catalogueName: it.name, description: it.description ? it.description : it.priceCents === null ? "" : `Priced per ${it.unit}.` });
                     const onlyBlank = lines.length === 1 && lines[0].kind === "item" && !lines[0].name.trim() && lines[0].price === "0.00";
                     onChange(onlyBlank ? [added] : [...lines, added]);
                   }}
@@ -199,7 +199,7 @@ function LineTools({ i, n, onUp, onDown, onRemove, readOnly }: { i: number; n: n
   );
 }
 
-function PriceMenu({ businessId, clientId, onPick, close }: { businessId: Id<"businesses">; clientId?: Id<"clients">; onPick: (it: { name: string; unit: string; priceCents: number | null }) => void; close: () => void }) {
+function PriceMenu({ businessId, clientId, onPick, close }: { businessId: Id<"businesses">; clientId?: Id<"clients">; onPick: (it: { name: string; unit: string; priceCents: number | null; description: string }) => void; close: () => void }) {
   const [q, setQ] = useState("");
   const results = usePriceSearch(businessId, clientId, q, true);
   return (
@@ -214,7 +214,7 @@ function PriceMenu({ businessId, clientId, onPick, close }: { businessId: Id<"bu
           results.map((r) => (
             <button key={r.name} type="button" role="option" aria-selected={false} className="opt" onClick={() => { onPick(r); close(); }}>
               <span>{r.name}</span>
-              <small>{r.priceCents === null ? "No price in the list" : `${money(r.priceCents / 100)} per ${r.unit}`}</small>
+              <small>{r.priceCents === null ? "No price in the list" : r.unit === "each" ? money(r.priceCents / 100) : `${money(r.priceCents / 100)} per ${r.unit}`}</small>
             </button>
           ))
         )}

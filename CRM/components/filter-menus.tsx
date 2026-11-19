@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { RANGE_OPTIONS, type DateRange, type RangeKey } from "@/lib/dates";
 import { Icon } from "./icon";
 
-export type FilterOption = { label: string; dot?: string; count?: number };
+export type FilterOption = { label: string; dot?: string; count?: number; /** Not available yet: shown greyed and cannot be chosen. */ disabled?: boolean };
 
 /** A search box above a scrolling list. The selected option gets a tick; options may have a coloured dot and a count. */
 export function FilterMenu({ placeholder, options, selected, onSelect, close }: {
@@ -36,6 +36,7 @@ export function FilterMenu({ placeholder, options, selected, onSelect, close }: 
               role="option"
               aria-selected={o.label === selected}
               className="opt"
+              disabled={o.disabled}
               onClick={() => {
                 close();
                 onSelect(o.label);

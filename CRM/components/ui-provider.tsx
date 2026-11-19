@@ -42,8 +42,8 @@ const CREATE_ITEMS: { label: string; icon: string; color: string; href?: string;
   { label: "Client", icon: "user", color: "var(--ink)", href: "/clients/new" },
   { label: "Request", icon: "inbox", color: "var(--orange)", href: "/requests/new" },
   { label: "Quote", icon: "quote", color: "var(--burgundy)", href: "/quotes/new" },
-  { label: "Job", icon: "hammer", color: "var(--green)", soon: "Jobs" },
-  { label: "Invoice", icon: "receipt", color: "var(--navy)", soon: "Invoices" },
+  { label: "Job", icon: "hammer", color: "var(--green)", href: "/jobs/new" },
+  { label: "Invoice", icon: "receipt", color: "var(--navy)", href: "/invoices/new" },
 ];
 
 const EXIT_MS = 140; // keep in step with the pop-out / cp-out / toast-out animations in globals.css

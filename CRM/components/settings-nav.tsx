@@ -34,6 +34,9 @@ export function SettingsNav() {
               Invoices
             </Link>
           )}
+          <Link href="/settings/products" className={pathname.startsWith("/settings/products") ? "active" : undefined} aria-current={pathname.startsWith("/settings/products") ? "page" : undefined}>
+            Products &amp; Services
+          </Link>
           <Link href="/settings/disclaimers" className={pathname.startsWith("/settings/disclaimers") ? "active" : undefined} aria-current={pathname.startsWith("/settings/disclaimers") ? "page" : undefined}>
             Disclaimers
           </Link>

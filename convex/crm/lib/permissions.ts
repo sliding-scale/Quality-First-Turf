@@ -5,14 +5,14 @@
 import type { Role } from "./stages";
 
 export const MODULES = [
-  "clients", "requests", "quotes", "schedule", "tasks",
+  "clients", "requests", "quotes", "schedule", "jobs", "tasks",
   "pipelineSales", "pipelinePreplanning", "pipelineConstruction", "pipelineFinance",
   "invoices", "payments", "prices", "templates", "settings",
 ] as const;
 export type Module = (typeof MODULES)[number];
 
 export const MODULE_LABEL: Record<Module, string> = {
-  clients: "Clients", requests: "Requests", quotes: "Quotes", schedule: "Schedule", tasks: "Tasks",
+  clients: "Clients", requests: "Requests", quotes: "Quotes", schedule: "Schedule", jobs: "Jobs", tasks: "Tasks",
   pipelineSales: "Pipeline: Sales", pipelinePreplanning: "Pipeline: Preplanning", pipelineConstruction: "Pipeline: Construction", pipelineFinance: "Pipeline: Finance",
   invoices: "Invoices", payments: "Payments", prices: "Show pricing", templates: "Disclaimers and invoice settings", settings: "Team and settings",
 };
@@ -27,16 +27,16 @@ export const allows = (have: Level, need: Level): boolean => RANK[have] >= RANK[
 export const isLevel = (x: unknown): x is Level => typeof x === "string" && (LEVELS as readonly string[]).includes(x);
 
 type Levels = Record<Module, Level>;
-const row = (l: [Level, Level, Level, Level, Level, Level, Level, Level, Level, Level, Level, Level, Level, Level]): Levels =>
+const row = (l: [Level, Level, Level, Level, Level, Level, Level, Level, Level, Level, Level, Level, Level, Level, Level]): Levels =>
   Object.fromEntries(MODULES.map((m, i) => [m, l[i]])) as Levels;
 
-/*                   clients  requests quotes   schedule tasks    p.Sales  p.Plan   p.Constr p.Fin    invoices payments prices   templates settings */
+/*                   clients  requests quotes   schedule jobs     tasks    p.Sales  p.Plan   p.Constr p.Fin    invoices payments prices   templates settings */
 export const PRESETS: Record<Role, Levels> = {
-  admin:     row(["full", "full", "full", "full", "full", "full", "full", "full", "full", "full", "full", "full", "full", "full"]),
-  office:    row(["edit", "edit", "edit", "edit", "edit", "edit", "edit", "edit", "edit", "edit", "edit", "view", "edit", "none"]),
-  sales:     row(["edit", "edit", "edit", "edit", "edit", "edit", "view", "view", "view", "view", "view", "view", "view", "none"]),
-  pm:        row(["view", "view", "view", "edit", "edit", "view", "edit", "edit", "view", "view", "view", "view", "none", "none"]),
-  installer: row(["none", "none", "none", "view", "view", "none", "none", "edit", "none", "none", "none", "none", "none", "none"]),
+  admin:     row(["full", "full", "full", "full", "full", "full", "full", "full", "full", "full", "full", "full", "full", "full", "full"]),
+  office:    row(["edit", "edit", "edit", "edit", "edit", "edit", "edit", "edit", "edit", "edit", "edit", "edit", "view", "edit", "none"]),
+  sales:     row(["edit", "edit", "edit", "edit", "view", "edit", "edit", "view", "view", "view", "view", "view", "view", "view", "none"]),
+  pm:        row(["view", "view", "view", "edit", "edit", "edit", "view", "edit", "edit", "view", "view", "view", "view", "none", "none"]),
+  installer: row(["none", "none", "none", "view", "none", "view", "none", "none", "edit", "none", "none", "none", "none", "none", "none"]),
 };
 
 /** A person's level in every module: the most any of their roles gives, then the Admin's overrides for that person. */

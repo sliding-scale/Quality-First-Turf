@@ -25,6 +25,7 @@ import { PipelineModal } from "./pipeline-dialogs";
 import { QuoteBuilderSkeleton } from "./skeletons";
 import { QuoteLines, lineCents, newLine, type DraftLine } from "./quote-lines";
 import { useStaff } from "./staff-context";
+import { useConvertToJob } from "./use-convert-to-job";
 import { useUI } from "./ui-provider";
 
 type View = { quantities: boolean; unitPrices: boolean; lineTotals: boolean; totals: boolean };
@@ -106,6 +107,7 @@ function EditGate({ quote, section }: { quote: QuoteDoc; section?: Section }) {
 
 function Builder({ business, quote, presetClient, presetProject, section }: { business: BusinessDoc; quote?: QuoteDoc; presetClient?: Id<"clients">; presetProject?: Id<"opportunities">; section?: Section }) {
   const router = useRouter();
+  const convertToJob = useConvertToJob();
   const { toast } = useUI();
   const staff = useStaff();
   const people = usePeople(business._id);
@@ -191,7 +193,7 @@ function Builder({ business, quote, presetClient, presetProject, section }: { bu
     return id;
   }
 
-  async function run(after: "view" | "send" | "awaiting") {
+  async function run(after: "view" | "send" | "awaiting" | "convert") {
     setBusy(true);
     try {
       const id = await persist();
@@ -199,6 +201,12 @@ function Builder({ business, quote, presetClient, presetProject, section }: { bu
       if (after === "send") {
         await send({ id, now: clock() });
         router.push(`/quotes/${id}?link=1`);
+      } else if (after === "convert") {
+        // The quote is saved first. If the project cannot be won yet (not signed, deposit not in), the quote stays saved and the reason is shown.
+        if (!(await convertToJob(d.opportunityId))) {
+          router.push(`/quotes/${id}`);
+          return;
+        }
       } else {
         if (after === "awaiting") await markAwaiting({ id, now: clock() });
         router.push(`/quotes/${id}`);
@@ -445,7 +453,7 @@ function Builder({ business, quote, presetClient, presetProject, section }: { bu
         <button type="button" className="btn plain" onClick={cancel} disabled={busy}>Cancel</button>
         <div className="qb-save">
           <button type="button" className="btn primary" disabled={busy || !staff.canEdit} onClick={() => void run("view")}>{busy ? "Saving…" : section ? "Save" : "Save Quote"}</button>
-          {!section && <SaveMenu disabled={busy || !staff.canEdit} onSend={() => void run("send")} onAwaiting={() => void run("awaiting")} />}
+          {!section && <SaveMenu disabled={busy || !staff.canEdit} canConvert={!!d.opportunityId} onSend={() => void run("send")} onAwaiting={() => void run("awaiting")} onConvert={() => void run("convert")} />}
         </div>
       </div>
 
@@ -525,8 +533,8 @@ function DisclaimerPicker({ businessId, chosen, onChange }: { businessId: Id<"bu
   );
 }
 
-/** The arrow next to Save Quote: "Save and..." choices, as in Jobber. Email and text delivery come with the Zoho connection. */
-function SaveMenu({ disabled, onSend, onAwaiting }: { disabled: boolean; onSend: () => void; onAwaiting: () => void }) {
+/** The arrow next to Save Quote: "Save and..." choices, as in Jobber. Email and text delivery come with the Zoho connection. Convert to Job saves, then makes the quote's project a job. */
+function SaveMenu({ disabled, canConvert, onSend, onAwaiting, onConvert }: { disabled: boolean; canConvert: boolean; onSend: () => void; onAwaiting: () => void; onConvert: () => void }) {
   const { dropdown } = useUI();
   return (
     <button
@@ -542,7 +550,7 @@ function SaveMenu({ disabled, onSend, onAwaiting }: { disabled: boolean; onSend:
             { label: "Create the client link", icon: "newtab", onSelect: onSend },
             { label: "Send as Email", icon: "mail", disabled: true },
             { label: "Send as Text Message", icon: "sms", disabled: true },
-            { label: "Convert to Job", icon: "hammer", iconColor: "var(--green)", disabled: true },
+            { label: "Convert to Job", icon: "hammer", iconColor: "var(--green)", disabled: !canConvert, onSelect: onConvert },
             { label: "Mark as Awaiting Response", icon: "timeline", onSelect: onAwaiting },
           ],
           { alignRight: true },

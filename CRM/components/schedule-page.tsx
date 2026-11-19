@@ -7,7 +7,7 @@
 import { useMutation, useQuery } from "convex/react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useWorkspace, type BusinessDoc } from "@/lib/clients";
@@ -76,6 +76,15 @@ function Schedule({ business }: { business: BusinessDoc }) {
   const data = useRange(business._id, win.from, win.to, filters, now);
   const unscheduled = useUnscheduled(business._id, "oldest", true);
   const avail = useAvailability(business._id, availUsers ?? [], win.from, win.to, availUsers !== null);
+
+  // "/schedule?new=visit&projectId=...": opens Find a Time on the Visit tab for that project (the + on a job's Scheduled visits). Read once, on first load.
+  const ask = useRef({ kind: params.get("new"), projectId: params.get("projectId"), title: params.get("title") ?? undefined, job: params.get("job") === "1", done: false });
+  useEffect(() => {
+    const a = ask.current;
+    if (a.done || a.kind !== "visit" || !a.projectId || people === undefined || hours === undefined) return;
+    a.done = true;
+    setForm((f) => ({ n: (f?.n ?? 0) + 1, initial: { kind: "visit", projectId: a.projectId as Id<"opportunities">, title: a.title, job: a.job }, availability: true }));
+  }, [people, hours]);
 
   // An old address without a view: show the week of today.
   useEffect(() => {

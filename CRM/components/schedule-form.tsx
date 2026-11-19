@@ -45,7 +45,7 @@ function dateLabel(key: string): string {
   return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }).format(new Date(Date.UTC(y, m - 1, d)));
 }
 
-export type FormStart = { start?: number; personId?: string; kind?: Kind; projectId?: Id<"opportunities">; title?: string };
+export type FormStart = { start?: number; personId?: string; kind?: Kind; projectId?: Id<"opportunities">; title?: string; /** A visit for a job (the Job tab), not a follow-up visit on a sales project. */ job?: boolean };
 
 export function ScheduleForm({ businessId, people, hours, initial, editing, showAvailability, picked, onClose, onAvailability }: {
   businessId: Id<"businesses">;
@@ -68,6 +68,7 @@ export function ScheduleForm({ businessId, people, hours, initial, editing, show
   const setTime = useMutation(api.crm.opportunityTasks.setTime);
 
   const [kind, setKind] = useState<Kind>(editing?.kind ?? initial.kind ?? "consultation");
+  const [forJob, setForJob] = useState(initial.job ?? false);
   const seeded = editing?.start ?? initial.start;
   const startParts = seeded !== undefined ? inputParts(seeded) : { date: "", time: inputParts(defaultStart()).time };
   const [date, setDate] = useState(startParts.date);
@@ -89,8 +90,8 @@ export function ScheduleForm({ businessId, people, hours, initial, editing, show
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  const options = useQuery(api.crm.schedule.projectOptions, kind === "event" || kind === "reminder" ? "skip" : { businessId, search });
-  const chosen = useQuery(api.crm.schedule.projectOptions, projectId ? { businessId, search: "" } : "skip");
+  const options = useQuery(api.crm.schedule.projectOptions, kind === "event" || kind === "reminder" ? "skip" : { businessId, search, ...(forJob ? { jobs: true } : {}) });
+  const chosen = useQuery(api.crm.schedule.projectOptions, projectId ? { businessId, search: "", id: projectId } : "skip");
   const project = projectId ? (options ?? chosen)?.find((o) => o.id === projectId) : undefined;
 
   // A slot clicked on the calendar while this is open becomes the start (adjusting state while rendering, as React advises).
@@ -167,10 +168,13 @@ export function ScheduleForm({ businessId, people, hours, initial, editing, show
         <form className="sc-form" noValidate onSubmit={(e) => { e.preventDefault(); void save(); }}>
           {!editing && (
             <div className="sc-tabs" role="tablist" aria-label="What to book">
-              <button type="button" className="sc-tab" disabled data-tip="Jobs are not built yet">Job</button>
-              {KINDS.map((k) => (
-                <button key={k} type="button" role="tab" aria-selected={kind === k} className={`sc-tab${kind === k ? " on" : ""}`} onClick={() => setKind(k)}>{TAB_LABEL[k]}</button>
-              ))}
+              <button type="button" role="tab" aria-selected={kind === "visit" && forJob} className={`sc-tab${kind === "visit" && forJob ? " on" : ""}`} onClick={() => { if (!(kind === "visit" && forJob)) setProjectId(undefined); setKind("visit"); setForJob(true); }}>Job</button>
+              {KINDS.map((k) => {
+                const on = kind === k && !(k === "visit" && forJob);
+                return (
+                  <button key={k} type="button" role="tab" aria-selected={on} className={`sc-tab${on ? " on" : ""}`} onClick={() => { if (k === "visit" && forJob) setProjectId(undefined); setKind(k); setForJob(false); }}>{TAB_LABEL[k]}</button>
+                );
+              })}
             </div>
           )}
 

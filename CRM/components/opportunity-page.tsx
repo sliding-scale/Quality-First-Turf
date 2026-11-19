@@ -17,8 +17,7 @@ import { BillingTab } from "./billing-tab";
 import { ConstructionTab } from "./construction-tab";
 import { QUOTE_PILL } from "@/lib/quotes";
 import { Icon } from "./icon";
-import { NoteEditor, useUploadPending, type PendingFile } from "./note-editor";
-import { NoteBody } from "./note-view";
+import { ProjectNotes } from "./project-notes";
 import { OpportunitySkeleton } from "./skeletons";
 import { useStaff } from "./staff-context";
 import { useUI } from "./ui-provider";
@@ -79,6 +78,7 @@ function OpportunityView({ o }: { o: Overview }) {
         <div className="op-actions">
           {/* A won project keeps its request page after it moves on to Preplanning or Construction; a project that never was a request has none. */}
           {staff.can("requests") && (o.pipeline === "Sales" || o.outcome === "won") && <Link className="btn" href={`/requests/${o.id}`}><Icon name="pencil" size={18} /> Edit request</Link>}
+          {o.outcome === "won" && staff.can("jobs") && <Link className="btn" href={`/jobs/${o.id}`}><Icon name="hammer" size={18} /> View job</Link>}
           {staff.can("quotes", "edit") && <Link className="btn primary" href={`/quotes/new?clientId=${o.clientId}&projectId=${o.id}`}><Icon name="quote" size={18} /> New quote</Link>}
         </div>
       </div>
@@ -133,15 +133,7 @@ function nextStep(o: Overview): string {
 }
 
 function OverviewTab({ o, timeIn }: { o: Overview; timeIn: number }) {
-  const { toast } = useUI();
   const { canEdit } = useStaff();
-  const extras = useQuery(api.crm.opportunityTasks.listForProject, { id: o.id });
-  const addNote = useMutation(api.crm.opportunityTasks.addNote);
-  const toggleLine = useMutation(api.crm.opportunityTasks.toggleNoteLine);
-  const upload = useUploadPending();
-  const [note, setNote] = useState("");
-  const [noteFiles, setNoteFiles] = useState<PendingFile[]>([]);
-  const [saving, setSaving] = useState(false);
   const c = o.client;
   const city = [c.city, [c.state, c.zip].filter(Boolean).join(" ")].filter(Boolean).join(", ");
   const confirmedTotal = o.confirmed?.lines.reduce((n, l) => n + l.totalCents, 0) ?? 0;
@@ -193,33 +185,7 @@ function OverviewTab({ o, timeIn }: { o: Overview; timeIn: number }) {
           )}
         </section>
 
-        <section className="card op-card">
-          <h2>Notes</h2>
-          {canEdit && (
-            <form
-              className="pl-noteform"
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (!note.trim() && noteFiles.length === 0) return;
-                setSaving(true);
-                upload(noteFiles)
-                  .then((files) => addNote({ id: o.id, text: note, files }))
-                  .then(() => { noteFiles.forEach((f) => URL.revokeObjectURL(f.url)); setNote(""); setNoteFiles([]); })
-                  .catch((err) => toast(failure(err, "The note could not be saved.")))
-                  .finally(() => setSaving(false));
-              }}
-            >
-              <NoteEditor value={note} onChange={setNote} files={noteFiles} onFiles={setNoteFiles} disabled={saving} rows={5} />
-              <button type="submit" className="btn primary" disabled={saving || (!note.trim() && noteFiles.length === 0)}>{saving ? "Saving…" : "Save note"}</button>
-            </form>
-          )}
-          {extras === undefined ? <div className="sk" style={{ height: 40 }} /> : extras.notes.length === 0 && !canEdit ? <p className="muted">No notes yet.</p> : extras.notes.map((n) => (
-            <div key={n._id} className="pl-note fade-in">
-              <NoteBody text={n.text} files={n.files} canEdit={canEdit} onToggle={(line) => void toggleLine({ noteId: n._id, line }).catch((err) => toast(failure(err, "The checkbox could not be changed.")))} />
-              <small>{n.author} · {quoteDateTime(n.createdAt)}</small>
-            </div>
-          ))}
-        </section>
+        <ProjectNotes id={o.id} canEdit={canEdit} />
       </div>
 
       <div className="op-col">

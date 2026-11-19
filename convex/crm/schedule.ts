@@ -345,18 +345,25 @@ export const bulkReschedule = mutation({
 });
 
 /** For the booking form's project picker: Sales projects of the business, newest first, or the best matches for a search. */
+/** The projects a booking can be for. By default the open Sales projects (a consultation or a follow-up visit); with `jobs` the jobs (won
+ *  projects, in any pipeline), for a job's visits. With `id`, just that one project, so a form opened for it can name it. */
 export const projectOptions = query({
-  args: { businessId: v.id("businesses"), search: v.string() },
+  args: { businessId: v.id("businesses"), search: v.string(), jobs: v.optional(v.boolean()), id: v.optional(v.id("opportunities")) },
   handler: async (ctx, a) => {
     await requireModule(ctx, a.businessId, "schedule", "view");
+    const option = async (p: Doc<"opportunities">) => ({ id: p._id, title: p.title, code: p.code, stage: p.stage, clientId: p.clientId, clientName: (await ctx.db.get(p.clientId))?.name ?? "" });
+    if (a.id) {
+      const one = await ctx.db.get(a.id);
+      return one !== null && one.businessId === a.businessId ? [await option(one)] : [];
+    }
     const text = a.search.trim();
     const docs = text
-      ? await ctx.db.query("opportunities").withSearchIndex("search_text", (q) => q.search("searchText", text).eq("businessId", a.businessId).eq("pipeline", "Sales")).take(20)
-      : await ctx.db.query("opportunities").withIndex("by_business_and_requestedAt", (q) => q.eq("businessId", a.businessId)).order("desc").take(20);
+      ? await ctx.db.query("opportunities").withSearchIndex("search_text", (q) => (a.jobs ? q.search("searchText", text).eq("businessId", a.businessId) : q.search("searchText", text).eq("businessId", a.businessId).eq("pipeline", "Sales"))).take(a.jobs ? 40 : 20)
+      : await ctx.db.query("opportunities").withIndex("by_business_and_requestedAt", (q) => q.eq("businessId", a.businessId)).order("desc").take(a.jobs ? 100 : 20);
     const out = [];
     for (const p of docs) {
-      if (p.pipeline !== "Sales" || p.outcome !== undefined) continue;
-      out.push({ id: p._id, title: p.title, code: p.code, stage: p.stage, clientId: p.clientId, clientName: (await ctx.db.get(p.clientId))?.name ?? "" });
+      if (a.jobs ? p.outcome !== "won" || p.jobNumber === undefined : p.pipeline !== "Sales" || p.outcome !== undefined) continue;
+      out.push(await option(p));
     }
     return out;
   },

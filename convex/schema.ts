@@ -326,11 +326,55 @@ export default defineSchema({
     crewIds: v.optional(v.array(v.id("crews"))),
     /** The Installers (users) on the project's work team: the records an assigned-only person may see (PRD 5.5). */
     installerIds: v.optional(v.array(v.id("users"))),
+    /** Jobs (design 2026-11-19-jobs): a Closed Won project is a job. The number is written once, the first time it is won, and counts up per business. */
+    jobNumber: v.optional(v.number()),
+    /** The job was closed by hand (Jobber's Close Job). Closing does not move the project between pipelines. */
+    jobClosedAt: v.optional(v.number()),
+    jobClosedByName: v.optional(v.string()),
   })
     .index("by_business_and_requestedAt", ["businessId", "requestedAt"])
     .index("by_clientId", ["clientId"])
     .index("by_sourceProjectId", ["sourceProjectId"])
+    .index("by_business_and_jobNumber", ["businessId", "jobNumber"])
     .searchIndex("search_text", { searchField: "searchText", filterFields: ["businessId", "pipeline"] }),
+
+  /** Products and services (design 2026-11-19-jobs, Jobber's Settings > Products & Services): the business's own list that the line pickers
+   *  read. Written only by crm/catalogue.ts. Money is whole cents. `searchText` is a labelled copy (name and description) for the search index. */
+  catalogueItems: defineTable({
+    businessId: v.id("businesses"),
+    kind: v.union(v.literal("service"), v.literal("product")),
+    name: v.string(),
+    /** The name in lower case with single spaces: two items cannot share it. */
+    nameKey: v.string(),
+    description: v.string(),
+    costCents: v.optional(v.number()),
+    markupPercent: v.optional(v.number()),
+    unitPriceCents: v.number(),
+    taxExempt: v.boolean(),
+    /** Offered on quotes, jobs and invoices. Off: kept in the list but not offered. */
+    available: v.boolean(),
+    durationMinutes: v.optional(v.number()),
+    customersSelectQuantity: v.boolean(),
+    imageId: v.optional(v.id("_storage")),
+    source: v.union(v.literal("jobber"), v.literal("manual"), v.literal("csv")),
+    searchText: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_business_and_nameKey", ["businessId", "nameKey"])
+    .searchIndex("search_text", { searchField: "searchText", filterFields: ["businessId", "available"] }),
+
+  /** Jobber's "Product & Services costs" switch: whether costs and markups are used on the list at all. Absent: on. Written only by crm/catalogue.ts. */
+  catalogueSettings: defineTable({
+    businessId: v.id("businesses"),
+    costsOn: v.boolean(),
+  }).index("by_business", ["businessId"]),
+
+  /** The next job number for a business. Written only by crm/lib/jobNumber.ts. */
+  jobCounters: defineTable({
+    businessId: v.id("businesses"),
+    next: v.number(),
+  }).index("by_business", ["businessId"]),
 
   /** Quotes (D-056). The money on a quote is its lines (quoteLineItems); `totalCents` is a labelled copy of their sum, kept by the one
    *  place that writes lines, so the list can sort and add up without reading every line. */

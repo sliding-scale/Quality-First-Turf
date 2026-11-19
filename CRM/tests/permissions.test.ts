@@ -28,6 +28,15 @@ describe("The permission presets (PRD 5.5, design 2026-11-18-permissions)", () =
     expect(at(["office", "sales", "pm"], "prices")).toBe("view");
   });
 
+  it("govern Jobs with their own module (design 2026-11-19-jobs)", () => {
+    expect(at(["admin"], "jobs")).toBe("full");
+    expect(at(["office"], "jobs")).toBe("edit");
+    expect(at(["pm"], "jobs")).toBe("edit");
+    expect(at(["sales"], "jobs")).toBe("view");
+    expect(at(["installer"], "jobs")).toBe("none");
+    expect(at(["office"], "jobs", { jobs: "none" })).toBe("none");
+  });
+
   it("give a person with several roles the most any of them gives", () => {
     expect(at(["pm", "office"], "pipelineSales")).toBe("edit");
     expect(at(["installer", "pm"], "prices")).toBe("view");

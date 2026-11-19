@@ -139,7 +139,13 @@ function ClientView({ c }: { c: ClientDoc }) {
             onClick={(e) =>
               dropdown(
                 e.currentTarget,
-                [["Request", "inbox"], ["Quote", "quote"], ["Job", "hammer"], ["Invoice", "receipt"]].map(([l, ic]) => ({ label: l, icon: ic, disabled: true })),
+                [
+                  // New Request does not take a client yet, so it stays greyed.
+                  { label: "Request", icon: "inbox", disabled: true },
+                  { label: "Quote", icon: "quote", onSelect: () => router.push(`/quotes/new?clientId=${c._id}`) },
+                  { label: "Job", icon: "hammer", onSelect: () => router.push(`/jobs/new?clientId=${c._id}`) },
+                  { label: "Invoice", icon: "receipt", onSelect: () => router.push(`/invoices/new?clientId=${c._id}`) },
+                ],
                 { alignRight: true },
               )
             }

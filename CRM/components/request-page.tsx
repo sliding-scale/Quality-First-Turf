@@ -23,6 +23,7 @@ import { AssessmentInline, whenLabel, type AssessmentInput } from "./request-ass
 import { RequestLinesEditor, RequestLinesView, checkRequestLines, newRequestLine, toRequestLines, type RequestLine } from "./request-lines";
 import { RequestSkeleton } from "./skeletons";
 import { useStaff } from "./staff-context";
+import { useConvertToJob } from "./use-convert-to-job";
 import { useUI, type MenuItem } from "./ui-provider";
 
 const PILL = { New: "lead", Overdue: "overdue", Consultation: "consult", Converted: "active", Lost: "draft" } as const;
@@ -59,6 +60,7 @@ type Request = NonNullable<ReturnType<typeof useRequest>>;
 function RequestView({ r }: { r: Request }) {
   const router = useRouter();
   const { toast, dropdown } = useUI();
+  const convertToJob = useConvertToJob();
   const { canEdit } = useStaff();
   const people = usePeople(r.businessId);
   const setSalesperson = useMutation(api.crm.pipeline.setSalesperson);
@@ -213,13 +215,13 @@ function RequestView({ r }: { r: Request }) {
     }
   }
 
-  // Jobber's More menu on a request. Converting to a job, the booking email, archiving by hand and deleting are not built, so they are greyed.
+  // Jobber's More menu on a request. The booking email, archiving by hand and deleting are not built, so they are greyed.
   const rule: MenuItem = { divider: true };
   const moreItems: MenuItem[] = [
     { label: "Email Booking Confirmation", icon: "mail", disabled: true },
     rule,
     { label: "Convert to Quote", icon: "quote", iconColor: "var(--green)", disabled: !canEdit, onSelect: () => router.push(`/quotes/new?clientId=${r.clientId}&projectId=${r.id}`) },
-    { label: "Convert to Job", icon: "hammer", iconColor: "var(--green)", disabled: true },
+    { label: "Convert to Job", icon: "hammer", iconColor: "var(--green)", disabled: !canEdit, onSelect: () => void convertToJob(r.id as Id<"opportunities">) },
     rule,
     { label: "Archive", icon: "stage", disabled: true },
     { label: "Print", icon: "pdf", onSelect: () => window.print() },

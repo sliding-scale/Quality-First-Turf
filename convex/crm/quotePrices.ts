@@ -4,6 +4,7 @@ import { catalogue } from "../shared/catalogue";
 import { retailPrice, priceUnit } from "../shared/priceList";
 import { planQuoteLines } from "../shared/quoteLines";
 import { requireModule } from "./lib/access";
+import { searchOwn } from "./catalogue";
 
 /** The price list for the quote builder (D-063): the shared catalogue (the same names and 2026 prices the customer form uses), priced for
  *  the client's type, and "Fill from the site visit", which proposes lines from a project that came from the customer form. Prices the
@@ -15,6 +16,9 @@ export const search = query({
   args: { businessId: v.id("businesses"), clientId: v.optional(v.id("clients")), search: v.string() },
   handler: async (ctx, a) => {
     await requireModule(ctx, a.businessId, "quotes", "view");
+    // A business with its own products and services list (Settings > Products & Services) is priced from it; one without uses the shared list below.
+    const own = await searchOwn(ctx, a.businessId, a.search, 20);
+    if (own !== null) return own.map((d) => ({ name: d.name, unit: "each", priceCents: d.unitPriceCents as number | null, priced: true, description: d.description }));
     const client = a.clientId ? await ctx.db.get(a.clientId) : null;
     const type = client?.type === "contractor" ? "Contractor" : "Homeowner";
     const words = a.search.toLowerCase().split(/\s+/).filter(Boolean);
@@ -23,7 +27,7 @@ export const search = query({
       if (item.customerType !== type) continue;
       const name = item.name.toLowerCase();
       if (!words.every((w) => name.includes(w))) continue;
-      out.push({ name: item.name, unit: priceUnit(item), priceCents: toCents(retailPrice(item)), priced: retailPrice(item) !== null });
+      out.push({ name: item.name, unit: priceUnit(item), priceCents: toCents(retailPrice(item)), priced: retailPrice(item) !== null, description: "" });
       if (out.length >= 20) break;
     }
     return out;

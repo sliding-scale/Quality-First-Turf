@@ -274,12 +274,12 @@ export const stats = query({
   },
 });
 
-const linesArg = v.array(v.object({ name: v.string(), description: v.string(), quantity: v.number(), unitPriceCents: v.number() }));
+export const linesArg = v.array(v.object({ name: v.string(), description: v.string(), quantity: v.number(), unitPriceCents: v.number() }));
 
 const MAX_LINES = 50;
 
 /** Trims and checks the Product / Service lines. A line with no name and no price is a blank row and is dropped. */
-function cleanLines(lines: { name: string; description: string; quantity: number; unitPriceCents: number }[]) {
+export function cleanLines(lines: { name: string; description: string; quantity: number; unitPriceCents: number }[]) {
   if (lines.length > MAX_LINES) throw new ConvexError(`A request can have up to ${MAX_LINES} lines.`);
   const out = [];
   for (const l of lines) {
