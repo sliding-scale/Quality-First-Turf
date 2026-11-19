@@ -37,6 +37,27 @@ export function SettingsNav() {
           <Link href="/settings/products" className={pathname.startsWith("/settings/products") ? "active" : undefined} aria-current={pathname.startsWith("/settings/products") ? "page" : undefined}>
             Products &amp; Services
           </Link>
+          {staff.isAdmin && (
+            <Link href="/settings/import" className={pathname.startsWith("/settings/import") ? "active" : undefined} aria-current={pathname.startsWith("/settings/import") ? "page" : undefined}>
+              Import data
+            </Link>
+          )}
+          <Link href="/settings/export" className={pathname.startsWith("/settings/export") ? "active" : undefined} aria-current={pathname.startsWith("/settings/export") ? "page" : undefined}>
+            Export data
+          </Link>
+          {staff.isAdmin && (
+            <Link href="/settings/phone-numbers" className={pathname.startsWith("/settings/phone-numbers") ? "active" : undefined} aria-current={pathname.startsWith("/settings/phone-numbers") ? "page" : undefined}>
+              Phone numbers
+            </Link>
+          )}
+          {staff.can("pipelinePreplanning") && (
+            <Link href="/settings/materials" className={pathname.startsWith("/settings/materials") ? "active" : undefined} aria-current={pathname.startsWith("/settings/materials") ? "page" : undefined}>
+              Materials
+            </Link>
+          )}
+          <Link href="/settings/checklists" className={pathname.startsWith("/settings/checklists") ? "active" : undefined} aria-current={pathname.startsWith("/settings/checklists") ? "page" : undefined}>
+            Checklists
+          </Link>
           <Link href="/settings/disclaimers" className={pathname.startsWith("/settings/disclaimers") ? "active" : undefined} aria-current={pathname.startsWith("/settings/disclaimers") ? "page" : undefined}>
             Disclaimers
           </Link>

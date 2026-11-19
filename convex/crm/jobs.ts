@@ -9,6 +9,8 @@ import { canSeeRecord } from "./lib/permissions";
 import { newShortCode } from "../projects/shortCode";
 import { opportunitySearchText } from "./lib/clientInput";
 import { PREPLANNING_STAGES } from "./lib/stages";
+import { mirrorRemoved } from "./lib/mirror";
+import { checkImage } from "./quoteDraft";
 import { applyMove, changePipeline } from "./pipeline";
 import { cleanLines, linesArg } from "./requests";
 
@@ -46,6 +48,7 @@ export type JobRow = {
   lastVisitAt: number | null;
   status: JobStatus;
   totalCents: number;
+  jobType: "oneoff" | "recurring";
 };
 
 type Line = { name: string; description: string; quantity: number; unitPriceCents: number };
@@ -82,6 +85,7 @@ async function rowOf(ctx: QueryCtx, p: Doc<"opportunities">, dayStart: number): 
     firstVisitAt: live[0]?.start ?? null,
     nextVisitAt: next?.start ?? null,
     lastVisitAt: live.length ? live[live.length - 1].start : null,
+    jobType: p.jobType ?? "oneoff",
     status: jobStatusOf({
       archived: p.archivedAt !== undefined,
       closed: p.jobClosedAt !== undefined,
@@ -112,11 +116,12 @@ async function jobRows(ctx: QueryCtx, businessId: Id<"businesses">, dayStart: nu
 const endingSoon = (r: JobRow, dayStart: number) => r.status !== "Archived" && r.lastVisitAt !== null && r.lastVisitAt >= dayStart && r.lastVisitAt < dayStart + 30 * DAY_MS;
 
 export const list = query({
-  args: { businessId: v.id("businesses"), status: v.optional(v.string()), search: v.optional(v.string()), page: v.number(), dayStart: v.number() },
+  args: { businessId: v.id("businesses"), status: v.optional(v.string()), jobType: v.optional(v.string()), search: v.optional(v.string()), page: v.number(), dayStart: v.number() },
   handler: async (ctx, args) => {
     let rows = await jobRows(ctx, args.businessId, args.dayStart);
     if (args.status === ENDING_SOON) rows = rows.filter((r) => endingSoon(r, args.dayStart));
     else if (args.status && (JOB_STATUSES as readonly string[]).includes(args.status)) rows = rows.filter((r) => r.status === args.status);
+    if (args.jobType === "oneoff" || args.jobType === "recurring") rows = rows.filter((r) => r.jobType === args.jobType);
     const term = (args.search ?? "").trim().toLowerCase();
     if (term) {
       rows = rows.filter((r) => `${r.clientName} ${r.title} ${r.property} #${r.jobNumber}`.toLowerCase().includes(term));
@@ -168,10 +173,15 @@ export const get = query({
     const lines: Line[] = signed ? signed.lines : (p.lines ?? []);
     const visits = await visitsOf(ctx, p);
     const money = await projectMoney(ctx, p);
+    const sigRows = await ctx.db.query("jobSignatures").withIndex("by_opportunity", (q) => q.eq("opportunityId", p._id)).take(50);
+    const signatures = [];
+    for (const g of sigRows) signatures.push({ id: g._id, signedBy: g.signedBy, at: g.at, byName: g.byName, url: await ctx.storage.getUrl(g.imageId) });
     const names = new Map<Id<"users">, string>();
     for (const e of visits) for (const uid of e.assigneeIds) if (!names.has(uid)) names.set(uid, (await ctx.db.get(uid))?.name ?? "");
     return {
       ...row,
+      businessId: p.businessId,
+      details: p.details ?? "",
       projectCode: p.code,
       pipeline: p.pipeline,
       stage: p.stage,
@@ -182,11 +192,12 @@ export const get = query({
       client: { id: p.clientId, name: client?.name ?? "", phone: client?.phone ?? "", email: client?.email ?? "" },
       lines,
       subtotalCents: sumLines(lines),
+      signatures,
       invoicedCents: money.sentCents,
       paidCents: money.paidCents,
       hasPaymentPlan: (await ctx.db.query("billingPlans").withIndex("by_opportunityId", (q) => q.eq("opportunityId", p._id)).unique()) !== null,
       visits: visits.map((e) => ({
-        id: e._id, start: e.start, end: e.end, anytime: e.anytime, status: e.status, title: e.title, notes: e.notes,
+        id: e._id, start: e.start, end: e.end, anytime: e.anytime, status: e.status, title: e.title, notes: e.notes, repeat: e.repeat, repeatUntil: e.repeatUntil ?? null,
         assignees: e.assigneeIds.map((u) => names.get(u) ?? "").filter(Boolean),
       })),
     };
@@ -240,7 +251,7 @@ export const convert = mutation({
  *  to Preplanning as every won project does. The signed-contract and deposit rule belongs to approving a quote, so it does not apply here;
  *  the history says "Job created by hand". Returns the project's id, which is also the job's. */
 export const create = mutation({
-  args: { businessId: v.id("businesses"), clientId: v.id("clients"), title: v.string(), details: v.optional(v.string()), lines: v.optional(linesArg), now: v.number() },
+  args: { businessId: v.id("businesses"), clientId: v.id("clients"), title: v.string(), details: v.optional(v.string()), lines: v.optional(linesArg), jobType: v.optional(v.union(v.literal("oneoff"), v.literal("recurring"))), now: v.number() },
   handler: async (ctx, args) => {
     const staff = await requireModule(ctx, args.businessId, "jobs", "edit");
     const title = args.title.trim();
@@ -253,12 +264,88 @@ export const create = mutation({
     const code = await newShortCode(ctx);
     const id = await ctx.db.insert("opportunities", {
       businessId: args.businessId, clientId: client._id, code, title, pipeline: "Sales", stage: "Closed Won", requestedAt: args.now, stageEnteredAt: args.now, owner: "Unassigned",
-      outcome: "won", closedAt: args.now, ...(details ? { details } : {}), ...(lines.length ? { lines } : {}),
+      outcome: "won", closedAt: args.now, ...(args.jobType === "recurring" ? { jobType: "recurring" as const } : {}), ...(details ? { details } : {}), ...(lines.length ? { lines } : {}),
       searchText: opportunitySearchText(client, { title, code, stage: "Closed Won" }),
     });
     await assignJobNumber(ctx, (await ctx.db.get(id))!);
     await ctx.db.insert("stageHistory", { opportunityId: id, businessId: args.businessId, from: "Created by hand", to: "Closed Won", byName: staff.name, byUserId: staff.userId, at: args.now, note: "Job created by hand" });
     await changePipeline(ctx, (await ctx.db.get(id))!, staff, { from: ["Sales", "Closed Won"], to: ["Preplanning", PREPLANNING_STAGES[0]], now: args.now, note: "Sent to Preplanning automatically", quiet: true });
     return id;
+  },
+});
+
+/** Jobber's Delete on a job. Only an Admin, and only while nothing real hangs off it: a quote, an invoice, a payment, a customer sign-off, a punch
+ *  item, a progress update or a file means the job has a history to keep, so it is closed instead. What is left (its visits, notes, tasks,
+ *  Labor, Expenses, payment schedule and history) goes with it. */
+export const remove = mutation({
+  args: { id: v.id("opportunities") },
+  handler: async (ctx, args) => {
+    const p = await ctx.db.get(args.id);
+    if (p === null) return;
+    if (p.outcome !== "won" || p.jobNumber === undefined) throw new ConvexError("That job no longer exists.");
+    await requireProject(ctx, p, "jobs", "full");
+    const kept = [
+      ["a quote", await ctx.db.query("quotes").withIndex("by_opportunityId", (q) => q.eq("opportunityId", p._id)).first()],
+      ["an invoice", await ctx.db.query("invoices").withIndex("by_opportunityId", (q) => q.eq("opportunityId", p._id)).first()],
+      ["a payment", await ctx.db.query("payments").withIndex("by_opportunityId", (q) => q.eq("opportunityId", p._id)).first()],
+      ["a customer sign-off", await ctx.db.query("signoffs").withIndex("by_opportunity", (q) => q.eq("opportunityId", p._id)).first()],
+      ["a punch item", await ctx.db.query("punchItems").withIndex("by_opportunity", (q) => q.eq("opportunityId", p._id)).first()],
+      ["a progress update", await ctx.db.query("progressUpdates").withIndex("by_opportunity_and_at", (q) => q.eq("opportunityId", p._id)).first()],
+      ["a file", await ctx.db.query("opportunityFiles").withIndex("by_opportunity", (q) => q.eq("opportunityId", p._id)).first()],
+    ] as const;
+    const has = kept.filter(([, row]) => row !== null).map(([what]) => what);
+    if (has.length) throw new ConvexError(`This job has ${has.join(", ")}, so it cannot be deleted. Close it instead.`);
+
+    for (const e of await ctx.db.query("calendarEvents").withIndex("by_opportunity", (q) => q.eq("opportunityId", p._id)).take(1000)) {
+      await mirrorRemoved(ctx, "event", e._id);
+      await ctx.db.delete(e._id);
+    }
+    for (const t of await ctx.db.query("opportunityNotes").withIndex("by_opportunity", (q) => q.eq("opportunityId", p._id)).take(1000)) await ctx.db.delete(t._id);
+    for (const t of await ctx.db.query("opportunityTasks").withIndex("by_opportunity", (q) => q.eq("opportunityId", p._id)).take(1000)) await ctx.db.delete(t._id);
+    for (const t of await ctx.db.query("stageHistory").withIndex("by_opportunity", (q) => q.eq("opportunityId", p._id)).take(1000)) await ctx.db.delete(t._id);
+    for (const t of await ctx.db.query("billingPlans").withIndex("by_opportunityId", (q) => q.eq("opportunityId", p._id)).take(10)) await ctx.db.delete(t._id);
+    for (const t of await ctx.db.query("paymentScheduleItems").withIndex("by_opportunityId_and_position", (q) => q.eq("opportunityId", p._id)).take(200)) await ctx.db.delete(t._id);
+    for (const g of await ctx.db.query("jobSignatures").withIndex("by_opportunity", (q) => q.eq("opportunityId", p._id)).take(50)) {
+      await ctx.storage.delete(g.imageId);
+      await ctx.db.delete(g._id);
+    }
+    for (const t of await ctx.db.query("jobChecklistItems").withIndex("by_opportunity", (q) => q.eq("opportunityId", p._id)).take(2000)) await ctx.db.delete(t._id);
+    for (const t of await ctx.db.query("jobTimeEntries").withIndex("by_opportunity", (q) => q.eq("opportunityId", p._id)).take(1000)) await ctx.db.delete(t._id);
+    for (const x of await ctx.db.query("jobExpenses").withIndex("by_opportunity", (q) => q.eq("opportunityId", p._id)).take(1000)) {
+      if (x.receiptId) await ctx.storage.delete(x.receiptId);
+      await ctx.db.delete(x._id);
+    }
+    await ctx.db.delete(p._id);
+  },
+});
+
+export const signatureUploadUrl = mutation({
+  args: { id: v.id("opportunities") },
+  handler: async (ctx, args) => {
+    await jobOf(ctx, args.id);
+    return ctx.storage.generateUploadUrl();
+  },
+});
+
+/** Jobber's Collect Signature: the customer signs for the job on a screen. Kept with who signed, who collected it and when. */
+export const saveSignature = mutation({
+  args: { id: v.id("opportunities"), signedBy: v.string(), signatureStorageId: v.id("_storage"), now: v.number() },
+  handler: async (ctx, args) => {
+    const { p, staff } = await jobOf(ctx, args.id);
+    const name = args.signedBy.trim();
+    if (name.length < 1 || name.length > 100) throw new ConvexError("Enter the name of the person who signed.");
+    await checkImage(ctx, args.signatureStorageId, "A signature");
+    return ctx.db.insert("jobSignatures", { businessId: p.businessId, opportunityId: p._id, signedBy: name, imageId: args.signatureStorageId, byName: staff.name, at: args.now });
+  },
+});
+
+/** Jobber's Text Booking Confirmation, until texting is registered (D-091): the phone's messaging app is opened with the message filled in, and
+ *  this notes on the job that it was done by hand. Nothing is sent from here. */
+export const logText = mutation({
+  args: { id: v.id("opportunities"), phone: v.string(), what: v.string(), now: v.number() },
+  handler: async (ctx, args) => {
+    const { p, staff } = await jobOf(ctx, args.id);
+    const what = args.what.trim().slice(0, 100) || "A text";
+    await ctx.db.insert("opportunityNotes", { opportunityId: p._id, text: `${what} was opened in the phone's messaging app for ${args.phone.trim().slice(0, 40)} (sent by hand).`, author: staff.name, createdAt: args.now });
   },
 });

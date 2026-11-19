@@ -8,6 +8,7 @@ import type { FunctionReturnType } from "convex/server";
 import { useRef, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { centsFromText } from "@/convex/crm/lib/catalogue";
 import { cleanName, formatPhone } from "@/lib/fields";
 import { clock, failure } from "@/lib/pipeline";
 import { VISIT_LABEL, fromInputs, todayKey, type VisitKind } from "@/lib/schedule";
@@ -93,9 +94,13 @@ export function CrewsModal({ businessId, onClose }: { businessId: Id<"businesses
   const [lead, setLead] = useState("");
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
+  const [availability, setAvailability] = useState("");
+  const [rate, setRate] = useState("");
   const [bad, setBad] = useState(false);
+  const [badRate, setBadRate] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const canRates = crews?.[0]?.canSeeRates ?? false;
 
   function open(c: NonNullable<typeof crews>[number] | null) {
     setEditing(c ? c.id : "new");
@@ -103,15 +108,20 @@ export function CrewsModal({ businessId, onClose }: { businessId: Id<"businesses
     setLead(c?.leadName ?? "");
     setPhone(c?.phone ?? "");
     setNotes(c?.notes ?? "");
+    setAvailability(c?.availability ?? "");
+    setRate(c?.rateCents != null ? (c.rateCents / 100).toFixed(2) : "");
     setBad(false);
+    setBadRate(false);
     setError("");
   }
   async function submit(active: boolean, id?: Id<"crews">) {
     if (!name.trim()) { setBad(true); document.getElementById("cr-name")?.focus(); return; }
+    const rateCents = rate.trim() === "" ? undefined : centsFromText(rate);
+    if (rateCents === null) { setBadRate(true); document.getElementById("cr-rate")?.focus(); return; }
     setBusy(true);
     setError("");
     try {
-      await save({ businessId, ...(id ? { id } : {}), name, leadName: lead, phone, notes, active, now: clock() });
+      await save({ businessId, ...(id ? { id } : {}), name, leadName: lead, phone, notes, active, availability, rateCents, now: clock() });
       toast("Crew saved.");
       setEditing(null);
     } catch (e) {
@@ -152,6 +162,12 @@ export function CrewsModal({ businessId, onClose }: { businessId: Id<"businesses
               <div className="as-row two">
                 <div className="field"><label htmlFor="cr-lead">Crew lead</label><input id="cr-lead" maxLength={100} value={lead} onChange={(e) => setLead(cleanName(e.target.value))} /></div>
                 <div className="field"><label htmlFor="cr-phone">Phone</label><input id="cr-phone" type="tel" inputMode="tel" value={phone} onChange={(e) => setPhone(formatPhone(e.target.value))} /></div>
+              </div>
+              <div className="as-row two">
+                <div className="field"><label htmlFor="cr-avail">Availability</label><input id="cr-avail" maxLength={500} placeholder="Mon to Fri, not in August" value={availability} onChange={(e) => setAvailability(e.target.value)} /></div>
+                {canRates && (
+                  <div className={`field${badRate ? " bad" : ""}`}><label htmlFor="cr-rate">Agreed rate ($ per hour)</label><input id="cr-rate" inputMode="decimal" aria-invalid={badRate} value={rate} onChange={(e) => { setRate(e.target.value.replace(/[^\d.]/g, "")); setBadRate(false); }} /><span className="err">Enter an amount such as 65.00.</span></div>
+                )}
               </div>
               <div className="field"><label htmlFor="cr-notes">Notes</label><textarea id="cr-notes" rows={3} maxLength={2000} value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
               {error && <p className="modal-error" role="alert">{error}</p>}

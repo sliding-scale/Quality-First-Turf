@@ -15,6 +15,7 @@ import { useStoredString, writeItem } from "@/lib/store";
 import { Icon } from "./icon";
 import { AccountMenu } from "./account-menu";
 import { ErrorBoundary } from "./error-boundary";
+import { MessageCenterButton } from "./message-center";
 import { NotificationsBell } from "./notifications-bell";
 import { useStaff } from "./staff-context";
 import { UIProvider, useUI } from "./ui-provider";
@@ -38,7 +39,7 @@ const NAV: NavItem[] = [
   { key: "pipeline", label: "Pipeline", icon: "kanban", href: "/pipeline" },
   { key: "tasks", label: "Tasks", icon: "tasks", href: "/tasks" },
   { divider: true },
-  { key: "messages", label: "Messages", icon: "message" },
+  { key: "messages", label: "Messages", icon: "message", href: "/messages" },
 ];
 
 /** Only Admins see this, in the same group as Messages at the bottom of the sidebar (the backend refuses everyone else anyway). */
@@ -54,7 +55,7 @@ const PIPELINES: { label: string; href?: string }[] = [
 
 /** The permission module behind each sidebar item and each page (PRD 5.5). The backend refuses what a person may not do; this only keeps the
  *  menu and the page tidy. null: open to everyone signed in. */
-const NAV_MODULE: Record<string, Module | undefined> = { clients: "clients", requests: "requests", quotes: "quotes", schedule: "schedule", jobs: "jobs", invoices: "invoices", payments: "payments", tasks: "tasks" };
+const NAV_MODULE: Record<string, Module | undefined> = { clients: "clients", requests: "requests", quotes: "quotes", schedule: "schedule", jobs: "jobs", messages: "messages", invoices: "invoices", payments: "payments", tasks: "tasks" };
 const PIPELINE_MODULE: Record<string, Module> = { Sales: "pipelineSales", Preplanning: "pipelinePreplanning", Construction: "pipelineConstruction", Finance: "pipelineFinance" };
 function moduleOfPath(pathname: string): Module | null {
   const first = NAV_MODULE[pathname.split("/")[1] ?? ""];
@@ -255,9 +256,7 @@ function ShellInner({ children }: { children: ReactNode }) {
             onChange={(e) => setSearch(e.target.value)}
           />
         </form>
-        <button className="icon-btn" type="button" aria-label="Messages" disabled>
-          <Icon name="message" size={24} />
-        </button>
+        <MessageCenterButton />
         <NotificationsBell />
         <button
           className="icon-btn"

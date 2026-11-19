@@ -826,6 +826,18 @@ export function ClientSignoffSkeleton() {
   );
 }
 
+export function WorkPackageSkeleton() {
+  return (
+    <Busy>
+      <main className="cq">
+        <header className="cq-head"><Sk w={140} h={16} /><div style={{ height: 8 }} /><Sk w="60%" h={30} /><div style={{ height: 8 }} /><Sk w="80%" h={14} /></header>
+        <section className="cq-card"><Sk w="40%" h={18} /><Sk w="100%" h={14} /><Sk w="90%" h={14} /></section>
+        <section className="cq-card"><Sk w="30%" h={18} /><Sk w="100%" h={40} /><Sk w="100%" h={40} /></section>
+      </main>
+    </Busy>
+  );
+}
+
 export function ClientQuoteSkeleton() {
   return (
     <Busy>
@@ -943,6 +955,21 @@ export function CatalogueSkeleton() {
             ))}
           </tbody>
         </table>
+      </div>
+    </Busy>
+  );
+}
+
+export function MessagesSkeleton() {
+  return (
+    <Busy>
+      <div className="page-head"><h1>Messages</h1><Sk w={140} h={38} r={8} /></div>
+      <div className="msg-grid">
+        <div className="card msg-list">
+          <Sk w="100%" h={40} r={8} style={{ margin: "12px" }} />
+          {range(5).map((i) => (<div key={i} style={{ padding: "10px 14px", display: "grid", gap: 6 }}><Sk w="50%" h={16} /><Sk w="85%" h={13} /></div>))}
+        </div>
+        <div className="card msg-thread"><div className="msg-scroll"><Sk w="55%" h={46} r={14} /><Sk w="45%" h={46} r={14} style={{ marginLeft: "auto" }} /><Sk w="60%" h={46} r={14} /></div></div>
       </div>
     </Busy>
   );

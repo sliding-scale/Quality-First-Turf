@@ -11,6 +11,7 @@ import { useEffect, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useClient, useWorkspace, type BusinessDoc } from "@/lib/clients";
+import { useJob } from "@/lib/jobs";
 import { quoteDate } from "@/lib/format";
 import { clock, useMinute } from "@/lib/pipeline";
 import { useClientSearch } from "@/lib/quotes";
@@ -20,19 +21,25 @@ import { EmptyBackend } from "./empty-backend";
 import { Icon } from "./icon";
 import { NewClientDialog } from "./new-client-dialog";
 import { NoteEditor } from "./note-editor";
-import { RequestLinesEditor, checkRequestLines, type RequestLine } from "./request-lines";
+import { RequestLinesEditor, checkRequestLines, toRequestLines, type RequestLine } from "./request-lines";
 import { NewRequestSkeleton } from "./skeletons";
 import { useStaff } from "./staff-context";
 import { useUI } from "./ui-provider";
 
+type Start = { clientId?: string; title: string; details: string; lines: RequestLine[]; recurring: boolean };
+
 export function NewJobPage() {
   const workspace = useWorkspace();
-  if (workspace.state === "loading") return <NewRequestSkeleton />;
+  const similarId = useSearchParams().get("similar") ?? undefined;
+  const similar = useJob(similarId);
+  if (workspace.state === "loading" || (similarId && similar === undefined)) return <NewRequestSkeleton />;
   if (workspace.state === "empty") return <EmptyBackend />;
-  return <Form key={workspace.business._id} business={workspace.business} />;
+  // Create Similar Job (from a job's More menu): the job's client, title, details and lines are copied; the new job gets its own number.
+  const start: Start | undefined = similar ? { clientId: similar.clientId, title: similar.title, details: similar.details, lines: toRequestLines(similar.lines), recurring: similar.jobType === "recurring" } : undefined;
+  return <Form key={`${workspace.business._id}${similarId ?? ""}`} business={workspace.business} start={start} />;
 }
 
-function Form({ business }: { business: BusinessDoc }) {
+function Form({ business, start }: { business: BusinessDoc; start?: Start }) {
   const router = useRouter();
   const params = useSearchParams();
   const { toast } = useUI();
@@ -41,13 +48,16 @@ function Form({ business }: { business: BusinessDoc }) {
   const create = useMutation(api.crm.jobs.create);
   const book = useMutation(api.crm.schedule.book);
 
-  const presetId = params.get("clientId") ?? undefined;
+  const presetId = params.get("clientId") ?? start?.clientId;
   const preset = useClient(presetId);
-  const [title, setTitle] = useState("");
+  const [title, setTitle] = useState(start?.title ?? "");
   const [picked, setPicked] = useState<{ id: Id<"clients">; name: string } | null>(null);
   const [clientQuery, setClientQuery] = useState("");
-  const [details, setDetails] = useState("");
-  const [lines, setLines] = useState<RequestLine[]>([]);
+  const [details, setDetails] = useState(start?.details ?? "");
+  const [lines, setLines] = useState<RequestLine[]>(start?.lines ?? []);
+  const [recurring, setRecurring] = useState(start?.recurring ?? false);
+  const [repeat, setRepeat] = useState<"weekly" | "monthly" | "daily" | "weekdays">("weekly");
+  const [until, setUntil] = useState("");
   const [badLines, setBadLines] = useState<Set<string>>(new Set());
   const [date, setDate] = useState("");
   const [time, setTime] = useState("09:00");
@@ -60,7 +70,7 @@ function Form({ business }: { business: BusinessDoc }) {
   // A client named in the address (Create > Job on a client's page) is the starting choice, if it belongs to this business.
   const client = picked ?? (preset && preset.businessId === business._id ? { id: preset._id, name: preset.name } : null);
 
-  const dirty = !!(title || picked || details || lines.length || date);
+  const dirty = !!(!start && (title || details || lines.length)) || !!(picked || date);
   useEffect(() => {
     if (!dirty) return;
     const warn = (e: BeforeUnloadEvent) => e.preventDefault();
@@ -86,23 +96,25 @@ function Form({ business }: { business: BusinessDoc }) {
     if (!client) missing.add("client");
     const hrs = Number(hours);
     if (date && (!time || !Number.isFinite(hrs) || hrs <= 0 || hrs > 24)) missing.add("visit");
+    if (recurring && !date) missing.add("visit");
+    if (recurring && until && until < date) missing.add("until");
     setBad(missing);
     const checked = checkRequestLines(lines);
     setBadLines(checked.bad);
     if (missing.size || checked.bad.size) {
       const [lineKey, field] = ([...checked.bad][0] ?? "").split(":");
       const lineBox = `${field === "name" ? "rn" : field === "qty" ? "rq" : "rp"}-${lineKey}`;
-      document.getElementById(missing.has("title") ? "jf-title" : missing.has("client") ? "jf-client" : missing.has("visit") ? "jf-time" : lineBox)?.focus();
+      document.getElementById(missing.has("title") ? "jf-title" : missing.has("client") ? "jf-client" : missing.has("visit") ? "jf-date" : missing.has("until") ? "jf-until" : lineBox)?.focus();
       return;
     }
     setBusy(true);
     try {
-      const id = await create({ businessId: business._id, clientId: client!.id, title, details, lines: checked.ok, now: clock() });
+      const id = await create({ businessId: business._id, clientId: client!.id, title, details, lines: checked.ok, jobType: recurring ? "recurring" : "oneoff", now: clock() });
       // The first visit is booked on the Schedule once the job exists. If it clashes the job is still saved, and the person books it from the job page.
       if (date) {
-        const start = fromInputs(date, time);
+        const startAt = fromInputs(date, time);
         try {
-          await book({ businessId: business._id, type: "visit", title, start, end: start + hrs * 3_600_000, assigneeIds: [], opportunityId: id, clientId: client!.id, now: clock() });
+          await book({ businessId: business._id, type: "visit", title, start: startAt, end: startAt + hrs * 3_600_000, assigneeIds: [], opportunityId: id, clientId: client!.id, ...(recurring ? { repeat, ...(until ? { repeatUntil: fromInputs(until, "23:59") } : {}) } : {}), now: clock() });
           toast("Job saved.");
         } catch (e) {
           toast(`Job saved, but the visit was not booked. ${failure(e, "Book it again from the job page.")}`);
@@ -157,7 +169,7 @@ function Form({ business }: { business: BusinessDoc }) {
             </div>
           </div>
           <dl className="qb-meta">
-            <div><dt>Job type</dt><dd>One-off job</dd></div>
+            <div><dt>Job type</dt><dd><div className="field"><select aria-label="Job type" value={recurring ? "recurring" : "oneoff"} onChange={(e) => setRecurring(e.target.value === "recurring")}><option value="oneoff">One-off job</option><option value="recurring">Recurring job</option></select></div></dd></div>
             <div><dt>Created on</dt><dd>{quoteDate(now)}</dd></div>
           </dl>
         </div>
@@ -178,7 +190,7 @@ function Form({ business }: { business: BusinessDoc }) {
 
       <section className="qb-card">
         <h2>Schedule</h2>
-        <p className="muted">Optional. Book the first visit now, or leave it and book it from the job page.</p>
+        <p className="muted">{recurring ? "A recurring job needs its first visit. It repeats on the Schedule until the end date, or until you stop it." : "Optional. Book the first visit now, or leave it and book it from the job page."}</p>
         <div className={`jf-visit${bad.has("visit") ? " bad" : ""}`}>
           <div className="field">
             <label htmlFor="jf-date">First visit</label>
@@ -193,7 +205,22 @@ function Form({ business }: { business: BusinessDoc }) {
             <input id="jf-hours" inputMode="decimal" aria-invalid={bad.has("visit")} value={hours} disabled={!date} onChange={(e) => { setHours(e.target.value.replace(/[^0-9.]/g, "")); clear("visit"); }} />
           </div>
         </div>
-        {bad.has("visit") && <p className="err-line">Give the visit a start time and a length in hours.</p>}
+        {recurring && (
+          <div className="jf-visit" style={{ marginTop: 12 }}>
+            <div className="field">
+              <label htmlFor="jf-repeat">Repeats</label>
+              <select id="jf-repeat" value={repeat} onChange={(e) => setRepeat(e.target.value as typeof repeat)}>
+                <option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="weekdays">Every weekday</option><option value="daily">Daily</option>
+              </select>
+            </div>
+            <div className={`field${bad.has("until") ? " bad" : ""}`}>
+              <label htmlFor="jf-until">Ends on</label>
+              <input id="jf-until" type="date" aria-invalid={bad.has("until")} min={date || undefined} value={until} onChange={(e) => { setUntil(e.target.value); clear("until"); }} />
+              <span className="err">The end date is before the first visit.</span>
+            </div>
+          </div>
+        )}
+        {bad.has("visit") && <p className="err-line">{recurring && !date ? "A recurring job needs a first visit date." : "Give the visit a start time and a length in hours."}</p>}
       </section>
 
       <div className="qb-bar">

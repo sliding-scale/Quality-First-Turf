@@ -1,103 +1,117 @@
 import { ConvexError, v } from "convex/values";
-import { internalMutation } from "../_generated/server";
-import { clientSearchText } from "./lib/clientInput";
+import type { Doc, Id } from "../_generated/dataModel";
+import { mutation, query, type MutationCtx, type QueryCtx } from "../_generated/server";
+import { requireModule } from "./lib/access";
+import { clientSearchText, normalizeClientInput } from "./lib/clientInput";
+import { formatPhone, isValidEmail, phoneDigits } from "./lib/fields";
 import { CLIENT_TAGS } from "./lib/stages";
 
-/* One-off fixes to imported clients (D-056). Internal: it can only be run from a terminal against the deployment you choose.
-     npx convex run crm/clientImport:setLastActivity '{"businessSlug":"quality-first-turf","clientName":"...","at":1790000000000}'
-   Sets the date a client shows as their Last Activity, for matching Jobber's, which counts events the CRM never saw. Refuses unless
-   exactly one client in that business has that exact name. */
+/** Importing clients from a Jobber CSV (plan 2026-11-20-client-import). The file is read in the browser (lib/clientImport.ts); this checks each row with the
+ *  client form's own rules, skips a client that is already here (same email, then same phone) and creates the rest. `preview` writes nothing; `run` does it.
+ *  Both take at most 100 rows. Every row comes back with what happened to it, so nothing is dropped silently (CRM rule 6). Needs the Clients module at
+ *  the Edit and delete level. */
 
-export const setLastActivity = internalMutation({
-  args: { businessSlug: v.string(), clientName: v.string(), at: v.number() },
+const MAX_ROWS = 100;
+
+const rowV = v.object({
+  line: v.number(),
+  type: v.union(v.literal("homeowner"), v.literal("contractor")),
+  isCompany: v.boolean(),
+  country: v.string(),
+  extraProperties: v.array(v.object({ street1: v.string(), street2: v.string(), city: v.string(), state: v.string(), zip: v.string(), country: v.string() })),
+  balanceCents: v.optional(v.number()),
+  first: v.string(), last: v.string(), company: v.string(), phone: v.string(), email: v.string(),
+  street1: v.string(), street2: v.string(), city: v.string(), state: v.string(), zip: v.string(), notes: v.string(),
+  extraPhones: v.array(v.object({ number: v.string(), description: v.string() })),
+  extraEmails: v.array(v.object({ address: v.string(), description: v.string() })),
+  tags: v.array(v.string()),
+  status: v.union(v.literal("lead"), v.literal("active"), v.literal("archived")),
+  createdAt: v.optional(v.number()),
+});
+type Row = typeof rowV.type;
+
+type Result = { line: number; name: string; status: "new" | "duplicate" | "error"; message: string; clientId?: Id<"clients"> };
+
+async function existing(ctx: QueryCtx, businessId: Id<"businesses">, email: string, phone: string): Promise<{ client: Doc<"clients">; why: string } | null> {
+  if (email) {
+    const c = await ctx.db.query("clients").withIndex("by_business_and_email", (q) => q.eq("businessId", businessId).eq("email", email)).first();
+    if (c) return { client: c, why: "the same email" };
+  }
+  if (phone) {
+    const c = await ctx.db.query("clients").withIndex("by_business_and_phone", (q) => q.eq("businessId", businessId).eq("phone", phone)).first();
+    if (c) return { client: c, why: "the same phone number" };
+  }
+  return null;
+}
+
+/** Checks one row and, when `write` is given, creates the client. */
+async function one(ctx: QueryCtx, businessId: Id<"businesses">, row: Row, write: MutationCtx | null, now: number): Promise<Result> {
+  const shown = [row.first, row.last].filter(Boolean).join(" ") || row.company;
+  let f: ReturnType<typeof normalizeClientInput>;
+  try {
+    f = normalizeClientInput(row);
+  } catch (e) {
+    return { line: row.line, name: shown, status: "error", message: e instanceof ConvexError && typeof e.data === "string" ? e.data : "The row could not be read." };
+  }
+  const hit = await existing(ctx, businessId, f.email, f.phone);
+  if (hit) return { line: row.line, name: f.name, status: "duplicate", message: `Already a client (${hit.client.name}) with ${hit.why}. Skipped.`, clientId: hit.client._id };
+
+  const notes: string[] = [];
+  const phones = [...(f.phone ? [{ number: f.phone, description: "Main" }] : [])];
+  for (const p of row.extraPhones) {
+    const number = formatPhone(p.number);
+    if (phoneDigits(number) >= 10) phones.push({ number, description: p.description.trim().slice(0, 30) || "Other" });
+    else notes.push(`the phone "${p.number}" was left out`);
+  }
+  const emails = [...(f.email ? [{ address: f.email, description: "Main" }] : [])];
+  for (const m of row.extraEmails) {
+    const address = m.address.trim().toLowerCase();
+    if (isValidEmail(address)) emails.push({ address, description: m.description.trim().slice(0, 30) || "Other" });
+    else notes.push(`the email "${m.address}" was left out`);
+  }
+  const known = row.tags.flatMap((t) => CLIENT_TAGS.filter((k) => k.toLowerCase() === t.trim().toLowerCase()));
+  const tags = known.length ? [...new Set(known)] : f.type === "homeowner" ? ["Homeowner"] : f.company ? ["Company"] : [];
+  // More than one address: the first stays the client's own (street1..zip) and is also the first property, as the client page expects.
+  const properties = row.extraProperties.slice(0, 20).map((p) => ({ street1: p.street1.trim(), street2: p.street2.trim(), city: p.city.trim(), state: p.state.trim().toUpperCase(), zip: p.zip.trim(), country: p.country.trim(), lawnSize: "", lockedGate: false }));
+  if (properties.length) properties.unshift({ street1: f.street1, street2: f.street2, city: f.city, state: f.state, zip: f.zip, country: row.country.trim(), lawnSize: "", lockedGate: false });
+  if (row.extraProperties.length > 20) notes.push("only the first 20 extra addresses were kept");
+  const message = notes.length ? `Imported; ${notes.join("; ")}.` : "Imported.";
+  if (write === null) return { line: row.line, name: f.name, status: "new", message: notes.length ? `Will be imported; ${notes.join("; ")}.` : "Will be imported." };
+
+  const createdAt = row.createdAt !== undefined && row.createdAt <= now ? row.createdAt : now;
+  const clientId = await write.db.insert("clients", {
+    businessId, ...f, status: row.status, tags, createdAt, lastActivityAt: createdAt, searchText: clientSearchText(f),
+    firstName: row.first.trim(), lastName: row.last.trim(), isCompany: row.isCompany || (row.type === "contractor" && !row.first.trim() && !row.last.trim()),
+    ...(phones.length ? { phones } : {}), ...(emails.length ? { emails } : {}), ...(properties.length ? { properties } : {}),
+    ...(row.balanceCents !== undefined ? { balanceCents: row.balanceCents } : {}),
+  });
+  return { line: row.line, name: f.name, status: "new", message, clientId };
+}
+
+function checkSize(rows: unknown[]) {
+  if (rows.length > MAX_ROWS) throw new ConvexError(`Send at most ${MAX_ROWS} rows at a time.`);
+}
+
+/** What would happen to each row, without writing anything. */
+export const preview = query({
+  args: { businessId: v.id("businesses"), rows: v.array(rowV) },
   handler: async (ctx, args) => {
-    const business = await ctx.db.query("businesses").filter((q) => q.eq(q.field("slug"), args.businessSlug)).first();
-    if (!business) throw new ConvexError(`No business with the slug "${args.businessSlug}".`);
-    const clients = await ctx.db.query("clients").take(5000);
-    const matches = clients.filter((c) => c.businessId === business._id && c.name === args.clientName);
-    if (matches.length !== 1) throw new ConvexError(`Expected exactly one client named "${args.clientName}" in that business, found ${matches.length}.`);
-    const client = matches[0];
-    await ctx.db.patch(client._id, { lastActivityAt: args.at });
-    return { name: client.name, before: new Date(client.lastActivityAt).toISOString(), after: new Date(args.at).toISOString() };
+    await requireModule(ctx, args.businessId, "clients", "full");
+    checkSize(args.rows);
+    const results: Result[] = [];
+    for (const row of args.rows) results.push(await one(ctx, args.businessId, row, null, 0));
+    return results;
   },
 });
 
-/* Brings imported clients in line with how Jobber shows them (the 2026-11-09 check against Jobber's list): the tag, the name on the
-   first line, the company on the second, and Active status. `scripts` in the session notes build the updates from Jobber's list; this
-   only applies them, and refuses a client that is not in the business or an unknown tag.
-     npx convex run crm/clientImport:alignWithJobber '{"businessSlug":"quality-first-turf","updates":[{"id":"...","tags":["Homeowner"]}]}' */
-export const alignWithJobber = internalMutation({
-  args: {
-    businessSlug: v.string(),
-    updates: v.array(v.object({
-      id: v.id("clients"),
-      tags: v.array(v.string()),
-      name: v.optional(v.string()),
-      company: v.optional(v.string()),
-    })),
-  },
+/** Creates the clients that are new. A row that is a duplicate or has an error is returned with why and nothing is written for it. */
+export const run = mutation({
+  args: { businessId: v.id("businesses"), rows: v.array(rowV), now: v.number() },
   handler: async (ctx, args) => {
-    const business = await ctx.db.query("businesses").filter((q) => q.eq(q.field("slug"), args.businessSlug)).first();
-    if (!business) throw new ConvexError(`No business with the slug "${args.businessSlug}".`);
-    const known: readonly string[] = CLIENT_TAGS;
-    let changed = 0;
-    for (const u of args.updates) {
-      const c = await ctx.db.get(u.id);
-      if (c === null || c.businessId !== business._id) throw new ConvexError(`Client ${u.id} is not in ${args.businessSlug}.`);
-      if (u.tags.some((t) => !known.includes(t))) throw new ConvexError(`Unknown tag for ${c.name}.`);
-      const name = u.name ?? c.name;
-      const company = u.company ?? c.company;
-      const next = { name, nameKey: name.toLowerCase(), company, tags: u.tags, status: "active" as const };
-      await ctx.db.patch(c._id, { ...next, searchText: clientSearchText({ ...c, ...next }) });
-      changed += 1;
-    }
-    return { changed };
-  },
-});
-
-/* Fills in what Jobber's client page shows for imported clients (2026-11-09, D-060): every phone and email with its label, the
-   properties with their custom fields, the contacts, billing, schedule and last message, and the balance figures. Applies exactly what
-   it is given to the clients named, and only to clients of the business.
-     npx convex run crm/clientImport:applyJobberDetails "$(cat payload.json)" */
-const phoneV = v.object({ number: v.string(), description: v.string() });
-const emailV = v.object({ address: v.string(), description: v.string() });
-const propertyV = v.object({ street1: v.string(), street2: v.string(), city: v.string(), state: v.string(), zip: v.string(), country: v.string(), lawnSize: v.string(), lockedGate: v.boolean() });
-const contactV = v.object({ name: v.string(), role: v.string(), phone: v.string(), email: v.string() });
-const billingV = v.object({ kind: v.string(), appliedTo: v.string(), at: v.number(), cents: v.number() });
-const scheduleV = v.object({ kind: v.string(), title: v.string(), at: v.number(), status: v.string(), assigned: v.string() });
-
-const emails0 = (e: { address: string }[]) => e.length > 0;
-
-export const applyJobberDetails = internalMutation({
-  args: {
-    businessSlug: v.string(),
-    updates: v.array(v.object({
-      id: v.id("clients"),
-      isCompany: v.boolean(),
-      firstName: v.string(),
-      lastName: v.string(),
-      phones: v.array(phoneV),
-      emails: v.array(emailV),
-      properties: v.array(propertyV),
-      contacts: v.optional(v.array(contactV)),
-      billing: v.optional(v.array(billingV)),
-      scheduleItems: v.optional(v.array(scheduleV)),
-      lastCommunication: v.optional(v.object({ at: v.number(), text: v.string() })),
-      lifetimeValueCents: v.optional(v.number()),
-      balanceCents: v.optional(v.number()),
-    })),
-  },
-  handler: async (ctx, args) => {
-    const business = await ctx.db.query("businesses").filter((q) => q.eq(q.field("slug"), args.businessSlug)).first();
-    if (!business) throw new ConvexError(`No business with the slug "${args.businessSlug}".`);
-    let changed = 0;
-    for (const { id, ...fields } of args.updates) {
-      const c = await ctx.db.get(id);
-      if (c === null || c.businessId !== business._id) throw new ConvexError(`Client ${id} is not in ${args.businessSlug}.`);
-      // The single email on the record follows the first one Jobber lists, so the list and the page agree.
-      await ctx.db.patch(id, emails0(fields.emails) ? { ...fields, email: fields.emails[0].address } : fields);
-      changed += 1;
-    }
-    return { changed };
+    await requireModule(ctx, args.businessId, "clients", "full");
+    checkSize(args.rows);
+    const results: Result[] = [];
+    for (const row of args.rows) results.push(await one(ctx, args.businessId, row, ctx, args.now));
+    return results;
   },
 });

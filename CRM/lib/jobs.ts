@@ -34,12 +34,15 @@ export const JOB_FILTERS: { label: string; disabled?: boolean }[] = [
   { label: "Archived" },
 ];
 
-export function useJobs(businessId: Id<"businesses">, status: string, search: string, page: number) {
-  return useKept(useQuery(api.crm.jobs.list, { businessId, ...(status !== "All" ? { status } : {}), search, page, dayStart: startOfToday() }));
+export function useJobs(businessId: Id<"businesses">, status: string, search: string, page: number, jobType: string = "All") {
+  return useKept(useQuery(api.crm.jobs.list, { businessId, ...(status !== "All" ? { status } : {}), ...(jobType !== "All" ? { jobType: jobType === "Recurring" ? "recurring" : "oneoff" } : {}), search, page, dayStart: startOfToday() }));
 }
 export function useJobCounts(businessId: Id<"businesses">) {
   return useKept(useQuery(api.crm.jobs.counts, { businessId, dayStart: startOfToday() }));
 }
 export function useJob(id: string | undefined) {
   return useQuery(api.crm.jobs.get, id ? { id: id as Id<"opportunities">, dayStart: startOfToday() } : "skip");
+}
+export function useJobCosts(id: string | undefined) {
+  return useQuery(api.crm.jobCosts.get, id ? { id: id as Id<"opportunities"> } : "skip");
 }

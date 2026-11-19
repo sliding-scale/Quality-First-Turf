@@ -36,13 +36,14 @@ function Jobs({ business }: { business: BusinessDoc }) {
     return s && JOB_FILTERS.some((f) => f.label === s && !f.disabled) ? s : "All";
   });
   const [page, setPage] = useState(1);
+  const [jobType, setJobType] = useState("All");
 
   useEffect(() => {
     const t = setTimeout(() => setSearch(q), 250);
     return () => clearTimeout(t);
   }, [q]);
 
-  const data = useJobs(business._id, status, search, page);
+  const data = useJobs(business._id, status, search, page, jobType);
   const counts = useJobCounts(business._id);
   if (data === undefined || counts === undefined) return <JobsSkeleton />;
 
@@ -134,7 +135,17 @@ function Jobs({ business }: { business: BusinessDoc }) {
           >
             Status<span className="sep" /><b>{status}</b>
           </button>
-          <button className="chip" type="button" disabled data-tip="Recurring jobs come in a later step">Job Type<span className="sep" /><b>All</b></button>
+          <button
+            className="chip"
+            type="button"
+            onClick={(e) =>
+              popover(e.currentTarget, (close) => (
+                <FilterMenu placeholder="Search job types" options={["All", "One-off", "Recurring"].map((label) => ({ label }))} selected={jobType} onSelect={(o) => { setJobType(o); setPage(1); }} close={close} />
+              ), { className: "filter" })
+            }
+          >
+            Job Type<span className="sep" /><b>{jobType}</b>
+          </button>
         </div>
         <div className="searchbox">
           <span><Icon name="search" size={20} /></span>

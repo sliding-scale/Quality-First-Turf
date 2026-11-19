@@ -331,6 +331,8 @@ export default defineSchema({
     /** The job was closed by hand (Jobber's Close Job). Closing does not move the project between pipelines. */
     jobClosedAt: v.optional(v.number()),
     jobClosedByName: v.optional(v.string()),
+    /** One-off (absent) or recurring. A recurring job's visits are one repeating series on the Schedule. */
+    jobType: v.optional(v.union(v.literal("oneoff"), v.literal("recurring"))),
   })
     .index("by_business_and_requestedAt", ["businessId", "requestedAt"])
     .index("by_clientId", ["clientId"])
@@ -369,6 +371,224 @@ export default defineSchema({
     businessId: v.id("businesses"),
     costsOn: v.boolean(),
   }).index("by_business", ["businessId"]),
+
+  /** Labor on a job (plan 2026-11-19-jobs-costs, Jobber's "New time entry"): who worked, at what hourly cost, and when. `minutes` is a labelled copy of
+   *  the end less the start. Written only by crm/jobCosts.ts. */
+  jobTimeEntries: defineTable({
+    businessId: v.id("businesses"),
+    opportunityId: v.id("opportunities"),
+    employeeId: v.id("users"),
+    costPerHourCents: v.number(),
+    startAt: v.number(),
+    endAt: v.number(),
+    minutes: v.number(),
+    notes: v.string(),
+    createdBy: v.id("users"),
+    createdAt: v.number(),
+  }).index("by_opportunity", ["opportunityId", "startAt"]),
+
+  /** An expense on a job (Jobber's "New expense"). A receipt is a stored file removed with the expense. Written only by crm/jobCosts.ts. */
+  jobExpenses: defineTable({
+    businessId: v.id("businesses"),
+    opportunityId: v.id("opportunities"),
+    /** The day, as UTC midnight. */
+    date: v.number(),
+    name: v.string(),
+    description: v.string(),
+    totalCents: v.number(),
+    accountingCode: v.string(),
+    reimburseToId: v.optional(v.id("users")),
+    receiptId: v.optional(v.id("_storage")),
+    createdBy: v.id("users"),
+    createdAt: v.number(),
+  }).index("by_opportunity", ["opportunityId", "date"]),
+
+  /** Jobber's Collect Signature on a job: who signed, the picture, and who collected it. Written only by crm/jobs.ts. */
+  jobSignatures: defineTable({
+    businessId: v.id("businesses"),
+    opportunityId: v.id("opportunities"),
+    signedBy: v.string(),
+    imageId: v.id("_storage"),
+    byName: v.string(),
+    at: v.number(),
+  }).index("by_opportunity", ["opportunityId", "at"]),
+
+  /** Checklist templates (Jobber's Settings > Checklists): a name and the things to do. Written only by crm/checklists.ts. */
+  checklistTemplates: defineTable({
+    businessId: v.id("businesses"),
+    name: v.string(),
+    items: v.array(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_business", ["businessId"]),
+
+  /** One item of a checklist on a job: a copy of the template's item, so later edits to the template leave the job alone. */
+  jobChecklistItems: defineTable({
+    businessId: v.id("businesses"),
+    opportunityId: v.id("opportunities"),
+    templateId: v.optional(v.id("checklistTemplates")),
+    listName: v.string(),
+    text: v.string(),
+    position: v.number(),
+    done: v.boolean(),
+    doneByName: v.optional(v.string()),
+    doneAt: v.optional(v.number()),
+  }).index("by_opportunity", ["opportunityId", "listName", "position"]),
+
+  /** A business's numbers for texting (PRD 5.3). Written only by crm/phoneNumbers.ts. A number (E.164) belongs to one business. */
+  phoneNumbers: defineTable({
+    businessId: v.id("businesses"),
+    number: v.string(),
+    label: v.string(),
+    createdAt: v.number(),
+  }).index("by_business", ["businessId"]).index("by_number", ["number"]),
+
+  /** The text log (plan 2026-11-19-messages): every text to or from a client, against the client, the job it came from and the person who sent it.
+   *  `phone` is the other party's number (E.164). Status: queued (waiting for Twilio), sent, failed, manual (sent by hand from a phone) or received.
+   *  Written only by crm/messages.ts. */
+  messages: defineTable({
+    businessId: v.id("businesses"),
+    clientId: v.optional(v.id("clients")),
+    opportunityId: v.optional(v.id("opportunities")),
+    phone: v.string(),
+    direction: v.union(v.literal("in"), v.literal("out")),
+    body: v.string(),
+    userId: v.optional(v.id("users")),
+    userName: v.optional(v.string()),
+    status: v.union(v.literal("queued"), v.literal("sent"), v.literal("failed"), v.literal("manual"), v.literal("received")),
+    error: v.optional(v.string()),
+    providerSid: v.optional(v.string()),
+    /** Our number the text went from, or came to. */
+    fromNumber: v.optional(v.string()),
+    at: v.number(),
+    /** Inbound only: when someone opened the conversation. Absent: unread. */
+    readAt: v.optional(v.number()),
+    /** "sms" when absent. A "whatsapp" row is a work package (or other message) sent through WhatsApp, written only by crm/whatsapp.ts. */
+    channel: v.optional(v.union(v.literal("sms"), v.literal("whatsapp"))),
+  })
+    .index("by_business_and_at", ["businessId", "at"])
+    .index("by_client_and_at", ["clientId", "at"])
+    .index("by_providerSid", ["providerSid"]),
+
+  /** The call log (plan 2026-11-20-calls-whatsapp, PRD 5.3): a call to or from a client, logged by a person (a voice provider can write the same rows
+   *  later). `phone` is the other party's number (E.164). Written only by crm/calls.ts. */
+  calls: defineTable({
+    businessId: v.id("businesses"),
+    clientId: v.optional(v.id("clients")),
+    opportunityId: v.optional(v.id("opportunities")),
+    phone: v.string(),
+    direction: v.union(v.literal("in"), v.literal("out")),
+    outcome: v.union(v.literal("answered"), v.literal("no_answer"), v.literal("voicemail"), v.literal("busy")),
+    durationSeconds: v.optional(v.number()),
+    notes: v.string(),
+    userId: v.id("users"),
+    userName: v.string(),
+    /** When the call happened. */
+    at: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_business_and_at", ["businessId", "at"])
+    .index("by_client_and_at", ["clientId", "at"]),
+
+  /** The business's materials (PRD 4.2, plan 2026-11-19-takeoff): what is ordered for a project, in the unit it is sold in, with the formula that works out
+   *  how much a project needs from its measurements. Everything is editable data (CRM rule 8). Written only by crm/materials.ts. */
+  materials: defineTable({
+    businessId: v.id("businesses"),
+    name: v.string(),
+    nameKey: v.string(),
+    sku: v.string(),
+    category: v.string(),
+    /** What it is ordered in: roll, bag, ton, cubic yard, linear ft... */
+    unit: v.string(),
+    costCents: v.optional(v.number()),
+    supplier: v.string(),
+    leadTimeDays: v.optional(v.number()),
+    /** How much is on hand, in `unit`. Absent: not tracked. */
+    inStock: v.optional(v.number()),
+    sizeDetails: v.string(),
+    /** See crm/lib/formula.ts: for example `ceil(area / 1500)`. */
+    formula: v.string(),
+    wastagePercent: v.number(),
+    rounding: v.union(v.literal("up"), v.literal("nearest"), v.literal("none")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_business_and_nameKey", ["businessId", "nameKey"]),
+
+  /** A project's installer work package (PRD 4.3): scope, schedule, site access, the installer budget, which files go with it, and the secret
+   *  expiring link it is shared by. One row per project. Written only by crm/workPackages.ts; the link's page reads it in crm/clientWorkPackage.ts. */
+  workPackages: defineTable({
+    businessId: v.id("businesses"),
+    opportunityId: v.id("opportunities"),
+    scope: v.string(),
+    /** UTC midnight, or unset. */
+    targetStartDate: v.optional(v.number()),
+    startDate: v.optional(v.number()),
+    endDate: v.optional(v.number()),
+    scheduleNotes: v.string(),
+    siteAccess: v.string(),
+    customerAvailability: v.string(),
+    installerNotes: v.string(),
+    budgetLines: v.array(v.object({ description: v.string(), quantity: v.number(), unit: v.string(), rateCents: v.number() })),
+    fileIds: v.array(v.id("opportunityFiles")),
+    includeMaterials: v.boolean(),
+    shareToken: v.optional(v.string()),
+    shareExpiresAt: v.optional(v.number()),
+    updatedAt: v.number(),
+    updatedByName: v.string(),
+  })
+    .index("by_opportunity", ["opportunityId"])
+    .index("by_shareToken", ["shareToken"]),
+
+  /** A purchase order on a project (PRD 4.4): what is bought from one supplier, its status and the expected and actual delivery dates. Lines copy the
+   *  takeoff line they came from (a labelled snapshot, so editing the takeoff later changes no order). Written only by crm/purchaseOrders.ts. */
+  purchaseOrders: defineTable({
+    businessId: v.id("businesses"),
+    opportunityId: v.id("opportunities"),
+    number: v.string(),
+    supplier: v.string(),
+    status: v.union(v.literal("draft"), v.literal("ordered"), v.literal("delivered"), v.literal("cancelled")),
+    lines: v.array(v.object({ takeoffLineId: v.optional(v.id("takeoffLines")), name: v.string(), unit: v.string(), qty: v.number(), unitCostCents: v.optional(v.number()) })),
+    notes: v.string(),
+    /** UTC midnight, or unset. */
+    expectedDate: v.optional(v.number()),
+    orderedAt: v.optional(v.number()),
+    deliveredAt: v.optional(v.number()),
+    createdByName: v.string(),
+    createdAt: v.number(),
+  }).index("by_opportunity", ["opportunityId", "createdAt"]),
+
+  /** A project's measurements for the takeoff, by the names a formula uses. One row per project. Written only by crm/takeoff.ts. */
+  takeoffs: defineTable({
+    businessId: v.id("businesses"),
+    opportunityId: v.id("opportunities"),
+    inputs: v.record(v.string(), v.number()),
+    updatedAt: v.number(),
+    updatedByName: v.string(),
+  }).index("by_opportunity", ["opportunityId"]),
+
+  /** One material on a project's takeoff: a labelled snapshot of the material when it was added (so changing the catalogue later changes no takeoff),
+   *  the quantity worked out from the measurements, and the person's own quantity if they typed one. */
+  takeoffLines: defineTable({
+    businessId: v.id("businesses"),
+    opportunityId: v.id("opportunities"),
+    materialId: v.optional(v.id("materials")),
+    position: v.number(),
+    name: v.string(),
+    sku: v.string(),
+    unit: v.string(),
+    formula: v.string(),
+    wastagePercent: v.number(),
+    rounding: v.union(v.literal("up"), v.literal("nearest"), v.literal("none")),
+    /** The worked-out quantity, or why it could not be worked out. */
+    calcQty: v.optional(v.number()),
+    calcError: v.optional(v.string()),
+    qtyOverride: v.optional(v.number()),
+    unitCostCents: v.optional(v.number()),
+    supplier: v.string(),
+    leadTimeDays: v.optional(v.number()),
+    inStock: v.optional(v.number()),
+    notes: v.string(),
+  }).index("by_opportunity", ["opportunityId", "position"]),
 
   /** The next job number for a business. Written only by crm/lib/jobNumber.ts. */
   jobCounters: defineTable({
@@ -838,6 +1058,9 @@ export default defineSchema({
     phone: v.string(),
     notes: v.string(),
     active: v.boolean(),
+    /** The agreed hourly rate and when the crew is free (PRD 4.4); both optional, written only by crm/construction.ts saveCrew. */
+    rateCents: v.optional(v.number()),
+    availability: v.optional(v.string()),
     createdAt: v.number(),
   }).index("by_business", ["businessId"]),
 

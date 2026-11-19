@@ -43,6 +43,8 @@ type Env = {
   readonly SALES_EMAIL: string | undefined;
   readonly SALES_NAME: string | undefined;
   readonly SALES_PASSWORD: string | undefined;
+  readonly TWILIO_ACCOUNT_SID: string | undefined;
+  readonly TWILIO_AUTH_TOKEN: string | undefined;
   readonly ZOHO_ACCOUNTS_URL: string | undefined;
   readonly ZOHO_CAL_CLIENT_ID: string | undefined;
   readonly ZOHO_CAL_CLIENT_SECRET: string | undefined;

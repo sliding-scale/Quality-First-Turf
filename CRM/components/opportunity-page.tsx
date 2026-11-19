@@ -18,17 +18,19 @@ import { ConstructionTab } from "./construction-tab";
 import { QUOTE_PILL } from "@/lib/quotes";
 import { Icon } from "./icon";
 import { ProjectNotes } from "./project-notes";
+import { TakeoffTab } from "./takeoff-tab";
+import { WorkPackageTab } from "./work-package-tab";
 import { OpportunitySkeleton } from "./skeletons";
 import { useStaff } from "./staff-context";
 import { useUI } from "./ui-provider";
 
-const TABS = ["overview", "construction", "billing", "quotes", "visit", "files", "activity"] as const;
+const TABS = ["overview", "takeoff", "package", "construction", "billing", "quotes", "visit", "files", "activity"] as const;
 type Tab = (typeof TABS)[number];
-const TAB_LABEL: Record<Tab, string> = { overview: "Overview", construction: "Construction", billing: "Billing", quotes: "Quotes", visit: "Visit", files: "Files", activity: "Activity" };
+const TAB_LABEL: Record<Tab, string> = { overview: "Overview", takeoff: "Takeoff", package: "Work package", construction: "Construction", billing: "Billing", quotes: "Quotes", visit: "Visit", files: "Files", activity: "Activity" };
 /** A project in Construction opens on its Construction tab and one in Finance on its Billing tab; the others have no such tab (D-081, PRD 5.1).
  *  Billing shows once the sale is won (Preplanning, Construction, Finance). */
 const firstTab = (pipeline: string): Tab => (pipeline === "Construction" ? "construction" : pipeline === "Finance" ? "billing" : "overview");
-const hasTab = (t: Tab, pipeline: string) => (t === "construction" ? pipeline === "Construction" : t === "billing" ? pipeline !== "Sales" : true);
+const hasTab = (t: Tab, pipeline: string) => (t === "construction" ? pipeline === "Construction" : t === "billing" ? pipeline !== "Sales" : (t === "takeoff" || t === "package") ? pipeline !== "Sales" : true);
 const parseTab = (s: string | null, pipeline: string): Tab => {
   const wanted = (TABS as readonly string[]).includes(s ?? "") ? (s as Tab) : firstTab(pipeline);
   return hasTab(wanted, pipeline) ? wanted : "overview";
@@ -66,7 +68,7 @@ function OpportunityView({ o }: { o: Overview }) {
   // The first tab of the project has the plain address; every other tab has ?tab=.
   const first: Tab = firstTab(o.pipeline);
   const go = (t: Tab) => router.replace(t === first ? `/opportunities/${o.id}` : `/opportunities/${o.id}?tab=${t}`, { scroll: false });
-  const tabs = TABS.filter((t) => hasTab(t, o.pipeline) && (t !== "quotes" || seesQuotes) && (t !== "billing" || staff.can("invoices")));
+  const tabs = TABS.filter((t) => hasTab(t, o.pipeline) && (t !== "quotes" || seesQuotes) && (t !== "billing" || staff.can("invoices")) && (t !== "takeoff" || staff.can("pipelinePreplanning")) && (t !== "package" || staff.can("pipelinePreplanning")));
   const at = o.stages.indexOf(o.stage);
   const lost = o.stage === "Closed Lost";
   const timeIn = Math.max(0, now - o.stageEnteredAt);
@@ -103,6 +105,8 @@ function OpportunityView({ o }: { o: Overview }) {
         ))}
       </div>
       {tab === "overview" && <OverviewTab o={o} timeIn={timeIn} />}
+      {tab === "takeoff" && staff.can("pipelinePreplanning") && <TakeoffTab id={o.id} businessId={o.businessId} title={o.title} />}
+      {tab === "package" && staff.can("pipelinePreplanning") && <WorkPackageTab id={o.id} businessId={o.businessId} title={o.title} />}
       {tab === "construction" && <ConstructionTab id={o.id} businessId={o.businessId} title={o.title} />}
       {tab === "billing" && staff.can("invoices") && <BillingTab id={o.id} />}
       {tab === "quotes" && seesQuotes && <QuotesTab o={o} />}

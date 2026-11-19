@@ -202,3 +202,81 @@ describe("New Job by hand", () => {
     await expect(w.office.mutation(api.crm.jobs.create, { businessId: w.qft, clientId: other, title: "X", now: D })).rejects.toThrow(/Pick a client from this business/);
   });
 });
+
+describe("Job type", () => {
+  it("makes a recurring job by hand, shows its type, and filters the list by it", async () => {
+    const w = await seeded();
+    const recurring = await w.office.mutation(api.crm.jobs.create, { businessId: w.qft, clientId: w.clientId, title: "Weekly lawn care", jobType: "recurring", now: D });
+    const oneOff = await w.office.mutation(api.crm.jobs.create, { businessId: w.qft, clientId: w.clientId, title: "Patio", now: D });
+    expect((await w.office.query(api.crm.jobs.get, { id: recurring, dayStart: D }))?.jobType).toBe("recurring");
+    expect((await w.office.query(api.crm.jobs.get, { id: oneOff, dayStart: D }))?.jobType).toBe("oneoff");
+    const only = await w.office.query(api.crm.jobs.list, { businessId: w.qft, jobType: "recurring", page: 1, dayStart: D });
+    expect(only.rows.map((r) => r.id)).toEqual([recurring]);
+    expect((await w.office.query(api.crm.jobs.list, { businessId: w.qft, page: 1, dayStart: D })).total).toBe(2);
+  });
+});
+
+describe("Delete job", () => {
+  it("lets an Admin delete a plain job and everything that hangs off it", async () => {
+    const w = await seeded();
+    const id = await w.office.mutation(api.crm.jobs.create, { businessId: w.qft, clientId: w.clientId, title: "Delete me", lines: [{ name: "Wall", description: "", quantity: 1, unitPriceCents: 1000 }], now: D });
+    await w.base.run(async (ctx) => {
+      const user = (await ctx.db.query("users").first())!;
+      await ctx.db.insert("calendarEvents", { businessId: w.qft, type: "visit", title: "Visit", opportunityId: id, start: D, end: D + 3600_000, anytime: false, assigneeIds: [], status: "upcoming", notes: "", repeat: "none", createdBy: user._id, createdAt: 1 });
+      await ctx.db.insert("opportunityNotes", { opportunityId: id, text: "hi", author: "x", createdAt: 1 });
+    });
+    await w.admin.mutation(api.crm.jobs.remove, { id });
+    expect(await w.admin.query(api.crm.jobs.get, { id, dayStart: D })).toBeNull();
+    const left = await w.base.run(async (ctx) => ({
+      events: (await ctx.db.query("calendarEvents").collect()).filter((e) => e.opportunityId === id).length,
+      notes: (await ctx.db.query("opportunityNotes").collect()).filter((n) => n.opportunityId === id).length,
+      history: (await ctx.db.query("stageHistory").collect()).filter((h) => h.opportunityId === id).length,
+    }));
+    expect(left).toEqual({ events: 0, notes: 0, history: 0 });
+  });
+
+  it("refuses a job that has a quote, and says so", async () => {
+    const w = await seeded();
+    const id = await w.office.mutation(api.crm.jobs.create, { businessId: w.qft, clientId: w.clientId, title: "Billed", now: D });
+    await w.office.mutation(api.crm.quoteDraft.create, { businessId: w.qft, clientId: w.clientId, opportunityId: id, title: "Quote", now: D });
+    await expect(w.admin.mutation(api.crm.jobs.remove, { id })).rejects.toThrow(/a quote, so it cannot be deleted/);
+  });
+
+  it("is for Admins only", async () => {
+    const w = await seeded();
+    const id = await w.office.mutation(api.crm.jobs.create, { businessId: w.qft, clientId: w.clientId, title: "Keep", now: D });
+    await expect(w.office.mutation(api.crm.jobs.remove, { id })).rejects.toThrow(/Only an Admin/);
+  });
+});
+
+describe("Collect Signature and the text workaround", () => {
+  it("keeps a signature on the job with who signed and who collected it", async () => {
+    const w = await seeded();
+    const id = await job(w, 1);
+    const png = (await w.base.run((ctx) => ctx.storage.store(new Blob([new Uint8Array(400)], { type: "image/png" })))) as Id<"_storage">;
+    await w.office.mutation(api.crm.jobs.saveSignature, { id, signedBy: "Pat Client", signatureStorageId: png, now: D });
+    const j = (await w.office.query(api.crm.jobs.get, { id, dayStart: D }))!;
+    expect(j.signatures).toHaveLength(1);
+    expect(j.signatures[0]).toMatchObject({ signedBy: "Pat Client", byName: "Olga Office", at: D });
+    expect(j.signatures[0].url).toBeTruthy();
+  });
+
+  it("refuses a signature with no name, a file that is not a picture, and Sales", async () => {
+    const w = await seeded();
+    const id = await job(w, 1);
+    const png = (await w.base.run((ctx) => ctx.storage.store(new Blob([new Uint8Array(400)], { type: "image/png" })))) as Id<"_storage">;
+    const text = (await w.base.run((ctx) => ctx.storage.store(new Blob(["hi"], { type: "text/plain" })))) as Id<"_storage">;
+    await expect(w.office.mutation(api.crm.jobs.saveSignature, { id, signedBy: "  ", signatureStorageId: png, now: D })).rejects.toThrow(/name of the person/);
+    await expect(w.office.mutation(api.crm.jobs.saveSignature, { id, signedBy: "Pat", signatureStorageId: text, now: D })).rejects.toThrow(/must be an image/);
+    await expect(w.sales.mutation(api.crm.jobs.saveSignature, { id, signedBy: "Pat", signatureStorageId: png, now: D })).rejects.toThrow(/can view this but not change it/);
+  });
+
+  it("notes on the job that a text was opened by hand", async () => {
+    const w = await seeded();
+    const id = await job(w, 1);
+    await w.office.mutation(api.crm.jobs.logText, { id, phone: "5551234567", what: "A text booking confirmation", now: D });
+    const notes = await w.base.run(async (ctx) => (await ctx.db.query("opportunityNotes").collect()).filter((n) => n.opportunityId === id));
+    expect(notes).toHaveLength(1);
+    expect(notes[0].text).toMatch(/opened in the phone's messaging app for 5551234567 \(sent by hand\)/);
+  });
+});

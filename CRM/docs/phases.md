@@ -86,7 +86,7 @@ PRD goal: the complete sales workflow, from enquiry to approved contract.
 PRD goal: from sales handoff through materials, installation and customer sign-off, on the same record.
 
 **UI/UX (sample data), steps 4.1 to 4.2**
-- [ ] 4.1 Preplanning: board (8 stages) **built on dev (D-080)**; still to do: material takeoff form, catalogue and units, crews and installers, installer budgets, work package. Formulas are placeholders
+- [ ] 4.1 Preplanning: board (8 stages) **built on dev (D-080)**; material takeoff (Materials with formulas, the Takeoff tab and the requirements summary) **built on dev (D-098)**; installer work packages (budget, schedule, site access, files, a secret expiring link) and crew rates and availability **built on dev (D-099)**; purchase orders, delivery dates and material readiness **built on dev (D-100)**. The client's catalogue and formulas are to be entered as data
 - [x] 4.2 Construction: board (9 stages) (D-080), and the project's Construction tab (D-081, built on dev): project manager and crews, job walks, installation days and reinspections on the Schedule, progress updates with photos, punch list, reinspection, completion sign-off. The last stage needs every required punch item verified and the customer's signature, and signing moves the project there.
 - [~] Customer and installer pages: completion sign-off page `/signoff/[token]` built (D-081); the work-package page `/wp/[token]` is not
 
@@ -111,8 +111,8 @@ PRD goal: the final workflow, communication integrations and production deployme
 
 **UI/UX (sample data), steps 5.1 to 5.2**
 - [x] 5.1 Finance: board (6 stages), invoices, payments, outstanding balances **built on dev (D-092)**; not clicked through in a browser yet
-- [x] Jobs (list, job page, Close Job, Convert to Job, New Job by hand) and the Products & Services list **built on dev (D-094)**; costs on a job, Labor, Expenses, checklists, recurring jobs and emails follow
-- [ ] 5.2 Messages and export: communication log, export screen
+- [x] Jobs (list, job page, Close Job, Convert to Job, New Job by hand) and the Products & Services list **built on dev (D-094)**; costs on a job, Labor and Expenses **built on dev (D-095)**; checklists, recurring jobs, emails, signature and Delete **built on dev (D-096)**
+- [ ] 5.2 Messages and export: the text log, inbox, Message Center and a Twilio-ready sender are **built on dev (D-097)**; the export page is **built on dev (D-101)**; calls (logged by hand) and WhatsApp work packages (sent by hand) are **built on dev (D-102)**; Twilio voice and the WhatsApp Business sender remain
 
 **Backend wiring**
 - [~] Schema: `invoices`, `invoiceLines`, `payments` (+ allocations, schedule, plans, settings) done (D-092); `communications`, `integrationCredentials` (server-side only) still to do
@@ -121,11 +121,11 @@ PRD goal: the final workflow, communication integrations and production deployme
 - [x] Zoho Mail, read-only, into the client Communication tab: `office@qualityfirstturf.com`, Inbox and Sent, no sending or mailbox changes (D-064)
 - [ ] WhatsApp Business: send work packages, log against the project
 - [x] Permissions: levels per module, Installer role, assigned-only, Manage Team Permissions form (PRD 5.5, D-093); to check in a browser as an Installer
-- [ ] Export for clients, projects, quotes and invoices
+- [x] Export for clients, projects, quotes, invoices and payments **built on dev (D-101)**
 
 **Launch and ending Jobber**
 - [ ] Migration script from forms `projects` to clients and projects, tested against a copy
-- [ ] Jobber import (timing under review: D-022, Q-021): pull via the API already connected in the forms app (CSV fallback, D-015), field mapping, de-duplication, per-row error report, dry run. A final top-up run before Jobber is ended picks up every client added to Jobber meanwhile
+- [~] Jobber import: **clients from a CSV, with a dry run, de-duplication and a per-row report, built on dev (D-103)**; projects, quotes, invoices, payments and the API pull remain (timing under review: D-022, Q-021): pull via the API already connected in the forms app (CSV fallback, D-015), field mapping, de-duplication, per-row error report, dry run. A final top-up run before Jobber is ended picks up every client added to Jobber meanwhile
 - [ ] Repoint the forms app to the CRM and remove its Jobber push, sync and crons. This touches live systems, happens only when the CRM is complete (D-028) and needs the user's explicit go-ahead
 - [ ] End-to-end test from enquiry to payment; stage transitions; data integrity; permission matrix; integrations
 - [ ] Critical bug fixes

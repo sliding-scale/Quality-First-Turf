@@ -5,18 +5,24 @@
    and the greyed More items are built in later steps. */
 
 import { useMutation } from "convex/react";
+import { useState } from "react";
 import type { FunctionReturnType } from "convex/server";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { moneyCents, quoteDate } from "@/lib/format";
-import { JOB_PILL, useJob } from "@/lib/jobs";
-import { clock, failure } from "@/lib/pipeline";
+import { JOB_PILL, useJob, useJobCosts } from "@/lib/jobs";
+import { clock, failure, usePeople } from "@/lib/pipeline";
 import { todayKey } from "@/lib/schedule";
 import { startOfToday } from "@/lib/clients";
 import { BillingTab } from "./billing-tab";
+import { profitOf } from "@/convex/crm/lib/jobCosts";
 import { Icon } from "./icon";
+import { SendEmailDialog } from "./client-dialogs";
+import { bookingMessage, costsFileName, DeleteJobDialog, downloadText, followUpEmail, jobCostsCsv, openText, SignatureDialog } from "./job-actions";
+import { JobChecklists } from "./job-checklists";
+import { ExpensesCard, LaborCard } from "./job-costs";
 import { ProjectNotes } from "./project-notes";
 import { JobSkeleton } from "./skeletons";
 import { useStaff } from "./staff-context";
@@ -40,7 +46,6 @@ export function JobPage({ id }: { id: string }) {
 }
 
 const timeOf = (ms: number) => new Date(ms).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/Los_Angeles" });
-const LATER = "Built in a later step";
 
 function JobView({ job }: { job: Job }) {
   const router = useRouter();
@@ -49,7 +54,11 @@ function JobView({ job }: { job: Job }) {
   const close = useMutation(api.crm.jobs.close);
   const reopen = useMutation(api.crm.jobs.reopen);
   const setStatus = useMutation(api.crm.schedule.setStatus);
+  const sendText = useMutation(api.crm.messages.send);
+  const [dialog, setDialog] = useState<null | "signature" | "delete" | "followup" | "booking">(null);
   const canEdit = staff.can("jobs", "edit");
+  const costs = useJobCosts(job.id);
+  const people = usePeople(job.businessId);
   const canSchedule = staff.can("schedule", "edit");
   const closed = job.closedAt !== null;
   const dayStart = startOfToday();
@@ -58,21 +67,38 @@ function JobView({ job }: { job: Job }) {
   const next = late ?? open.find((v) => v.start >= dayStart);
   const live = job.visits.filter((v) => v.status !== "lost");
   const lastVisit = live.length ? live[live.length - 1] : undefined;
+  // A recurring job's visits are one repeating series on the Schedule.
+  const series = job.jobType === "recurring" ? live.find((v) => v.repeat !== "none") : undefined;
   const fail = (e: unknown, fallback: string) => toast(failure(e, fallback));
+  const booking = bookingMessage(job, staff.name);
 
   const moreItems = () => [
     closed
       ? { label: "Reopen Job", icon: "hammer", iconColor: "var(--green)", disabled: !canEdit, onSelect: () => void reopen({ id: job.id, now: clock() }).then(() => toast("Job reopened")).catch((e) => fail(e, "The job could not be reopened.")) }
       : { label: "Close Job", icon: "hammer", iconColor: "var(--green)", disabled: !canEdit, onSelect: () => void close({ id: job.id, now: clock() }).then(() => toast("Job closed")).catch((e) => fail(e, "The job could not be closed.")) },
-    { label: "Create Similar Job", icon: "duplicate", disabled: true },
-    { label: "Send Job Follow-up Email", icon: "mail", disabled: true },
-    { label: "Text Booking Confirmation", icon: "sms", disabled: true },
-    { label: "Email Booking Confirmation", icon: "mail", disabled: true },
+    { label: "Create Similar Job", icon: "duplicate", disabled: !staff.can("jobs", "edit"), onSelect: () => router.push(`/jobs/new?similar=${job.id}`) },
+    { label: "Send Job Follow-up Email", icon: "mail", disabled: !canEdit || !job.client.email, onSelect: () => setDialog("followup") },
+    {
+      label: "Text Booking Confirmation", icon: "sms", disabled: !canEdit || !job.client.phone || !booking,
+      onSelect: () => {
+        if (!booking) return;
+        // The text goes into the Messages log against this client and job. Until texting is connected it is logged as sent by hand and opened in the messaging app.
+        void sendText({ businessId: job.businessId, clientId: job.client.id as Id<"clients">, opportunityId: job.id, body: booking.text, now: clock() })
+          .then((r) => {
+            if (r.mode === "manual") {
+              openText(r.phone, r.body);
+              toast("The text is logged as sent by hand. Your messaging app is opening with it.");
+            } else toast("The text is on its way.");
+          })
+          .catch((e) => fail(e, "The text could not be sent."));
+      },
+    },
+    { label: "Email Booking Confirmation", icon: "mail", disabled: !canEdit || !job.client.email || !booking, onSelect: () => setDialog("booking") },
     { label: "Create Invoice", icon: "receipt", disabled: !staff.can("invoices", "edit"), onSelect: () => router.push(`/invoices/new?clientId=${job.clientId}&projectId=${job.id}`) },
-    { label: "Collect Signature", icon: "signature", disabled: true },
-    { label: "Email Job Costs CSV", icon: "import", disabled: true },
+    { label: "Collect Signature", icon: "signature", disabled: !canEdit, onSelect: () => setDialog("signature") },
+    { label: "Email Job Costs CSV", icon: "import", disabled: !costs, onSelect: () => costs && downloadText(costsFileName(job), jobCostsCsv(job, costs)) },
     { label: "Print or Save PDF", icon: "pdf", onSelect: () => window.print() },
-    { label: "Delete", icon: "trash", danger: true, disabled: true },
+    { label: "Delete", icon: "trash", danger: true, disabled: !staff.can("jobs", "full"), onSelect: () => setDialog("delete") },
   ];
 
   return (
@@ -107,9 +133,9 @@ function JobView({ job }: { job: Job }) {
             </div>
             <dl className="op-facts">
               <div><dt>Job #</dt><dd>{job.jobNumber}</dd></div>
-              <div><dt>Job type</dt><dd>One-off job</dd></div>
+              <div><dt>Job type</dt><dd>{job.jobType === "recurring" ? "Recurring job" : "One-off job"}</dd></div>
               <div><dt>Started on</dt><dd>{job.firstVisitAt ? quoteDate(job.firstVisitAt) : job.wonAt ? quoteDate(job.wonAt) : "—"}</dd></div>
-              <div><dt>Ends on</dt><dd>{lastVisit ? quoteDate(lastVisit.start) : "—"}</dd></div>
+              <div><dt>Ends on</dt><dd>{series?.repeatUntil ? quoteDate(series.repeatUntil) : series ? "Repeats until stopped" : lastVisit ? quoteDate(lastVisit.start) : "—"}</dd></div>
               <div><dt>Billing frequency</dt><dd>{job.hasPaymentPlan ? "Per payment schedule" : "Upon job completion"}</dd></div>
             </dl>
           </section>
@@ -122,13 +148,14 @@ function JobView({ job }: { job: Job }) {
             {job.lines.length ? (
               <div className="op-scroll">
                 <table className="table op-table">
-                  <colgroup><col /><col style={{ width: 90 }} /><col style={{ width: 120 }} /><col style={{ width: 120 }} /></colgroup>
-                  <thead><tr><th>Line Item</th><th className="num">Quantity</th><th className="num">Unit Price</th><th className="num">Total</th></tr></thead>
+                  <colgroup><col /><col style={{ width: 90 }} />{costs && <col style={{ width: 110 }} />}<col style={{ width: 120 }} /><col style={{ width: 120 }} /></colgroup>
+                  <thead><tr><th>Line Item</th><th className="num">Quantity</th>{costs && <th className="num">Unit Cost</th>}<th className="num">Unit Price</th><th className="num">Total</th></tr></thead>
                   <tbody>
                     {job.lines.map((l, i) => (
                       <tr key={i}>
                         <td><b>{l.name}</b>{l.description && <div className="muted op-text">{l.description}</div>}</td>
                         <td className="num">{l.quantity}</td>
+                        {costs && <td className="num">{costs.unitCosts[i] === null || costs.unitCosts[i] === undefined ? "—" : moneyCents(costs.unitCosts[i] as number)}</td>}
                         <td className="num">{moneyCents(l.unitPriceCents)}</td>
                         <td className="num">{moneyCents(Math.round(l.quantity * l.unitPriceCents))}</td>
                       </tr>
@@ -142,19 +169,12 @@ function JobView({ job }: { job: Job }) {
             <dl className="job-sums">
               <div><dt>Subtotal</dt><dd>{moneyCents(job.subtotalCents)}</dd></div>
               <div className="bold"><dt>Total price</dt><dd>{moneyCents(job.totalCents)}</dd></div>
-              <div><dt>Total cost</dt><dd>{moneyCents(0)}</dd></div>
+              {costs && <div><dt>Total cost</dt><dd>{moneyCents(costs.costCents)}</dd></div>}
             </dl>
           </section>
 
-          <section className="card op-card">
-            <div className="op-sechead"><h2>Labor</h2></div>
-            <div className="job-empty"><Icon name="timeline" size={20} /><span>Time tracked to this job will show here</span><button type="button" className="cj-link" disabled data-tip={LATER}>Add Time Entry</button></div>
-          </section>
-
-          <section className="card op-card">
-            <div className="op-sechead"><h2>Expenses</h2></div>
-            <div className="job-empty"><Icon name="receipt" size={20} /><span>Upload receipts and we will fill in the expense details for you</span><button type="button" className="cj-link" disabled data-tip={LATER}>Add Expense</button></div>
-          </section>
+          {costs && <LaborCard jobId={job.id} costs={costs} people={people} canEdit={canEdit} />}
+          {costs && <ExpensesCard jobId={job.id} businessId={job.businessId} costs={costs} people={people} canEdit={canEdit} />}
 
           <section className="card op-card">
             <div className="op-sechead">
@@ -196,6 +216,22 @@ function JobView({ job }: { job: Job }) {
             </div>
           </section>
 
+          <JobChecklists jobId={job.id} businessId={job.businessId} canEdit={canEdit} />
+
+          {job.signatures.length > 0 && (
+            <section className="card op-card">
+              <div className="op-sechead"><h2>Signatures</h2></div>
+              <div className="job-sigs">
+                {job.signatures.map((g) => (
+                  <figure key={g.id}>
+                    {g.url && <img src={g.url} alt={`Signature of ${g.signedBy}`} />}
+                    <figcaption><b>{g.signedBy}</b><br /><span className="muted">Collected by {g.byName}, {quoteDate(g.at)}</span></figcaption>
+                  </figure>
+                ))}
+              </div>
+            </section>
+          )}
+
           {/* The Billing tab brings its own headings: the payment schedule, the invoices and the payments. */}
           {staff.can("invoices") && <BillingTab id={job.id} />}
         </div>
@@ -203,18 +239,24 @@ function JobView({ job }: { job: Job }) {
         <div className="op-col">
           <section className="card op-card job-totals">
             <h2>Total cost to date</h2>
-            <div className="job-big">{moneyCents(0)}</div>
+            <div className="job-big">{moneyCents(costs ? costs.costCents : 0)}</div>
             <dl className="op-facts">
               <div><dt>Revenue</dt><dd>{moneyCents(job.totalCents)}</dd></div>
               <div><dt>Invoiced</dt><dd>{moneyCents(job.invoicedCents)}</dd></div>
               <div><dt>Paid</dt><dd>{moneyCents(job.paidCents)}</dd></div>
-              <div><dt>Cost</dt><dd>{moneyCents(0)}</dd></div>
+              {costs && <div><dt>Cost</dt><dd>{moneyCents(costs.costCents)}</dd></div>}
+              {costs && (() => { const pr = profitOf(job.totalCents, costs.costCents); return <div><dt>Profit</dt><dd>{pr.percent === null ? "" : `${pr.percent}% `}{pr.cents < 0 ? "-" : ""}{moneyCents(Math.abs(pr.cents))}</dd></div>; })()}
             </dl>
-            <p className="muted">Costs are added in a later step, with Labor and Expenses.</p>
+            {costs && job.totalCents > 0 && <div className="job-bar" aria-hidden="true"><span style={{ width: `${Math.min(100, Math.round((costs.costCents / job.totalCents) * 100))}%` }} /></div>}
+            {costs && <p className="muted">Cost is the catalogue cost of the lines, plus Labor and Expenses.</p>}
           </section>
           {staff.can("tasks") && <ProjectNotes id={job.id} canEdit={staff.can("tasks", "edit")} />}
         </div>
       </div>
+      {dialog === "signature" && <SignatureDialog job={job} onClose={() => setDialog(null)} />}
+      {dialog === "delete" && <DeleteJobDialog job={job} onClose={() => setDialog(null)} />}
+      {dialog === "followup" && <SendEmailDialog client={{ id: job.client.id, name: job.client.name, email: job.client.email }} preset={followUpEmail(job, staff.name)} onClose={() => setDialog(null)} />}
+      {dialog === "booking" && booking && <SendEmailDialog client={{ id: job.client.id, name: job.client.name, email: job.client.email }} preset={{ subject: booking.subject, body: booking.body }} onClose={() => setDialog(null)} />}
     </div>
   );
 }

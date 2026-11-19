@@ -14,6 +14,7 @@ import {
   tellPerson,
 } from "./lib/construction";
 import { formatPhone } from "./lib/fields";
+import { allows } from "./lib/permissions";
 import { attachmentLinks, checkNoteFiles, deleteNoteFiles, noteFilesArg } from "./lib/noteFiles";
 import { completeConstruction } from "./pipeline";
 import { checkImage } from "./quoteDraft";
@@ -167,30 +168,37 @@ export const setTeam = mutation({
 export const crews = query({
   args: { businessId: v.id("businesses") },
   handler: async (ctx, args) => {
-    await requireModule(ctx, args.businessId, "pipelineConstruction", "view");
+    const staff = await requireModule(ctx, args.businessId, "pipelineConstruction", "view");
+    const costs = allows(staff.levels.prices, "view");
     const rows = await ctx.db.query("crews").withIndex("by_business", (q) => q.eq("businessId", args.businessId)).take(MAX_CREWS);
-    return rows.sort((a, b) => Number(b.active) - Number(a.active) || a.name.localeCompare(b.name)).map((c) => ({ id: c._id, name: c.name, leadName: c.leadName, phone: c.phone, notes: c.notes, active: c.active }));
+    return rows.sort((a, b) => Number(b.active) - Number(a.active) || a.name.localeCompare(b.name)).map((c) => ({
+      id: c._id, name: c.name, leadName: c.leadName, phone: c.phone, notes: c.notes, active: c.active, availability: c.availability ?? "", rateCents: costs ? c.rateCents ?? null : null, canSeeRates: costs,
+    }));
   },
 });
 
 /** Adds a crew, or changes one. A crew is never deleted while projects may point at it; it is turned off (`active: false`) instead. */
 export const saveCrew = mutation({
-  args: { businessId: v.id("businesses"), id: v.optional(v.id("crews")), name: v.string(), leadName: v.string(), phone: v.string(), notes: v.string(), active: v.boolean(), now: v.number() },
+  args: { businessId: v.id("businesses"), id: v.optional(v.id("crews")), name: v.string(), leadName: v.string(), phone: v.string(), notes: v.string(), active: v.boolean(), availability: v.optional(v.string()), rateCents: v.optional(v.number()), now: v.number() },
   handler: async (ctx, args) => {
-    await requireModule(ctx, args.businessId, "pipelineConstruction", "edit");
+    const staff = await requireModule(ctx, args.businessId, "pipelineConstruction", "edit");
     const name = text(args.name, 100, "The crew name");
     if (!name) throw new ConvexError("Give the crew a name.");
+    if (args.rateCents !== undefined && (!Number.isInteger(args.rateCents) || args.rateCents < 0 || args.rateCents > 100_000_00)) throw new ConvexError("Check the crew's rate.");
     const fields = { name, leadName: text(args.leadName, 100, "The lead's name"), phone: formatPhone(args.phone), notes: text(args.notes, 2000, "The notes"), active: args.active };
+    // A rate is a price: someone who cannot see prices cannot set it, and the one on the crew stays.
+    const rate = allows(staff.levels.prices, "view") ? { rateCents: args.rateCents } : {};
+    const availability = args.availability === undefined ? {} : { availability: text(args.availability, 500, "The availability") };
     const all = await ctx.db.query("crews").withIndex("by_business", (q) => q.eq("businessId", args.businessId)).take(MAX_CREWS + 1);
     if (all.some((c) => c._id !== args.id && c.name.toLowerCase() === name.toLowerCase())) throw new ConvexError("There is already a crew with that name.");
     if (args.id) {
       const crew = await ctx.db.get(args.id);
       if (crew === null || crew.businessId !== args.businessId) throw new ConvexError("That crew no longer exists.");
-      await ctx.db.patch(crew._id, fields);
+      await ctx.db.patch(crew._id, { ...fields, ...rate, ...availability });
       return crew._id;
     }
     if (all.length >= MAX_CREWS) throw new ConvexError(`A business can have up to ${MAX_CREWS} crews.`);
-    return await ctx.db.insert("crews", { businessId: args.businessId, ...fields, createdAt: args.now });
+    return await ctx.db.insert("crews", { businessId: args.businessId, ...fields, ...rate, ...availability, createdAt: args.now });
   },
 });
 

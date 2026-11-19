@@ -31,6 +31,10 @@ const app = defineApp({
     ZOHO_CLIENT_SECRET: v.optional(v.string()),
     ZOHO_REFRESH_TOKEN: v.optional(v.string()),
     ZOHO_MAILBOX: v.optional(v.string()),
+    // Texting (plan 2026-11-19-messages, PRD 5.3): a Twilio account's SID and auth token. Without them texts are logged as sent by hand. The numbers
+    // themselves are kept in the CRM (Settings > Phone numbers). Twilio's inbound webhook is <this deployment's .convex.site address>/twilio/sms.
+    TWILIO_ACCOUNT_SID: v.optional(v.string()),
+    TWILIO_AUTH_TOKEN: v.optional(v.string()),
     ZOHO_ACCOUNTS_URL: v.optional(v.string()),
     ZOHO_MAIL_API_URL: v.optional(v.string()),
     // Zoho Calendar, one connection per person (D-069). A Zoho "Server-based Application" (its Client ID and Secret) whose redirect address is

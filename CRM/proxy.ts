@@ -15,7 +15,9 @@ export default clerkMiddleware(async (auth, request) => {
     // The customer's completion sign-off page (D-081): the secret link is the key here too.
     path.startsWith("/signoff/") ||
     // The client's invoice page (design 2026-11-18-finance): the secret link is the key here too.
-    path.startsWith("/i/");
+    path.startsWith("/i/") ||
+    // The installer's work package page (PRD 4.3): the secret, expiring link is the key here too.
+    path.startsWith("/w/");
   if (!isOpen) await auth.protect();
 });
 

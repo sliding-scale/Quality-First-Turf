@@ -30,7 +30,7 @@ const inputV = {
 const searchTextOf = (name: string, description: string) => `${name} ${description}`.slice(0, 2000);
 
 /** Jobber's "Product & Services costs" switch for a business. On unless someone turned it off. */
-async function costsOn(ctx: QueryCtx, businessId: Id<"businesses">): Promise<boolean> {
+export async function costsOn(ctx: QueryCtx, businessId: Id<"businesses">): Promise<boolean> {
   const s = await ctx.db.query("catalogueSettings").withIndex("by_business", (q) => q.eq("businessId", businessId)).unique();
   return s?.costsOn ?? true;
 }
