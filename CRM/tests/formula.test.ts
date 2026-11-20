@@ -84,9 +84,12 @@ describe("Takeoff quantities (PRD 4.2)", () => {
     expect(lineQuantity({ formula: "area / ", wastagePercent: 0, rounding: "up", inputs })).toMatchObject({ ok: false });
     expect(lineQuantity({ formula: "length - 5", wastagePercent: 0, rounding: "up", inputs })).toEqual({ ok: false, error: "The formula gives a negative quantity." });
   });
-  it("starts every standard input at zero", () => {
+  it("starts every input at zero: the seven standard ones, then the irrigation and lighting counts (D-107)", () => {
     expect(Object.values(emptyInputs()).every((v) => v === 0)).toBe(true);
-    expect(Object.keys(emptyInputs())).toEqual(["area", "perimeter", "depth", "length", "width", "height", "quantity"]);
+    expect(Object.keys(emptyInputs())).toEqual([
+      "area", "perimeter", "depth", "length", "width", "height", "quantity",
+      "valves", "plants", "drip_line", "drip_line_emitters", "soaker_hose", "tree_rings", "large_tree_rings", "lights", "transformers",
+    ]);
   });
 });
 

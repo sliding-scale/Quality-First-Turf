@@ -7,6 +7,7 @@ import { ConfirmationFit } from "@/components/confirmation-fit";
 import { contactFields } from "@/components/ui/fields";
 import type { DiscoveryState } from "@/convex/shared/discovery";
 import { DiscoveryStep } from "@/lib/discovery-draft";
+import { ProjectFields } from "@/components/project-step";
 import { toggleRadio } from "@/components/ui/inputs";
 import {
   Stepper,
@@ -18,11 +19,10 @@ import {
 } from "@/components/ui/stepper";
 
 const quoteSteps: { id: DiscoveryStep; num: string; label: string }[] = [
-  { id: "property", num: "01", label: "Your details" },
-  { id: "project", num: "02", label: "Your project" },
-  { id: "services", num: "03", label: "Services" },
-  { id: "details", num: "04", label: "Questions" },
-  { id: "confirmation", num: "05", label: "Confirmation" },
+  { id: "property", num: "01", label: "Details & project" },
+  { id: "services", num: "02", label: "Services" },
+  { id: "details", num: "03", label: "Questions" },
+  { id: "confirmation", num: "04", label: "Confirmation" },
 ];
 
 const audiences = [
@@ -75,7 +75,7 @@ export function IntakeFrame({
     );
   }
 
-  if (step === "property" || step === "project") {
+  if (step === "property" || step === "choice") {
     return (
       <div className="intake intake--simple">
         <IntakeHeader step={step} onStep={onStep} />
@@ -99,7 +99,8 @@ function IntakeHeader({
   step: DiscoveryStep;
   onStep?: (step: DiscoveryStep) => void;
 }) {
-  const currentIndex = quoteSteps.findIndex((item) => item.id === step);
+  // The choice page (pick services or be called) sits under "Services" in the progress bar.
+  const currentIndex = quoteSteps.findIndex((item) => item.id === (step === "choice" ? "services" : step));
 
   return (
     <header className="intake-header">
@@ -143,12 +144,14 @@ export function PropertyStep({
   problems,
   pending,
   onPatch,
+  onProject,
   onSubmit,
 }: {
   form: DiscoveryState;
   problems: Record<string, string>;
   pending: boolean;
   onPatch: (partial: Partial<DiscoveryState>) => void;
+  onProject: (partial: Partial<DiscoveryState["project"]>) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   const fields = contactFields({ variant: "intake", form, problems, onPatch, required: true });
@@ -156,8 +159,8 @@ export function PropertyStep({
     <main className="simple-main">
       <form className="simple-card" onSubmit={onSubmit} noValidate>
         <div>
-          <h1>Your details</h1>
-          <p className="simple-card__lead">Tell us who you are, and where the work is. The services come next.</p>
+          <h1>Your details and project</h1>
+          <p className="simple-card__lead">Tell us who you are, where the work is, and what you have in mind. Rough answers are fine, and you can change them later.</p>
         </div>
         <div className="intake-fields">
           <fieldset className="intake-group">
@@ -221,6 +224,8 @@ export function PropertyStep({
             </div>
           </fieldset>
         </div>
+        <h2 className="intake-section-title">Your project</h2>
+        <ProjectFields form={form} problems={problems} onProject={onProject} />
         <div className="simple-card__footer">
           <button className="intake-continue" type="submit" disabled={pending}>
             {pending ? "Saving" : "Continue"}
@@ -232,6 +237,53 @@ export function PropertyStep({
           </p>
         </div>
       </form>
+    </main>
+  );
+}
+
+/** After the details and project: pick services, or have one of the team reach out (client notes, 2026-11-20). Reaching out sends the request with no
+ *  services; a salesperson then books the consultation and picks the services with the customer. */
+export function ChoiceStep({
+  pending,
+  error,
+  onServices,
+  onReachOut,
+  onBack,
+}: {
+  pending: boolean;
+  error: string | null;
+  onServices: () => void;
+  onReachOut: () => void;
+  onBack: () => void;
+}) {
+  return (
+    <main className="simple-main">
+      <div className="simple-card">
+        <div>
+          <h1>What would you like to do next?</h1>
+          <p className="simple-card__lead">Choose the services you would like built in your outdoor space, or let one of our professionals reach out to talk it through.</p>
+        </div>
+        <div className="reachout-grid">
+          <button type="button" className="pj-option reachout-card" disabled={pending} onClick={onServices}>
+            <span className="pj-option__text">
+              <strong>I will choose my services</strong>
+              <small>Pick what you are looking to have built, then answer a few questions.</small>
+            </span>
+            <ArrowRight strokeWidth={2} aria-hidden="true" />
+          </button>
+          <button type="button" className="pj-option reachout-card" disabled={pending} onClick={onReachOut}>
+            <span className="pj-option__text">
+              <strong>{pending ? "Sending" : "Have a professional reach out"}</strong>
+              <small>We will contact you to schedule a consultation. No need to pick services now.</small>
+            </span>
+            {pending ? null : <ArrowRight strokeWidth={2} aria-hidden="true" />}
+          </button>
+        </div>
+        {error !== null ? <p className="form-alert" role="alert">{error}</p> : null}
+        <div className="simple-card__footer">
+          <button type="button" className="review-back" disabled={pending} onClick={onBack}>Back</button>
+        </div>
+      </div>
     </main>
   );
 }

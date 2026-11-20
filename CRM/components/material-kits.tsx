@@ -8,6 +8,7 @@ import { useMutation, useQuery } from "convex/react";
 import { useState, type FormEvent } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { TAKEOFF_INPUTS } from "@/convex/crm/lib/takeoff";
 import { clock, failure } from "@/lib/pipeline";
 import { Icon } from "./icon";
 import { PipelineModal } from "./pipeline-dialogs";
@@ -30,7 +31,7 @@ export function MaterialKits({ businessId }: { businessId: Id<"businesses"> }) {
     setLoading(true);
     try {
       const r = await load({ businessId, now: clock() });
-      toast(`Loaded ${r.kitsAdded} kit${r.kitsAdded === 1 ? "" : "s"} and ${r.materialsAdded} material${r.materialsAdded === 1 ? "" : "s"}.`);
+      toast(r.kitsAdded === 0 && r.materialsAdded === 0 ? "Everything from the client's calculator is already here." : `Loaded ${r.kitsAdded} kit${r.kitsAdded === 1 ? "" : "s"} and ${r.materialsAdded} material${r.materialsAdded === 1 ? "" : "s"}.`);
     } catch (err) {
       toast(failure(err, "The calculator could not be loaded."));
     } finally {
@@ -52,7 +53,10 @@ export function MaterialKits({ businessId }: { businessId: Id<"businesses"> }) {
     <section className="mk" style={{ marginTop: 32 }}>
       <div className="page-head">
         <h2>Kits</h2>
-        {canEdit && <button type="button" className="btn primary" onClick={() => setEditing("new")}><Icon name="plus" size={18} /> Add Kit</button>}
+        <div className="cat-actions" style={{ marginTop: 0 }}>
+          {canFull && kits.length > 0 && <button type="button" className="btn" disabled={loading} data-tip="Adds any kit or material from the client's calculator that is not here yet. Nothing you changed is touched." onClick={() => void loadStarter()}>{loading ? "Loading…" : "Add missing from the client's calculator"}</button>}
+          {canEdit && <button type="button" className="btn primary" onClick={() => setEditing("new")}><Icon name="plus" size={18} /> Add Kit</button>}
+        </div>
       </div>
       <p className="au-lead">A kit is a set of materials that go on a project&apos;s takeoff together, such as a standard install or a 3 in. drain. On a project, Add kit puts all of its materials on the takeoff, each worked out from the measurements.</p>
       {kits.length === 0 ? (
@@ -77,7 +81,7 @@ export function MaterialKits({ businessId }: { businessId: Id<"businesses"> }) {
                   ...kits.filter((k) => k.group === g).map((k) => (
                     <tr key={k.id} className="click" onClick={() => setEditing(k)}>
                       <td><b>{k.name}</b>{k.description && <div className="muted">{k.description}</div>}</td>
-                      <td>{k.uses.length ? k.uses.join(", ") : <span className="muted">—</span>}</td>
+                      <td>{k.uses.length ? k.uses.map((u) => TAKEOFF_INPUTS.find((i) => i.key === u)?.label ?? u).join(", ") : <span className="muted">—</span>}</td>
                       <td className="single" title={k.items.map((i) => i.name).join(", ")}>{k.items.map((i) => i.name).join(", ")}{k.missing > 0 && <span className="cat-bad"> ({k.missing} deleted)</span>}</td>
                     </tr>
                   )),

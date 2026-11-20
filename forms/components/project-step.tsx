@@ -1,7 +1,7 @@
 "use client";
 
-import { ArrowRight, Dog, Flag, House, LayoutGrid, Sparkles, Trees, type LucideIcon } from "lucide-react";
-import type { Dispatch, FormEvent, SetStateAction } from "react";
+import { Dog, Flag, House, LayoutGrid, Sparkles, Trees, type LucideIcon } from "lucide-react";
+import type { Dispatch, SetStateAction } from "react";
 import {
   fieldIdFor,
   projectBudgets,
@@ -17,7 +17,7 @@ import {
 } from "@/convex/shared/discovery";
 import { RequiredStar } from "@/components/ui/fields";
 
-/* The "Your project" step (D-087) and the "Where in your yard?" question on the Questions step. The client's wording is the options'
+/* The "Your project" questions (D-087), now part of the first page with the contact details (client notes, 2026-11-20), and the "Where in your yard?" question on the Questions step. The client's wording is the options'
    wording; a small grey line under an option is the client's own hint ("a standard yard", "we will measure it"). The CRM's New Request has a
    copy of this file (CRM/components/intake/project-step.tsx), as it does of the other form pieces. */
 
@@ -66,77 +66,54 @@ function Options({ name, options, value, invalid, onPick }: { name: string; opti
   );
 }
 
-export function ProjectStep({
+export function ProjectFields({
   form,
   problems,
-  pending,
   onProject,
-  onSubmit,
-  onBack,
   required = true,
 }: {
   form: DiscoveryState;
   problems: Problems;
-  pending: boolean;
   onProject: (partial: Partial<ProjectAnswers>) => void;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-  onBack: () => void;
   /** The customer form requires every answer. New Request, filled in by staff who may not have asked yet, does not. */
   required?: boolean;
 }) {
   const { project } = form;
   return (
-    <main className="simple-main">
-      <form className="simple-card" onSubmit={onSubmit} noValidate>
-        <div>
-          <h1>Your project</h1>
-          <p className="simple-card__lead">Tell us what you have in mind. Rough answers are fine, and you can change them later.</p>
+    <div className="intake-fields">
+      <Group id="project-scope" required={required} legend="What are we transforming?" hint="Choose all that apply" error={problems["project-scope"]}>
+        <div className="pj-chips">
+          {projectScopes.map((scope) => {
+            const selected = project.scope.includes(scope);
+            const Icon = scopeIcons[scope] ?? Sparkles;
+            return (
+              <label key={scope} className={`pj-chip${selected ? " is-selected" : ""}`}>
+                <input
+                  className="visually-hidden"
+                  type="checkbox"
+                  checked={selected}
+                  onChange={() => onProject({ scope: selected ? project.scope.filter((item) => item !== scope) : [...project.scope, scope] })}
+                />
+                <span className="pj-chip__icon"><Icon strokeWidth={1.75} aria-hidden="true" /></span>
+                <span>{scope}</span>
+              </label>
+            );
+          })}
         </div>
-        <div className="intake-fields">
-          <Group id="project-scope" required={required} legend="What are we transforming?" hint="Choose all that apply" error={problems["project-scope"]}>
-            <div className="pj-chips">
-              {projectScopes.map((scope) => {
-                const selected = project.scope.includes(scope);
-                const Icon = scopeIcons[scope] ?? Sparkles;
-                return (
-                  <label key={scope} className={`pj-chip${selected ? " is-selected" : ""}`}>
-                    <input
-                      className="visually-hidden"
-                      type="checkbox"
-                      checked={selected}
-                      onChange={() => onProject({ scope: selected ? project.scope.filter((item) => item !== scope) : [...project.scope, scope] })}
-                    />
-                    <span className="pj-chip__icon"><Icon strokeWidth={1.75} aria-hidden="true" /></span>
-                    <span>{scope}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </Group>
-          <Group id="project-size" required={required} legend="Roughly how big is the space?" error={problems["project-size"]}>
-            <Options name="project-size" options={projectSizes} value={project.size} invalid={Boolean(problems["project-size"])} onPick={(size) => onProject({ size })} />
-          </Group>
-          <Group id="project-goal" required={required} legend="What is the main goal for your new yard?" error={problems["project-goal"]}>
-            <Options name="project-goal" options={projectGoals} value={project.goal} invalid={Boolean(problems["project-goal"])} onPick={(goal) => onProject({ goal })} />
-          </Group>
-          <Group id="project-timeline" required={required} legend="When are you hoping to enjoy your new yard?" error={problems["project-timeline"]}>
-            <Options name="project-timeline" options={projectTimelines} value={project.timeline} invalid={Boolean(problems["project-timeline"])} onPick={(timeline) => onProject({ timeline })} />
-          </Group>
-          <Group id="project-budget" required={required} legend="What is your target investment range for this project?" error={problems["project-budget"]}>
-            <Options name="project-budget" options={projectBudgets} value={project.budget} invalid={Boolean(problems["project-budget"])} onPick={(budget) => onProject({ budget })} />
-          </Group>
-        </div>
-        <div className="simple-card__footer">
-          <div className="pj-actions">
-            <button type="button" className="review-back" onClick={onBack}>Back</button>
-            <button className="intake-continue" type="submit" disabled={pending}>
-              Continue
-              <ArrowRight strokeWidth={2} aria-hidden="true" />
-            </button>
-          </div>
-        </div>
-      </form>
-    </main>
+      </Group>
+      <Group id="project-size" required={required} legend="Roughly how big is the space?" error={problems["project-size"]}>
+        <Options name="project-size" options={projectSizes} value={project.size} invalid={Boolean(problems["project-size"])} onPick={(size) => onProject({ size })} />
+      </Group>
+      <Group id="project-goal" required={required} legend="What is the main goal for your new yard?" error={problems["project-goal"]}>
+        <Options name="project-goal" options={projectGoals} value={project.goal} invalid={Boolean(problems["project-goal"])} onPick={(goal) => onProject({ goal })} />
+      </Group>
+      <Group id="project-timeline" required={required} legend="When are you hoping to enjoy your new yard?" error={problems["project-timeline"]}>
+        <Options name="project-timeline" options={projectTimelines} value={project.timeline} invalid={Boolean(problems["project-timeline"])} onPick={(timeline) => onProject({ timeline })} />
+      </Group>
+      <Group id="project-budget" required={required} legend="What is your target investment range for this project?" error={problems["project-budget"]}>
+        <Options name="project-budget" options={projectBudgets} value={project.budget} invalid={Boolean(problems["project-budget"])} onPick={(budget) => onProject({ budget })} />
+      </Group>
+    </div>
   );
 }
 

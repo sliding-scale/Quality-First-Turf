@@ -393,6 +393,12 @@ export function whereProblems(form: DiscoveryState): Record<string, string> {
   return problems;
 }
 
+/** How a request that asked to be called is marked in its answers (client notes, 2026-11-20): it has no services, and this answer says why. */
+export const contactPreferenceQuestion = "Contact preference";
+export const reachOutAnswer = "A professional will reach out";
+export const wantsCallFromAnswers = (answers: { question: string; value: string }[]): boolean =>
+  answers.some((a) => a.question === contactPreferenceQuestion && a.value === reachOutAnswer);
+
 export type DiscoveryState = {
   firstName: string;
   lastName: string;
@@ -427,6 +433,8 @@ export type DiscoveryState = {
   project: ProjectAnswers;
   /** Where in the yard each service goes, for the services that ask (asksWhere). */
   where: Record<string, string[]>;
+  /** The customer chose "have a professional reach out" instead of picking services (client notes, 2026-11-20). Such a request has no services. */
+  wantsCall: boolean;
 };
 
 export function emptyDiscovery(): DiscoveryState {
@@ -461,6 +469,7 @@ export function emptyDiscovery(): DiscoveryState {
     grassWork: "",
     project: emptyProject(),
     where: {},
+    wantsCall: false,
   };
 }
 
@@ -837,12 +846,14 @@ function invalid(error: string, fieldId: string): DiscoveryBuild {
 /** `requireProject` is true for the customer form and New Request, which always ask the project questions. The sales form leaves it off, so
  *  a visit on a project that was submitted before those questions existed can still be saved. */
 export function buildDiscovery(input: DiscoveryState, options: { requireProject?: boolean } = {}): DiscoveryBuild {
+  // A customer who asked to be called has no services: anything ticked before they chose that is left out.
+  if (input.wantsCall) input = { ...input, services: [], where: {} };
   const contact = contactProblems(input);
   const contactId = Object.keys(contact)[0];
   if (contactId !== undefined) {
     return invalid(contact[contactId], contactId);
   }
-  if (input.services.length === 0) {
+  if (input.services.length === 0 && !input.wantsCall) {
     return invalid("Choose at least one service.", "services");
   }
 
@@ -859,6 +870,7 @@ export function buildDiscovery(input: DiscoveryState, options: { requireProject?
   const answers: { question: string; value: string }[] = [
     { question: "Customer type", value: input.customerType },
   ];
+  if (input.wantsCall) answers.push({ question: contactPreferenceQuestion, value: reachOutAnswer });
   for (const scope of input.project.scope) answers.push({ question: "Project scope", value: scope });
   for (const [question, value] of [
     ["Space size", input.project.size],

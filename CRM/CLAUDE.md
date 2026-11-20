@@ -93,7 +93,7 @@ The user said on 2026-11-18 that they will provide these later. When they ask wh
 2. **Measurement units:** the units measured in and ordered in (sq ft, linear ft, rolls, bags, tons, cubic yards) and how they convert.
 
 To be asked of the client (user's call, 2026-11-18, because the PRD says the client supplies them and Jobber has nothing to copy):
-3. **Material formulas and wastage**, with 2 to 3 real jobs showing the measurements and the final material list. *Partly received 2026-11-20 as the QFT LANDSCAPE material take off calculator spreadsheet (loaded as kits, D-104; Lighting, Irrigation and Planting not loaded yet). Still to ask: their real jobs as a check, the roll widths, and the suppliers and costs.*
+3. **Material formulas and wastage**, with 2 to 3 real jobs showing the measurements and the final material list. *Partly received 2026-11-20 as the QFT LANDSCAPE material take off calculator spreadsheet (loaded as kits, D-104 and D-107; Planting is empty in the sheet). The Zoho WorkDrive has real work orders and price lists: see docs/workdrive-findings.md. Still to ask: their real jobs as a check, the roll widths, and the suppliers and costs.*
 4. **A work package they have sent an installer**, and what one normally contains.
 Until they arrive, build on placeholders the team can edit (golden rule in `../CLAUDE.md`, D-091). Delete each item here once it is received.
 

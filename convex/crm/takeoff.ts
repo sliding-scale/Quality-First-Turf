@@ -52,15 +52,15 @@ export const get = query({
     const costs = allows(staff.levels.prices, "view");
     const t = await takeoffOf(ctx, p._id);
     const rows = await linesOf(ctx, p._id);
-    const lines = rows.map((l) => ({
-      id: l._id, name: l.name, sku: l.sku, unit: l.unit, formula: l.formula, wastagePercent: l.wastagePercent, calcQty: l.calcQty ?? null, calcError: l.calcError ?? null,
+    const lines = await Promise.all(rows.map(async (l) => ({
+      id: l._id, name: l.name, category: l.category ?? (l.materialId ? (await ctx.db.get(l.materialId))?.category ?? "" : ""), sku: l.sku, unit: l.unit, formula: l.formula, wastagePercent: l.wastagePercent, calcQty: l.calcQty ?? null, calcError: l.calcError ?? null,
       qtyOverride: l.qtyOverride ?? null, qty: l.qtyOverride ?? l.calcQty ?? 0, unitCostCents: costs ? l.unitCostCents ?? null : null, supplier: l.supplier,
       leadTimeDays: l.leadTimeDays ?? null, inStock: l.inStock ?? null, notes: l.notes, materialId: l.materialId ?? null,
-    }));
+    })));
     const summary = summarize(lines.map((l) => ({ name: l.name, unit: l.unit, qty: l.qty, unitCostCents: l.unitCostCents, supplier: l.supplier, leadTimeDays: l.leadTimeDays, inStock: l.inStock })));
     return {
       inputs: inputsOf(t), saved: t !== null, updatedAt: t?.updatedAt ?? null, updatedByName: t?.updatedByName ?? null, suggested: await suggestion(ctx, p),
-      lines, summary, canSeeCosts: costs, inputList: TAKEOFF_INPUTS.map((i) => ({ key: i.key, label: i.label, unit: i.unit })),
+      lines, summary, canSeeCosts: costs, inputList: TAKEOFF_INPUTS.map((i) => ({ key: i.key, label: i.label, unit: i.unit, group: i.group as string })),
     };
   },
 });
@@ -93,7 +93,7 @@ export const saveInputs = mutation({
 });
 
 const snapshot = (m: Doc<"materials">) => ({
-  materialId: m._id, name: m.name, sku: m.sku, unit: m.unit, formula: m.formula, wastagePercent: m.wastagePercent, rounding: m.rounding, unitCostCents: m.costCents,
+  materialId: m._id, name: m.name, category: m.category, sku: m.sku, unit: m.unit, formula: m.formula, wastagePercent: m.wastagePercent, rounding: m.rounding, unitCostCents: m.costCents,
   supplier: m.supplier, leadTimeDays: m.leadTimeDays, inStock: m.inStock,
 });
 

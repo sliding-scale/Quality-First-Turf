@@ -43,7 +43,7 @@ import {
   withAddOn,
 } from "@/convex/shared/discovery";
 import { ConfirmationPage } from "@/components/confirmation-page";
-import { IntakeFrame, PropertyStep } from "@/components/intake-property";
+import { ChoiceStep, IntakeFrame, PropertyStep } from "@/components/intake-property";
 import { AreaPlanner } from "@/components/area-planner";
 import ServiceBoard from "@/components/service-board";
 import { InstallCard } from "@/components/ui/install-card";
@@ -59,12 +59,13 @@ import {
 import { friendlyError } from "@/convex/shared/errors";
 import { scrollToStart, transitionStep } from "@/lib/step-transition";
 import { blockEnterSubmit, toggleRadio } from "@/components/ui/inputs";
-import { ProjectStep, WhereQuestion } from "@/components/project-step";
+import { WhereQuestion } from "@/components/project-step";
 
-const customerSteps: DiscoveryStep[] = ["property", "project", "services", "details"];
+const customerSteps: DiscoveryStep[] = ["property", "choice", "services", "details"];
 
 function stepFromParam(value: string | null): DiscoveryStep {
-  if (value === "project") return "project";
+  // "project" was the second page until the details and project were joined (2026-11-20); old links open the first page.
+  if (value === "choice") return "choice";
   if (value === "services") return "services";
   if (value === "questions" || value === "details") return "details";
   return "property";
@@ -359,14 +360,19 @@ export function DiscoveryForm() {
   }
 
   function continueFromProperty() {
-    const problems = contactProblems(form);
+    const problems = { ...contactProblems(form), ...projectProblems(form.project) };
     const message = Object.values(problems)[0] ?? null;
-    if (message === null) {
-      setFieldErrors({});
-      pushCustomerStep("project");
+    if (message !== null) {
+      showProblems(problems, message);
       return;
     }
-    showProblems(problems, message);
+    setFieldErrors({});
+    // The first time through, what they want to transform already tells us some services, so the services step starts with them ticked.
+    if (form.services.length === 0) {
+      const known = form.project.scope.flatMap((scope) => scopeServices[scope] ?? []);
+      if (known.length > 0) setForm((current) => ({ ...current, services: orderServices(known) }));
+    }
+    pushCustomerStep("choice");
   }
 
   function patchProject(partial: Partial<DiscoveryState["project"]>) {
@@ -378,20 +384,17 @@ export function DiscoveryForm() {
     });
   }
 
-  function continueFromProject() {
-    const problems = projectProblems(form.project);
-    const message = Object.values(problems)[0] ?? null;
-    if (message !== null) {
-      showProblems(problems, message);
-      return;
-    }
-    setFieldErrors({});
-    // The first time through, what they want to transform already tells us some services, so the next step starts with them ticked.
-    if (form.services.length === 0) {
-      const known = form.project.scope.flatMap((scope) => scopeServices[scope] ?? []);
-      if (known.length > 0) setForm((current) => ({ ...current, services: orderServices(known) }));
-    }
+  function chooseServices() {
+    // A request that was sent as "reach out" and then failed to publish would be reused if they now pick services, so it starts again.
+    createdId.current = null;
+    setForm((current) => ({ ...current, wantsCall: false }));
     pushCustomerStep("services");
+  }
+
+  function chooseReachOut() {
+    if (pending) return;
+    setForm((current) => ({ ...current, wantsCall: true, services: [] }));
+    void submitRequest({ ...form, wantsCall: true, services: [] });
   }
 
   useEffect(() => {
@@ -436,30 +439,30 @@ export function DiscoveryForm() {
       continueFromProperty();
       return;
     }
-    if (step === "project") {
-      continueFromProject();
-      return;
-    }
     if (step === "services") {
       if (form.services.length === 0 || needsQuestions(form.services)) {
         continueFromServices();
         return;
       }
     }
-    const problems = contactProblems(form);
+    await submitRequest(form);
+  }
+
+  async function submitRequest(state: DiscoveryState) {
+    const problems = contactProblems(state);
     const contactMessage = Object.values(problems)[0] ?? null;
     if (contactMessage !== null) {
       showProblems(problems, contactMessage);
       retreatTo("property");
       return;
     }
-    const built = buildDiscovery(form, { requireProject: true });
+    const built = buildDiscovery(state, { requireProject: true });
     if (built.error !== null || built.payload === null) {
       showProblems(
         built.fieldId !== null && built.error !== null ? { [built.fieldId]: built.error } : {},
         built.error,
       );
-      if (built.fieldId?.startsWith("project-")) retreatTo("project");
+      if (built.fieldId?.startsWith("project-")) retreatTo("property");
       return;
     }
     setError(null);
@@ -473,7 +476,6 @@ export function DiscoveryForm() {
         setProjectId(id);
         scrollToStart();
       });
-    
     } catch (submitError) {
       setError(
         friendlyError(submitError, "The request could not be saved. Check your connection and try again."),
@@ -511,15 +513,15 @@ export function DiscoveryForm() {
           problems={fieldErrors}
           pending={pending}
           onPatch={patch}
-          onSubmit={onSubmit}
-        />
-      ) : step === "project" ? (
-        <ProjectStep
-          form={form}
-          problems={fieldErrors}
-          pending={pending}
           onProject={patchProject}
           onSubmit={onSubmit}
+        />
+      ) : step === "choice" ? (
+        <ChoiceStep
+          pending={pending}
+          error={error}
+          onServices={chooseServices}
+          onReachOut={chooseReachOut}
           onBack={() => retreatTo("property")}
         />
       ) : step === "services" ? (
@@ -560,7 +562,7 @@ export function DiscoveryForm() {
                 {error}
               </p>
             ) : null}
-            <button type="button" className="services-back" onClick={() => retreatTo("project")}>
+            <button type="button" className="services-back" onClick={() => retreatTo("choice")}>
               Back
             </button>
             <button type="submit" className="services-continue" disabled={pending}>

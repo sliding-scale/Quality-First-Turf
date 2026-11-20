@@ -9,7 +9,7 @@ import type { FunctionReturnType } from "convex/server";
 import { useState } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { PO_LABEL, READINESS_LABEL } from "@/convex/crm/lib/purchaseOrders";
+import { PO_LABEL } from "@/convex/crm/lib/purchaseOrders";
 import { moneyCents } from "@/lib/format";
 import { clock, failure } from "@/lib/pipeline";
 import { useUI } from "./ui-provider";
@@ -40,7 +40,7 @@ export function PurchaseOrders({ id, canEdit }: { id: Id<"opportunities">; canEd
   }
 
   return (
-    <section className="card op-card po">
+    <section className="card op-card op-wide po">
       <div className="op-sechead">
         <h2>Purchase orders</h2>
         {canEdit && <button type="button" className="btn primary" disabled={busy || data.toOrderCount === 0} onClick={() => void make()} data-tip={data.toOrderCount === 0 ? "Everything is in stock or already on an order" : "One draft per supplier"}>Create from takeoff</button>}
@@ -53,26 +53,6 @@ export function PurchaseOrders({ id, canEdit }: { id: Id<"opportunities">; canEd
             ? "Materials are ready: everything is in stock or delivered."
             : `Materials not ready: ${r.open} not ordered, ${r.onTheWay} on the way${r.latestExpected ? `, the last expected ${dayLabel(r.latestExpected)}` : ""}.`}
       </p>
-
-      {r.lines.length > 0 && (
-        <div className="op-scroll">
-          <table className="table op-table">
-            <colgroup><col /><col style={{ width: 130 }} /><col style={{ width: 90 }} /><col style={{ width: 90 }} /><col style={{ width: 130 }} /></colgroup>
-            <thead><tr><th>Material</th><th>Readiness</th><th className="num">To buy</th><th className="num">Ordered</th><th>Expected</th></tr></thead>
-            <tbody>
-              {r.lines.map((l, i) => (
-                <tr key={`${l.name}-${i}`}>
-                  <td>{l.name} <span className="muted">({l.unit})</span></td>
-                  <td><span className={`po-chip ${l.state}`}>{READINESS_LABEL[l.state]}</span></td>
-                  <td className="num">{l.need}</td>
-                  <td className="num">{l.ordered}</td>
-                  <td>{l.expected ? dayLabel(l.expected) : "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
 
       {data.orders.length === 0 ? <p className="muted">No purchase orders yet.</p> : (
         <div className="po-list">
@@ -142,7 +122,7 @@ function OrderCard({ o, canSeeCosts, canEdit }: { o: Order; canSeeCosts: boolean
       {canEdit && o.status !== "delivered" && o.status !== "cancelled" && (
         <div className="cat-actions">
           <button type="button" className="btn" disabled={busy} onClick={() => void saveAll()}>Save</button>
-          {draft && <button type="button" className="btn primary" disabled={busy} onClick={() => void run(() => setStatus({ id: o.id, status: "ordered", now: clock() }), "Order placed.", "The order could not be placed.")}>Place order</button>}
+          {draft && <button type="button" className="btn primary" disabled={busy} onClick={() => { setTried(true); if (qtys.some(qtyBad)) return; void run(async () => { await save({ id: o.id, supplier, expectedDate: dayFromKey(expected), notes, qtys: qtys.map(Number) }); await setStatus({ id: o.id, status: "ordered", now: clock() }); }, "Order placed.", "The order could not be placed."); }}>Place order</button>}
           {o.status === "ordered" && <button type="button" className="btn primary" disabled={busy} onClick={() => void run(() => setStatus({ id: o.id, status: "delivered", now: clock() }), "Marked delivered.", "The order could not be marked delivered.")}>Mark delivered</button>}
           <button type="button" className="btn" disabled={busy} onClick={() => void run(() => setStatus({ id: o.id, status: "cancelled", now: clock() }), "Order cancelled.", "The order could not be cancelled.")}>Cancel order</button>
           {draft && <button type="button" className="btn" disabled={busy} onClick={() => void run(() => remove({ id: o.id }), "Order deleted.", "The order could not be deleted.")}>Delete</button>}

@@ -588,6 +588,8 @@ export default defineSchema({
     materialId: v.optional(v.id("materials")),
     position: v.number(),
     name: v.string(),
+    /** The material's heading when it was added ("Turf installation", "Irrigation"...); lines made before it existed read it from the material. */
+    category: v.optional(v.string()),
     sku: v.string(),
     unit: v.string(),
     formula: v.string(),

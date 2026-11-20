@@ -54,7 +54,7 @@ export const options = query({
   handler: async (ctx, args) => {
     await requireModule(ctx, args.businessId, "pipelinePreplanning", "view");
     const all = await ctx.db.query("materials").withIndex("by_business_and_nameKey", (q) => q.eq("businessId", args.businessId)).take(LIST_CAP);
-    return all.map((m) => ({ id: m._id, name: m.name, sku: m.sku, unit: m.unit, supplier: m.supplier }));
+    return all.map((m) => ({ id: m._id, name: m.name, sku: m.sku, unit: m.unit, supplier: m.supplier, category: m.category }));
   },
 });
 

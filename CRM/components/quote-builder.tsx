@@ -15,6 +15,7 @@ import { quoteTotals, type PricedLine } from "@/convex/crm/lib/quoteMath";
 import { useClientProjects, useWorkspace, type BusinessDoc } from "@/lib/clients";
 import { money } from "@/lib/format";
 import { clock, failure, usePeople } from "@/lib/pipeline";
+import { shouldPrefill } from "@/lib/quote-prefill";
 import { centsToInput, dollarsToCents, uploadFile, useClientSearch, useQuote } from "@/lib/quotes";
 import { SECTION_TITLE, type Section } from "@/lib/quote-sections";
 import { sameTitle, type DisclaimerCopy } from "@/convex/crm/lib/disclaimers";
@@ -23,7 +24,7 @@ import { Icon } from "./icon";
 import { NewClientDialog } from "./new-client-dialog";
 import { PipelineModal } from "./pipeline-dialogs";
 import { QuoteBuilderSkeleton } from "./skeletons";
-import { QuoteLines, lineCents, newLine, type DraftLine } from "./quote-lines";
+import { QuoteLines, draftLinesFromVisit, lineCents, newLine, type DraftLine } from "./quote-lines";
 import { useStaff } from "./staff-context";
 import { useConvertToJob } from "./use-convert-to-job";
 import { useUI } from "./ui-provider";
@@ -107,6 +108,7 @@ function EditGate({ quote, section }: { quote: QuoteDoc; section?: Section }) {
 
 function Builder({ business, quote, presetClient, presetProject, section }: { business: BusinessDoc; quote?: QuoteDoc; presetClient?: Id<"clients">; presetProject?: Id<"opportunities">; section?: Section }) {
   const router = useRouter();
+  const convex = useConvex();
   const convertToJob = useConvertToJob();
   const { toast } = useUI();
   const staff = useStaff();
@@ -139,6 +141,21 @@ function Builder({ business, quote, presetClient, presetProject, section }: { bu
   const projects = useClientProjects(clientId);
   const found = useClientSearch(business._id, clientQuery);
   const contractDefault = useQuery(api.crm.quotes.contractDefault, { businessId: business._id });
+
+  // A new quote for a project starts with the lines its site visit works out (client notes of 2026-11-20). Once only, and only while nothing is typed.
+  const prefilled = useRef(false);
+  useEffect(() => {
+    if (prefilled.current || !shouldPrefill(d.lines, !!d.opportunityId, !quote)) return;
+    prefilled.current = true;
+    void convex.query(api.crm.quotePrices.fromVisit, { opportunityId: d.opportunityId! }).then((r) => {
+      if (r.lines.length === 0) return;
+      const lines = draftLinesFromVisit(r.lines);
+      // The lines are the page's own start, not the person's typing, so leaving without saving does not ask "leave site?".
+      setD((cur) => (shouldPrefill(cur.lines, true, true) ? { ...cur, lines } : cur));
+      setBaseline(JSON.stringify({ ...initial, lines }));
+      toast("Started this quote from the site visit. Check the lines and prices.");
+    }).catch(() => undefined);
+  }, [convex, d.lines, d.opportunityId, initial, quote, toast]);
 
   const dirty = JSON.stringify(d) !== baseline;
   useEffect(() => {

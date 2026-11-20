@@ -38,7 +38,9 @@ const legacySpellings: [string, string][] = [
   ["Turf Stip", "Turf Strip"],
 ];
 
-export type DiscoveryStep = "property" | "project" | "services" | "details" | "confirmation";
+/** "property" is the first page, "Your details and project" (it was two pages until 2026-11-20; a draft saved on the old second page opens it).
+ *  "choice" asks whether the customer picks services or has a professional reach out. */
+export type DiscoveryStep = "property" | "choice" | "services" | "details" | "confirmation";
 
 export type DiscoveryDraft = {
   step: DiscoveryStep;
@@ -148,6 +150,7 @@ function formFrom(value: unknown): DiscoveryState {
     grassWork: savedWork || grassWorkFromTypes(installTypes[grassService] ?? []),
     project: projectFrom(value.project),
     where: whereFrom(value.where),
+    wantsCall: value.wantsCall === true,
   }));
 }
 
@@ -245,10 +248,10 @@ function squareFeetFrom(value: Record<string, unknown>): Record<string, string> 
 
 function stepFor(step: unknown, form: DiscoveryState): DiscoveryStep {
   const requested: DiscoveryStep =
-    step === "project" || step === "services" || step === "details" ? step : "property";
+    step === "choice" || step === "services" || step === "details" ? step : "property";
   if (requested !== "property" && requiredContact(form) !== null) return "property";
   if (requested === "details" && !needsQuestions(form.services)) {
-    return form.services.length > 0 ? "services" : "project";
+    return form.services.length > 0 ? "services" : "choice";
   }
   return requested;
 }

@@ -10071,3 +10071,33 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* The first page's "Your project" heading and the "pick services or have a professional reach out" choice (client notes, 2026-11-20). */
+.nrf .intake-section-title {
+  margin: 1.6rem 0 0.2rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: inherit;
+}
+
+.nrf .reachout-grid {
+  display: grid;
+  gap: 0.8rem;
+  margin: 1.2rem 0 0.4rem;
+}
+
+.nrf .reachout-card {
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+
+.nrf .reachout-card:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+
+.nrf .reachout-card:active:not(:disabled) {
+  background: #151c17;
+}

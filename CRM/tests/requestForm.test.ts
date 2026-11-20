@@ -107,3 +107,28 @@ describe("New Request with the customer form's questions (D-079)", () => {
     expect(await t.run((ctx) => ctx.db.query("projects").collect())).toHaveLength(1);
   });
 });
+
+describe("New Request: have a professional reach out (client notes of 2026-11-20)", () => {
+  it("saves a request with no services when it is marked as asking to be called, and shows it as an enquiry", async () => {
+    const t = setup();
+    const { staff, business } = await turf(t);
+    const saved = await staff.mutation(api.crm.requestForm.create, { businessId: business._id, note: "", ...answers({ services: [], wantsCall: true }) });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    const project = await t.run((ctx) => ctx.db.get(saved.projectId));
+    expect(project).toMatchObject({ services: [] });
+    expect(project?.answers).toContainEqual({ question: "Contact preference", value: "A professional will reach out" });
+    const opportunity = await t.run((ctx) => ctx.db.get(saved.opportunityId));
+    expect(opportunity).toMatchObject({ pipeline: "Sales" });
+    // The request page's Services & Project Details says so, so staff can see the customer asked to be called.
+    const page = await staff.query(api.crm.requests.get, { id: saved.opportunityId, today: Date.now() });
+    expect(page?.overview.fields).toContainEqual({ label: "Contact preference", value: "A professional will reach out" });
+  });
+
+  it("still refuses a request with no services that is not marked as asking to be called", async () => {
+    const t = setup();
+    const { staff, business } = await turf(t);
+    const marked = answers({ services: [], wantsCall: true });
+    const unmarked = { ...marked, answers: marked.answers.filter((a) => a.question !== "Contact preference") };
+    await expect(staff.mutation(api.crm.requestForm.create, { businessId: business._id, note: "", ...unmarked })).rejects.toThrow(/Choose at least one service/);
+  });
+});

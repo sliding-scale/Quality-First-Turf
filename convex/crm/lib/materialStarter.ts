@@ -17,6 +17,8 @@ const OTHER = "Other installations";
 const ADD = "Add ons";
 const UNDER = "Underground";
 const DEMO = "Demolition";
+const IRR = "Irrigation";
+const LIGHT = "Lighting";
 
 const AREA = "Priced by the area in square feet.";
 const LENGTH = "Priced by the length in linear feet.";
@@ -82,6 +84,34 @@ export const STARTER_MATERIALS: StarterMaterial[] = [
   m(UNDER, "1 in. Couplings", "unit", "length * 0.1"),
   m(UNDER, "Bedding sand", "cubic yard", "length * 0.04", "none"),
 
+  // Irrigation: the drip system. Its yellow cells are the measurements valves, drip_line, drip_line_emitters, soaker_hose, plants, tree_rings and large_tree_rings.
+  // A "per system" material is 1 each: adding the kit is adding a system. Tubing is ordered to the next 10 ft, like the sheet's CEILING(x, 10).
+  m(IRR, "Valves", "unit", "valves"),
+  m(IRR, "Drip tubing (0.625 in. diameter)", "ft", "ceil((drip_line + drip_line_emitters + large_tree_rings * 20 + tree_rings * 12) / 10) * 10", "none", 0, "Ordered to the next 10 ft. A large tree ring takes 20 ft, a standard one 12 ft."),
+  m(IRR, "Drip Tubing Adapter (1 in. x 3/4 in.)", "unit", "1"),
+  m(IRR, "Drip Emitters", "unit", "plants * 2", "up", 0, "2 per plant."),
+  m(IRR, "Hunter drip filter", "unit", "1"),
+  m(IRR, "Pressure Regulator (25 PSI)", "unit", "1"),
+  m(IRR, "Backflow Preventer", "unit", "1"),
+  m(IRR, "Ball Valve (shutoff)", "unit", "1"),
+  m(IRR, "Pressure Gauge", "unit", "1"),
+  m(IRR, "Stake Holders", "unit", "(soaker_hose + drip_line + drip_line_emitters + tree_rings * 12 + large_tree_rings * 20) * 0.2", "up", 0, "1 for every 5 ft of tubing."),
+  m(IRR, "End Cap", "unit", "1"),
+  m(IRR, "18 in. sch 80 risers with thread", "unit", "2"),
+  m(IRR, "Black electrical tape", "unit", "1"),
+  m(IRR, "Teflon tape 3/4 in.", "unit", "1"),
+  m(IRR, "Christy's Red Hot Glue + primer", "oz", "(soaker_hose + drip_line + drip_line_emitters + large_tree_rings * 20 + tree_rings * 12) * 0.08", "up", 0, "Comes in different sizes; always round up to cover the amount."),
+  // The sheet marks these three "OPTIONAL, CONFIRM BEFORE ORDERING", so they are their own kit.
+  m(IRR, "Rain Bird Rain/Freeze Sensor Wireless w/Controller Interface", "unit", "1"),
+  m(IRR, "Rain Bird Moisture Sensor", "unit", "1"),
+  m(IRR, "Rain Bird model ESP-LXIVM 2-Wire Controller, 60 Station Capacity", "unit", "1"),
+
+  // Lighting: the transformer and the lights (the sheet's other lighting blocks, running line under concrete, loose lay wire and in conduit, are empty).
+  m(LIGHT, "Alliance TF150 OR TF300 Transformer", "unit", "transformers"),
+  m(LIGHT, "12Ga Galvanized Tiewire 50Ft Roll", "roll", "lights * 0.5"),
+  m(LIGHT, "Waterproof Wire Nuts", "unit", "lights * 2"),
+  m(LIGHT, "Alliance WL400-Bluetooth", "unit", "lights"),
+
   // The demo calculator the client asked for: length x width x depth, worked out in cubic yards. Depth is in inches (12 in. to a foot, 27 cubic ft to a yard).
   m(DEMO, "Dirt to haul away (demo)", "cubic yard", "length * width * depth / 12 / 27", "none", 0, "Length and width in feet, depth in inches."),
 ];
@@ -113,6 +143,11 @@ export const STARTER_KITS: StarterKit[] = [
   { name: "Underground: 4 in. drain", group: UNDER, description: LENGTH, items: ["PVC Sewer and Drain Pipe 4 in. SDR-35 Bell End", "NDS PVC S&D 90 Deg. Elbow HUB x HUB White 4 in.", "NDS PVC S&D Tee HUB x HUB x HUB White 4 in.", "NDS Drain Grate Round Polyolefin Green 4 in.", "Christys Red Hot Glue", "Drain Rock"] },
   { name: "Underground: 3/4 in. waterline", group: UNDER, description: LENGTH, items: ["3/4 in. x 20 ft Sch. 40 Bell End PVC Pipe", "3/4 in. Couplings", "Christys Red Hot Glue", "Bedding sand"] },
   { name: "Underground: 1 in. waterline", group: UNDER, description: LENGTH, items: ["1 in. x 20 ft Sch. 40 Bell End PVC Pipe", "1 in. Couplings", "Christys Red Hot Glue", "Bedding sand"] },
+
+  { name: "Irrigation: Drip system", group: IRR, description: "Priced by the valves, tubing lengths, plants and tree rings. Fill them in under Irrigation measurements.", items: ["Valves", "Drip tubing (0.625 in. diameter)", "Drip Tubing Adapter (1 in. x 3/4 in.)", "Drip Emitters", "Hunter drip filter", "Pressure Regulator (25 PSI)", "Backflow Preventer", "Ball Valve (shutoff)", "Pressure Gauge", "Stake Holders", "End Cap", "18 in. sch 80 risers with thread", "Black electrical tape", "Teflon tape 3/4 in.", "Christy's Red Hot Glue + primer"] },
+  { name: "Irrigation: Optional controller and sensors", group: IRR, description: "Optional: confirm with the client before ordering.", items: ["Rain Bird Rain/Freeze Sensor Wireless w/Controller Interface", "Rain Bird Moisture Sensor", "Rain Bird model ESP-LXIVM 2-Wire Controller, 60 Station Capacity"] },
+  { name: "Lighting: Install transformer", group: LIGHT, description: "Priced by the number of transformers.", items: ["Alliance TF150 OR TF300 Transformer"] },
+  { name: "Lighting: Install lights", group: LIGHT, description: "Priced by the number of lights.", items: ["12Ga Galvanized Tiewire 50Ft Roll", "Waterproof Wire Nuts", "Alliance WL400-Bluetooth"] },
 
   { name: "Demo: dirt to haul away", group: DEMO, description: "Length and width in feet, depth in inches. Gives cubic yards of dirt to dump.", items: ["Dirt to haul away (demo)"] },
 ];

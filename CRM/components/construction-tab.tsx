@@ -46,7 +46,7 @@ export function ConstructionTab({ id, businessId, title }: { id: Id<"opportuniti
 function Status({ site }: { site: Site }) {
   const done = site.completion.ready && site.stage === "100% Completed & Sign-off";
   return (
-    <div className={`op-next cn-status${done ? " done" : site.completion.ready ? "" : " wait"}`} role="status">
+    <div className={`op-next op-wide cn-status${done ? " done" : site.completion.ready ? "" : " wait"}`} role="status">
       {done ? "Signed off. The customer has approved the completed work." : site.completion.ready ? "Signed off by the customer." : site.completion.openRequired === 0 ? "Every required punch item is verified. When the work is done, start the customer sign-off below." : site.completion.block}
     </div>
   );

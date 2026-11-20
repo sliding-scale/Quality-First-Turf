@@ -5,13 +5,23 @@ import { evaluateFormula } from "./formula";
 
 /** The measurements a takeoff starts from, by the name a formula uses. All are numbers; a measurement not given is 0. */
 export const TAKEOFF_INPUTS = [
-  { key: "area", label: "Area", unit: "sq ft" },
-  { key: "perimeter", label: "Perimeter", unit: "linear ft" },
-  { key: "depth", label: "Depth", unit: "in" },
-  { key: "length", label: "Length", unit: "ft" },
-  { key: "width", label: "Width", unit: "ft" },
-  { key: "height", label: "Height", unit: "ft" },
-  { key: "quantity", label: "Quantity", unit: "each" },
+  { key: "area", label: "Area", unit: "sq ft", group: "" },
+  { key: "perimeter", label: "Perimeter", unit: "linear ft", group: "" },
+  { key: "depth", label: "Depth", unit: "in", group: "" },
+  { key: "length", label: "Length", unit: "ft", group: "" },
+  { key: "width", label: "Width", unit: "ft", group: "" },
+  { key: "height", label: "Height", unit: "ft", group: "" },
+  { key: "quantity", label: "Quantity", unit: "each", group: "" },
+  // The counts and lengths the client's irrigation and lighting calculators start from (D-107). They sit in their own groups on the Takeoff tab.
+  { key: "valves", label: "Valves", unit: "each", group: "Irrigation" },
+  { key: "plants", label: "Total plants", unit: "each", group: "Irrigation" },
+  { key: "drip_line", label: "1/2 in. drip line", unit: "ft", group: "Irrigation" },
+  { key: "drip_line_emitters", label: "Drip line with emitters built in", unit: "ft", group: "Irrigation" },
+  { key: "soaker_hose", label: "1/2 in. soaker hose", unit: "ft", group: "Irrigation" },
+  { key: "tree_rings", label: "Standard tree rings", unit: "each", group: "Irrigation" },
+  { key: "large_tree_rings", label: "Large tree rings", unit: "each", group: "Irrigation" },
+  { key: "lights", label: "Lights", unit: "each", group: "Lighting" },
+  { key: "transformers", label: "Transformers", unit: "each", group: "Lighting" },
 ] as const;
 export type InputKey = (typeof TAKEOFF_INPUTS)[number]["key"];
 export type Inputs = Record<InputKey, number>;

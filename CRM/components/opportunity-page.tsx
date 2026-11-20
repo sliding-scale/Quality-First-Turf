@@ -344,7 +344,7 @@ function FilesTab({ o }: { o: Overview }) {
   const shown = (files ?? []).filter((f) => filter === "all" || f.kind === filter);
   return (
     <div className="op-body one">
-      <section className="card op-card">
+      <section className="card op-card op-wide">
         <div className="op-sechead">
           <h2>Files</h2>
           {canEdit && (

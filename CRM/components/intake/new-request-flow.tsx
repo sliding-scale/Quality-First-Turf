@@ -37,7 +37,7 @@ import { useUI } from "../ui-provider";
 import { contactFields, RequiredStar } from "./fields";
 import { blockEnterSubmit, toggleRadio } from "./inputs";
 import { transitionStep } from "./step-transition";
-import { ProjectStep } from "./project-step";
+import { ProjectFields } from "./project-step";
 import ServiceBoard from "./service-board";
 import { ConsultationPicker, type ConsultationDraft } from "./consultation-picker";
 import { ServiceQuestions } from "./sections";
@@ -47,10 +47,10 @@ import "@/app/intake-flow.css";
 const plex = IBM_Plex_Sans({ variable: "--font-plex", subsets: ["latin"], weight: ["400", "500", "600", "700"] });
 const dmSans = DM_Sans({ variable: "--font-dm-sans", subsets: ["latin"] });
 
-type Step = "property" | "project" | "services" | "details" | "finish";
+type Step = "property" | "choice" | "services" | "details" | "finish";
 const STEPS: { id: Step; label: string }[] = [
-  { id: "property", label: "Client details" },
-  { id: "project", label: "Project" },
+  { id: "property", label: "Client & project" },
+  { id: "choice", label: "Next step" },
   { id: "services", label: "Services" },
   { id: "details", label: "Questions" },
   { id: "finish", label: "Notes and save" },
@@ -159,7 +159,8 @@ export function NewRequestFlow({ business }: { business: BusinessDoc }) {
   if (!mounted) return null;
 
   const needsDetails = needsQuestions(form.services);
-  const shown = STEPS.filter((s) => s.id !== "details" || needsDetails || form.services.length === 0);
+  // Asking for a professional to reach out skips the services and their questions: the next step is the consultation.
+  const shown = STEPS.filter((s) => (s.id !== "services" && s.id !== "details") || !form.wantsCall).filter((s) => s.id !== "details" || needsDetails || form.services.length === 0);
   const at = shown.findIndex((s) => s.id === step);
   // Nobody is chosen for the person: who the request is assigned to is picked on purpose (D-088).
   const chosen = salesperson ?? "";
@@ -219,7 +220,7 @@ export function NewRequestFlow({ business }: { business: BusinessDoc }) {
       showProblems(contact, contactMessage);
       return null;
     }
-    if (form.services.length === 0) {
+    if (form.services.length === 0 && !form.wantsCall) {
       if (step !== "services") go("services");
       showProblems({ services: "Choose at least one service." }, "Choose at least one service.");
       return null;
@@ -242,16 +243,12 @@ export function NewRequestFlow({ business }: { business: BusinessDoc }) {
       const message = Object.values(problems)[0];
       if (message !== undefined) return showProblems(problems, message);
       setFieldErrors({});
-      return go("project");
-    }
-    if (step === "project") {
-      // Optional here: staff on the phone may not have asked yet. A known scope still starts the services off.
+      // The project answers are optional here: staff on the phone may not have asked yet. A known scope still starts the services off.
       if (form.services.length === 0) {
         const known = form.project.scope.flatMap((scope) => scopeServices[scope] ?? []);
         if (known.length > 0) setFormDirty((current) => ({ ...current, services: orderServices(known) }));
       }
-      setFieldErrors({});
-      return go("services");
+      return go("choice");
     }
     if (step === "services") {
       if (form.services.length === 0) return showProblems({ services: "Choose at least one service." }, "Choose at least one service.");
@@ -343,13 +340,23 @@ export function NewRequestFlow({ business }: { business: BusinessDoc }) {
   }
 
   const fields = contactFields({ variant: "intake", form, problems: fieldErrors, onPatch: patch, required: true });
+  function chooseServices() {
+    setFormDirty((current) => ({ ...current, wantsCall: false }));
+    go("services");
+  }
+
+  function chooseReachOut() {
+    setFormDirty((current) => ({ ...current, wantsCall: true, services: [] }));
+    go("finish");
+  }
+
   const back = (to: Step) => (
     <button type="button" className={step === "services" ? "services-back" : "review-back"} disabled={pending} onClick={() => go(to)}>Back</button>
   );
 
   return createPortal(
     <div ref={scroller} className={`nrf ${plex.variable} ${dmSans.variable}`} role="dialog" aria-modal="true" aria-label="New request">
-      <div className={step === "property" || step === "project" || step === "finish" ? "intake intake--simple" : "intake"}>
+      <div className={step === "property" || step === "choice" || step === "finish" ? "intake intake--simple" : "intake"}>
         <header className="intake-header">
           <span className="brand-mark">
             <Image className="brand-mark__logo" src="/brand/logo-mark.png" alt="Quality First Turf" width={771} height={605} priority />
@@ -379,8 +386,8 @@ export function NewRequestFlow({ business }: { business: BusinessDoc }) {
           <main className="simple-main">
             <form className="simple-card" onSubmit={next} noValidate>
               <div>
-                <h1>Client details</h1>
-                <p className="simple-card__lead">Find a client you already have, or type a new one. The services come next.</p>
+                <h1>Client details and project</h1>
+                <p className="simple-card__lead">Find a client you already have, or type a new one, then what they have in mind. The project answers are optional here.</p>
               </div>
               <div className="intake-fields">
                 <fieldset className="intake-group">
@@ -439,6 +446,16 @@ export function NewRequestFlow({ business }: { business: BusinessDoc }) {
                   <div className="intake-grid intake-grid--address">{fields.city}{fields.state}{fields.zip}</div>
                 </fieldset>
               </div>
+              <h2 className="intake-section-title">Project</h2>
+              <ProjectFields
+                form={form}
+                problems={fieldErrors}
+                required={false}
+                onProject={(partial) => {
+                  setDirty(true);
+                  setForm((current) => ({ ...current, project: { ...current.project, ...partial } }));
+                }}
+              />
               <div className="simple-card__footer">
                 <button className="intake-continue" type="submit">Continue <ArrowRight strokeWidth={2} aria-hidden="true" /></button>
               </div>
@@ -446,19 +463,28 @@ export function NewRequestFlow({ business }: { business: BusinessDoc }) {
           </main>
         )}
 
-        {step === "project" && (
-          <ProjectStep
-            form={form}
-            problems={fieldErrors}
-            pending={pending}
-            required={false}
-            onProject={(partial) => {
-              setDirty(true);
-              setForm((current) => ({ ...current, project: { ...current.project, ...partial } }));
-            }}
-            onSubmit={next}
-            onBack={() => go("property")}
-          />
+        {step === "choice" && (
+          <main className="simple-main">
+            <div className="simple-card">
+              <div>
+                <h1>What is the next step?</h1>
+                <p className="simple-card__lead">Pick the services the client wants built, or have a professional reach out. Reaching out goes straight to scheduling the consultation.</p>
+              </div>
+              <div className="reachout-grid">
+                <button type="button" className="pj-option reachout-card" onClick={chooseServices}>
+                  <span className="pj-option__text"><strong>Choose the services now</strong><small>Pick what the client wants, then answer a few questions.</small></span>
+                  <ArrowRight strokeWidth={2} aria-hidden="true" />
+                </button>
+                <button type="button" className="pj-option reachout-card" onClick={chooseReachOut}>
+                  <span className="pj-option__text"><strong>Have a professional reach out</strong><small>No services yet. Schedule the consultation next.</small></span>
+                  <ArrowRight strokeWidth={2} aria-hidden="true" />
+                </button>
+              </div>
+              <div className="simple-card__footer">
+                <button type="button" className="review-back" onClick={() => go("property")}>Back</button>
+              </div>
+            </div>
+          </main>
         )}
 
         {step === "services" && (
@@ -482,7 +508,7 @@ export function NewRequestFlow({ business }: { business: BusinessDoc }) {
               </p>
               <div className="services-actions">
                 {error !== null && error !== fieldErrors.services ? <p className="form-alert" role="alert">{error}</p> : null}
-                {back("project")}
+                {back("choice")}
                 <button type="submit" className="services-continue">Continue <ArrowRight strokeWidth={2} aria-hidden="true" /></button>
               </div>
             </div>
@@ -510,8 +536,10 @@ export function NewRequestFlow({ business }: { business: BusinessDoc }) {
           <main className="simple-main">
             <form className="simple-card" onSubmit={next} noValidate>
               <div>
-                <h1>Notes and save</h1>
-                <p className="simple-card__lead">For the team only. The client never sees this part.</p>
+                <h1>{form.wantsCall ? "Schedule the consultation" : "Notes and save"}</h1>
+                <p className="simple-card__lead">
+                  {form.wantsCall ? "The client asked for a professional to reach out. Assign the request, schedule the consultation, then save. " : ""}For the team only. The client never sees this part.
+                </p>
               </div>
               <div className="intake-fields">
                 <fieldset className="intake-group">
@@ -519,7 +547,7 @@ export function NewRequestFlow({ business }: { business: BusinessDoc }) {
                   <dl className="nrf-summary">
                     <div><dt>Client</dt><dd>{`${form.firstName} ${form.lastName}`.trim()}{picked ? "" : " (new, unless the email or phone matches a client)"}</dd></div>
                     <div><dt>Property</dt><dd>{[form.street1, form.city, form.state].filter(Boolean).join(", ")}</dd></div>
-                    <div><dt>Services</dt><dd>{orderServices(form.services).map(serviceLabel).join(", ")}</dd></div>
+                    <div><dt>Services</dt><dd>{form.wantsCall ? "None yet: a professional will reach out" : orderServices(form.services).map(serviceLabel).join(", ")}</dd></div>
                   </dl>
                 </fieldset>
                 <fieldset className="intake-group">
@@ -593,7 +621,7 @@ export function NewRequestFlow({ business }: { business: BusinessDoc }) {
               <div className="simple-card__footer">
                 {error !== null ? <p className="form-alert" role="alert">{error}</p> : null}
                 <div className="nrf-finish">
-                  {back(needsDetails ? "details" : "services")}
+                  {back(form.wantsCall ? "choice" : needsDetails ? "details" : "services")}
                   <button className="intake-continue" type="submit" disabled={pending}>{pending ? "Saving" : "Save request"}</button>
                 </div>
               </div>

@@ -129,8 +129,30 @@ function Editor({ id, p, canEdit }: { id: Id<"opportunities">; p: Pkg; canEdit: 
         )}
       </section>
 
+      <section className="card op-card">
+        <h2>Drawings, specifications and photos</h2>
+        {p.files.length === 0 ? (
+          <p className="muted">Upload files on the project&apos;s Files tab, then choose here which ones go with the package.</p>
+        ) : (
+          <ul className="wp-files">
+            {p.files.map((f) => (
+              <li key={f.id}>
+                <label className="cq-agree">
+                  <input type="checkbox" disabled={!canEdit} checked={fileIds.includes(f.id)} onChange={(e) => setFileIds((all) => (e.target.checked ? [...all, f.id] : all.filter((x) => x !== f.id)))} />
+                  <span>{f.name} <span className="muted">· {f.kind}</span></span>
+                </label>
+              </li>
+            ))}
+          </ul>
+        )}
+        <label className="cq-agree">
+          <input type="checkbox" disabled={!canEdit} checked={includeMaterials} onChange={(e) => setIncludeMaterials(e.target.checked)} />
+          <span>Include the material list from the takeoff ({p.materials.length} item{p.materials.length === 1 ? "" : "s"}, quantities only, no costs)</span>
+        </label>
+      </section>
+
       {p.canSeeBudget && (
-        <section className="card op-card">
+        <section className="card op-card op-wide">
           <div className="op-sechead">
             <h2>Installer budget</h2>
             {canEdit && (
@@ -165,27 +187,6 @@ function Editor({ id, p, canEdit }: { id: Id<"opportunities">; p: Pkg; canEdit: 
         </section>
       )}
 
-      <section className="card op-card">
-        <h2>Drawings, specifications and photos</h2>
-        {p.files.length === 0 ? (
-          <p className="muted">Upload files on the project&apos;s Files tab, then choose here which ones go with the package.</p>
-        ) : (
-          <ul className="wp-files">
-            {p.files.map((f) => (
-              <li key={f.id}>
-                <label className="cq-agree">
-                  <input type="checkbox" disabled={!canEdit} checked={fileIds.includes(f.id)} onChange={(e) => setFileIds((all) => (e.target.checked ? [...all, f.id] : all.filter((x) => x !== f.id)))} />
-                  <span>{f.name} <span className="muted">· {f.kind}</span></span>
-                </label>
-              </li>
-            ))}
-          </ul>
-        )}
-        <label className="cq-agree">
-          <input type="checkbox" disabled={!canEdit} checked={includeMaterials} onChange={(e) => setIncludeMaterials(e.target.checked)} />
-          <span>Include the material list from the takeoff ({p.materials.length} item{p.materials.length === 1 ? "" : "s"}, quantities only, no costs)</span>
-        </label>
-      </section>
 
       {canEdit && (
         <div className="cat-actions wp-save">

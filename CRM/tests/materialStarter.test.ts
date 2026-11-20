@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { formulaInputs, formulaProblem } from "../../convex/crm/lib/formula";
 import { STARTER_KITS, STARTER_MATERIALS } from "../../convex/crm/lib/materialStarter";
-import { emptyInputs, lineQuantity } from "../../convex/crm/lib/takeoff";
+import { emptyInputs, lineQuantity, TAKEOFF_INPUTS } from "../../convex/crm/lib/takeoff";
 
 const material = (name: string) => {
   const m = STARTER_MATERIALS.find((x) => x.name === name);
@@ -82,5 +82,36 @@ describe("The client's material calculator, loaded as starter materials and kits
     expect(qty("Dirt to haul away (demo)", { length: 20, width: 10, depth: 6 })).toBe(3.7);
     expect(qty("Dirt to haul away (demo)", { length: 27, width: 12, depth: 12 })).toBe(12);
     expect(qty("Dirt to haul away (demo)", { length: 20, width: 10, depth: 0 })).toBe(0);
+  });
+
+  it("works out the irrigation sheet's own example: 3 valves, 370 ft of drip line, 92 plants, 4 standard tree rings", () => {
+    const i = { valves: 3, drip_line: 370, plants: 92, tree_rings: 4 };
+    expect(qty("Valves", i)).toBe(3);
+    expect(qty("Drip tubing (0.625 in. diameter)", i)).toBe(420); // CEILING(370 + 4 x 12, 10)
+    expect(qty("Drip Emitters", i)).toBe(184);
+    expect(qty("Stake Holders", i)).toBe(84); // ROUNDUP(0.2 x (370 + 48))
+    expect(qty("Christy's Red Hot Glue + primer", i)).toBe(34); // ROUNDUP(0.08 x 418)
+    expect(qty("Hunter drip filter", i)).toBe(1);
+    expect(qty("18 in. sch 80 risers with thread", i)).toBe(2);
+  });
+
+  it("counts a large tree ring as 20 ft of tubing and keeps the optional irrigation parts in their own kit", () => {
+    expect(qty("Drip tubing (0.625 in. diameter)", { large_tree_rings: 2 })).toBe(40);
+    const optional = STARTER_KITS.find((k) => k.name === "Irrigation: Optional controller and sensors")!;
+    const main = STARTER_KITS.find((k) => k.name === "Irrigation: Drip system")!;
+    expect(optional.items.some((n) => main.items.includes(n))).toBe(false);
+    expect(optional.items).toHaveLength(3);
+  });
+
+  it("works out the lighting sheet's rates: half a tiewire roll, two wire nuts and one light kit per light", () => {
+    expect(qty("12Ga Galvanized Tiewire 50Ft Roll", { lights: 11 })).toBe(6); // ROUNDUP(0.5 x 11)
+    expect(qty("Waterproof Wire Nuts", { lights: 11 })).toBe(22);
+    expect(qty("Alliance WL400-Bluetooth", { lights: 11 })).toBe(11);
+    expect(qty("Alliance TF150 OR TF300 Transformer", { transformers: 2 })).toBe(2);
+  });
+
+  it("reads only measurements the Takeoff tab can hold", () => {
+    const known = new Set(TAKEOFF_INPUTS.map((i) => i.key as string));
+    for (const m of STARTER_MATERIALS) for (const i of formulaInputs(m.formula)) expect(known.has(i), `${m.name} reads ${i}`).toBe(true);
   });
 });

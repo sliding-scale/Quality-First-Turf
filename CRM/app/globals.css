@@ -1267,7 +1267,18 @@ a.qs-chip:active { background: var(--shell); }
 .op-tabs { margin: 0; }
 .op-tabs .tab small { background: var(--chip, #eeece7); color: var(--ink); border-radius: 999px; padding: 1px 7px; margin-left: 6px; font-size: 12px; }
 .op-body { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; align-items: start; }
-.op-body.one { grid-template-columns: minmax(0, 1fr); max-width: 980px; min-width: 0; }
+/* The project's tabs use the whole width (client feedback, 2026-11-20): cards sit side by side where there is room, a card marked op-wide (or a tab with one card) spans the row. */
+.op-body.one { grid-template-columns: repeat(auto-fit, minmax(min(100%, 560px), 1fr)); max-width: none; min-width: 0; }
+.op-body.one > .op-wide, .op-body.one > .card:only-child { grid-column: 1 / -1; }
+.tk-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 12px; margin: 0 0 12px; }
+.tk-stats div { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.tk-stats dt { font-size: 13px; color: var(--muted); }
+.tk-stats dd { margin: 2px 0 0; font-size: 22px; font-weight: 700; color: var(--ink); }
+.tk-seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.tk-seg button { border: 0; background: #fff; padding: 5px 12px; font: inherit; font-size: 14px; color: var(--green); cursor: pointer; transition: background-color 0.15s ease-out; }
+.tk-seg button + button { border-left: 1px solid var(--line); }
+.tk-seg button:hover { background: #f6f8f8; }
+.tk-seg button.on { background: var(--green); color: #fff; }
 .tk-sum > div { min-width: 0; }
 .op-col { display: grid; gap: 16px; min-width: 0; }
 .op-card { padding: 18px 20px; min-width: 0; }
@@ -1314,7 +1325,7 @@ a.qs-chip:active { background: var(--shell); }
 
 /* The request page's pencils, as in Jobber (2026-11-16): inline editors with a Save bar along the bottom, the top actions and the client card menu. */
 .rq-topl, .rq-topr { display: flex; align-items: center; gap: 10px; }
-.rq-clienthead { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.rq-clienthead { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
 .rq-label { color: var(--muted); font-size: 14px; margin-bottom: 4px; }
 .rq-text { margin: 0 0 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .rq-stickybar { position: sticky; bottom: 0; z-index: 5; display: flex; align-items: center; gap: 10px; margin: 16px -20px -18px; padding: 12px 20px; background: #fff; border-top: 1px solid var(--line); border-radius: 0 0 10px 10px; }
@@ -1538,7 +1549,7 @@ a.qs-chip:active { background: var(--shell); }
 /* Materials and the takeoff (plan 2026-11-19-takeoff) */
 .mt-try { border: 1px dashed var(--line); border-radius: 8px; padding: 12px 14px; display: grid; gap: 8px; background: var(--chip); }
 .mt-result { margin: 0; min-height: 22px; }
-.tk-inputs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.tk-inputs { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
 .tk-num { width: 90px; text-align: right; }
 .tk-short { color: var(--orange); font-weight: 700; }
 .tk-sum { display: grid; gap: 14px; }
@@ -1600,3 +1611,43 @@ a.qs-chip:active { background: var(--shell); }
 /* Import data */
 .im-card { display: grid; gap: 12px; max-width: 960px; }
 .im-sum { margin: 0; }
+
+/* The takeoff's "What kind of job is this?" picker: the kit first, a single material tucked underneath (client feedback, 2026-11-20). */
+.tk-add { display: grid; gap: 12px; margin-bottom: 14px; }
+.tk-add .field select { min-width: 280px; }
+.tk-single summary { cursor: pointer; color: var(--green); font-weight: 600; width: fit-content; }
+.tk-single summary:hover { text-decoration: underline; }
+.tk-group { margin-top: 12px; }
+.tk-group summary { cursor: pointer; color: var(--green); font-weight: 600; width: fit-content; }
+.tk-group summary:hover { text-decoration: underline; }
+.tk-group .tk-inputs { margin-top: 10px; }
+/* The takeoff's materials, in sections that fold away (client feedback, 2026-11-20): a heading bar per section over its own table with the same fixed columns. */
+.tk-groupbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 4px 0 8px; font-size: 14px; }
+.tk-block { border-top: 1px solid var(--line); }
+.tk-grouphead { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 6px; border: 0; background: transparent; font: inherit; color: var(--ink); text-align: left; cursor: pointer; transition: background-color 0.15s ease-out; }
+.tk-grouphead:hover { background: #f6f8f8; }
+.tk-grouphead:active { background: #eceff0; }
+.tk-chev { display: inline-flex; transition: transform 0.2s ease-out; }
+.tk-chev.open { transform: rotate(90deg); }
+.tk-collapse { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.22s ease-out; }
+.tk-collapse[data-open="true"] { grid-template-rows: 1fr; }
+.tk-collapse-inner { overflow: hidden; min-height: 0; }
+@media (prefers-reduced-motion: reduce) { .tk-chev, .tk-collapse { transition: none; } }
+@media print { .tk-collapse { grid-template-rows: 1fr; } .tk-grouphead .tk-chev { display: none; } }
+.tk-groupbar > span:last-child { display: flex; gap: 14px; align-items: center; }
+.op-body.one > .op-hint { grid-column: 1 / -1; }
+/* Cards in a row are stretched to the same height, and the long text boxes in them grow to fill it, so a short card never leaves a gap beside a tall one (client feedback, 2026-11-20). */
+.op-body.one { align-items: stretch; }
+.wp-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
+.wp-form > .op-wide, .wp-form > .wp-save { grid-column: 1 / -1; }
+.wp-form > .card { display: flex; flex-direction: column; }
+.wp-form > .card > .field:last-of-type { flex: 1; display: flex; flex-direction: column; }
+.wp-form > .card > .field:last-of-type textarea { flex: 1; }
+@media (max-width: 1000px) { .wp-form { grid-template-columns: minmax(0, 1fr); } }
+.op-body.one.wp { display: block; }
+.op-body.one.wp > .wp-share { margin-top: 16px; }
+/* The installer budget's inputs fill their columns and read left to right (found while filling in a work package). */
+.wp-form .op-table { table-layout: fixed; width: 100%; }
+.wp-form .op-table td input { width: 100%; box-sizing: border-box; min-width: 0; }
+.wp-form .op-table td input[aria-label="Description"], .wp-form .op-table td input[aria-label="Unit"] { text-align: left; }
+.wp-form .op-table td .field { margin: 0; }

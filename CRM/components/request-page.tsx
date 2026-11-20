@@ -227,12 +227,6 @@ function RequestView({ r }: { r: Request }) {
     { label: "Print", icon: "pdf", onSelect: () => window.print() },
     { label: "Delete", icon: "trash", danger: true, disabled: true },
   ];
-  // The three dots on the client's card.
-  const clientItems: MenuItem[] = [
-    { label: "View client profile", icon: "eye", onSelect: () => router.push(`/clients/${r.clientId}`) },
-    { label: "Edit client details", icon: "pencil", disabled: !canEdit, onSelect: () => router.push(`/clients/${r.clientId}/edit`) },
-    { label: "Change property", icon: "home", disabled: true },
-  ];
 
   return (
     <div className="fade-in rq">
@@ -275,7 +269,7 @@ function RequestView({ r }: { r: Request }) {
         <section className="card rq-client">
           <div className="rq-clienthead">
             <Link href={`/clients/${r.clientId}`} className="rq-clientname">{c.name}</Link>
-            <button type="button" className="icon-btn" aria-label="Client options" aria-haspopup="menu" onClick={(e) => dropdown(e.currentTarget, clientItems, { alignRight: true })}><Icon name="more" size={24} /></button>
+            <Link className="btn" href={`/clients/${r.clientId}`}>View client profile</Link>
           </div>
           {c.street1 && <div>{c.street1}</div>}
           {cityLine && <div>{cityLine}</div>}
@@ -311,9 +305,9 @@ function RequestView({ r }: { r: Request }) {
         </dl>
       </div>
 
-      <section className={`card rq-overview${editingOverview ? " rq-editing" : ""}`} aria-label="Overview">
+      <section className={`card rq-overview${editingOverview ? " rq-editing" : ""}`} aria-label="Services and project details">
         <div className="rq-sechead">
-          <h2>Overview</h2>
+          <h2>Services &amp; Project Details</h2>
           {canEdit && !editingOverview && <button type="button" className="icon-btn" aria-label="Edit the overview" disabled={anyEditing} title={anyEditing ? lockedTip : undefined} onClick={editOverview}><Icon name="pencil" size={20} /></button>}
         </div>
         <div className="rq-qa-source">{r.overview.source}</div>
@@ -396,6 +390,18 @@ function RequestView({ r }: { r: Request }) {
             </div>
           </>
         )}
+      </section>
+
+      <section className="card rq-overview" aria-label="Consultation worksheet">
+        <div className="rq-sechead">
+          <h2>Consultation Worksheet</h2>
+          {canEdit ? (
+            <Link className="btn" href={`/opportunities/${r.id}?tab=visit`}><Icon name="pencil" size={16} /> Edit worksheet</Link>
+          ) : (
+            <button type="button" className="btn" disabled title="You can look at this but not change it"><Icon name="pencil" size={16} /> Edit worksheet</button>
+          )}
+        </div>
+        <p className="rq-text">The salesperson&apos;s on-site form: the services and areas measured, products, photos and notes. Only staff see it. The quote can start from it.</p>
       </section>
 
       <section className="card rq-overview" aria-label="Product / Service">

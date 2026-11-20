@@ -34,6 +34,10 @@ export const newLine = (kind: "item" | "text", over: Partial<DraftLine> = {}): D
   key: `new-${++counter}`, kind, name: "", description: "", imageUrl: null, quantity: "1", price: "0.00", optional: false, selected: true, ...over,
 });
 
+/** The lines the site visit works out (`crm.quotePrices.fromVisit`), as draft lines. A price the list does not have is 0.00, to be typed in. */
+export const draftLinesFromVisit = (lines: { name: string; quantity: number; priceCents: number | null }[]): DraftLine[] =>
+  lines.map((l) => newLine("item", { name: l.name, quantity: String(l.quantity), price: l.priceCents === null ? "0.00" : centsToInput(l.priceCents), catalogueName: l.name }));
+
 /** A line's total in cents; NaN while a box holds something that is not a number. */
 export function lineCents(l: DraftLine): number {
   if (l.kind === "text") return 0;
@@ -86,7 +90,7 @@ export function QuoteLines({ businessId, clientId, projectId, lines, onChange, b
     if (!projectId) return;
     const r = await convex.query(api.crm.quotePrices.fromVisit, { opportunityId: projectId });
     if (r.lines.length === 0) return toast(r.missing ?? "Nothing to fill from.");
-    const added = r.lines.map((l) => newLine("item", { name: l.name, quantity: String(l.quantity), price: l.priceCents === null ? "0.00" : centsToInput(l.priceCents), catalogueName: l.name }));
+    const added = draftLinesFromVisit(r.lines);
     onChange([...lines.filter((l) => l.name.trim() || l.kind === "text"), ...added]);
     const unpriced = r.lines.filter((l) => l.priceCents === null).length;
     toast(unpriced ? `Added ${added.length} lines. ${unpriced} have no price in the list yet, so type their prices in.` : `Added ${added.length} lines from the site visit.`);

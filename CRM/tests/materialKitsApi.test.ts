@@ -114,6 +114,27 @@ describe("Adding a kit to a takeoff (D-104)", () => {
     expect((await w.pm.query(api.crm.takeoff.get, { id }))!.lines).toHaveLength(8);
   });
 
+  it("gives every line its material's heading (category), also for a line added one material at a time, and offers the materials with their headings", async () => {
+    const w = await seeded();
+    await w.admin.mutation(api.crm.materialKits.loadStarter, { businessId: w.qft, now: NOW });
+    const id = await wonProject(w);
+    const kit = (await kits(w)).find((k) => k.name === "Irrigation: Drip system")!;
+    await w.pm.mutation(api.crm.takeoff.addKit, { id, kitId: kit.id });
+    const options = await w.pm.query(api.crm.materials.options, { businessId: w.qft });
+    const roll = options.find((o) => o.name === "Artificial Grass Roll")!;
+    expect(roll.category).toBe("Turf installation");
+    await w.pm.mutation(api.crm.takeoff.addLine, { id, materialId: roll.id });
+    const lines = (await w.pm.query(api.crm.takeoff.get, { id }))!.lines;
+    expect(lines.filter((l) => l.category === "Irrigation")).toHaveLength(15);
+    expect(lines.find((l) => l.name === "Artificial Grass Roll")!.category).toBe("Turf installation");
+    // A line made before headings existed (no category stored) still finds its heading from its material.
+    await w.base.run(async (ctx) => {
+      const l = (await ctx.db.query("takeoffLines").collect()).find((x) => x.name === "Valves")!;
+      await ctx.db.patch(l._id, { category: undefined });
+    });
+    expect((await w.pm.query(api.crm.takeoff.get, { id }))!.lines.find((l) => l.name === "Valves")!.category).toBe("Irrigation");
+  });
+
   it("works out the demo's cubic yards of dirt from length, width and depth", async () => {
     const w = await seeded();
     await w.admin.mutation(api.crm.materialKits.loadStarter, { businessId: w.qft, now: NOW });

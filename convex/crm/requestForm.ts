@@ -3,7 +3,7 @@ import type { Doc } from "../_generated/dataModel";
 import { mutation } from "../_generated/server";
 import { newShortCode } from "../projects/shortCode";
 import { answerValidator, measurementValidator } from "../schema";
-import { areaBandFor, contactProblems } from "../shared/discovery";
+import { areaBandFor, contactProblems, wantsCallFromAnswers } from "../shared/discovery";
 import { US_STATES } from "../shared/usStates";
 import { requireModule } from "./lib/access";
 import { checkAssignee } from "./lib/assignees";
@@ -72,7 +72,8 @@ export const create = mutation({
     const staff = await requireModule(ctx, args.businessId, "requests", "edit");
     const problem = Object.values(contactProblems(args))[0];
     if (problem !== undefined) throw new ConvexError(problem);
-    if (args.services.length === 0) throw new ConvexError("Choose at least one service.");
+    // A request that asked for a professional to reach out has no services (its answers say so); any other needs at least one.
+    if (args.services.length === 0 && !wantsCallFromAnswers(args.answers)) throw new ConvexError("Choose at least one service.");
     if (args.services.length > 40 || args.answers.length > 400 || args.measurements.length > 200 || args.notes.length > 10000) {
       throw new ConvexError("The request is too large.");
     }
