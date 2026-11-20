@@ -28,13 +28,14 @@ export function TakeoffTab({ id, businessId, title }: { id: Id<"opportunities">;
   const staff = useStaff();
   const t = useQuery(api.crm.takeoff.get, { id });
   const options = useQuery(api.crm.materials.options, { businessId });
+  const kits = useQuery(api.crm.materialKits.list, { businessId });
   const canEdit = staff.can("pipelinePreplanning", "edit");
   if (t === undefined) return <div className="card op-card"><div className="sk" style={{ height: 160 }} /></div>;
   if (t === null) return <div className="card op-card"><p className="muted">A takeoff starts once the project is Closed Won.</p></div>;
   return (
     <div className="op-body one tk">
       <Measurements key={`${t.updatedAt}`} id={id} t={t} canEdit={canEdit} />
-      <Materials id={id} t={t} options={options ?? []} canEdit={canEdit} />
+      <Materials id={id} t={t} options={options ?? []} kits={kits ?? []} canEdit={canEdit} />
       <Summary t={t} title={title} />
       <PurchaseOrders id={id} canEdit={canEdit} />
     </div>
@@ -90,12 +91,14 @@ function Measurements({ id, t, canEdit }: { id: Id<"opportunities">; t: Takeoff;
   );
 }
 
-function Materials({ id, t, options, canEdit }: { id: Id<"opportunities">; t: Takeoff; options: { id: Id<"materials">; name: string; unit: string }[]; canEdit: boolean }) {
+function Materials({ id, t, options, kits, canEdit }: { id: Id<"opportunities">; t: Takeoff; options: { id: Id<"materials">; name: string; unit: string }[]; kits: { id: Id<"materialKits">; name: string; group: string; uses: string[] }[]; canEdit: boolean }) {
   const { toast } = useUI();
   const add = useMutation(api.crm.takeoff.addLine);
   const refresh = useMutation(api.crm.takeoff.refreshLine);
   const remove = useMutation(api.crm.takeoff.removeLine);
+  const addKit = useMutation(api.crm.takeoff.addKit);
   const [pick, setPick] = useState("");
+  const [kitPick, setKitPick] = useState("");
   const [editing, setEditing] = useState<Line | null>(null);
   const free = options.filter((o) => !t.lines.some((l) => l.materialId === o.id));
   const toOrder = new Map(t.summary.suppliers.flatMap((s) => s.lines.map((l) => [l.name, l.toOrder] as const)));
@@ -112,6 +115,23 @@ function Materials({ id, t, options, canEdit }: { id: Id<"opportunities">; t: Ta
               {free.map((o) => <option key={o.id} value={o.id}>{o.name} ({o.unit})</option>)}
             </select>
             <button type="button" className="btn primary" disabled={!pick} onClick={() => void add({ id, materialId: pick as Id<"materials"> }).then(() => setPick("")).catch((e) => fail(e, "The material could not be added."))}>Add</button>
+            <select aria-label="Kit to add" value={kitPick} onChange={(e) => setKitPick(e.target.value)}>
+              <option value="">{kits.length === 0 ? "No kits yet" : "Add a kit…"}</option>
+              {[...new Set(kits.map((k) => k.group))].map((g) => (
+                <optgroup key={g} label={g || "Other"}>
+                  {kits.filter((k) => k.group === g).map((k) => <option key={k.id} value={k.id}>{k.name}{k.uses.length ? ` (${k.uses.join(", ")})` : ""}</option>)}
+                </optgroup>
+              ))}
+            </select>
+            <button
+              type="button" className="btn primary" disabled={!kitPick}
+              onClick={() => void addKit({ id, kitId: kitPick as Id<"materialKits"> }).then((r) => {
+                setKitPick("");
+                toast(r.added === 0 ? "Everything in that kit is already on this takeoff." : `Added ${r.added} material${r.added === 1 ? "" : "s"}${r.skipped ? `, ${r.skipped} already here` : ""}${r.missing ? `, ${r.missing} no longer in the list` : ""}.`);
+              }).catch((e) => fail(e, "The kit could not be added."))}
+            >
+              Add kit
+            </button>
           </div>
         )}
       </div>

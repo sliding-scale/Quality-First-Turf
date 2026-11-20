@@ -514,6 +514,20 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_business_and_nameKey", ["businessId", "nameKey"]),
 
+  /** A named list of materials that go on a takeoff together (D-104): "Turf: Standard install", "Underground: 3 in. drain". Adding a kit to a project's
+   *  takeoff adds each of its materials as a line (a snapshot, like any line). It holds no rates: each material has its own formula. */
+  materialKits: defineTable({
+    businessId: v.id("businesses"),
+    name: v.string(),
+    nameKey: v.string(),
+    /** Only for grouping the list: "Turf installation", "Underground"... */
+    group: v.string(),
+    description: v.string(),
+    materialIds: v.array(v.id("materials")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_business_and_nameKey", ["businessId", "nameKey"]),
+
   /** A project's installer work package (PRD 4.3): scope, schedule, site access, the installer budget, which files go with it, and the secret
    *  expiring link it is shared by. One row per project. Written only by crm/workPackages.ts; the link's page reads it in crm/clientWorkPackage.ts. */
   workPackages: defineTable({

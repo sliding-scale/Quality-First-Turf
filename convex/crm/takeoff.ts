@@ -113,6 +113,34 @@ export const addLine = mutation({
   },
 });
 
+/** Adds every material of a kit to the takeoff, worked out from the measurements. A material already on the takeoff is skipped (the same material is
+ *  in several kits), and one deleted from the list since the kit was made is counted as missing. */
+export const addKit = mutation({
+  args: { id: v.id("opportunities"), kitId: v.id("materialKits") },
+  handler: async (ctx, args) => {
+    const { p } = await projectOf(ctx, args.id, "edit");
+    const kit = await ctx.db.get(args.kitId);
+    if (kit === null || kit.businessId !== p.businessId) throw new ConvexError("That kit no longer exists.");
+    const lines = await linesOf(ctx, p._id);
+    const have = new Set(lines.map((l) => l.materialId));
+    const inputs = inputsOf(await takeoffOf(ctx, p._id));
+    let added = 0;
+    let skipped = 0;
+    let missing = 0;
+    let position = lines.length;
+    for (const materialId of kit.materialIds) {
+      const m = await ctx.db.get(materialId);
+      if (m === null || m.businessId !== p.businessId) { missing += 1; continue; }
+      if (have.has(m._id)) { skipped += 1; continue; }
+      const r = lineQuantity({ formula: m.formula, wastagePercent: m.wastagePercent, rounding: m.rounding, inputs });
+      await ctx.db.insert("takeoffLines", { businessId: p.businessId, opportunityId: p._id, position: position++, ...snapshot(m), notes: "", ...(r.ok ? { calcQty: r.qty } : { calcError: r.error }) });
+      have.add(m._id);
+      added += 1;
+    }
+    return { added, skipped, missing };
+  },
+});
+
 export const updateLine = mutation({
   args: {
     lineId: v.id("takeoffLines"),

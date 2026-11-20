@@ -16,6 +16,7 @@ import { useKept, useWorkspace } from "@/lib/clients";
 import { moneyCents } from "@/lib/format";
 import { clock, failure } from "@/lib/pipeline";
 import { Icon } from "./icon";
+import { MaterialKits } from "./material-kits";
 import { PipelineModal } from "./pipeline-dialogs";
 import { CatalogueSkeleton } from "./skeletons";
 import { useStaff } from "./staff-context";
@@ -98,6 +99,7 @@ export function MaterialsPage() {
           <button type="button" className="pg" disabled={current === pages} aria-label="Next page" onClick={() => setPage(current + 1)}><Icon name="chevright" size={20} /></button>
         </div>
       </div>
+      <MaterialKits businessId={businessId} />
       {editing && <MaterialDialog businessId={businessId} row={editing === "new" ? null : editing} canEdit={canEdit} canDelete={staff.can("pipelinePreplanning", "full")} canCost={staff.can("prices")} onClose={() => setEditing(null)} />}
     </div>
   );
