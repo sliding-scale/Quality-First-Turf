@@ -14,7 +14,7 @@ Convex agent skills for common tasks can be installed by running
 
 ## The project is live: handoff rules (read every session)
 
-Quality First Turf has been handed off to the client. Mistakes now reach a real customer. Status, open items and upsells are in `docs/project-status.md`.
+Quality First Turf has been handed off to the client. Mistakes now reach a real customer. What was delivered is described for the client in `docs/Report.md` (the older `docs/project-status.md` is no longer in the repo); how the app works is in `README.md`, and the repo-wide rules are in `../CLAUDE.md`.
 
 **After EVERY change you make, end your final message with this reminder to the user:**
 

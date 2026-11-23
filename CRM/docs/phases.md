@@ -6,7 +6,7 @@ Delivery dates in the PRD are ignored ([D-005](decisions.md)). The client moves 
 
 **Method inside every milestone:** UI/UX first on sample data, then wire it to Convex. Each step is agreed with the user before it is built ([D-020](decisions.md)). Status key: `[ ]` todo, `[~]` in progress, `[x]` done.
 
-Current position: **Milestone 2 UI** is built in Next.js on sample data (D-033), converted from the approved mockups, which are removed. Next: wire it to Convex (backend wiring below).
+Current position (2026-11-23): every screen is wired to Convex on the **dev** deployment; nothing of the CRM is in production use. Most of Milestones 2 to 5 is built (below). Still open: Twilio and WhatsApp going live, QuickBooks Online (D-120), the rest of the Jobber import, the end-to-end test and the production launch.
 
 ---
 
@@ -21,16 +21,16 @@ Not a PRD milestone, but everything depends on it.
 - [x] Receive the Quality First Turf logo from the user (and the Patios logo; D-112)
 - [x] Monorepo created: `forms/` moved in unchanged, `CRM/` added (D-026)
 - [x] Shared `convex/` moved to the repo root, beside `forms/` and `CRM/` (D-030)
-- [ ] Confirm the Convex CLI from `forms/` on the dev deployment, and the Vercel settings (root directory, include files outside it) on a preview build of the `monorepo` branch
-- [ ] Scaffold the CRM Next.js app (TypeScript, Tailwind, shadcn/ui) inside the repo
-- [ ] Design tokens: white, off-white, gray, black, one Jobber-green accent (D-019)
-- [ ] Data access layer with a sample-data provider, so screens switch to Convex later without rewrites
-- [ ] Realistic sample data, reusing the real catalogue and 2026 price list from `../forms` where useful
-- [ ] Shared Convex backend extended with additive CRM tables (no edits to the forms' tables); Clerk set up (users, multi-role)
-- [ ] Environments and env var documentation; production deploys only with the user's go-ahead
-- [ ] Decide hosting (Q-004)
+- [x] Convex CLI: works from the repo root on the dev deployment (used for all CRM work). The `monorepo` branch is merged into `master`, and the Vercel settings (root directory, include files outside it) are in place (user, 2026-11-23)
+- [x] Scaffold the CRM Next.js app inside the repo (TypeScript, plain CSS; Tailwind and shadcn/ui were not used, D-033)
+- [x] Design tokens: white, off-white, gray, black, one Jobber-green accent (D-019; `app/globals.css`, D-117)
+- [x] Data access layer with a sample-data provider, so screens switch to Convex later without rewrites (D-033; since replaced by Convex)
+- [x] Realistic sample data, reusing the real catalogue and 2026 price list from `../forms` where useful (`crm/seed`, dev only)
+- [x] Shared Convex backend extended with additive CRM tables (no edits to the forms' tables); Clerk set up (users, multi-role) (D-042, D-046)
+- [x] Environments and env var documentation (`convex/README.md`, `CRM/README.md`); production deploys only with the user's go-ahead
+- [x] Decide hosting (Q-004: Vercel, one project per app)
 
-**Exit:** the empty shell runs locally on sample data.
+**Exit:** the empty shell runs locally on sample data. Done.
 
 ---
 
@@ -38,17 +38,17 @@ Not a PRD milestone, but everything depends on it.
 PRD goal: Sales can begin transitioning away from Jobber. Companies and Contacts are one Clients module (D-008).
 
 **UI/UX (sample data), step 2.1.** Built first as HTML/CSS/JS mockups (D-023), then converted to Next.js (D-033): Home, Clients list with pagination, Client page, New/Edit client.
-- [ ] App shell: sidebar (Create, Home, Schedule, Clients, Requests, Quotes, Jobs, Invoices, Payments, Messages, Pipeline; D-025), top bar with search
-- [ ] Clients list: search, Homeowner/Contractor filter, scoped to the selected business (D-031)
-- [ ] Client page in Jobber's section order (provisional until screenshots); mobile tabs Client, Work, Notes
-- [ ] Add/edit client form (fields follow the customer form, D-017)
+- [x] App shell: sidebar (Create, Home, Schedule, Clients, Requests, Quotes, Jobs, Invoices, Payments, Messages, Pipeline; D-025), top bar with search
+- [x] Clients list: search, Homeowner/Contractor filter, scoped to the selected business (D-031)
+- [x] Client page in Jobber's section order; an Activity history tab (D-113)
+- [x] Add/edit client form (fields follow the customer form, D-017)
 - [x] Settings: users and roles (multi-role) done (D-046); the businesses' own settings screen (phone, email, website, logo) built on dev (D-112)
 
 **Backend wiring**
-- [~] Schema: `businesses`, `clients`, `opportunities`, `clientNotes` done (D-042); `users` (roles array) done; `activities` done (D-113)
+- [x] Schema: `businesses`, `clients`, `opportunities`, `clientNotes` done (D-042); `users` (roles array) done; `activities` done (D-113)
 - [x] Clerk to Convex auth, invite-only users, first Admin, Admin manages users and roles, the CRM sign-in screen, its own seed switch (D-046, built on dev; needs the Clerk dashboard step and the Convex variable, see the CRM README; production needs its own Clerk instance)
 - [x] Access helper: signed in, active, role and business checked in every CRM function (D-046). Module permissions beyond edit versus view and record assignment come later (D-006)
-- [~] Clients: create, edit, view, search, filters, notes, Related projects done; activity history done (D-113); paging is server-side over a bounded read (5,000 per business), see D-042
+- [x] Clients: create, edit, view, search, filters, notes, Related projects done; activity history done (D-113); paging is server-side over a bounded read (5,000 per business), see D-042
 - [x] Swap the Clients and Requests screens from sample data to Convex (dev deployment; first look at live data pending, D-042)
 
 **Exit:** PRD Milestone 2 acceptance criteria met: Clients fully usable and access restricted by permission. The Jobber import criterion follows D-022 and Q-021 (timing under review).
@@ -59,23 +59,23 @@ PRD goal: Sales can begin transitioning away from Jobber. Companies and Contacts
 PRD goal: the complete sales workflow, from enquiry to approved contract.
 
 **UI/UX (sample data), steps 3.1 to 3.3**
-- [~] 3.1 Projects: Sales pipeline board **built on dev (D-061)**: board, drag and drop, stage history, Tasks and Sales Outcomes tabs, Edit Stages; the project page (Overview, Visit, Quotes, Files, Activity) is built (D-077) and its Visit tab records work areas and photos (D-114); the list toggle on every pipeline board is built (D-115). Original line: Sales pipeline board (9 stages) with list toggle; project page tabs Overview, Visit (four-step on-site flow, phone-first), Quotes, Files, Activity
+- [x] 3.1 Projects: Sales pipeline board **built on dev (D-061)**: board, drag and drop, stage history, Tasks and Sales Outcomes tabs, Edit Stages; the project page (Overview, Visit, Quotes, Files, Activity) is built (D-077) and its Visit tab records work areas and photos (D-114); the list toggle on every pipeline board is built (D-115). Original line: Sales pipeline board (9 stages) with list toggle; project page tabs Overview, Visit (four-step on-site flow, phone-first), Quotes, Files, Activity
 - [x] Customer form to CRM (D-040, built on dev in D-045; not yet deployed to production): a submitted form creates a new client only if the person is unique (rule in Q-016), and always creates a request, i.e. a project at New Request. Needs the user's go-ahead before the live forms app is changed (D-028)
-- [~] 3.2 Quotes (**builder, sending (link), client approval and signature, revisions, deposit, Closed Won rule built on dev, D-063**; email and text delivery wait for the Zoho connection, Convert to Job for Jobs). Original line: overview cards, quote builder (desktop-first), statuses, change requests and resubmissions. **Done so far (D-056, dev):** list with the four figure cards and Status, Date and Salesperson filters, the read-only quote page, quote #1 added as data. **Still to do:** the builder, sending, change requests and resubmissions
-- [~] 3.3 Home, Schedule and Tasks (**Schedule built on dev, D-062**; Home dashboard figures built (D-076) and the Tasks PRD items built (D-116); Zoho Calendar link later): dashboard widgets, day/week/month calendar, Today view, personal tasks, Quick Create
-- [ ] Customer-facing: quote approval and contract signing (method undecided, Q-005)
+- [x] 3.2 Quotes (**builder, sending (link), client approval and signature, revisions, deposit, Closed Won rule built on dev, D-063**; email and text delivery wait for the Zoho connection, Convert to Job for Jobs). Original line: overview cards, quote builder (desktop-first), statuses, change requests and resubmissions. **Done so far (D-056, dev):** list with the four figure cards and Status, Date and Salesperson filters, the read-only quote page, quote #1 added as data. The builder, sending and revisions followed in D-063
+- [x] 3.3 Home, Schedule and Tasks (**Schedule built on dev, D-062**; Home dashboard figures built (D-076) and the Tasks PRD items built (D-116); Zoho Calendar link built, D-069): dashboard widgets, day/week/month calendar, Today view, personal tasks, Quick Create
+- [x] Customer-facing: quote approval and signature on the customer's link `/q/[token]`; the on-screen signature is the approval method (D-063, answers Q-005)
 
 **Backend wiring**
-- [ ] Schema: `opportunities` (the central project record), `stageHistory`, `visitSnapshots`, `visitRevisions`, `workAreas`, `quotes`, `quoteLineItems`, `calendarEvents`, `tasks`, `documents`
-- [ ] One `moveStage` mutation that validates, writes history and triggers notifications and tasks
-- [ ] Guards: Closed Won needs signed contract + deposit (if applicable); Closed Lost incl. the three-month rule
-- [ ] Visit flow and change log from the forms app, reused or copied under `convex/crm/` (D-021, D-029)
-- [ ] Pricing engine from the forms app, reused or copied under `convex/crm/`: catalogue, 2026 price list, area-size bands, homeowner/contractor rates
-- [ ] Quotes with line items, scope of work, statuses, change requests
-- [ ] Calendar, tasks, double-booking prevention; Google Calendar availability lookup
-- [ ] Dashboard widgets computed from real records
-- [ ] File uploads (photos, site plans, contracts)
-- [ ] Swap the Phase 3 screens to Convex
+- [x] Schema: `opportunities` (the central project record), `stageHistory`, `quotes`, `quoteLineItems` with their events and revisions, `calendarEvents`, `opportunityTasks` (the plan's `tasks`), `opportunityFiles` (the plan's `documents`), `opportunityVisits` (D-114); the forms' `visitSnapshots`, `visitRevisions` and `workAreas` are read, not copied
+- [x] One `moveStage` mutation that validates, writes history and triggers notifications and tasks (`crm/pipeline.ts`, D-061)
+- [x] Guards: Closed Won needs the signed quote + deposit (if applicable) (D-063); Closed Lost incl. the three-month rule (automation, D-065)
+- [~] Visit: work areas and photos are recorded in the CRM (D-114); the forms' follow-up questions, measured-pieces planner and change log are not ported (the forms keep doing them, D-028)
+- [x] Pricing engine from the forms app, reused from `convex/shared/` (catalogue, 2026 price list, quote lines) by `crm/quotePrices.ts` for the price picker and the quote pre-fill (D-063, D-105)
+- [x] Quotes with line items, scope of work, statuses, change requests (D-056, D-063)
+- [x] Calendar, tasks, double-booking prevention (D-062); Zoho Calendar instead of Google (D-069)
+- [x] Dashboard widgets computed from real records (D-076, D-116)
+- [x] File uploads (photos, site plans, contracts): the project's Files tab and note photos (D-077)
+- [x] Swap the Phase 3 screens to Convex
 
 **Needs:** contract template; price gaps (contractor rates, 12 unpriced services). Ask only if blocked (D-018).
 **Exit:** PRD Milestone 3 acceptance criteria met. Closed Won produces a handoff trigger for Phase 4.
@@ -91,8 +91,8 @@ PRD goal: from sales handoff through materials, installation and customer sign-o
 - [x] Customer and installer pages: completion sign-off page `/signoff/[token]` built (D-081); the installer work-package page is built at `/w/<secret link>` (D-099; the plan said `/wp/`, the built path is `/w/`)
 
 **Backend wiring**
-- [ ] Schema: `products`, `materialFormulas`, `takeoffs`, `takeoffLines`, `suppliers`, `crews`, `installers`, `workPackages`, `workPackageLinks`, `purchaseOrders`, `punchItems`, `progressUpdates`, `signoffs`
-- [~] Closed Won sends the project to Preplanning by itself, on the same record (D-080), and the Office team is told. Contract, quote, site plan and customer details stay on that record. Still to do: takeoff, suppliers, crews and work packages.
+- [~] Schema (as built): `materials` and `materialKits` (products with formulas), `takeoffs`, `takeoffLines`, `crews`, `workPackages` (the secret link is kept on the package), `purchaseOrders`, `punchItems`, `progressUpdates`, `signoffs`. No `suppliers` or `installers` tables yet: the supplier list has not arrived
+- [x] Closed Won sends the project to Preplanning by itself, on the same record (D-080), and the Office team is told. Contract, quote, site plan and customer details stay on that record. Takeoff, crews and work packages followed (D-098, D-099).
 - [x] Formula engine: safe expression evaluation (no `eval`), wastage rules, unit-tested (D-098, `tests/formula.test.ts`)
 - [x] Material takeoff, supplier, stock and lead times, requirements summary (D-098, D-100; the client's catalogue, units, formulas and wastage are integrated, D-104, D-107)
 - [x] Installer budgets, labour costs, schedules; crews and installers are records, not users (D-010, D-099; installers also log in, D-090)
@@ -112,14 +112,15 @@ PRD goal: the final workflow, communication integrations and production deployme
 **UI/UX (sample data), steps 5.1 to 5.2**
 - [x] 5.1 Finance: board (6 stages), invoices, payments, outstanding balances **built on dev (D-092)**; not clicked through in a browser yet
 - [x] Jobs (list, job page, Close Job, Convert to Job, New Job by hand) and the Products & Services list **built on dev (D-094)**; costs on a job, Labor and Expenses **built on dev (D-095)**; checklists, recurring jobs, emails, signature and Delete **built on dev (D-096)**
-- [ ] 5.2 Messages and export: the text log, inbox, Message Center and a Twilio-ready sender are **built on dev (D-097)**; the export page is **built on dev (D-101)**; calls (logged by hand) and WhatsApp work packages (sent by hand) are **built on dev (D-102)**; Twilio voice and the WhatsApp Business sender remain
+- [~] 5.2 Messages and export: the text log, inbox, Message Center and a Twilio-ready sender are **built on dev (D-097)**; the export page is **built on dev (D-101)**; calls (logged by hand) and WhatsApp work packages (sent by hand) are **built on dev (D-102)**; Twilio voice and the WhatsApp Business sender remain
 
 **Backend wiring**
-- [~] Schema: `invoices`, `invoiceLines`, `payments` (+ allocations, schedule, plans, settings) done (D-092); `communications`, `integrationCredentials` (server-side only) still to do
+- [x] Schema: `invoices`, `invoiceLines`, `payments` (+ allocations, schedule, plans, settings) done (D-092); communications are `messages` and `calls` (D-097, D-102); integration tokens stay server-side per integration (`jobberConnections`, `calendarConnections`, env vars)
 - [x] Finance pipeline entered from construction sign-off; invoices, deposits, final payments, dashboard pending payments (D-092)
-- [ ] Phone and SMS: multiple numbers, calls, texts, communication log against client, project and user (provider: Q-006)
+- [~] Phone and SMS: multiple numbers (Settings > Phone numbers), texts through Twilio and calls logged by hand, logged against client, project and user (D-097, D-102); not live until the Twilio account and texting registration exist (provider: Q-006)
 - [x] Zoho Mail, read-only, into the client Communication tab: `office@qualityfirstturf.com`, Inbox and Sent, no sending or mailbox changes (D-064)
-- [ ] WhatsApp Business: send work packages, log against the project
+- [~] WhatsApp Business: send work packages, log against the project (sent by hand and logged, D-102; the WhatsApp Business sender remains)
+- [ ] QuickBooks Online: a Connect QuickBooks button in Settings (Admin, one connection per business); create invoices in QuickBooks from the CRM and read invoices and payments back, with an account-mapping settings screen and a "sync from" date (D-120). Start the Intuit production-keys review early
 - [x] Permissions: levels per module, Installer role, assigned-only, Manage Team Permissions form (PRD 5.5, D-093); to check in a browser as an Installer
 - [x] Export for clients, projects, quotes, invoices and payments **built on dev (D-101)**
 
