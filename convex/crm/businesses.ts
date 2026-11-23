@@ -1,5 +1,7 @@
+import { ConvexError, v } from "convex/values";
 import { mutation, query } from "../_generated/server";
-import { requireStaff } from "./lib/access";
+import { requireAdmin, requireStaff } from "./lib/access";
+import { checkCompanyDetails } from "./lib/companyDetails";
 import { RENAMED, TURF_NAME, TURF_SLUG } from "./lib/businessNames";
 
 /** The businesses this person may work in (an Admin: all three), in the order they were created. */
@@ -9,6 +11,21 @@ export const list = query({
     const staff = await requireStaff(ctx);
     const all = await ctx.db.query("businesses").take(20);
     return staff.isAdmin ? all : all.filter((b) => staff.businessIds.includes(b._id));
+  },
+});
+
+/** An Admin sets a business's phone, email and website (D-112). An empty value removes the field. The name is not touched here. */
+export const saveDetails = mutation({
+  args: { businessId: v.id("businesses"), phone: v.string(), email: v.string(), website: v.string() },
+  handler: async (ctx, a) => {
+    await requireAdmin(ctx);
+    const row = await ctx.db.get(a.businessId);
+    if (!row) throw new ConvexError("That business no longer exists.");
+    const checked = checkCompanyDetails({ phone: a.phone, email: a.email, website: a.website });
+    if (!checked.ok) throw new ConvexError(Object.values(checked.problems)[0] ?? "Check the details and try again.");
+    const { phone, email, website } = checked.value;
+    await ctx.db.patch(row._id, { phone: phone || undefined, email: email || undefined, website: website || undefined });
+    return null;
   },
 });
 

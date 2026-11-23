@@ -46,7 +46,7 @@ function Delta({ value }: { value: number | null }) {
 
 function Invoices({ business }: { business: BusinessDoc }) {
   const router = useRouter();
-  const { popover } = useUI();
+  const { popover, dropdown } = useUI();
   const { can } = useStaff();
   const canBill = can("invoices", "edit");
   const [q, setQ] = useState("");
@@ -100,6 +100,14 @@ function Invoices({ business }: { business: BusinessDoc }) {
         <h1>Invoices</h1>
         <div className="actions">
           {canBill ? <Link className="btn primary" href="/invoices/new">New Invoice</Link> : <button className="btn primary" type="button" disabled data-tip="Your role can look at invoices but not make them">New Invoice</button>}
+          <button
+            className="btn"
+            type="button"
+            aria-haspopup="menu"
+            onClick={(e) => dropdown(e.currentTarget, [{ label: "Export data", icon: "export", onSelect: () => router.push("/settings/export") }], { alignRight: true, variant: "actions" })}
+          >
+            <Icon name="more" size={20} /> More Actions
+          </button>
         </div>
       </div>
 

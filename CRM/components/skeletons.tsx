@@ -385,6 +385,31 @@ export function DisclaimersSkeleton() {
   );
 }
 
+export function ClientActivitySkeleton() {
+  return (
+    <section className="card op-card" role="status" aria-busy="true">
+      <span className="sr">Loading…</span>
+      <h2>Activity history</h2>
+      <ul className="op-tl">
+        {range(5).map((n) => (
+          <li key={n}><i style={{ background: "transparent" }} /><span><Sk w={`${55 + n * 6}%`} h={16} /><Sk w="30%" h={12} style={{ marginTop: 6 }} /></span></li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+export function BusinessesSkeleton() {
+  return (
+    <Busy>
+      <div className="page-head"><h1>Businesses</h1></div>
+      <Sk w="70%" h={18} style={{ marginBottom: 22 }} />
+      <div className="card bz-head"><Sk w={78} h={60} /><div><Sk w={90} h={12} style={{ marginBottom: 8 }} /><Sk w={200} h={20} /></div></div>
+      <div className="card bz-fields">{range(3).map((n) => <Sk key={n} h={52} r={8} />)}</div>
+    </Busy>
+  );
+}
+
 export function AutomationsSkeleton() {
   return (
     <Busy>
@@ -632,6 +657,33 @@ export function PipelineBoardSkeleton() {
 }
 
 /** Preplanning and Construction: one rail and a row of stage columns, no Sales Outcomes tab. */
+export function PipelineListSkeleton() {
+  return (
+    <Busy>
+      <div className="pl-tab">
+        <div className="pl-bar">
+          <div className="chips">
+            {[150, 44, 140, 150, 130].map((w, i) => (<Sk key={i} w={w} h={38} r={999} />))}
+          </div>
+          <Sk w={360} h={44} r={8} />
+        </div>
+        <div className="pl-list">
+          <table className="table single">
+            <colgroup>
+              <col style={{ width: 280 }} /><col style={{ width: 190 }} /><col style={{ width: 240 }} /><col style={{ width: 160 }} /><col style={{ width: 100 }} /><col style={{ width: 110 }} /><col style={{ width: 52 }} />
+            </colgroup>
+            <tbody>
+              {range(8).map((n) => (
+                <tr key={n}>{[200, 120, 160, 100, 40, 60, 20].map((w, i) => (<td key={i}><Sk w={w} h={16} /></td>))}</tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </Busy>
+  );
+}
+
 export function WorkPipelineBoardSkeleton() {
   return (
     <Busy>

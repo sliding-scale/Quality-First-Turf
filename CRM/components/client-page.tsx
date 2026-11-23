@@ -20,14 +20,15 @@ import { NoteEditor, useUploadPending, type PendingFile } from "./note-editor";
 import { NoteBody } from "./note-view";
 import { useStaff } from "./staff-context";
 import { EditTagsDialog, SendEmailDialog } from "./client-dialogs";
+import { ClientActivity } from "./client-activity";
 import { ClientCommunication } from "./client-communication";
 import { DeleteClientsDialog } from "./delete-clients-dialog";
 import { Icon } from "./icon";
 import { ClientSkeleton, Sk } from "./skeletons";
 import { useUI } from "./ui-provider";
 
-type Tab = "info" | "communication" | "media";
-const TAB_PARAM: Record<Tab, string> = { info: "", communication: "communication", media: "media" };
+type Tab = "info" | "communication" | "media" | "activity";
+const TAB_PARAM: Record<Tab, string> = { info: "", communication: "communication", media: "media", activity: "activity" };
 const requestDot = { New: "var(--blue)", Overdue: "var(--red)", Consultation: "var(--orange)", Converted: "var(--green)", Lost: "var(--muted)" } as const;
 
 export function ClientPage({ id }: { id: string }) {
@@ -71,7 +72,7 @@ function ClientView({ c }: { c: ClientDoc }) {
   const archive = useMutation(api.crm.clients.archive);
   const [tab, setTab] = useState<Tab>(() => {
     const t = new URLSearchParams(location.search).get("tab");
-    return t === "communication" || t === "media" ? t : "info";
+    return t === "communication" || t === "media" || t === "activity" ? t : "info";
   });
   const [tagging, setTagging] = useState(false);
   const [emailing, setEmailing] = useState(false);
@@ -185,6 +186,7 @@ function ClientView({ c }: { c: ClientDoc }) {
             <button className={`cj-tab${tab === "info" ? " active" : ""}`} role="tab" aria-selected={tab === "info"} onClick={() => pick("info")}>Client information</button>
             <button className={`cj-tab${tab === "communication" ? " active" : ""}`} role="tab" aria-selected={tab === "communication"} onClick={() => pick("communication")}>Communication</button>
             <button className={`cj-tab${tab === "media" ? " active" : ""}`} role="tab" aria-selected={tab === "media"} onClick={() => pick("media")}>Files and media <span className="cj-new">NEW</span></button>
+            <button className={`cj-tab${tab === "activity" ? " active" : ""}`} role="tab" aria-selected={tab === "activity"} onClick={() => pick("activity")}>Activity history</button>
           </div>
 
           <div key={tab} className="fade-in cj-stack">
@@ -209,6 +211,7 @@ function ClientView({ c }: { c: ClientDoc }) {
                 lastCommunication={c.lastCommunication}
               />
             )}
+            {tab === "activity" && <ClientActivity clientId={c._id} />}
             {tab === "media" && (
               <div className="cj-media">
                 <div className="cj-media-empty">

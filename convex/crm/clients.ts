@@ -3,6 +3,7 @@ import type { Doc, Id } from "../_generated/dataModel";
 import { mutation, query, type QueryCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { canSee, requireStaff, requireModule } from "./lib/access";
+import { changedClientFields, logActivity } from "./lib/activity";
 import { deleteQuote } from "./lib/quoteData";
 import { attachmentLinks, checkNoteFiles, deleteNoteFiles, noteFilesArg } from "./lib/noteFiles";
 import { deleteConstruction } from "./lib/construction";
@@ -159,12 +160,12 @@ async function withRealBilling(ctx: QueryCtx, client: Doc<"clients">): Promise<D
 export const create = mutation({
   args: { businessId: v.id("businesses"), ...clientInputFields },
   handler: async (ctx, args) => {
-    await requireModule(ctx, args.businessId, "clients", "edit");
+    const staff = await requireModule(ctx, args.businessId, "clients", "edit");
     if ((await ctx.db.get(args.businessId)) === null) throw new ConvexError("That business does not exist.");
     const { businessId, first, last, ...rest } = args;
     const fields = normalizeClientInput({ ...rest, first, last });
     const now = Date.now();
-    return await ctx.db.insert("clients", {
+    const clientId = await ctx.db.insert("clients", {
       businessId,
       ...fields,
       status: "lead",
@@ -173,6 +174,8 @@ export const create = mutation({
       lastActivityAt: now,
       searchText: clientSearchText(fields),
     });
+    await logActivity(ctx, { businessId, clientId, title: "Client created", staff });
+    return clientId;
   },
 });
 
@@ -183,7 +186,7 @@ export const update = mutation({
     if (existing === null) throw new ConvexError("That client no longer exists.");
     // Changing a client needs the editor role in its business, and moving it needs the same in the business it goes to.
     await requireModule(ctx, existing.businessId, "clients", "edit");
-    await requireModule(ctx, args.businessId, "clients", "edit");
+    const staff = await requireModule(ctx, args.businessId, "clients", "edit");
     if ((await ctx.db.get(args.businessId)) === null) throw new ConvexError("That business does not exist.");
     const { id, businessId, first, last, ...rest } = args;
     const fields = normalizeClientInput({ ...rest, first, last });
@@ -192,6 +195,8 @@ export const update = mutation({
     if (fields.phone) phones[0] = { number: fields.phone, description: existing.phones?.[0]?.description ?? "Main" };
     const emails = (existing.emails ?? []).slice(fields.email ? 0 : 1);
     if (fields.email) emails[0] = { address: fields.email, description: existing.emails?.[0]?.description ?? "Main" };
+    const changed = changedClientFields(existing, { ...fields, businessId });
+    if (changed.length > 0) await logActivity(ctx, { businessId, clientId: id, title: "Client details edited", detail: `Changed: ${changed.join(", ")}`, staff });
     await ctx.db.patch(id, { businessId, ...fields, ...(existing.phones || fields.phone ? { phones } : {}), ...(existing.emails || fields.email ? { emails } : {}), lastActivityAt: Date.now(), searchText: clientSearchText(fields) });
 
     // Projects follow their client's business (D-031), and their search copy of the client's details is rebuilt.
@@ -209,11 +214,12 @@ export const setTags = mutation({
   handler: async (ctx, args) => {
     const client = await ctx.db.get(args.id);
     if (client === null) throw new ConvexError("That client no longer exists.");
-    await requireModule(ctx, client.businessId, "clients", "edit");
+    const staff = await requireModule(ctx, client.businessId, "clients", "edit");
     const known: readonly string[] = CLIENT_TAGS;
     const tags = [...new Set(args.tags)];
     if (tags.some((t) => !known.includes(t))) throw new ConvexError("One of those tags does not exist.");
     await ctx.db.patch(args.id, { tags });
+    if (tags.join("|") !== (client.tags ?? []).join("|")) await logActivity(ctx, { businessId: client.businessId, clientId: args.id, title: "Tags changed", detail: `Now: ${tags.join(", ") || "none"}`, staff });
     return tags;
   },
 });
@@ -227,8 +233,9 @@ export const archive = mutation({
     for (const id of new Set(args.ids)) {
       const client = await ctx.db.get(id);
       if (client === null || client.status === "archived") continue;
-      await requireModule(ctx, client.businessId, "clients", "edit");
+      const staff = await requireModule(ctx, client.businessId, "clients", "edit");
       await ctx.db.patch(id, { status: "archived" });
+      await logActivity(ctx, { businessId: client.businessId, clientId: id, title: "Client archived", staff });
       archived += 1;
     }
     return archived;
@@ -300,6 +307,8 @@ export const remove = mutation({
         await ctx.db.delete(n._id);
       }
       for (const q of r.quotes) await deleteQuote(ctx, q);
+      // The client's own activity goes with it; stage moves, quote and invoice events are other modules' records.
+      for (const act of await ctx.db.query("activities").withIndex("by_clientId", (q) => q.eq("clientId", id)).take(1000)) await ctx.db.delete(act._id);
       await ctx.db.delete(id);
       if (r.emails.length > 0) await ctx.scheduler.runAfter(0, internal.crm.clientMail.deleteClientMail, { clientId: id });
       deleted += 1;

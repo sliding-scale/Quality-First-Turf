@@ -241,7 +241,7 @@ function Requests({ business, initialQuery }: { business: BusinessDoc; initialQu
               <th>Property</th>
               <th>Contact</th>
               <th aria-sort={ariaSort("requestedAt")}>{sortHead("requestedAt", "Requested")}</th>
-              <th className="num" aria-sort={ariaSort("status")}>{sortHead("status", "Status")}</th>
+              <th aria-sort={ariaSort("status")}>{sortHead("status", "Status")}</th>
             </tr>
           </thead>
           <tbody>
@@ -265,7 +265,7 @@ function Requests({ business, initialQuery }: { business: BusinessDoc; initialQu
                       <div title={c.email}>{c.email}</div>
                     </td>
                     <td data-label="Requested">{dayLabel(daysAgoFrom(r.requestedAt), today)}</td>
-                    <td className="num" data-label="Status" title={r.stage}>
+                    <td data-label="Status" title={r.stage}>
                       <span className={`pill ${STATUS_CLASS[r.status]}`}><span className="dot" />{r.status}</span>
                     </td>
                   </tr>

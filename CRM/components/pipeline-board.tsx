@@ -18,8 +18,9 @@ import { Icon } from "./icon";
 import { LostReasonDialog } from "./pipeline-dialogs";
 import { CloseWonDialog } from "./won-dialog";
 import { PipelinePanel } from "./pipeline-panel";
-import { BoardBar, useBoardFilters, useTouchDrag } from "./pipeline-shared";
-import { PipelineBoardSkeleton } from "./skeletons";
+import { PipelineList } from "./pipeline-list";
+import { BoardBar, useBoardFilters, useBoardView, useTouchDrag } from "./pipeline-shared";
+import { PipelineBoardSkeleton, PipelineListSkeleton } from "./skeletons";
 import { useStaff } from "./staff-context";
 import { useUI } from "./ui-provider";
 
@@ -39,6 +40,7 @@ export function PipelineBoard({ business }: { business: BusinessDoc }) {
   const people = usePeople(business._id);
 
   const { filters, set, q, setQ } = useBoardFilters();
+  const { view, setView } = useBoardView();
   const [folded, setFolded] = useState<Record<BoardGroup, boolean>>({ Requests: false, Quotes: false, Closed: false });
   const coarse = useCoarsePointer();
   const [dragging, setDragging] = useState<BoardCard | null>(null);
@@ -49,7 +51,7 @@ export function PipelineBoard({ business }: { business: BusinessDoc }) {
 
   const touchStart = useTouchDrag<BoardCard>(canEdit);
   const board = useBoard(business._id, filters, now);
-  if (board === undefined || people === undefined) return <PipelineBoardSkeleton />;
+  if (board === undefined || people === undefined) return view === "list" ? <PipelineListSkeleton /> : <PipelineBoardSkeleton />;
 
   async function move(card: BoardCard, to: string) {
     if (card.stage === to || card.movedTo) return;
@@ -147,8 +149,21 @@ export function PipelineBoard({ business }: { business: BusinessDoc }) {
 
   return (
     <div className="pl-tab">
-      <BoardBar filters={filters} set={set} q={q} setQ={setQ} people={people} total={board.total} searchLabel="Search opportunities" />
+      <BoardBar filters={filters} set={set} q={q} setQ={setQ} people={people} total={board.total} searchLabel="Search opportunities" view={view} setView={setView} />
 
+      {view === "list" ? (
+        <div className="pl-boardwrap">
+          <PipelineList
+            rows={board.columns.flatMap((c) => c.cards)}
+            filters={filters}
+            selectedId={openId}
+            emptyText="No opportunities match these filters."
+            onOpen={(card) => setOpenId((id) => (id === card.id ? null : card.id))}
+            onMenu={cardMenu}
+          />
+          {open && <PipelinePanel business={business} card={open} people={people} onClose={() => setOpenId(null)} />}
+        </div>
+      ) : (
       <div className="pl-boardwrap">
         <div className="pl-board" onDragEnd={() => { setDragging(null); setOver(null); }}>
           {GROUPS.map((group) => {
@@ -232,6 +247,7 @@ export function PipelineBoard({ business }: { business: BusinessDoc }) {
         </div>
         {open && <PipelinePanel business={business} card={open} people={people} onClose={() => setOpenId(null)} />}
       </div>
+      )}
 
       {closingWon && <CloseWonDialog projectId={closingWon.id} businessId={business._id} title={closingWon.title} onClose={() => setClosingWon(null)} />}
       {lost && (

@@ -1,7 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import type { Id } from "../_generated/dataModel";
 import { mutation, query } from "../_generated/server";
-import { requireAdmin, requireModule, requireProject } from "./lib/access";
+import { requireModule, requireProject } from "./lib/access";
 import { checkAssignee } from "./lib/assignees";
 import { attachmentLinks, checkNoteFiles, noteFilesArg } from "./lib/noteFiles";
 import { mirrorChanged, mirrorRemoved } from "./lib/mirror";
@@ -49,15 +49,46 @@ export const addTask = mutation({
   },
 });
 
-/** An Admin makes a task that belongs to no project and gives it to anyone on the business (the Tasks page's New task). */
+/** Anyone who can edit tasks makes one that belongs to no project and gives it to anyone on the business (the Tasks page's New task, PRD 3.5).
+ *  A person limited to their own records can only give it to themselves. */
 export const createTask = mutation({
   args: { businessId: v.id("businesses"), title: v.string(), assigneeId: v.optional(v.id("users")), dueAt: v.optional(v.number()) },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    const staff = await requireModule(ctx, args.businessId, "tasks", "edit");
     if ((await ctx.db.get(args.businessId)) === null) throw new ConvexError("That business no longer exists.");
     const title = cleanTitle(args.title);
+    if (staff.assignedOnly && args.assigneeId !== staff.userId) throw new ConvexError("You can only work on your own tasks.");
     await checkAssignee(ctx, args.assigneeId, args.businessId);
     return ctx.db.insert("opportunityTasks", { businessId: args.businessId, title, assigneeId: args.assigneeId, dueAt: args.dueAt, done: false, createdAt: Date.now() });
+  },
+});
+
+/** Changes a task's title, due date and assignee (null clears the date or the assignee). A person limited to their own records can only
+ *  change tasks that are theirs and keep them theirs. A task that is on the Schedule stays there, and its calendar copy follows. */
+export const updateTask = mutation({
+  args: { taskId: v.id("opportunityTasks"), title: v.string(), dueAt: v.union(v.number(), v.null()), assigneeId: v.union(v.id("users"), v.null()) },
+  handler: async (ctx, args) => {
+    const task = await ctx.db.get(args.taskId);
+    if (task === null) throw new ConvexError("That task no longer exists.");
+    const staff = await requireModule(ctx, task.businessId, "tasks", "edit");
+    if (staff.assignedOnly && (task.assigneeId !== staff.userId || args.assigneeId !== staff.userId)) throw new ConvexError("You can only work on your own tasks.");
+    const title = cleanTitle(args.title);
+    await checkAssignee(ctx, args.assigneeId ?? undefined, task.businessId);
+    await ctx.db.patch(args.taskId, { title, dueAt: args.dueAt ?? undefined, assigneeId: args.assigneeId ?? undefined, updatedAt: Date.now() });
+    if (task.startAt !== undefined) await mirrorChanged(ctx, "task", args.taskId);
+  },
+});
+
+/** Deletes a task. One that was on the Schedule leaves it, and its calendar copy is removed. */
+export const removeTask = mutation({
+  args: { taskId: v.id("opportunityTasks") },
+  handler: async (ctx, args) => {
+    const task = await ctx.db.get(args.taskId);
+    if (task === null) return;
+    const staff = await requireModule(ctx, task.businessId, "tasks", "edit");
+    if (staff.assignedOnly && task.assigneeId !== staff.userId) throw new ConvexError("You can only work on your own tasks.");
+    if (task.startAt !== undefined) await mirrorRemoved(ctx, "task", args.taskId);
+    await ctx.db.delete(args.taskId);
   },
 });
 

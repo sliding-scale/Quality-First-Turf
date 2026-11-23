@@ -145,7 +145,7 @@ function ProjectSidebar({
       <div className="visit-sidebar__head">
         <Link className="visit-sidebar__brand" href="/visit">
           <RetryNextImage
-            src="/brand/logo-mark.png"
+            src="/brand/QFT-logo.png"
             alt="Quality First Turf"
             width={771}
             height={605}

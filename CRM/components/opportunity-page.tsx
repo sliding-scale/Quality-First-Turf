@@ -19,6 +19,7 @@ import { QUOTE_PILL } from "@/lib/quotes";
 import { Icon } from "./icon";
 import { ProjectNotes } from "./project-notes";
 import { TakeoffTab } from "./takeoff-tab";
+import { VisitEditor } from "./visit-editor";
 import { WorkPackageTab } from "./work-package-tab";
 import { OpportunitySkeleton } from "./skeletons";
 import { useStaff } from "./staff-context";
@@ -254,10 +255,13 @@ function VisitTab({ id }: { id: Id<"opportunities"> }) {
   const visit = useQuery(api.crm.opportunityPage.visit, { id });
   if (visit === undefined) return <div className="op-body one"><div className="sk" style={{ height: 160 }} /></div>;
   if (visit === null || !visit.available) {
-    return <div className="op-body one"><section className="card op-card"><h2>Visit</h2><p className="muted">{visit?.reason ?? "There is no site visit to show."}</p></section></div>;
+    return (
+      <div className="op-body one">
+        <section className="card op-card"><h2>Visit</h2><p className="muted">{visit?.reason ?? "There is no site visit to show."} You can still record the work areas and photos below.</p></section>
+        <VisitEditor id={id} />
+      </div>
+    );
   }
-  const dims = (w: { length: number | null; width: number | null; quantity: number | null }) =>
-    [w.length !== null && w.width !== null ? `${w.length} × ${w.width} ft` : "", w.quantity !== null ? `${w.quantity} total` : ""].filter(Boolean).join(" · ") || "—";
   return (
     <div className="op-body one">
       <section className="card op-card">
@@ -280,26 +284,7 @@ function VisitTab({ id }: { id: Id<"opportunities"> }) {
           </div>
         )}
       </section>
-      <section className="card op-card">
-        <h2>Work areas</h2>
-        {visit.workAreas.length === 0 ? <p className="muted">No work areas were recorded.</p> : visit.workAreas.map((w, i) => (
-          <div key={i} className="op-area">
-            <h3>{w.label || "Area"}{w.service ? <small className="op-sub"> · {w.service}{w.installType ? `, ${w.installType}` : ""}</small> : null}</h3>
-            <div className="muted">{dims(w)}</div>
-            {w.notes && <p className="op-text">{w.notes}</p>}
-            {w.photos.length > 0 && (
-              <div className="op-photos">
-                {w.photos.map((p, j) => (
-                  <a key={j} href={p.url} target="_blank" rel="noreferrer">
-                    {/* eslint-disable-next-line @next/next/no-img-element -- a stored file served by Convex */}
-                    <img src={p.url} alt={`${w.label || "Work area"} photo ${j + 1}`} loading="lazy" />
-                  </a>
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
-      </section>
+      <VisitEditor id={id} />
     </div>
   );
 }

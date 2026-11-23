@@ -36,7 +36,7 @@ function bounds(range: DateRange): { from?: number; to?: number } {
 
 function Payments({ business }: { business: BusinessDoc }) {
   const router = useRouter();
-  const { popover } = useUI();
+  const { popover, dropdown } = useUI();
   const { can } = useStaff();
   const canBill = can("payments", "edit");
   const [q, setQ] = useState("");
@@ -76,6 +76,14 @@ function Payments({ business }: { business: BusinessDoc }) {
         <h1>Payments</h1>
         <div className="actions">
           {canBill ? <Link className="btn primary" href="/payments/new">Collect Payment</Link> : <button className="btn primary" type="button" disabled data-tip="Your role can look at payments but not record them">Collect Payment</button>}
+          <button
+            className="btn"
+            type="button"
+            aria-haspopup="menu"
+            onClick={(e) => dropdown(e.currentTarget, [{ label: "Export data", icon: "export", onSelect: () => router.push("/settings/export") }], { alignRight: true, variant: "actions" })}
+          >
+            <Icon name="more" size={20} /> More Actions
+          </button>
         </div>
       </div>
 

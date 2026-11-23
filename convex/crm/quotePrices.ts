@@ -4,6 +4,7 @@ import { catalogue } from "../shared/catalogue";
 import { retailPrice, priceUnit } from "../shared/priceList";
 import { planQuoteLines } from "../shared/quoteLines";
 import { requireModule } from "./lib/access";
+import { workAreasOf } from "./lib/visitData";
 import { searchOwn } from "./catalogue";
 
 /** The price list for the quote builder (D-063): the shared catalogue (the same names and 2026 prices the customer form uses), priced for
@@ -42,11 +43,12 @@ export const fromVisit = query({
     const opportunity = await ctx.db.get(a.opportunityId);
     if (opportunity === null) return { lines: [], missing: "That project no longer exists." };
     await requireModule(ctx, opportunity.businessId, "quotes", "view");
-    if (!opportunity.sourceProjectId) return { lines: [], missing: "This project was not made from the customer form, so there is no visit to read." };
-    const project = await ctx.db.get(opportunity.sourceProjectId);
-    if (project === null) return { lines: [], missing: "The customer form behind this project is gone." };
-    const workAreas = await ctx.db.query("workAreas").withIndex("by_projectId", (q) => q.eq("projectId", project._id)).take(100);
-    const planned = planQuoteLines({ services: project.services, products: project.products, answers: project.answers, measurements: project.measurements, workAreas });
+    const workAreas = await workAreasOf(ctx, opportunity);
+    const project = opportunity.sourceProjectId ? await ctx.db.get(opportunity.sourceProjectId) : null;
+    // A visit saved in the CRM works without the customer form behind it, but the services and answers still come from that form.
+    if (workAreas === null && !opportunity.sourceProjectId) return { lines: [], missing: "This project was not made from the customer form, so there is no visit to read." };
+    if (workAreas === null || (project === null && workAreas.length === 0)) return { lines: [], missing: "The customer form behind this project is gone." };
+    const planned = planQuoteLines({ services: project?.services ?? [], products: project?.products ?? [], answers: project?.answers ?? [], measurements: project?.measurements ?? [], workAreas });
     const lines = planned.lines.map((l) => {
       const item = catalogue.find((c) => c.name === l.name);
       return { name: l.name, quantity: l.quantity, unit: item ? priceUnit(item) : "EA", priceCents: item ? toCents(retailPrice(item)) : null };

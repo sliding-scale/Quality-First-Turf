@@ -4,6 +4,7 @@ import { mutation, query, type MutationCtx, type QueryCtx } from "../_generated/
 import { requireProject } from "./lib/access";
 import { allows } from "./lib/permissions";
 import { emptyInputs, lineQuantity, summarize, TAKEOFF_INPUTS } from "./lib/takeoff";
+import { workAreasOf } from "./lib/visitData";
 
 /** A project's material takeoff (PRD 4.2, plan 2026-11-19-takeoff): the measurements, the materials with the quantity each formula works out, and
  *  the requirements summary. It is Preplanning work, so it follows the Preplanning module whatever stage the project is at. A line is a labelled
@@ -28,10 +29,10 @@ function inputsOf(t: Doc<"takeoffs"> | null): Record<string, number> {
   return { ...emptyInputs(), ...(t?.inputs ?? {}) };
 }
 
-/** Measurements to start from when the project came from the customer form: its work areas added up. Null when there is nothing to read. */
+/** Measurements to start from when the project has a site visit (the CRM's, else the customer form's): its work areas added up. Null when there is nothing to read. */
 async function suggestion(ctx: QueryCtx, p: Doc<"opportunities">): Promise<{ area: number; perimeter: number } | null> {
-  if (!p.sourceProjectId) return null;
-  const areas = await ctx.db.query("workAreas").withIndex("by_projectId", (q) => q.eq("projectId", p.sourceProjectId!)).take(100);
+  const areas = await workAreasOf(ctx, p);
+  if (areas === null) return null;
   let area = 0;
   let perimeter = 0;
   for (const a of areas) {

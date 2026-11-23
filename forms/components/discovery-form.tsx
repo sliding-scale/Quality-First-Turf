@@ -707,7 +707,7 @@ export function FormShell({
         <div className="container site-header__inner">
           <span className="site-logo">
             <RetryNextImage
-              src="/brand/logo-mark.png"
+              src="/brand/QFT-logo.png"
               alt="Quality First Turf"
               width={771}
               height={605}

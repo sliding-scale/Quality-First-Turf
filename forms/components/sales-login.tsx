@@ -52,7 +52,7 @@ export function SalesLogin({ onSignedIn }: { onSignedIn: (token: string, remembe
     <div className="sales-login">
       <div className="sales-login__stage">
         <div className="sales-login__card" aria-busy={working}>
-          <Image className="sales-login__logo" src="/brand/logo-mark.png" alt="Quality First Turf" width={771} height={605} priority />
+          <Image className="sales-login__logo" src="/brand/QFT-logo.png" alt="Quality First Turf" width={771} height={605} priority />
           <h1>Welcome Back</h1>
           <p className="sales-login__lead">Sign in with your Quality First Turf account to open your projects.</p>
 

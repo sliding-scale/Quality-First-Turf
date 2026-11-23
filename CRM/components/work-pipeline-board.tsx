@@ -14,8 +14,9 @@ import { COMPLETION_STAGE, CONSTRUCTION_STAGES, FINANCE_ENTRY, FINANCE_STAGES, P
 import { FilterMenu } from "./filter-menus";
 import { Icon } from "./icon";
 import { PipelinePanel } from "./pipeline-panel";
-import { BoardBar, useBoardFilters, useTouchDrag } from "./pipeline-shared";
-import { WorkPipelineBoardSkeleton } from "./skeletons";
+import { PipelineList } from "./pipeline-list";
+import { BoardBar, useBoardFilters, useBoardView, useTouchDrag } from "./pipeline-shared";
+import { PipelineListSkeleton, WorkPipelineBoardSkeleton } from "./skeletons";
 import { useStaff } from "./staff-context";
 import { useUI } from "./ui-provider";
 
@@ -41,6 +42,7 @@ export function WorkPipelineBoard({ pipeline, business }: { pipeline: WorkPipeli
   const people = usePeople(business._id);
 
   const { filters, set, q, setQ } = useBoardFilters();
+  const { view, setView } = useBoardView();
   const coarse = useCoarsePointer();
   const [dragging, setDragging] = useState<WorkCard | null>(null);
   const [over, setOver] = useState<string | null>(null);
@@ -48,7 +50,7 @@ export function WorkPipelineBoard({ pipeline, business }: { pipeline: WorkPipeli
 
   const touchStart = useTouchDrag<WorkCard>(canMove);
   const board = useWorkBoard(business._id, pipeline, filters, now);
-  if (board === undefined || people === undefined) return <WorkPipelineBoardSkeleton />;
+  if (board === undefined || people === undefined) return view === "list" ? <PipelineListSkeleton /> : <WorkPipelineBoardSkeleton />;
 
   async function act(card: WorkCard, done: string, go: () => Promise<unknown>) {
     try {
@@ -144,8 +146,21 @@ export function WorkPipelineBoard({ pipeline, business }: { pipeline: WorkPipeli
 
   return (
     <div className="pl-tab">
-      <BoardBar filters={filters} set={set} q={q} setQ={setQ} people={people} total={board.total} searchLabel="Search projects" />
+      <BoardBar filters={filters} set={set} q={q} setQ={setQ} people={people} total={board.total} searchLabel="Search projects" view={view} setView={setView} />
 
+      {view === "list" ? (
+        <div className="pl-boardwrap">
+          <PipelineList
+            rows={board.columns.flatMap((c) => c.cards)}
+            filters={filters}
+            selectedId={openId}
+            emptyText="No projects match these filters."
+            onOpen={(card) => setOpenId((id) => (id === card.id ? null : card.id))}
+            onMenu={cardMenu}
+          />
+          {open && <PipelinePanel business={business} card={open} people={people} onClose={() => setOpenId(null)} />}
+        </div>
+      ) : (
       <div className="pl-boardwrap">
         <div className="pl-board work" onDragEnd={() => { setDragging(null); setOver(null); }}>
           <section className="pl-group" aria-label={pipeline}>
@@ -210,6 +225,7 @@ export function WorkPipelineBoard({ pipeline, business }: { pipeline: WorkPipeli
         </div>
         {open && <PipelinePanel business={business} card={open} people={people} onClose={() => setOpenId(null)} />}
       </div>
+      )}
     </div>
   );
 }

@@ -212,6 +212,10 @@ export default defineSchema({
   businesses: defineTable({
     name: v.string(),
     slug: v.string(),
+    /** The business's own contact details (Settings > Businesses, D-112). Empty fields are absent. */
+    phone: v.optional(v.string()),
+    email: v.optional(v.string()),
+    website: v.optional(v.string()),
   }).index("by_slug", ["slug"]),
 
   /** A Jobber-style client: homeowner or contractor, in one business's list (D-008, D-031). */
@@ -920,6 +924,43 @@ export default defineSchema({
   })
     .index("by_automation_and_item", ["automationId", "itemKey"])
     .index("by_business_and_at", ["businessId", "at"]),
+
+  /** The site visit kept in the CRM (D-114): a project's work areas with photos, and the visit notes. One row per project; the customer form's own
+   *  rows are never edited. `visitedAt` is set when someone completes the visit. */
+  opportunityVisits: defineTable({
+    businessId: v.id("businesses"),
+    opportunityId: v.id("opportunities"),
+    notes: v.string(),
+    areas: v.array(v.object({
+      id: v.string(),
+      label: v.string(),
+      service: v.string(),
+      installType: v.string(),
+      length: v.union(v.number(), v.null()),
+      width: v.union(v.number(), v.null()),
+      quantity: v.union(v.number(), v.null()),
+      notes: v.string(),
+      photoIds: v.array(v.id("_storage")),
+    })),
+    visitedAt: v.optional(v.number()),
+    updatedAt: v.number(),
+    updatedByName: v.string(),
+  }).index("by_opportunity", ["opportunityId"]),
+
+  /** Significant changes to a client (D-007, D-113): who, when, what. Append-only; written only through `logActivity` (crm/lib/activity.ts).
+   *  Holds field names, not their contents. Deleted only with its client. */
+  activities: defineTable({
+    businessId: v.id("businesses"),
+    clientId: v.optional(v.id("clients")),
+    opportunityId: v.optional(v.id("opportunities")),
+    title: v.string(),
+    detail: v.string(),
+    byName: v.string(),
+    byUserId: v.id("users"),
+    at: v.number(),
+  })
+    .index("by_clientId", ["clientId", "at"])
+    .index("by_opportunityId", ["opportunityId", "at"]),
 
   /** Every move of a project between stages: who, when, from, to (PRD 3.3). Written only by crm/pipeline.ts. */
   stageHistory: defineTable({

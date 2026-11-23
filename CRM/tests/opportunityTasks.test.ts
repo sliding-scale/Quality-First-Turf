@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
 import { describe, expect, it } from "vitest";
 import { api } from "../../convex/_generated/api";
+import type { Id } from "../../convex/_generated/dataModel";
 import { NOW, seeded } from "./pipelineSeed";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -71,12 +72,29 @@ describe("project tasks and notes", () => {
     expect((await admin.query(api.crm.opportunityTasks.listAll, args)).completed).toHaveLength(1);
   });
 
-  it("refuses a new task from anyone but an Admin, with an empty title, or for someone outside the business", async () => {
-    const { admin, sales, base, qft } = await seeded();
-    await expect(sales.mutation(api.crm.opportunityTasks.createTask, { businessId: qft, title: "nope" })).rejects.toThrow();
+  it("lets anyone who can edit tasks make a standalone one, and refuses an empty title or someone outside the business", async () => {
+    const { admin, sales, pm, installer, outsider, base, qft } = await seeded();
+    await sales.mutation(api.crm.opportunityTasks.createTask, { businessId: qft, title: "Sales made this" });
+    await pm.mutation(api.crm.opportunityTasks.createTask, { businessId: qft, title: "PM made this" });
+    await expect(installer.mutation(api.crm.opportunityTasks.createTask, { businessId: qft, title: "nope" })).rejects.toThrow(); // Tasks is view-only for an Installer
+    await expect(outsider.mutation(api.crm.opportunityTasks.createTask, { businessId: qft, title: "nope" })).rejects.toThrow();
     await expect(admin.mutation(api.crm.opportunityTasks.createTask, { businessId: qft, title: "   " })).rejects.toThrow(/title/i);
     const olive = await base.run(async (ctx) => (await ctx.db.query("users").collect()).find((u) => u.name === "Olive Outsider")!._id);
     await expect(admin.mutation(api.crm.opportunityTasks.createTask, { businessId: qft, title: "x", assigneeId: olive })).rejects.toThrow(/not on this business/);
+  });
+
+  it("limits a person who sees only their own records to tasks given to themselves", async () => {
+    const { admin, installer, base, qft } = await seeded();
+    await base.run(async (ctx) => {
+      const u = (await ctx.db.query("users").collect()).find((x) => x.name === "Ivan Installer")!;
+      await ctx.db.patch(u._id, { permissions: { tasks: "edit" } });
+    });
+    const people = await admin.query(api.crm.pipeline.people, { businessId: qft });
+    const ivan = people.find((p) => p.name === "Ivan Installer")!;
+    const sam = people.find((p) => p.name === "Sam Sales")!;
+    await installer.mutation(api.crm.opportunityTasks.createTask, { businessId: qft, title: "My own", assigneeId: ivan.id });
+    await expect(installer.mutation(api.crm.opportunityTasks.createTask, { businessId: qft, title: "For Sam", assigneeId: sam.id })).rejects.toThrow(/your own/i);
+    await expect(installer.mutation(api.crm.opportunityTasks.createTask, { businessId: qft, title: "Nobody's" })).rejects.toThrow(/your own/i);
   });
 
   it("also checks the assignee when a task is added to a project", async () => {
@@ -130,5 +148,62 @@ describe("project tasks and notes", () => {
     await expect(outsider.query(api.crm.opportunityTasks.listAll, { businessId: qft, now: NOW, todayStart, todayEnd })).rejects.toThrow();
     // A Project Manager may read.
     await expect(pm.query(api.crm.opportunityTasks.listForProject, { id: project })).resolves.toBeTruthy();
+  });
+});
+
+describe("editing and deleting a task", () => {
+  const args = (qft: Id<"businesses">) => ({ businessId: qft, now: NOW, todayStart, todayEnd });
+
+  it("changes the title, due date and assignee, and clears them", async () => {
+    const { sales, admin, qft } = await seeded();
+    const sam = (await admin.query(api.crm.pipeline.people, { businessId: qft })).find((p) => p.name === "Sam Sales")!;
+    const id = await sales.mutation(api.crm.opportunityTasks.createTask, { businessId: qft, title: "Order flags", dueAt: todayEnd + 1000, assigneeId: sam.id });
+    await sales.mutation(api.crm.opportunityTasks.updateTask, { taskId: id, title: "  Order the flags  ", dueAt: null, assigneeId: null });
+    const row = (await admin.query(api.crm.opportunityTasks.listAll, args(qft))).rows[0];
+    expect(row).toMatchObject({ title: "Order the flags" });
+    expect(row.dueAt).toBeUndefined();
+    expect(row.assigneeId).toBeUndefined();
+    await sales.mutation(api.crm.opportunityTasks.updateTask, { taskId: id, title: "Order the flags", dueAt: todayStart + 1000, assigneeId: sam.id });
+    expect((await admin.query(api.crm.opportunityTasks.listAll, args(qft))).rows[0]).toMatchObject({ dueAt: todayStart + 1000, assigneeId: sam.id });
+  });
+
+  it("refuses an empty title, an outsider as assignee, and people who cannot edit or are not in the business", async () => {
+    const { sales, installer, outsider, base, qft } = await seeded();
+    const id = await sales.mutation(api.crm.opportunityTasks.createTask, { businessId: qft, title: "Keep" });
+    const olive = await base.run(async (ctx) => (await ctx.db.query("users").collect()).find((u) => u.name === "Olive Outsider")!._id);
+    await expect(sales.mutation(api.crm.opportunityTasks.updateTask, { taskId: id, title: " ", dueAt: null, assigneeId: null })).rejects.toThrow(/title/i);
+    await expect(sales.mutation(api.crm.opportunityTasks.updateTask, { taskId: id, title: "x", dueAt: null, assigneeId: olive })).rejects.toThrow(/not on this business/);
+    await expect(installer.mutation(api.crm.opportunityTasks.updateTask, { taskId: id, title: "x", dueAt: null, assigneeId: null })).rejects.toThrow();
+    await expect(outsider.mutation(api.crm.opportunityTasks.updateTask, { taskId: id, title: "x", dueAt: null, assigneeId: null })).rejects.toThrow();
+    await expect(installer.mutation(api.crm.opportunityTasks.removeTask, { taskId: id })).rejects.toThrow();
+    await expect(outsider.mutation(api.crm.opportunityTasks.removeTask, { taskId: id })).rejects.toThrow();
+  });
+
+  it("deletes a task, and a scheduled one leaves the Schedule with it", async () => {
+    const { sales, admin, qft, project } = await seeded();
+    const plain = await sales.mutation(api.crm.opportunityTasks.createTask, { businessId: qft, title: "Plain" });
+    const timed = await sales.mutation(api.crm.opportunityTasks.addTask, { id: project, title: "Timed" });
+    await sales.mutation(api.crm.opportunityTasks.setTime, { taskId: timed, startAt: NOW, endAt: NOW + 3_600_000 });
+    await sales.mutation(api.crm.opportunityTasks.removeTask, { taskId: plain });
+    await sales.mutation(api.crm.opportunityTasks.removeTask, { taskId: timed });
+    await sales.mutation(api.crm.opportunityTasks.removeTask, { taskId: timed }); // already gone: nothing happens
+    expect((await admin.query(api.crm.opportunityTasks.listAll, args(qft))).counts.all).toBe(0);
+  });
+
+  it("lets a person who sees only their own records change only their own tasks", async () => {
+    const { admin, sales, installer, base, qft } = await seeded();
+    await base.run(async (ctx) => {
+      const u = (await ctx.db.query("users").collect()).find((x) => x.name === "Ivan Installer")!;
+      await ctx.db.patch(u._id, { permissions: { tasks: "edit" } });
+    });
+    const people = await admin.query(api.crm.pipeline.people, { businessId: qft });
+    const ivan = people.find((p) => p.name === "Ivan Installer")!;
+    const mine = await installer.mutation(api.crm.opportunityTasks.createTask, { businessId: qft, title: "Mine", assigneeId: ivan.id });
+    const others = await sales.mutation(api.crm.opportunityTasks.createTask, { businessId: qft, title: "Not Ivan's" });
+    await installer.mutation(api.crm.opportunityTasks.updateTask, { taskId: mine, title: "Mine, changed", dueAt: null, assigneeId: ivan.id });
+    await expect(installer.mutation(api.crm.opportunityTasks.updateTask, { taskId: others, title: "x", dueAt: null, assigneeId: ivan.id })).rejects.toThrow();
+    await expect(installer.mutation(api.crm.opportunityTasks.removeTask, { taskId: others })).rejects.toThrow();
+    await expect(installer.mutation(api.crm.opportunityTasks.updateTask, { taskId: mine, title: "x", dueAt: null, assigneeId: null })).rejects.toThrow(/your own/i);
+    await installer.mutation(api.crm.opportunityTasks.removeTask, { taskId: mine });
   });
 });

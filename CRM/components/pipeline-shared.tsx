@@ -3,10 +3,12 @@
 /* What the Sales, Preplanning and Construction boards share (D-080), so a fix is made once: the filter state, the bar of filters and search
    above the columns, the press-and-hold drag for touch screens, and the lead source picker. Each board keeps its own columns and card menu. */
 
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, type TouchEvent as ReactTouchEvent } from "react";
 import type { Id } from "@/convex/_generated/dataModel";
 import { ALL_TIME, rangeLabel } from "@/lib/dates";
 import { LEAD_SOURCES, NO_SOURCE, SORT_LABEL, type BoardFilters, type SortKey } from "@/lib/pipeline";
+import { viewFromParam, type BoardView } from "@/lib/pipeline-list";
 import { DateRangeMenu, FilterMenu } from "./filter-menus";
 import { Icon } from "./icon";
 import { useUI } from "./ui-provider";
@@ -23,8 +25,24 @@ export function useBoardFilters() {
   return { filters, set, q, setQ };
 }
 
+/** Board or list (D-115). Kept in the address (?view=list), so a reload or a shared link lands on the same view; other parts of the address stay. */
+export function useBoardView() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const view = viewFromParam(params.get("view"));
+  const setView = (next: BoardView) => {
+    const q = new URLSearchParams(params.toString());
+    if (next === "list") q.set("view", "list");
+    else q.delete("view");
+    const s = q.toString();
+    router.replace(s ? `${pathname}?${s}` : pathname, { scroll: false });
+  };
+  return { view, setView };
+}
+
 /** Sort, direction, salesperson, lead source and date, with the result count and the search box. */
-export function BoardBar({ filters, set, q, setQ, people, total, searchLabel }: {
+export function BoardBar({ filters, set, q, setQ, people, total, searchLabel, view, setView }: {
   filters: BoardFilters;
   set: (patch: Partial<BoardFilters>) => void;
   q: string;
@@ -32,6 +50,8 @@ export function BoardBar({ filters, set, q, setQ, people, total, searchLabel }: 
   people: { id: Id<"users">; name: string }[];
   total: number;
   searchLabel: string;
+  view: BoardView;
+  setView: (view: BoardView) => void;
 }) {
   const { popover } = useUI();
   const personName = filters.salespersonId === null ? "All" : filters.salespersonId === "unassigned" ? "Unassigned" : (people.find((p) => p.id === filters.salespersonId)?.name ?? "All");
@@ -115,9 +135,15 @@ export function BoardBar({ filters, set, q, setQ, people, total, searchLabel }: 
         </button>
         <span className="muted pl-count">({total} result{total === 1 ? "" : "s"})</span>
       </div>
-      <div className="searchbox pl-search">
-        <span><Icon name="search" size={20} /></span>
-        <input type="search" placeholder={searchLabel} aria-label={searchLabel} value={q} onChange={(e) => setQ(e.target.value)} />
+      <div className="pl-bar-right">
+        <div className="pl-view" role="group" aria-label="View">
+          <button type="button" aria-pressed={view === "board"} className={view === "board" ? "on" : undefined} onClick={() => setView("board")}>Board</button>
+          <button type="button" aria-pressed={view === "list"} className={view === "list" ? "on" : undefined} onClick={() => setView("list")}>List</button>
+        </div>
+        <div className="searchbox pl-search">
+          <span><Icon name="search" size={20} /></span>
+          <input type="search" placeholder={searchLabel} aria-label={searchLabel} value={q} onChange={(e) => setQ(e.target.value)} />
+        </div>
       </div>
     </div>
   );

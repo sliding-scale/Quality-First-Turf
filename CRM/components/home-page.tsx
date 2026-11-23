@@ -18,6 +18,7 @@ import { useRequestStats } from "@/lib/requests";
 import { BUSINESS_TZ } from "@/lib/schedule";
 import { useIsClient } from "@/lib/store";
 import { Icon } from "./icon";
+import { AddTaskDialog } from "./pipeline-dialogs";
 import { HomeSkeleton } from "./skeletons";
 import { useStaff } from "./staff-context";
 import { useUI } from "./ui-provider";
@@ -219,18 +220,21 @@ function Appointments({ businessId, now, mode, setMode }: { businessId: string; 
 /** The signed-in person's open tasks, overdue and soonest first, from the Tasks tab's data. Tick one to complete it. */
 function MyTasks() {
   const { toast } = useUI();
-  const { _id: me, canEdit } = useStaff();
+  const { _id: me, canEdit, can } = useStaff();
   const ws = useWorkspace();
+  const [adding, setAdding] = useState(false);
   const now = useMinute();
   const { todayStart, todayEnd } = todayBounds();
   const setDone = useMutation(api.crm.opportunityTasks.setDone);
   const data = useQuery(api.crm.opportunityTasks.listAll, ws.state === "ready" ? { businessId: ws.business._id, assigneeId: me, now, todayStart, todayEnd } : "skip");
   const rows = data?.rows ?? [];
+  const people = useQuery(api.crm.pipeline.people, ws.state === "ready" ? { businessId: ws.business._id } : "skip");
+  const overdue = data?.counts.overdue ?? 0;
   const label = (due: number | undefined) => (due === undefined ? "No due date" : due < todayStart ? `Overdue · ${quoteDate(due)}` : due <= todayEnd ? "Due today" : `Due ${quoteDate(due)}`);
 
   return (
     <>
-      <h2 className="section-title">My tasks</h2>
+      <h2 className="section-title">My tasks{overdue > 0 ? <span className="pill overdue" style={{ marginLeft: 10, verticalAlign: "middle" }}>{overdue} overdue</span> : null}</h2>
       <div className="card list-card">
         {ws.state === "loading" || (ws.state === "ready" && data === undefined) ? (
           <div className="task"><div style={{ flex: 1 }}><span className="sk" style={{ display: "block", height: 16, width: "70%" }} /><span className="sk" style={{ display: "block", height: 12, width: "40%", marginTop: 6 }} /></div></div>
@@ -249,10 +253,12 @@ function MyTasks() {
             </div>
           ))
         )}
-        {rows.length > 0 && (
-          <div className="task"><Link href="/tasks" className="btn link">{rows.length > MAX_TASKS_SHOWN ? `View all ${rows.length} tasks` : "View all tasks"}</Link></div>
-        )}
+        <div className="task">
+          {can("tasks", "edit") && ws.state === "ready" && people !== undefined && <button type="button" className="btn small" onClick={() => setAdding(true)}><Icon name="plus" size={16} /> New task</button>}
+          {rows.length > 0 && <Link href="/tasks" className="btn link">{rows.length > MAX_TASKS_SHOWN ? `View all ${rows.length} tasks` : "View all tasks"}</Link>}
+        </div>
       </div>
+      {adding && ws.state === "ready" && people !== undefined && <AddTaskDialog businessId={ws.business._id} people={people} defaultAssignee={me} onClose={() => setAdding(false)} />}
     </>
   );
 }

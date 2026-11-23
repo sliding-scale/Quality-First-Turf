@@ -2,6 +2,7 @@
 
 /* The shared shell: top bar, sidebar, and the scrolling main area every page sits in. */
 
+import { brandLogo } from "@/lib/brand";
 import { useMutation } from "convex/react";
 import Image from "next/image";
 import Link from "next/link";
@@ -99,10 +100,10 @@ export function Shell({ children }: { children: ReactNode }) {
   );
 }
 
-/** The Quality First Turf Landscape logo for that business; the other businesses keep the plain "Q" tile until they have a logo of their own. */
-function BrandMark({ turf }: { turf: boolean }) {
-  if (!turf) return <span className="brand-mark">Q</span>;
-  return <Image className="brand-logo" src="/brand/logo-full.png" alt="" width={39} height={30} priority />;
+/** The business's own logo (D-112): the Quality First Turf one for Landscape and Construction, the Patios one for Patios. */
+function BrandMark({ slug }: { slug: string }) {
+  const logo = brandLogo(slug);
+  return <Image className="brand-logo" src={logo.src} alt="" width={logo.width} height={logo.height} priority />;
 }
 
 /** The business switcher. It asks the backend, so it sits behind an error boundary: if the backend says no, the rest of the app still shows. */
@@ -134,7 +135,7 @@ function Brand() {
         );
       }}
     >
-      <BrandMark turf={workspace.state === "ready" ? workspace.business.slug === "quality-first-turf" : workspace.state !== "empty"} />
+      <BrandMark slug={workspace.state === "ready" ? workspace.business.slug : "quality-first-turf"} />
       <span className="brand-name">{workspace.state === "ready" ? workspace.business.name : workspace.state === "loading" ? <span className="sk sk-inline" style={{ width: 130, height: 16 }} /> : "Quality First Turf Landscape"}</span>
       <Icon name="chevdown" size={16} />
     </button>
@@ -233,7 +234,7 @@ function ShellInner({ children }: { children: ReactNode }) {
         </button>
         {/* On a phone the business name moves into the menu, to leave room for the buttons. */}
         <span className="brand-slot">
-          <ErrorBoundary fallback={<span className="brand"><BrandMark turf /><span className="brand-name">Quality First Turf Landscape</span></span>}>
+          <ErrorBoundary fallback={<span className="brand"><BrandMark slug="quality-first-turf" /><span className="brand-name">Quality First Turf Landscape</span></span>}>
             <Brand />
           </ErrorBoundary>
         </span>
@@ -273,7 +274,7 @@ function ShellInner({ children }: { children: ReactNode }) {
 
       <nav className="sidebar" id="main-nav" aria-label="Main" inert={mobile && !menuOpen}>
         <div className="sidebar-brand">
-          <ErrorBoundary fallback={<span className="brand"><BrandMark turf /><span className="brand-name">Quality First Turf Landscape</span></span>}>
+          <ErrorBoundary fallback={<span className="brand"><BrandMark slug="quality-first-turf" /><span className="brand-name">Quality First Turf Landscape</span></span>}>
             <Brand />
           </ErrorBoundary>
         </div>

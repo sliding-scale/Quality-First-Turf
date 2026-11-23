@@ -28,8 +28,8 @@ export const metadata: Metadata = {
   title: "Quality First Turf",
   description: "Tell us about your landscaping project.",
   icons: {
-    icon: [{ url: "/brand/favicon.png", type: "image/png", sizes: "300x300" }],
-    apple: [{ url: "/brand/favicon-full.png", type: "image/png" }],
+    icon: [{ url: "/brand/QFT-favicon.png", type: "image/png", sizes: "300x300" }],
+    apple: [{ url: "/brand/QFT-favicon.png", type: "image/png" }],
   },
 };
 

@@ -18,7 +18,7 @@ Current position: **Milestone 2 UI** is built in Next.js on sample data (D-033),
 ## Setup (before Milestone 2)
 Not a PRD milestone, but everything depends on it.
 - [x] Jobber screenshots received (Home, Clients, Client page, New client); colours sampled (D-019)
-- [ ] Receive the Quality First Turf logo from the user
+- [x] Receive the Quality First Turf logo from the user (and the Patios logo; D-112)
 - [x] Monorepo created: `forms/` moved in unchanged, `CRM/` added (D-026)
 - [x] Shared `convex/` moved to the repo root, beside `forms/` and `CRM/` (D-030)
 - [ ] Confirm the Convex CLI from `forms/` on the dev deployment, and the Vercel settings (root directory, include files outside it) on a preview build of the `monorepo` branch
@@ -42,13 +42,13 @@ PRD goal: Sales can begin transitioning away from Jobber. Companies and Contacts
 - [ ] Clients list: search, Homeowner/Contractor filter, scoped to the selected business (D-031)
 - [ ] Client page in Jobber's section order (provisional until screenshots); mobile tabs Client, Work, Notes
 - [ ] Add/edit client form (fields follow the customer form, D-017)
-- [~] Settings: users and roles (multi-role) done (D-046); the three businesses' own settings screen still to do
+- [x] Settings: users and roles (multi-role) done (D-046); the businesses' own settings screen (phone, email, website, logo) built on dev (D-112)
 
 **Backend wiring**
-- [~] Schema: `businesses`, `clients`, `opportunities`, `clientNotes` done (D-042); `users` (roles array) and `activities` still to do
+- [~] Schema: `businesses`, `clients`, `opportunities`, `clientNotes` done (D-042); `users` (roles array) done; `activities` done (D-113)
 - [x] Clerk to Convex auth, invite-only users, first Admin, Admin manages users and roles, the CRM sign-in screen, its own seed switch (D-046, built on dev; needs the Clerk dashboard step and the Convex variable, see the CRM README; production needs its own Clerk instance)
 - [x] Access helper: signed in, active, role and business checked in every CRM function (D-046). Module permissions beyond edit versus view and record assignment come later (D-006)
-- [~] Clients: create, edit, view, search, filters, notes, Related projects done; activity history still sample; paging is server-side over a bounded read (5,000 per business), see D-042
+- [~] Clients: create, edit, view, search, filters, notes, Related projects done; activity history done (D-113); paging is server-side over a bounded read (5,000 per business), see D-042
 - [x] Swap the Clients and Requests screens from sample data to Convex (dev deployment; first look at live data pending, D-042)
 
 **Exit:** PRD Milestone 2 acceptance criteria met: Clients fully usable and access restricted by permission. The Jobber import criterion follows D-022 and Q-021 (timing under review).
@@ -59,10 +59,10 @@ PRD goal: Sales can begin transitioning away from Jobber. Companies and Contacts
 PRD goal: the complete sales workflow, from enquiry to approved contract.
 
 **UI/UX (sample data), steps 3.1 to 3.3**
-- [~] 3.1 Projects: Sales pipeline board **built on dev (D-061)**: board, drag and drop, stage history, Tasks and Sales Outcomes tabs, Edit Stages; still to do: the project page (Overview, Visit, Quotes, Files, Activity), a list toggle. Original line: Sales pipeline board (9 stages) with list toggle; project page tabs Overview, Visit (four-step on-site flow, phone-first), Quotes, Files, Activity
+- [~] 3.1 Projects: Sales pipeline board **built on dev (D-061)**: board, drag and drop, stage history, Tasks and Sales Outcomes tabs, Edit Stages; the project page (Overview, Visit, Quotes, Files, Activity) is built (D-077) and its Visit tab records work areas and photos (D-114); the list toggle on every pipeline board is built (D-115). Original line: Sales pipeline board (9 stages) with list toggle; project page tabs Overview, Visit (four-step on-site flow, phone-first), Quotes, Files, Activity
 - [x] Customer form to CRM (D-040, built on dev in D-045; not yet deployed to production): a submitted form creates a new client only if the person is unique (rule in Q-016), and always creates a request, i.e. a project at New Request. Needs the user's go-ahead before the live forms app is changed (D-028)
 - [~] 3.2 Quotes (**builder, sending (link), client approval and signature, revisions, deposit, Closed Won rule built on dev, D-063**; email and text delivery wait for the Zoho connection, Convert to Job for Jobs). Original line: overview cards, quote builder (desktop-first), statuses, change requests and resubmissions. **Done so far (D-056, dev):** list with the four figure cards and Status, Date and Salesperson filters, the read-only quote page, quote #1 added as data. **Still to do:** the builder, sending, change requests and resubmissions
-- [~] 3.3 Home, Schedule and Tasks (**Schedule built on dev, D-062**; Home dashboard figures and the Tasks PRD items still to do; Zoho Calendar link later): dashboard widgets, day/week/month calendar, Today view, personal tasks, Quick Create
+- [~] 3.3 Home, Schedule and Tasks (**Schedule built on dev, D-062**; Home dashboard figures built (D-076) and the Tasks PRD items built (D-116); Zoho Calendar link later): dashboard widgets, day/week/month calendar, Today view, personal tasks, Quick Create
 - [ ] Customer-facing: quote approval and contract signing (method undecided, Q-005)
 
 **Backend wiring**
@@ -86,22 +86,22 @@ PRD goal: the complete sales workflow, from enquiry to approved contract.
 PRD goal: from sales handoff through materials, installation and customer sign-off, on the same record.
 
 **UI/UX (sample data), steps 4.1 to 4.2**
-- [ ] 4.1 Preplanning: board (8 stages) **built on dev (D-080)**; material takeoff (Materials with formulas, the Takeoff tab and the requirements summary) **built on dev (D-098)**; installer work packages (budget, schedule, site access, files, a secret expiring link) and crew rates and availability **built on dev (D-099)**; purchase orders, delivery dates and material readiness **built on dev (D-100)**. The client's catalogue and formulas are to be entered as data
+- [x] 4.1 Preplanning (built on dev; the client's catalogue, units, formulas and wastage rules are integrated, user 2026-11-23): board (8 stages) **built on dev (D-080)**; material takeoff (Materials with formulas, the Takeoff tab and the requirements summary) **built on dev (D-098)**; installer work packages (budget, schedule, site access, files, a secret expiring link) and crew rates and availability **built on dev (D-099)**; purchase orders, delivery dates and material readiness **built on dev (D-100)**. The client's catalogue and formulas are to be entered as data
 - [x] 4.2 Construction: board (9 stages) (D-080), and the project's Construction tab (D-081, built on dev): project manager and crews, job walks, installation days and reinspections on the Schedule, progress updates with photos, punch list, reinspection, completion sign-off. The last stage needs every required punch item verified and the customer's signature, and signing moves the project there.
-- [~] Customer and installer pages: completion sign-off page `/signoff/[token]` built (D-081); the work-package page `/wp/[token]` is not
+- [x] Customer and installer pages: completion sign-off page `/signoff/[token]` built (D-081); the installer work-package page is built at `/w/<secret link>` (D-099; the plan said `/wp/`, the built path is `/w/`)
 
 **Backend wiring**
 - [ ] Schema: `products`, `materialFormulas`, `takeoffs`, `takeoffLines`, `suppliers`, `crews`, `installers`, `workPackages`, `workPackageLinks`, `purchaseOrders`, `punchItems`, `progressUpdates`, `signoffs`
 - [~] Closed Won sends the project to Preplanning by itself, on the same record (D-080), and the Office team is told. Contract, quote, site plan and customer details stay on that record. Still to do: takeoff, suppliers, crews and work packages.
-- [ ] Formula engine: safe expression evaluation (no `eval`), wastage rules, unit-tested
-- [ ] Material takeoff, supplier, stock and lead times, requirements summary
-- [ ] Installer budgets, labour costs, schedules; crews and installers are records, not users (D-010)
-- [ ] Work packages shared by secure expiring link
+- [x] Formula engine: safe expression evaluation (no `eval`), wastage rules, unit-tested (D-098, `tests/formula.test.ts`)
+- [x] Material takeoff, supplier, stock and lead times, requirements summary (D-098, D-100; the client's catalogue, units, formulas and wastage are integrated, D-104, D-107)
+- [x] Installer budgets, labour costs, schedules; crews and installers are records, not users (D-010, D-099; installers also log in, D-090)
+- [x] Work packages shared by secure expiring link (D-099)
 - [x] Final stage blocked until required punch items are resolved and customer sign-off is recorded (D-081, backend)
 - [x] Digital completion sign-off (D-081): on a device or through the customer's link, kept with the punch list as it was; printable
-- [ ] Swap the Phase 4 screens to Convex
+- [x] Swap the Phase 4 screens to Convex (the Preplanning, Takeoff, Work package and Construction screens read and write `convex/crm/` already)
 
-**Needs:** product catalogue and units, formulas and wastage, suppliers, installer budget structure, sign-off template. This phase is blocked on them, so ask when it starts (D-018).
+**Needs (received 2026-11-23):** the product catalogue and units, and the formulas and wastage. **Still open:** a sample installer work package, the installer budget structure and the sign-off template, all running on editable placeholders (D-091).
 **Exit:** PRD Milestone 4 acceptance criteria met.
 
 ---

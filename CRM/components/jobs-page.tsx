@@ -26,7 +26,7 @@ export function JobsPage() {
 function Jobs({ business }: { business: BusinessDoc }) {
   const router = useRouter();
   const params = useSearchParams();
-  const { popover } = useUI();
+  const { popover, dropdown } = useUI();
   const { can } = useStaff();
   const canMake = can("jobs", "edit");
   const [q, setQ] = useState("");
@@ -53,6 +53,7 @@ function Jobs({ business }: { business: BusinessDoc }) {
   const from = total ? (current - 1) * pageSize + 1 : 0;
   const to = Math.min(current * pageSize, total);
   const goTo = (n: number) => { setPage(n); document.getElementById("main")?.scrollTo({ top: 0 }); };
+  const pageNumbers = [...new Set([1, pages, current, current - 1, current + 1])].filter((n) => n >= 1 && n <= pages).sort((a, b) => a - b);
   const showStatus = (s: string) => {
     setStatus(s);
     setPage(1);
@@ -75,7 +76,14 @@ function Jobs({ business }: { business: BusinessDoc }) {
         <h1>Jobs</h1>
         <div className="actions">
           {canMake ? <Link className="btn primary" href="/jobs/new">New Job</Link> : <button className="btn primary" type="button" disabled data-tip="Your role can look at jobs but not make them">New Job</button>}
-          <button className="btn" type="button" disabled data-tip="Not available yet"><Icon name="more" size={18} /> More Actions</button>
+          <button
+            className="btn"
+            type="button"
+            aria-haspopup="menu"
+            onClick={(e) => dropdown(e.currentTarget, [{ label: "Export data", icon: "export", onSelect: () => router.push("/settings/export") }], { alignRight: true, variant: "actions" })}
+          >
+            <Icon name="more" size={20} /> More Actions
+          </button>
         </div>
       </div>
 
@@ -200,7 +208,12 @@ function Jobs({ business }: { business: BusinessDoc }) {
         <div className="left"><span>{from}–{to} of {total}</span></div>
         <div className="right pages">
           <button type="button" className="pg" disabled={current === 1} aria-label="Previous page" onClick={() => goTo(current - 1)}><Icon name="chevleft" size={20} /></button>
-          <span className="gap">Page {current} of {pages}</span>
+          {pageNumbers.map((n, i) => (
+            <span key={n} style={{ display: "contents" }}>
+              {i > 0 && n - pageNumbers[i - 1] > 1 && <span className="gap">…</span>}
+              <button type="button" className={`pg${n === current ? " current" : ""}`} aria-current={n === current ? "page" : undefined} onClick={() => goTo(n)}>{n}</button>
+            </span>
+          ))}
           <button type="button" className="pg" disabled={current === pages} aria-label="Next page" onClick={() => goTo(current + 1)}><Icon name="chevright" size={20} /></button>
         </div>
       </div>

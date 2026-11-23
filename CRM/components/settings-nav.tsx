@@ -1,7 +1,7 @@
 "use client";
 
 /* The navigation down the left of every Settings page, like Jobber's: a title, then groups of links with the current page in
-   green. Only the pages that exist are listed (D-024); Businesses is in the PRD but not built yet. */
+   green. Only the pages that exist are listed (D-024); Businesses holds each business's contact details (D-112). */
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -23,7 +23,11 @@ export function SettingsNav() {
       {(staff.isAdmin || staff.can("templates")) && (
         <div className="group">
           <div className="group-title">Business management</div>
-          {staff.isAdmin && <button type="button" disabled>Businesses</button>}
+          {staff.isAdmin && (
+            <Link href="/settings/businesses" className={pathname.startsWith("/settings/businesses") ? "active" : undefined} aria-current={pathname.startsWith("/settings/businesses") ? "page" : undefined}>
+              Businesses
+            </Link>
+          )}
           {staff.isAdmin && (
             <Link href="/settings/automations" className={pathname.startsWith("/settings/automations") ? "active" : undefined} aria-current={pathname.startsWith("/settings/automations") ? "page" : undefined}>
               Automations

@@ -87,18 +87,33 @@ export function LostReasonDialog({ project, onConfirm, onClose }: { project: str
   );
 }
 
-/** A task on a project (`projectId`), or, with none, a task of the business's own that an Admin creates from the Tasks page. */
-export function AddTaskDialog({ projectId, businessId, people, onClose }: { projectId?: Id<"opportunities">; businessId: Id<"businesses">; people: { id: Id<"users">; name: string }[]; onClose: () => void }) {
+export type EditableTask = { id: Id<"opportunityTasks">; title: string; dueAt?: number; assigneeId?: Id<"users"> };
+
+/** yyyy-mm-dd of a moment, in the browser's own day, for a date box. */
+const dateBox = (ms: number | undefined) => {
+  if (ms === undefined) return "";
+  const d = new Date(ms);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
+/** A task on a project (`projectId`), or, with none, a task of the business's own from the Tasks page or Home (PRD 3.5). With `task` it
+ *  edits that task, and offers Delete (after a second click to be sure). `defaultAssignee` is who a new task starts with. */
+export function AddTaskDialog({ projectId, businessId, people, task, defaultAssignee, onClose }: {
+  projectId?: Id<"opportunities">; businessId: Id<"businesses">; people: { id: Id<"users">; name: string }[]; task?: EditableTask; defaultAssignee?: Id<"users">; onClose: () => void;
+}) {
   const addTask = useMutation(api.crm.opportunityTasks.addTask);
   const createTask = useMutation(api.crm.opportunityTasks.createTask);
-  const [title, setTitle] = useState("");
-  const [assignee, setAssignee] = useState("");
-  const [due, setDue] = useState("");
+  const updateTask = useMutation(api.crm.opportunityTasks.updateTask);
+  const removeTask = useMutation(api.crm.opportunityTasks.removeTask);
+  const [title, setTitle] = useState(task?.title ?? "");
+  const [assignee, setAssignee] = useState<string>(task ? (task.assigneeId ?? "") : (defaultAssignee ?? ""));
+  const [due, setDue] = useState(dateBox(task?.dueAt));
   const [bad, setBad] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [sure, setSure] = useState(false);
   const [error, setError] = useState("");
   return (
-    <PipelineModal title="New task" onClose={onClose} busy={busy}>
+    <PipelineModal title={task ? "Edit task" : "New task"} onClose={onClose} busy={busy}>
       {(close) => (
         <form
           noValidate
@@ -113,9 +128,12 @@ export function AddTaskDialog({ projectId, businessId, people, onClose }: { proj
             setError("");
             try {
               const dueAt = due ? new Date(`${due}T12:00:00`).getTime() : undefined;
-              const extra = { ...(assignee ? { assigneeId: assignee as Id<"users"> } : {}), ...(dueAt ? { dueAt } : {}) };
-              if (projectId) await addTask({ id: projectId, title, ...extra });
-              else await createTask({ businessId, title, ...extra });
+              if (task) await updateTask({ taskId: task.id, title, dueAt: dueAt ?? null, assigneeId: assignee ? (assignee as Id<"users">) : null });
+              else {
+                const extra = { ...(assignee ? { assigneeId: assignee as Id<"users"> } : {}), ...(dueAt ? { dueAt } : {}) };
+                if (projectId) await addTask({ id: projectId, title, ...extra });
+                else await createTask({ businessId, title, ...extra });
+              }
               close();
             } catch (err) {
               setError(failure(err, "The task could not be saved. Try again."));
@@ -125,7 +143,7 @@ export function AddTaskDialog({ projectId, businessId, people, onClose }: { proj
         >
           <div className={`field${bad ? " bad" : ""}`}>
             <label htmlFor="task-title">Title</label>
-            <input id="task-title" aria-invalid={bad} maxLength={200} value={title} onChange={(e) => { setTitle(e.target.value); setBad(false); }} />
+            <input id="task-title" aria-invalid={bad} maxLength={200} autoFocus value={title} onChange={(e) => { setTitle(e.target.value); setBad(false); }} />
             <span className="err">Give the task a title.</span>
           </div>
           <div className="field" style={{ marginTop: 14 }}>
@@ -141,8 +159,43 @@ export function AddTaskDialog({ projectId, businessId, people, onClose }: { proj
           </div>
           {error && <p className="modal-error" role="alert">{error}</p>}
           <div className="modal-foot">
-            <button type="button" className="btn plain" onClick={close} disabled={busy}>Cancel</button>
-            <button type="submit" className="btn primary" disabled={busy}>{busy ? "Saving…" : "Save"}</button>
+            {task && (
+              sure ? (
+                <>
+                  <span className="muted" style={{ marginRight: "auto" }}>Delete this task for good?</span>
+                  <button type="button" className="btn plain" onClick={() => setSure(false)} disabled={busy}>Keep it</button>
+                  <button
+                    type="button"
+                    className="btn danger"
+                    disabled={busy}
+                    onClick={async () => {
+                      setBusy(true);
+                      setError("");
+                      try {
+                        await removeTask({ taskId: task.id });
+                        close();
+                      } catch (err) {
+                        setError(failure(err, "The task could not be deleted. Try again."));
+                        setBusy(false);
+                        setSure(false);
+                      }
+                    }}
+                  >Delete</button>
+                </>
+              ) : (
+                <>
+                  <button type="button" className="btn plain" style={{ marginRight: "auto" }} onClick={() => setSure(true)} disabled={busy}>Delete</button>
+                  <button type="button" className="btn plain" onClick={close} disabled={busy}>Cancel</button>
+                  <button type="submit" className="btn primary" disabled={busy}>{busy ? "Saving…" : "Save"}</button>
+                </>
+              )
+            )}
+            {!task && (
+              <>
+                <button type="button" className="btn plain" onClick={close} disabled={busy}>Cancel</button>
+                <button type="submit" className="btn primary" disabled={busy}>{busy ? "Saving…" : "Save"}</button>
+              </>
+            )}
           </div>
         </form>
       )}

@@ -45,7 +45,7 @@ export function BrandMark() {
     <span className="brand-mark">
       <RetryNextImage
         className="brand-mark__logo"
-        src="/brand/logo-mark.png"
+        src="/brand/QFT-logo.png"
         alt="Quality First Turf"
         width={771}
         height={605}
