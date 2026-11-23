@@ -41,6 +41,7 @@ function Pipeline({ business }: { business: BusinessDoc }) {
 
   return (
     <div className="pl fade-in">
+      <h1 className="sr">Pipeline</h1>
       <div className="pl-top">
         <div className="pl-tabs" role="tablist">
           <button type="button" role="tab" aria-selected={tab === "pipeline"} className={`pl-tab-btn${tab === "pipeline" ? " active" : ""}`} onClick={() => pick("pipeline")}>Pipeline</button>

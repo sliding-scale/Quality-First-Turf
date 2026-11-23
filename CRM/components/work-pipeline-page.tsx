@@ -19,6 +19,7 @@ export function WorkPipelinePage({ pipeline }: { pipeline: WorkPipeline }) {
 function WorkPipeline({ pipeline, business }: { pipeline: WorkPipeline; business: BusinessDoc }) {
   return (
     <div className="pl fade-in">
+      <h1 className="sr">{pipeline} pipeline</h1>
       <div className="pl-top">
         <div className="pl-tabs">
           <span className="pl-tab-btn active static" role="tab" aria-selected="true">{pipeline}</span>

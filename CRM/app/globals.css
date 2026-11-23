@@ -12,6 +12,8 @@
   --green: #388523;
   --green-dark: #2d6e1c;
   --green-soft: #e7f0e5;
+  --orange-text: #8a4a00;   /* orange text on its soft tint, 4.5:1 or better */
+  --blue-strong: #2a6fae;   /* solid blue behind white text, 4.5:1 or better */
   --blue: #3b9ae8;
   --blue-soft: #e2f1fd;
   --red: #7a0c00;
@@ -128,7 +130,7 @@ input, select, textarea { font: inherit; color: var(--text); }
 .pill .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
 .pill.lead { background: var(--blue-soft); color: #1d5f99; }
 .pill.lead .dot { background: var(--blue); }
-.pill.active { background: var(--green-soft); color: var(--green); }
+.pill.active { background: var(--green-soft); color: var(--green-dark); }
 .pill.overdue, .pill.failed { background: var(--red-soft); color: var(--red); }
 .pill.draft { background: var(--chip); color: var(--text); }
 .pill.tag { font-weight: 500; font-size: 12px; height: 22px; }
@@ -212,7 +214,7 @@ input, select, textarea { font: inherit; color: var(--text); }
 .kpi .h { display: flex; justify-content: space-between; color: var(--ink); font-weight: 700; font-size: 17px; }
 .kpi .s { color: var(--muted); font-size: 13px; margin-top: 2px; }
 .kpi .n { margin-top: 18px; font-size: 30px; font-weight: 800; color: var(--ink); display: flex; align-items: center; gap: 10px; }
-.kpi .delta { font-size: 12px; font-weight: 600; background: var(--green-soft); color: var(--green); border-radius: 999px; padding: 2px 8px; }
+.kpi .delta { font-size: 12px; font-weight: 600; background: var(--green-soft); color: var(--green-dark); border-radius: 999px; padding: 2px 8px; }
 .list-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px; }
 .list-head h2 { font-size: 22px; }
 .toolbar { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
@@ -407,7 +409,7 @@ input, select, textarea { font: inherit; color: var(--text); }
 .table.single td, .table.single th { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .table.single td > div { overflow: hidden; text-overflow: ellipsis; }
 .stage-pill { white-space: normal; height: auto; min-height: 24px; padding-top: 3px; padding-bottom: 3px; border-radius: var(--radius-lg); }
-#tbl { min-width: 1170px; }
+#tbl { min-width: 960px; }
 
 /* 3. Invalid fields turn red when the user tries to submit (and stay red until they are fixed). */
 .field.bad label { color: var(--error); }
@@ -467,7 +469,7 @@ input, select, textarea { font: inherit; color: var(--text); }
 }
 
 /* ---------- requests (D-039) ---------- */
-.pill.consult { background: #fbeeda; color: var(--orange); }
+.pill.consult { background: #fbeeda; color: var(--orange-text); }
 .pill.consult .dot { background: var(--orange); }
 .pill.overdue .dot { background: var(--red); }
 .pill.active .dot { background: var(--green); }
@@ -757,7 +759,7 @@ input, select, textarea { font: inherit; color: var(--text); }
 .searchbox.wide .ic { top: 15px; }
 .team-count { font-size: 16px; margin: 26px 0 12px; }
 .table-card { border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--white); }
-.team-table { min-width: 930px; }
+.team-table { min-width: 720px; }
 .team-table th { padding: 18px 16px; }
 .team-table td { padding: 16px; }
 .team-table tbody tr:last-child td { border-bottom: 0; }
@@ -1736,7 +1738,7 @@ a.qs-chip:active { background: var(--shell); }
   .table.single td[data-label="Address"], .table.single td[data-label="Property"], .table.single td[data-label="Subject"],
   .table.single td[data-label="Contact"], .table.single td[data-label="Title"], .table.single td[data-label="Client"], .table.single td[data-label="Project"] { grid-column: 1 / -1; }
   /* 16px stops iOS zooming the page when a field is focused. */
-  input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"]), select, textarea { font-size: 16px; }
+  :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"]), select, textarea) { font-size: 16px; }
 }
 /* Touch: every control is at least 44px to hit, even where its drawn mark is smaller. */
 @media (pointer: coarse) {
@@ -1754,3 +1756,55 @@ a.qs-chip:active { background: var(--shell); }
 .table tbody td { height: 52px; }
 /* Keyboard focus: a visible ring on anything that lacks its own. Zero specificity, so a screen's own focus style still wins. */
 :where(a, button, input, select, textarea, summary, [tabindex]:not([tabindex="-1"])):focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+
+/* Adapt pass 2 (audit 2026-11-23, P1/P2). */
+/* iOS Safari: 100vh is taller than what is visible, so the bottom of the app and of tall dialogs hid under the toolbar. */
+.app { height: 100dvh; }
+.nc-modal .modal, .modal-back.cat-modal .modal, .au-modal .modal { max-height: calc(100dvh - 32px); }
+.sc-popup { max-height: calc(100dvh - 80px); }
+/* A form's Save row wraps instead of running past the edge of a phone. */
+@media (max-width: 700px) {
+  .form-actions .inner { flex-wrap: wrap; }
+  .form-actions .right { flex-wrap: wrap; justify-content: flex-end; min-width: 0; flex: 1 1 auto; }
+}
+/* Touch has no hover: row checkboxes are always drawn, and contact links are 44px to hit. */
+@media (hover: none) {
+  .table .row-cb { opacity: 1; }
+}
+@media (pointer: coarse) {
+  .f dd a, .table td a[href^="tel:"], .table td a[href^="mailto:"], .sc-connectnote a { display: inline-block; padding-block: 12px; }
+  .btn.link { min-height: var(--control-lg); display: inline-flex; align-items: center; }
+  .menu button, .menu a, .menu .opt { min-height: var(--control-lg); }
+  .dr-opt { min-height: var(--control-lg); }
+}
+
+/* Harden pass (audit 2026-11-23): a way past the menu for keyboard users; the dialog box itself takes focus without a ring. */
+.skip-link { position: absolute; left: 8px; top: -64px; z-index: 200; padding: 10px 16px; border-radius: var(--radius-ctl); background: var(--ink); color: var(--white); font-weight: 600; text-decoration: none; transition: top 0.15s ease-out; }
+.skip-link:focus-visible { top: 8px; }
+.modal:focus, .main:focus { outline: none; }
+.menu.panel:focus { outline: none; }
+
+/* Tooltips (components/tooltip-layer.tsx), as Jobber draws them: a dark bubble with an arrow, floating over the page. */
+.tooltip { position: fixed; z-index: 90; left: 0; top: 0; width: max-content; max-width: min(260px, calc(100vw - 16px)); padding: 8px 12px; border-radius: var(--radius-ctl); background: var(--ink); color: var(--white); font-size: 12px; font-weight: 500; line-height: 16px; text-align: left; box-shadow: 0 4px 12px rgba(3, 43, 58, 0.25); pointer-events: none; animation: tip-in 0.14s ease-out both; }
+.tooltip::after { content: ""; position: absolute; left: var(--ax, 50%); transform: translateX(-50%); border: 5px solid transparent; }
+.tooltip[data-side="above"]::after { top: 100%; border-top-color: var(--ink); border-bottom: 0; }
+.tooltip[data-side="below"]::after { bottom: 100%; border-bottom-color: var(--ink); border-top: 0; }
+@keyframes tip-in { from { opacity: 0; } to { opacity: 1; } }
+
+/* Menus float clear of their button (Jobber): a gap, a soft two-layer shadow and no hard edge. */
+.menu { border-color: var(--line-soft); box-shadow: 0 2px 6px rgba(3, 43, 58, 0.08), 0 14px 36px rgba(3, 43, 58, 0.18); }
+.menu.actions, .menu.account, .menu.mentions { box-shadow: 0 2px 6px rgba(3, 43, 58, 0.08), 0 14px 36px rgba(3, 43, 58, 0.18); }
+[aria-haspopup="menu"][aria-expanded="true"]:not(.nav .item) { background-color: var(--hover); }
+
+/* Settings pages fill the column beside the Settings links, like the Materials list does, instead of stopping at a fixed width and leaving
+   the rest of the screen empty. Cards and lists stretch; the caps that kept them narrow come off. */
+.settings-main > * { max-width: none; }
+.settings-main :is(.au-lead, .mc-lead, .mc-card, .ex-list, .im-card, .au-cards, .bz, .user-form) { max-width: none; }
+.au-cards { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+.qb { margin-inline: auto; }
+@media (min-width: 1100px) { .bz-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; } }
+
+/* Small targets (audit 2026-11-23, WCAG 2.5.8: at least 24 px): the visible mark stays as it was, the part that takes a click grows. */
+.cb, .table th button.cb { width: 24px; height: 24px; }
+.table th button:not(.cb), .cat-sort, .member-name, .pl-ttitle { padding-block: 6px; margin-block: -6px; }
+.ov-item, .kpis.compact .ov-item { min-height: 28px; }

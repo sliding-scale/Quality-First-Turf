@@ -227,12 +227,12 @@ function Requests({ business, initialQuery }: { business: BusinessDoc; initialQu
       <div className="table-wrap">
         <table className="table single" id="tbl">
           <colgroup>
-            <col style={{ width: 240 }} />
-            <col style={{ width: 200 }} />
-            <col style={{ width: 250 }} />
-            <col style={{ width: 220 }} />
-            <col style={{ width: 120 }} />
-            <col style={{ width: 140 }} />
+            <col style={{ width: "20.5%" }} />
+            <col style={{ width: "17.1%" }} />
+            <col style={{ width: "21.4%" }} />
+            <col style={{ width: "18.8%" }} />
+            <col style={{ width: "10.3%" }} />
+            <col style={{ width: "11.9%" }} />
           </colgroup>
           <thead>
             <tr>

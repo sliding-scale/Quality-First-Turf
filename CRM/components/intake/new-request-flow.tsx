@@ -34,6 +34,7 @@ import { clock } from "@/lib/pipeline";
 import { failure, usePeople } from "@/lib/requests";
 import { type PendingFile, useUploadPending } from "../note-editor";
 import { useUI } from "../ui-provider";
+import { useDialogFocus } from "../use-dialog-focus";
 import { contactFields, RequiredStar } from "./fields";
 import { blockEnterSubmit, toggleRadio } from "./inputs";
 import { transitionStep } from "./step-transition";
@@ -630,19 +631,25 @@ export function NewRequestFlow({ business }: { business: BusinessDoc }) {
         )}
       </div>
 
-      {leaving && (
-        <div className="nrf-leave" role="alertdialog" aria-modal="true" aria-labelledby="nrf-leave-title">
-          <div>
-            <h2 id="nrf-leave-title">Leave without saving?</h2>
-            <p>What you have filled in for this request will be lost.</p>
-            <div>
-              <button type="button" className="review-back" onClick={() => setLeaving(false)}>Keep editing</button>
-              <button type="button" className="nrf-leave__go" onClick={() => { setDirty(false); router.push("/requests"); }}>Discard request</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {leaving && <LeaveDialog onStay={() => setLeaving(false)} onDiscard={() => { setDirty(false); router.push("/requests"); }} />}
     </div>,
     document.body,
+  );
+}
+
+/** "Leave without saving?": focus goes in, stays in and returns to what opened it. */
+function LeaveDialog({ onStay, onDiscard }: { onStay: () => void; onDiscard: () => void }) {
+  const box = useDialogFocus();
+  return (
+    <div className="nrf-leave" role="alertdialog" aria-modal="true" aria-labelledby="nrf-leave-title" tabIndex={-1} ref={box}>
+      <div>
+        <h2 id="nrf-leave-title">Leave without saving?</h2>
+        <p>What you have filled in for this request will be lost.</p>
+        <div>
+          <button type="button" className="review-back" onClick={onStay}>Keep editing</button>
+          <button type="button" className="nrf-leave__go" onClick={onDiscard}>Discard request</button>
+        </div>
+      </div>
+    </div>
   );
 }

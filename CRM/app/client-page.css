@@ -1,8 +1,5 @@
-/* Tooltips, as Jobber draws them (measured 2026-11-09): a dark navy bubble above the control, 12px medium white text, 8px 12px padding,
-   8px radius and a small arrow. Put the words in data-tip. */
+/* Tooltips are drawn by components/tooltip-layer.tsx (styles: .tooltip in globals.css). Put the words in data-tip. */
 [data-tip] { position: relative; }
-[data-tip]:hover::after, [data-tip]:focus-visible::after { content: attr(data-tip); position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); padding: 8px 12px; border-radius: var(--radius-ctl); background: var(--ink); color: var(--white); font-size: 12px; font-weight: 500; line-height: 15px; white-space: nowrap; z-index: 80; pointer-events: none; animation: fade-in 0.12s ease-out 0.25s both; }
-[data-tip]:hover::before, [data-tip]:focus-visible::before { content: ""; position: absolute; bottom: calc(100% + 1px); left: 50%; transform: translateX(-50%); border: 4px solid transparent; border-top-color: var(--ink); border-bottom: 0; z-index: 80; pointer-events: none; animation: fade-in 0.12s ease-out 0.25s both; }
 @media (min-width: 1100px) { .table-wrap:has(.table.jb) { overflow: visible; } }
 
 /* Client page, copied from Jobber's (D-060). */
@@ -158,7 +155,6 @@ button:disabled:hover, .btn:disabled:hover, .icon-btn:disabled:hover, .cj-plus:d
 .nav .item.soon:hover { background: none; }
 .msgrow[aria-disabled="true"] { opacity: 0.55; cursor: not-allowed; }
 .msgrow[aria-disabled="true"]:hover { background: none; }
-[data-tip]:disabled:hover::after, [data-tip]:disabled:hover::before { display: none; }
 
 /* The right-hand column runs the full height of the page, beside the header, with a fold-away button at its top (as in Jobber). */
 .cj-cols { align-items: start; }

@@ -7,6 +7,7 @@ import Link from "next/link";
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type Ref } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "./icon";
+import { TooltipLayer } from "./tooltip-layer";
 
 /** One row in a dropdown, or a line between groups, or a small heading over a group (as in Jobber's quote menu). */
 export type MenuItem =
@@ -91,14 +92,37 @@ export function UIProvider({ children }: { children: ReactNode }) {
       if (menuRef.current?.contains(t) || anchor.contains(t)) return;
       setClosing(true);
     };
+    const items = () => [...(menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]:not(:disabled)') ?? [])];
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setClosing(true);
+      if (e.key === "Escape") { setClosing(true); return; }
+      // A menu is walked with the arrow keys, Home and End, like any native menu.
+      if (menu.kind === "popover" || !["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) return;
+      const list = items();
+      if (list.length === 0) return;
+      e.preventDefault();
+      const at = list.indexOf(document.activeElement as HTMLElement);
+      const next = e.key === "Home" ? 0 : e.key === "End" ? list.length - 1 : e.key === "ArrowDown" ? (at + 1) % list.length : (at <= 0 ? list.length - 1 : at - 1);
+      list[next].focus();
     };
     document.addEventListener("click", onClick);
     document.addEventListener("keydown", onKey);
+    // The button that opened it says so, and focus moves into the menu (and back to the button when it closes) so a keyboard or screen reader follows.
+    if (menu.kind !== "popover") anchor.setAttribute("aria-haspopup", "menu");
+    anchor.setAttribute("aria-expanded", "true");
+    const raf = requestAnimationFrame(() => {
+      const box = menuRef.current;
+      if (!box || box.contains(document.activeElement)) return;
+      if (menu.kind !== "popover") items()[0]?.focus();
+      else (box.querySelector<HTMLElement>("input, button:not(:disabled), [tabindex]") ?? box).focus({ preventScroll: true });
+    });
     return () => {
+      cancelAnimationFrame(raf);
       document.removeEventListener("click", onClick);
       document.removeEventListener("keydown", onKey);
+      anchor.setAttribute("aria-expanded", "false");
+      const a = document.activeElement;
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- read at close time on purpose: the node may already be gone, and then the focus is on the body
+      if ((a === document.body || menuRef.current?.contains(a)) && anchor.isConnected) anchor.focus({ preventScroll: true });
     };
   }, [menu]);
 
@@ -144,10 +168,19 @@ export function UIProvider({ children }: { children: ReactNode }) {
       {menu?.kind === "dropdown" && createPortal(<Dropdown ref={menuRef} state={menu} closing={closing} onClose={closeMenu} />, document.body)}
       {menu?.kind === "popover" && createPortal(<Popover ref={menuRef} state={menu} closing={closing} onClose={closeMenu} />, document.body)}
       {menu?.kind === "create" && createPortal(<CreatePopover ref={menuRef} anchor={menu.anchor} closing={closing} onClose={closeMenu} />, document.body)}
+      <TooltipLayer />
       {toastMsg && createPortal(<div className={`toast${toastLeaving ? " leaving" : ""}`} role="status">{toastMsg.msg}</div>, document.body)}
     </Ctx.Provider>
   );
 }
+
+/** What a menu is called for a screen reader: its button's name. */
+const nameOf = (anchor: HTMLElement) => {
+  if (anchor.getAttribute("aria-label")) return anchor.getAttribute("aria-label")!;
+  // A filter chip reads "Date | All": its name is the first words, not the current value run into them.
+  const first = [...anchor.childNodes].find((n) => n.nodeType === 3 && n.textContent?.trim());
+  return first?.textContent?.trim() || anchor.textContent?.trim() || "Menu";
+};
 
 function useMergedRef(node: React.RefObject<HTMLDivElement | null>, ref: Ref<HTMLDivElement>) {
   return (n: HTMLDivElement | null) => {
@@ -164,11 +197,18 @@ function usePlacement(anchor: HTMLElement, alignRight: boolean, dep: unknown) {
     const menu = node.current;
     if (!menu) return;
     const r = anchor.getBoundingClientRect();
+    // Never wider than the screen, so a wide popover on a phone is not cut off.
+    menu.style.maxWidth = `${document.documentElement.clientWidth - 16}px`;
     if (alignRight) {
       // Anchor by the right edge, so the menu lines up with its button whatever its final width turns out to be.
       const right = Math.max(8, document.documentElement.clientWidth - r.right);
       menu.style.left = "auto";
       menu.style.right = right + "px";
+      // A menu wider than the room to the left of that edge starts at the screen's left margin instead.
+      if (menu.getBoundingClientRect().left < 8) {
+        menu.style.right = "auto";
+        menu.style.left = "8px";
+      }
     } else {
       const left = Math.max(8, Math.min(r.left, window.innerWidth - menu.offsetWidth - 8));
       menu.style.left = left + "px";
@@ -176,7 +216,7 @@ function usePlacement(anchor: HTMLElement, alignRight: boolean, dep: unknown) {
     const spaceBelow = window.innerHeight - r.bottom;
     const spaceAbove = r.top;
     const openAbove = spaceBelow < menu.offsetHeight + 12 && spaceAbove > spaceBelow;
-    const top = openAbove ? Math.max(8, r.top - menu.offsetHeight - 6) : r.bottom + 6;
+    const top = openAbove ? Math.max(8, r.top - menu.offsetHeight - 10) : r.bottom + 10;
     menu.style.top = top + window.scrollY + "px";
     menu.style.transformOrigin = openAbove
       ? (alignRight ? "bottom right" : "bottom left")
@@ -188,7 +228,7 @@ function usePlacement(anchor: HTMLElement, alignRight: boolean, dep: unknown) {
 function Popover({ state, closing, onClose, ref }: { state: PopoverState; closing: boolean; onClose: () => void; ref: Ref<HTMLDivElement> }) {
   const node = usePlacement(state.anchor, state.alignRight, state);
   return (
-    <div className={`menu panel${state.className ? " " + state.className : ""}${closing ? " closing" : ""}`} ref={useMergedRef(node, ref)}>
+    <div className={`menu panel${state.className ? " " + state.className : ""}${closing ? " closing" : ""}`} role="dialog" aria-label={nameOf(state.anchor)} tabIndex={-1} ref={useMergedRef(node, ref)}>
       {state.render(onClose)}
     </div>
   );
@@ -199,7 +239,7 @@ function Dropdown({ state, closing, onClose, ref }: { state: DropdownState; clos
 
   const actions = state.variant === "actions";
   return (
-    <div className={`menu${actions ? " actions" : ""}${closing ? " closing" : ""}`} role="menu" ref={useMergedRef(node, ref)}>
+    <div className={`menu${actions ? " actions" : ""}${closing ? " closing" : ""}`} role="menu" aria-label={nameOf(state.anchor)} ref={useMergedRef(node, ref)}>
       {state.items.map((it, n) => {
         if ("divider" in it) return <div key={n} className="menu-rule" role="separator" />;
         if ("heading" in it) return <div key={n} className="menu-heading" role="presentation">{it.heading}</div>;
@@ -240,7 +280,7 @@ function CreatePopover({ anchor, closing, onClose, ref }: { anchor: HTMLElement;
   }, [anchor]);
 
   return (
-    <div className={`create-pop${closing ? " closing" : ""}`} role="menu" ref={useMergedRef(node, ref)}>
+    <div className={`create-pop${closing ? " closing" : ""}`} role="menu" aria-label={nameOf(anchor)} ref={useMergedRef(node, ref)}>
       {CREATE_ITEMS.map((i, n) => {
         const style = { "--c": i.color, "--n": n } as CSSProperties;
         const inner = (

@@ -53,7 +53,9 @@ function Schedule({ business }: { business: BusinessDoc }) {
 
   const today = todayKey(now);
   const rawView = params.get("view");
-  const view: View = (VIEWS as string[]).includes(rawView ?? "") ? (rawView as View) : "week";
+  // A phone shows one day at a time: the week grid is 790 px wide. An address that names a view always wins.
+  const phone = typeof window !== "undefined" && window.matchMedia("(max-width: 700px)").matches;
+  const view: View = (VIEWS as string[]).includes(rawView ?? "") ? (rawView as View) : phone ? "day" : "week";
   const dateKey = isKey(params.get("date")) ? params.get("date")! : today;
   const go = useCallback((v: View, d: string) => router.replace(`/schedule?view=${v}&date=${d}`, { scroll: false }), [router]);
 
@@ -156,6 +158,7 @@ function Schedule({ business }: { business: BusinessDoc }) {
 
   return (
     <div className="sc fade-in">
+      <h1 className="sr">Schedule</h1>
       {showConnect && (
         <div className="sc-connectnote" role="status">
           <span>{calendar.connection === null ? "Connect your Zoho Calendar so it matches this one." : "Your Zoho Calendar needs to be reconnected."} <Link href="/settings/calendar">{calendar.connection === null ? "Connect" : "Reconnect"}</Link></span>

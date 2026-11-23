@@ -164,12 +164,12 @@ function Jobs({ business }: { business: BusinessDoc }) {
       <div className="table-wrap">
         <table className="table" id="tbl">
           <colgroup>
-            <col style={{ width: 200 }} />
-            <col style={{ width: 190 }} />
-            <col style={{ width: 280 }} />
-            <col style={{ width: 130 }} />
-            <col style={{ width: 170 }} />
-            <col style={{ width: 120 }} />
+            <col style={{ width: "18.3%" }} />
+            <col style={{ width: "17.4%" }} />
+            <col style={{ width: "25.7%" }} />
+            <col style={{ width: "11.9%" }} />
+            <col style={{ width: "15.6%" }} />
+            <col style={{ width: "11.1%" }} />
           </colgroup>
           <thead>
             <tr>

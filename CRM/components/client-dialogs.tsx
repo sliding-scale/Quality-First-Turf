@@ -12,6 +12,7 @@ import { CLIENT_TAGS } from "@/convex/crm/lib/stages";
 import { failure } from "@/lib/pipeline";
 import { Checkbox } from "./checkbox";
 import { Icon } from "./icon";
+import { useDialogFocus } from "./use-dialog-focus";
 import { useUI } from "./ui-provider";
 
 const EXIT_MS = 160; // keep in step with modal-out in globals.css
@@ -63,9 +64,10 @@ function Modal({ title, wide, onClose, busy, children }: { title: string; wide?:
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [busy]);
+  const box = useDialogFocus();
   return (
     <div className={`modal-back${leaving ? " leaving" : ""}`} onMouseDown={(e) => { if (e.target === e.currentTarget && !busy) close(); }}>
-      <div className="modal cd-modal" style={{ maxWidth: wide ? 800 : 490 }} role="dialog" aria-modal="true" aria-label={title}>
+      <div className="modal cd-modal" style={{ maxWidth: wide ? 800 : 490 }} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} ref={box}>
         <div className="modal-head">
           <h2>{title}</h2>
           <button type="button" className="icon-btn" aria-label="Close" onClick={close} disabled={busy}><Icon name="x" size={22} /></button>

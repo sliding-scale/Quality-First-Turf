@@ -13,6 +13,7 @@ import { tagQuery } from "@/convex/crm/lib/mentions";
 import { useWorkspace } from "@/lib/clients";
 import { Icon } from "./icon";
 import { useUI } from "./ui-provider";
+import { useDialogFocus } from "./use-dialog-focus";
 
 export type PendingFile = { id: string; kind: "image" | "audio" | "file"; blob: Blob; name: string; url: string };
 
@@ -386,6 +387,7 @@ function CameraShot({ onShot, onClose, onFail }: { onShot: (blob: Blob) => void;
   const video = useRef<HTMLVideoElement>(null);
   const stream = useRef<MediaStream | null>(null);
   const [ready, setReady] = useState(false);
+  const box = useDialogFocus();
   useEffect(() => {
     let gone = false;
     navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then((s) => {
@@ -406,7 +408,7 @@ function CameraShot({ onShot, onClose, onFail }: { onShot: (blob: Blob) => void;
     c.toBlob((b) => { if (b) onShot(b); }, "image/jpeg", 0.9);
   }
   return (
-    <div className="ne-cam" role="dialog" aria-modal="true" aria-label="Take a photo">
+    <div className="ne-cam" role="dialog" aria-modal="true" aria-label="Take a photo" tabIndex={-1} ref={box}>
       <div className="ne-cam-box">
         <video ref={video} playsInline muted onLoadedMetadata={() => setReady(true)} />
         <div className="ne-cam-bar">

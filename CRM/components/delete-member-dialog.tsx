@@ -11,6 +11,7 @@ import { api } from "@/convex/_generated/api";
 import type { Doc } from "@/convex/_generated/dataModel";
 import { Checkbox } from "./checkbox";
 import { Icon } from "./icon";
+import { useDialogFocus } from "./use-dialog-focus";
 
 const EXIT_MS = 160; // keep in step with modal-out in globals.css
 
@@ -57,9 +58,10 @@ export function DeleteMemberDialog({ user, onClose, onDeleted }: { user: Doc<"us
     }
   }
 
+  const box = useDialogFocus();
   return (
     <div className={`modal-back${leaving ? " leaving" : ""}`} onMouseDown={(e) => { if (e.target === e.currentTarget && !busy) close(); }}>
-      <div className="modal" role="dialog" aria-modal="true" aria-label={`Delete ${user.name}`}>
+      <div className="modal" role="dialog" aria-modal="true" aria-label={`Delete ${user.name}`} tabIndex={-1} ref={box}>
         <div className="modal-head">
           <h2>Delete {user.name}</h2>
           <button type="button" className="icon-btn" aria-label="Close" onClick={close} disabled={busy}><Icon name="x" size={22} /></button>

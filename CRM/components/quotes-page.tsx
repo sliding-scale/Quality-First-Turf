@@ -239,12 +239,12 @@ function Quotes({ business, initialQuery }: { business: BusinessDoc; initialQuer
       <div className="table-wrap">
         <table className="table single" id="tbl">
           <colgroup>
-            <col style={{ width: 250 }} />
-            <col style={{ width: 260 }} />
-            <col style={{ width: 280 }} />
-            <col style={{ width: 130 }} />
-            <col style={{ width: 150 }} />
-            <col style={{ width: 120 }} />
+            <col style={{ width: "21.0%" }} />
+            <col style={{ width: "21.8%" }} />
+            <col style={{ width: "23.5%" }} />
+            <col style={{ width: "10.9%" }} />
+            <col style={{ width: "12.6%" }} />
+            <col style={{ width: "10.2%" }} />
           </colgroup>
           <thead>
             <tr>

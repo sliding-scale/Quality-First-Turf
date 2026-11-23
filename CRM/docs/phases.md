@@ -101,7 +101,7 @@ PRD goal: from sales handoff through materials, installation and customer sign-o
 - [x] Digital completion sign-off (D-081): on a device or through the customer's link, kept with the punch list as it was; printable
 - [x] Swap the Phase 4 screens to Convex (the Preplanning, Takeoff, Work package and Construction screens read and write `convex/crm/` already)
 
-**Needs (received 2026-11-23):** the product catalogue and units, and the formulas and wastage. **Still open:** a sample installer work package, the installer budget structure and the sign-off template, all running on editable placeholders (D-091).
+**Needs (received 2026-11-23):** the product catalogue and units, and the formulas and wastage. **Still open:** a sample installer work package and how installers are paid (running on editable placeholders, D-091), and the real supplier list (to be loaded, no placeholders). The sign-off template is not asked for now: ours stays until the client sends theirs.
 **Exit:** PRD Milestone 4 acceptance criteria met.
 
 ---
@@ -132,7 +132,7 @@ PRD goal: the final workflow, communication integrations and production deployme
 - [ ] Production deployment; end the Jobber connection (D-028); Jobber retired
 - [ ] Basic documentation and handover
 
-**Needs:** invoice template, phone/SMS provider, WhatsApp Business access. Ask when this phase starts.
+**Needs:** the legal business details and phone number(s) for texting and WhatsApp (we create the Twilio and Meta Business accounts ourselves; see `CLAUDE.md`). Ask early: business-texting registration takes days to weeks. The invoice template is not asked for now; ours stays until the client sends theirs.
 **Exit:** PRD Milestone 5 acceptance criteria met: CRM deployed, used by the team, and Jobber retired.
 
 ---

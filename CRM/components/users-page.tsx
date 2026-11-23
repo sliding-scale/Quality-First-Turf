@@ -219,12 +219,12 @@ export function UsersPage() {
         <div className="table-wrap">
           <table className="table team-table">
             <colgroup>
-              <col style={{ width: 230 }} />
-              <col style={{ width: 140 }} />
-              <col style={{ width: 230 }} />
-              <col style={{ width: 170 }} />
-              <col style={{ width: 110 }} />
-              <col style={{ width: 60 }} />
+              <col style={{ width: "24.5%" }} />
+              <col style={{ width: "14.9%" }} />
+              <col style={{ width: "24.5%" }} />
+              <col style={{ width: "18.1%" }} />
+              <col style={{ width: "11.7%" }} />
+              <col style={{ width: "6.3%" }} />
             </colgroup>
             <thead>
               <tr>

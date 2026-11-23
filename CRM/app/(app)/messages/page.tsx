@@ -1,11 +1,6 @@
-import type { Metadata } from "next";
-import { Suspense } from "react";
-import { MessagesPage } from "@/components/messages-page";
-import { MessagesSkeleton } from "@/components/skeletons";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = { title: "Messages" };
-
+/* Messages is greyed out until SMS and WhatsApp are connected (user, 2026-11-23); the page's code stays in components/messages-page.tsx. */
 export default function Page() {
-  // useSearchParams (the conversation in the address) needs a Suspense boundary during the build.
-  return <Suspense fallback={<MessagesSkeleton />}><MessagesPage /></Suspense>;
+  redirect("/home");
 }

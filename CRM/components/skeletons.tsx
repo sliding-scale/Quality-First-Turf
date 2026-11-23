@@ -271,12 +271,12 @@ export function RequestsSkeleton() {
       <div className="table-wrap">
         <table className="table single" id="tbl">
           <colgroup>
-            <col style={{ width: 240 }} />
-            <col style={{ width: 200 }} />
-            <col style={{ width: 250 }} />
-            <col style={{ width: 220 }} />
-            <col style={{ width: 120 }} />
-            <col style={{ width: 140 }} />
+            <col style={{ width: "20.5%" }} />
+            <col style={{ width: "17.1%" }} />
+            <col style={{ width: "21.4%" }} />
+            <col style={{ width: "18.8%" }} />
+            <col style={{ width: "10.3%" }} />
+            <col style={{ width: "11.9%" }} />
           </colgroup>
           <thead>
             <tr><th>Client</th><th>Title</th><th>Property</th><th>Contact</th><th>Requested</th><th className="num">Status</th></tr>
@@ -461,12 +461,12 @@ export function UsersSkeleton() {
         <div className="table-wrap">
           <table className="table team-table">
             <colgroup>
-              <col style={{ width: 230 }} />
-              <col style={{ width: 140 }} />
-              <col style={{ width: 230 }} />
-              <col style={{ width: 170 }} />
-              <col style={{ width: 110 }} />
-              <col style={{ width: 60 }} />
+              <col style={{ width: "24.5%" }} />
+              <col style={{ width: "14.9%" }} />
+              <col style={{ width: "24.5%" }} />
+              <col style={{ width: "18.1%" }} />
+              <col style={{ width: "11.7%" }} />
+              <col style={{ width: "6.3%" }} />
             </colgroup>
             <thead>
               <tr><th>Name</th><th>Role</th><th>Businesses</th><th>Last Active</th><th>Status</th><th /></tr>
@@ -528,12 +528,12 @@ export function QuotesSkeleton() {
       <div className="table-wrap">
         <table className="table single" id="tbl">
           <colgroup>
-            <col style={{ width: 250 }} />
-            <col style={{ width: 260 }} />
-            <col style={{ width: 280 }} />
-            <col style={{ width: 130 }} />
-            <col style={{ width: 150 }} />
-            <col style={{ width: 120 }} />
+            <col style={{ width: "21.0%" }} />
+            <col style={{ width: "21.8%" }} />
+            <col style={{ width: "23.5%" }} />
+            <col style={{ width: "10.9%" }} />
+            <col style={{ width: "12.6%" }} />
+            <col style={{ width: "10.2%" }} />
           </colgroup>
           <thead>
             <tr><th>Client</th><th>Quote number</th><th>Property</th><th>Created</th><th>Status</th><th className="num">Total</th></tr>
@@ -921,7 +921,7 @@ export function InvoicesSkeleton() {
       <div className="toolbar"><div className="chips"><Sk w={140} h={38} r={999} /><Sk w={120} h={38} r={999} /></div><Sk w={280} h={44} r={8} style={{ maxWidth: "100%" }} /></div>
       <div className="table-wrap">
         <table className="table single" id="tbl">
-          <colgroup><col style={{ width: 240 }} /><col style={{ width: 130 }} /><col style={{ width: 130 }} /><col style={{ width: 260 }} /><col style={{ width: 160 }} /><col style={{ width: 120 }} /><col style={{ width: 120 }} /></colgroup>
+          <colgroup><col style={{ width: "20.7%" }} /><col style={{ width: "11.2%" }} /><col style={{ width: "11.2%" }} /><col style={{ width: "22.4%" }} /><col style={{ width: "13.8%" }} /><col style={{ width: "10.3%" }} /><col style={{ width: "10.4%" }} /></colgroup>
           <thead><tr><th>Client</th><th>Invoice number</th><th>Due date</th><th>Subject</th><th>Status</th><th className="num">Total</th><th className="num">Balance</th></tr></thead>
           <tbody>
             {range(8).map((i) => (
@@ -954,7 +954,7 @@ export function JobsSkeleton() {
       <div className="toolbar"><div className="chips"><Sk w={140} h={38} r={999} /><Sk w={140} h={38} r={999} /></div><Sk w={280} h={44} r={8} style={{ maxWidth: "100%" }} /></div>
       <div className="table-wrap">
         <table className="table" id="tbl">
-          <colgroup><col style={{ width: 200 }} /><col style={{ width: 190 }} /><col style={{ width: 280 }} /><col style={{ width: 130 }} /><col style={{ width: 170 }} /><col style={{ width: 120 }} /></colgroup>
+          <colgroup><col style={{ width: "18.3%" }} /><col style={{ width: "17.4%" }} /><col style={{ width: "25.7%" }} /><col style={{ width: "11.9%" }} /><col style={{ width: "15.6%" }} /><col style={{ width: "11.1%" }} /></colgroup>
           <thead><tr><th>Client</th><th>Job number</th><th>Property</th><th>Schedule</th><th>Status</th><th className="num">Total</th></tr></thead>
           <tbody>
             {range(8).map((i) => (
@@ -1074,7 +1074,7 @@ export function PaymentsSkeleton() {
       <div className="toolbar"><div className="chips"><Sk w={118} h={38} r={999} /><Sk w={130} h={38} r={999} /><Sk w={120} h={38} r={999} /></div><Sk w={280} h={44} r={8} style={{ maxWidth: "100%" }} /></div>
       <div className="table-wrap">
         <table className="table single" id="tbl">
-          <colgroup><col style={{ width: 300 }} /><col style={{ width: 150 }} /><col style={{ width: 160 }} /><col style={{ width: 170 }} /><col style={{ width: 150 }} /></colgroup>
+          <colgroup><col style={{ width: "32.3%" }} /><col style={{ width: "16.1%" }} /><col style={{ width: "17.2%" }} /><col style={{ width: "18.3%" }} /><col style={{ width: "16.1%" }} /></colgroup>
           <thead><tr><th>Client</th><th>Payment date</th><th>Payment status</th><th>Method</th><th className="num">Amount</th></tr></thead>
           <tbody>
             {range(6).map((i) => (

@@ -15,8 +15,6 @@
 .btn.icon { width: 38px; padding: 0; justify-content: center; }
 .sc-info { display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: var(--radius-ctl); color: var(--green); cursor: help; }
 /* The bar sits against the top of the page, so a tip above a control is clipped. Open it underneath. */
-.sc-bar [data-tip]:hover::after, .sc-bar [data-tip]:focus-visible::after { bottom: auto; top: calc(100% + 8px); }
-.sc-bar [data-tip]:hover::before, .sc-bar [data-tip]:focus-visible::before { bottom: auto; top: calc(100% + 1px); border: 4px solid transparent; border-top: 0; border-bottom-color: var(--ink); }
 .sc-views { display: inline-flex; padding: 3px; border: 1px solid var(--line-soft); border-radius: 999px; background: var(--white); }
 .sc-viewbtn { padding: 6px 16px; border: 1px solid transparent; border-radius: 999px; background: none; font-weight: 600; color: var(--muted); cursor: pointer; transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease; }
 .sc-viewbtn:hover:not(.on) { background: #f1f0ec; }
@@ -35,7 +33,7 @@
 .sc-daybtn { border: 0; background: none; cursor: pointer; padding: 0; }
 .sc-daypill { display: inline-block; padding: 3px 12px; border-radius: 999px; font-weight: 600; color: var(--muted); transition: background-color 0.15s ease; }
 .sc-daybtn:hover .sc-daypill:not(.today) { background: var(--shell); }
-.sc-daypill.today { background: #2f7bc0; color: var(--white); }
+.sc-daypill.today { background: var(--blue-strong); color: var(--white); }
 .sc-dayline { display: grid; place-items: center; padding: 8px 0 0; }
 .sc-person { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; color: var(--text); }
 .sc-avatar { width: 24px; height: 24px; display: inline-grid; place-items: center; border-radius: 50%; background: var(--text); color: var(--white); font-size: 11px; font-weight: 700; }
@@ -177,8 +175,6 @@
 .menu.sc-cal .mini-head { display: grid; grid-template-columns: 28px 1fr 28px; align-items: center; justify-items: center; }
 .menu.sc-cal .mini-dow { text-transform: uppercase; font-size: 10px; letter-spacing: 0.04em; }
 .menu.sc-cal .mini-day.today { border-radius: var(--radius-sm); }
-.sc-help[data-tip]:hover::after, .sc-help[data-tip]:focus-visible::after { white-space: normal; width: 260px; text-align: left; left: auto; right: 0; transform: none; }
-.sc-help[data-tip]:hover::before, .sc-help[data-tip]:focus-visible::before { left: auto; right: 8px; transform: none; }
 .sc-switch input { position: absolute; opacity: 0; }
 .sc-switch .track { position: relative; width: 38px; height: 22px; border-radius: 999px; background: #9aa6ac; transition: background-color 0.18s ease; }
 .sc-switch .track::after { content: ""; position: absolute; left: 3px; top: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--white); transition: transform 0.18s ease; }

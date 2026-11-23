@@ -132,11 +132,11 @@ function Payments({ business }: { business: BusinessDoc }) {
       <div className="table-wrap">
         <table className="table single" id="tbl">
           <colgroup>
-            <col style={{ width: 300 }} />
-            <col style={{ width: 150 }} />
-            <col style={{ width: 160 }} />
-            <col style={{ width: 170 }} />
-            <col style={{ width: 150 }} />
+            <col style={{ width: "32.3%" }} />
+            <col style={{ width: "16.1%" }} />
+            <col style={{ width: "17.2%" }} />
+            <col style={{ width: "18.3%" }} />
+            <col style={{ width: "16.1%" }} />
           </colgroup>
           <thead>
             <tr>

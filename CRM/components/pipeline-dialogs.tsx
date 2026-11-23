@@ -9,6 +9,7 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { failure } from "@/lib/pipeline";
 import { Icon } from "./icon";
+import { useDialogFocus } from "./use-dialog-focus";
 
 const EXIT_MS = 160; // keep in step with modal-out in globals.css
 
@@ -28,9 +29,10 @@ export function PipelineModal({ title, onClose, busy, className, children }: { t
     return () => document.removeEventListener("keydown", onKey);
   }, [busy]);
   const close = () => setLeaving(true);
+  const box = useDialogFocus(!className);
   return (
     <div className={`modal-back${leaving ? " leaving" : ""}${className ? ` ${className}` : ""}`} onMouseDown={(e) => { if (e.target === e.currentTarget && !busy) close(); }}>
-      <div className="modal" role="dialog" aria-modal={className ? undefined : "true"} aria-label={title}>
+      <div className="modal" role="dialog" aria-modal={className ? undefined : "true"} aria-label={title} tabIndex={-1} ref={box}>
         <div className="modal-head">
           <h2>{title}</h2>
           <button type="button" className="icon-btn" aria-label="Close" onClick={close} disabled={busy}><Icon name="x" size={22} /></button>

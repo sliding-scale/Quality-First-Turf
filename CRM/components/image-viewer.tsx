@@ -6,6 +6,7 @@
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { Icon } from "./icon";
+import { useDialogFocus } from "./use-dialog-focus";
 
 export type ViewerImage = { url: string; caption: string };
 
@@ -16,6 +17,7 @@ export function ImageViewer({ images, start, onClose }: { images: ViewerImage[];
   const [leaving, setLeaving] = useState(false);
   const many = images.length > 1;
   const current = images[index];
+  const box = useDialogFocus();
 
   const close = () => setLeaving(true);
   const go = (step: number) => setIndex((i) => (i + step + images.length) % images.length);
@@ -37,7 +39,7 @@ export function ImageViewer({ images, start, onClose }: { images: ViewerImage[];
   }, [images.length]);
 
   return (
-    <div className={`viewer-back${leaving ? " leaving" : ""}`} role="dialog" aria-modal="true" aria-label={current.caption || "Photo"} onMouseDown={(e) => { if (e.target === e.currentTarget) close(); }}>
+    <div className={`viewer-back${leaving ? " leaving" : ""}`} role="dialog" aria-modal="true" aria-label={current.caption || "Photo"} tabIndex={-1} ref={box} onMouseDown={(e) => { if (e.target === e.currentTarget) close(); }}>
       <div className="viewer-bar">
         <span className="viewer-caption">{current.caption}{many && <span className="muted"> · {index + 1} of {images.length}</span>}</span>
         <a className="viewer-btn" href={current.url} target="_blank" rel="noreferrer">

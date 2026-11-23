@@ -186,13 +186,13 @@ function Invoices({ business }: { business: BusinessDoc }) {
       <div className="table-wrap">
         <table className="table single" id="tbl">
           <colgroup>
-            <col style={{ width: 240 }} />
-            <col style={{ width: 130 }} />
-            <col style={{ width: 130 }} />
-            <col style={{ width: 260 }} />
-            <col style={{ width: 160 }} />
-            <col style={{ width: 120 }} />
-            <col style={{ width: 120 }} />
+            <col style={{ width: "20.7%" }} />
+            <col style={{ width: "11.2%" }} />
+            <col style={{ width: "11.2%" }} />
+            <col style={{ width: "22.4%" }} />
+            <col style={{ width: "13.8%" }} />
+            <col style={{ width: "10.3%" }} />
+            <col style={{ width: "10.4%" }} />
           </colgroup>
           <thead>
             <tr>

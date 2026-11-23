@@ -5,7 +5,7 @@
 
 import { useMutation } from "convex/react";
 import Link from "next/link";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { failure } from "@/lib/pipeline";
@@ -14,9 +14,19 @@ import { FilterMenu } from "./filter-menus";
 import { Icon } from "./icon";
 import type { Person } from "./schedule-grid";
 import { useUI } from "./ui-provider";
+import { useDialogFocus } from "./use-dialog-focus";
 
 const EXIT_MS = 140; // keep in step with sc-pop-out in schedule.css
 const STATUS_LABEL = { upcoming: "Upcoming", completed: "Completed", confirmed: "Confirmed by client" } as const;
+
+/** Puts the popup beside the item it opened from, on whichever side has room. */
+function placeNextTo(el: HTMLElement, anchor: DOMRect) {
+  const w = el.offsetWidth;
+  const h = el.offsetHeight;
+  const wanted = anchor.right + 8 + w > window.innerWidth ? anchor.left - w - 8 : anchor.right + 8;
+  el.style.left = `${Math.max(8, Math.min(wanted, window.innerWidth - w - 8))}px`;
+  el.style.top = `${Math.max(64, Math.min(anchor.top, window.innerHeight - h - 12))}px`;
+}
 
 export function SchedulePopup({ item, anchor, people, canEdit, onClose, onFindTime, onEdit }: {
   item: ScheduleItem;
@@ -32,20 +42,12 @@ export function SchedulePopup({ item, anchor, people, canEdit, onClose, onFindTi
   const setStatus = useMutation(api.crm.schedule.setStatus);
   const assign = useMutation(api.crm.schedule.assign);
   const remove = useMutation(api.crm.schedule.remove);
-  const box = useRef<HTMLDivElement>(null);
+  const box = useDialogFocus(false); // the calendar behind it stays usable, so Tab is not trapped
   const [leaving, setLeaving] = useState(false);
   const isTask = item.kind === "task";
   const nameOf = (id: string) => people.find((p) => p.id === id)?.name ?? "Someone";
 
-  useLayoutEffect(() => {
-    const el = box.current;
-    if (!el) return;
-    const w = el.offsetWidth;
-    const h = el.offsetHeight;
-    const wanted = anchor.right + 8 + w > window.innerWidth ? anchor.left - w - 8 : anchor.right + 8;
-    el.style.left = `${Math.max(8, Math.min(wanted, window.innerWidth - w - 8))}px`;
-    el.style.top = `${Math.max(64, Math.min(anchor.top, window.innerHeight - h - 12))}px`;
-  }, [anchor, item.key]);
+  useLayoutEffect(() => { if (box.current) placeNextTo(box.current, anchor); }, [anchor, item.key, box]);
 
   useEffect(() => {
     if (!leaving) return;
@@ -61,13 +63,13 @@ export function SchedulePopup({ item, anchor, people, canEdit, onClose, onFindTi
     document.addEventListener("keydown", key);
     document.addEventListener("mousedown", down);
     return () => { document.removeEventListener("keydown", key); document.removeEventListener("mousedown", down); };
-  }, []);
+  }, [box]);
 
   const run = (p: Promise<unknown>, fallback: string) => p.catch((e) => toast(failure(e, fallback)));
   const style = KIND_STYLE[item.kind];
 
   return (
-    <div ref={box} className={`sc-popup${leaving ? " leaving" : ""}`} role="dialog" aria-label={item.title} style={{ borderTopColor: style.edge }}>
+    <div ref={box} className={`sc-popup${leaving ? " leaving" : ""}`} role="dialog" aria-label={item.title} tabIndex={-1} style={{ borderTopColor: style.edge }}>
       <div className="sc-pophead">
         <div>
           <h3>{item.title}</h3>

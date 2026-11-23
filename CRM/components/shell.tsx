@@ -40,7 +40,7 @@ const NAV: NavItem[] = [
   { key: "pipeline", label: "Pipeline", icon: "kanban", href: "/pipeline" },
   { key: "tasks", label: "Tasks", icon: "tasks", href: "/tasks" },
   { divider: true },
-  { key: "messages", label: "Messages", icon: "message", href: "/messages" },
+  { key: "messages", label: "Messages", icon: "message" }, // greyed out until SMS and WhatsApp are connected (user, 2026-11-23)
 ];
 
 /** Only Admins see this, in the same group as Messages at the bottom of the sidebar (the backend refuses everyone else anyway). */
@@ -220,6 +220,7 @@ function ShellInner({ children }: { children: ReactNode }) {
 
   return (
     <div className={menuOpen ? "app menu-open" : "app"}>
+      <a className="skip-link" href="#main" onClick={(e) => { e.preventDefault(); document.getElementById("main")?.focus(); }}>Skip to content</a>
       <header className="topbar">
         <button
           type="button"
@@ -377,7 +378,7 @@ function ShellInner({ children }: { children: ReactNode }) {
         </button>
       </nav>
 
-      <main className="main" id="main" ref={mainRef}>
+      <main className="main" id="main" tabIndex={-1} ref={mainRef}>
         <div className="page">{blocked ? <NoAccess /> : children}</div>
       </main>
     </div>
