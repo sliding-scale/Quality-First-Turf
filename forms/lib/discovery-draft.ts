@@ -19,6 +19,7 @@ import {
   projectSizes,
   projectTimelines,
   projectScopes,
+  projectTypes,
   yardPlaces,
   requiredContact,
   services,
@@ -159,9 +160,10 @@ function oneOf(options: readonly { value: string }[], value: unknown): string {
 }
 
 function projectFrom(value: unknown): DiscoveryState["project"] {
-  if (!isRecord(value)) return { scope: [], size: "", goal: "", timeline: "", budget: "" };
+  if (!isRecord(value)) return { type: "", scope: [], size: "", goal: "", timeline: "", budget: "" };
   const scope = Array.isArray(value.scope) ? value.scope.filter((item) => (projectScopes as readonly unknown[]).includes(item)) : [];
   return {
+    type: oneOf(projectTypes, value.type),
     scope: [...new Set(scope as string[])],
     size: oneOf(projectSizes, value.size),
     goal: oneOf(projectGoals, value.goal),

@@ -1,6 +1,6 @@
 "use client";
 
-/* The small pop-ups on the pipeline: why a project was lost, adding a task, giving feedback. Same style and motion as the other
+/* The small pop-ups on the pipeline: why a project was lost, adding a task. Same style and motion as the other
    dialogs (D-037): a closing pop-up stays mounted for the length of its exit animation. Invalid fields turn red on submit (D-035). */
 
 import { useMutation } from "convex/react";
@@ -200,27 +200,6 @@ export function AddTaskDialog({ projectId, businessId, people, task, defaultAssi
             )}
           </div>
         </form>
-      )}
-    </PipelineModal>
-  );
-}
-
-/** Give Feedback. Where feedback goes is not decided yet, so Send stays greyed until it is. */
-export function FeedbackDialog({ onClose }: { onClose: () => void }) {
-  const [text, setText] = useState("");
-  return (
-    <PipelineModal title="Give feedback" onClose={onClose}>
-      {(close) => (
-        <div>
-          <div className="field">
-            <label htmlFor="fb-text">What would make the pipeline better?</label>
-            <textarea id="fb-text" value={text} onChange={(e) => setText(e.target.value)} />
-          </div>
-          <div className="modal-foot">
-            <button type="button" className="btn plain" onClick={close}>Cancel</button>
-            <button type="button" className="btn primary" disabled>Send</button>
-          </div>
-        </div>
       )}
     </PipelineModal>
   );

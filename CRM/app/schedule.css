@@ -127,7 +127,8 @@
 .sc-muted { color: var(--muted); font-size: 13px; }
 .sc-times { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 14px; }
 .sc-notes { margin: 0; padding: 8px 10px; border-radius: var(--radius-ctl); background: var(--wash); font-size: 13px; overflow-wrap: anywhere; white-space: pre-wrap; }
-.sc-popfoot { display: flex; gap: 8px; flex-wrap: wrap; }
+.sc-popfoot { display: flex; align-items: center; gap: 8px; }
+.sc-popfoot .sc-delete { margin-left: auto; }
 .sc-delete { justify-self: start; display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; color: var(--error); font-weight: 600; cursor: pointer; padding: 2px 0; }
 .sc-delete:hover { text-decoration: underline; }
 .sc-check { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; }
@@ -150,9 +151,9 @@
 .sc-assign { display: grid; gap: 8px; justify-items: start; }
 .sc-addlink { display: inline-flex; align-items: center; gap: 6px; width: fit-content; border: 0; background: none; padding: 2px 0; color: var(--ink); font-weight: 600; cursor: pointer; }
 .sc-addlink:hover { color: var(--green); }
-.sc-line { display: grid; grid-template-columns: minmax(0, 1fr) 72px 32px; gap: 8px; align-items: center; }
-.sc-line input { height: var(--control); border: 1px solid var(--line); border-radius: var(--radius-ctl); padding: 0 10px; background: var(--white); }
-.sc-line input:focus { outline: 2px solid var(--green); border-color: var(--green); }
+.sc-lineitem { display: grid; grid-template-columns: minmax(0, 1fr) 72px 32px; gap: 8px; align-items: center; }
+.sc-lineitem input { height: var(--control); border: 1px solid var(--line); border-radius: var(--radius-ctl); padding: 0 10px; background: var(--white); }
+.sc-lineitem input:focus { outline: 2px solid var(--green); border-color: var(--green); }
 .sc-assignbtn { color: var(--ink); border-radius: var(--radius); }
 .sc-morebtn { color: var(--ink); }
 .sc-when { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: start; }
@@ -261,7 +262,11 @@
 
 /* Zoho Calendar (D-069): a small mark on items that came from someone's Zoho Calendar, and the note asking people to connect. */
 .sc-zoho { margin-left: 6px; padding: 0 5px; border-radius: 4px; background: rgba(3, 43, 58, 0.12); color: var(--ink); font-size: 10px; font-weight: 700; letter-spacing: 0.02em; align-self: center; }
-.sc-connectnote { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 10px; padding: 10px 14px; border: 1px solid var(--line-soft); border-radius: var(--radius); background: var(--white); font-size: 14px; }
-.sc-connectnote a { font-weight: 700; }
+.sc-connectnote { display: flex; align-items: center; gap: 16px; margin: 0 0 10px; padding: 14px 16px 14px 18px; border: 1px solid var(--green); border-left-width: 6px; border-radius: var(--radius); background: #f1f7ef; font-size: 16px; }
+.sc-connecttext { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.sc-connecttext b { font-size: 17px; color: var(--ink); }
+.sc-connecttext small { font-size: 14px; color: var(--text); }
+.sc-connectnote .btn { flex: none; }
 .sc-connectnote button { border: 0; background: none; color: var(--muted); cursor: pointer; padding: 4px; border-radius: var(--radius-sm); transition: background-color 0.15s ease; }
 .sc-connectnote button:hover { background: var(--shell); }
+@media (max-width: 700px) { .sc-connectnote { flex-wrap: wrap; } .sc-connecttext { flex-basis: 100%; } }

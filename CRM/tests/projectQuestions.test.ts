@@ -7,6 +7,7 @@ import {
   projectBudgets,
   projectGoals,
   projectSizes,
+  projectTypes,
   projectTimelines,
   projectToForm,
   type DiscoveryState,
@@ -20,7 +21,7 @@ function filled(services: string[]): DiscoveryState {
     firstName: "Test", lastName: "Layout", phone: "(555) 123-4567", email: "t@example.com",
     street1: "12 Main St", city: "Portland", state: "Oregon", zip: "97201",
     services,
-    project: { scope: ["Backyard", "Putting green"], size: projectSizes[1].value, goal: projectGoals[2].value, timeline: projectTimelines[0].value, budget: projectBudgets[1].value },
+    project: { type: projectTypes[0].value, scope: ["Backyard", "Putting green"], size: projectSizes[1].value, goal: projectGoals[2].value, timeline: projectTimelines[0].value, budget: projectBudgets[1].value },
     where: { SOD: ["Front yard", "Side yard"] },
   };
 }
@@ -48,8 +49,9 @@ describe("project questions", () => {
 
   it("writes the answers first, one answer per choice, so Jobber's first 60 always carry them", () => {
     const built = buildDiscovery(filled(["SOD"]), { requireProject: true });
-    expect(built.payload?.answers.slice(0, 9)).toEqual([
+    expect(built.payload?.answers.slice(0, 10)).toEqual([
       { question: "Customer type", value: "Homeowner" },
+      { question: "Project type", value: projectTypes[0].value },
       { question: "Project scope", value: "Backyard" },
       { question: "Project scope", value: "Putting green" },
       { question: "Space size", value: projectSizes[1].value },

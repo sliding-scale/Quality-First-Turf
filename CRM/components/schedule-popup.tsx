@@ -1,7 +1,7 @@
 "use client";
 
 /* The pop-up that opens when an item on the calendar is clicked (D-062): title and type, a Completed tick (tasks) or a status (the rest),
-   the team with chips to add or remove, start and end, and Find a time, Edit, Details and Delete. */
+   the team as chips, start and end, and Edit, Details and Delete. */
 
 import { useMutation } from "convex/react";
 import Link from "next/link";
@@ -10,7 +10,6 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { failure } from "@/lib/pipeline";
 import { ITEM_LABEL, KIND_STYLE, REPEAT_LABEL, VISIT_LABEL, dateText, timeText, type ScheduleItem } from "@/lib/schedule";
-import { FilterMenu } from "./filter-menus";
 import { Icon } from "./icon";
 import type { Person } from "./schedule-grid";
 import { useUI } from "./ui-provider";
@@ -28,19 +27,17 @@ function placeNextTo(el: HTMLElement, anchor: DOMRect) {
   el.style.top = `${Math.max(64, Math.min(anchor.top, window.innerHeight - h - 12))}px`;
 }
 
-export function SchedulePopup({ item, anchor, people, canEdit, onClose, onFindTime, onEdit }: {
+export function SchedulePopup({ item, anchor, people, canEdit, onClose, onEdit }: {
   item: ScheduleItem;
   anchor: DOMRect;
   people: Person[];
   canEdit: boolean;
   onClose: () => void;
-  onFindTime: () => void;
   onEdit: () => void;
 }) {
-  const { popover, toast } = useUI();
+  const { toast } = useUI();
   const setDone = useMutation(api.crm.opportunityTasks.setDone);
   const setStatus = useMutation(api.crm.schedule.setStatus);
-  const assign = useMutation(api.crm.schedule.assign);
   const remove = useMutation(api.crm.schedule.remove);
   const box = useDialogFocus(false); // the calendar behind it stays usable, so Tab is not trapped
   const [leaving, setLeaving] = useState(false);
@@ -102,30 +99,8 @@ export function SchedulePopup({ item, anchor, people, canEdit, onClose, onFindTi
         {item.assigneeIds.map((id) => (
           <span key={id} className="sc-teamchip">
             {nameOf(id)}
-            {canEdit && !isTask && (
-              <button type="button" aria-label={`Remove ${nameOf(id)}`} onClick={() => void run(assign({ id: item.id as Id<"calendarEvents">, assigneeIds: item.assigneeIds.filter((x) => x !== id), now: Date.now() }), "That person could not be removed.")}><Icon name="x" size={14} /></button>
-            )}
           </span>
         ))}
-        {canEdit && !isTask && (
-          <button
-            type="button"
-            className="sc-addperson"
-            aria-label="Add a person"
-            data-tip="Add a person"
-            onClick={(e) =>
-              popover(e.currentTarget, (close) => (
-                <FilterMenu
-                  placeholder="Search people"
-                  options={people.filter((p) => !item.assigneeIds.includes(p.id as never)).map((p) => ({ label: p.name }))}
-                  selected=""
-                  onSelect={(l) => { const p = people.find((x) => x.name === l); if (p) void run(assign({ id: item.id as Id<"calendarEvents">, assigneeIds: [...item.assigneeIds, p.id as Id<"users">], now: Date.now() }), "That person could not be added."); }}
-                  close={close}
-                />
-              ), { className: "filter" })
-            }
-          ><Icon name="plus" size={16} /></button>
-        )}
       </div>
 
       <div className="sc-times">
@@ -135,15 +110,14 @@ export function SchedulePopup({ item, anchor, people, canEdit, onClose, onFindTi
       {item.notes && <p className="sc-notes">{item.notes}</p>}
 
       <div className="sc-popfoot">
-        {canEdit && <button type="button" className="btn" onClick={onFindTime}><Icon name="calendar" size={16} /> Find a time</button>}
         {canEdit && <button type="button" className="btn" onClick={onEdit}>Edit</button>}
-        {item.clientId ? <Link className="btn primary" href={`/clients/${item.clientId}`}>Details</Link> : <button type="button" className="btn primary" disabled>Details</button>}
+        {item.clientId && <Link className="btn primary" href={`/clients/${item.clientId}`}>Details</Link>}
+        {canEdit && !isTask && (
+          <button type="button" className="sc-delete" onClick={() => void run(remove({ id: item.id as Id<"calendarEvents"> }).then(() => setLeaving(true)), "The item could not be deleted.")}>
+            <Icon name="trash" size={16} /> Delete{item.repeat !== "none" ? " (all repeats)" : ""}
+          </button>
+        )}
       </div>
-      {canEdit && !isTask && (
-        <button type="button" className="sc-delete" onClick={() => void run(remove({ id: item.id as Id<"calendarEvents"> }).then(() => setLeaving(true)), "The item could not be deleted.")}>
-          <Icon name="trash" size={16} /> Delete{item.repeat !== "none" ? " (all repeats)" : ""}
-        </button>
-      )}
     </div>
   );
 }

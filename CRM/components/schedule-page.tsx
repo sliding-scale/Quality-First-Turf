@@ -18,12 +18,12 @@ import {
 } from "@/lib/schedule";
 import { EmptyBackend } from "./empty-backend";
 import { Icon } from "./icon";
-import { FeedbackDialog } from "./pipeline-dialogs";
 import { ScheduleForm, type FormStart } from "./schedule-form";
 import { ScheduleGrid, type DropPayload } from "./schedule-grid";
 import { RescheduleDialog, ScheduleSettings, UnscheduledPanel } from "./schedule-panels";
 import { SchedulePopup } from "./schedule-popup";
 import { ScheduleSkeleton } from "./skeletons";
+import { CrewsModal } from "./construction-dialogs";
 import { useStaff } from "./staff-context";
 import { useStoredString, writeItem } from "@/lib/store";
 import { useUI } from "./ui-provider";
@@ -71,7 +71,7 @@ function Schedule({ business }: { business: BusinessDoc }) {
   const calendar = useQuery(api.crm.calendarConnect.mine, {});
   const hiddenUntil = Number(useStoredString("qft-zoho-note", "0"));
   const showConnect = calendar !== undefined && calendar.available && (calendar.connection === null || calendar.connection.status !== "connected") && hiddenUntil < clock();
-  const [dialog, setDialog] = useState<"settings" | "reschedule" | "feedback" | null>(null);
+  const [dialog, setDialog] = useState<"settings" | "reschedule" | "crews" | null>(null);
 
   const filters: RangeFilters = useMemo(() => ({ types, people: team, statuses }), [types, team, statuses]);
   const win = windowOf(view, dateKey);
@@ -161,7 +161,11 @@ function Schedule({ business }: { business: BusinessDoc }) {
       <h1 className="sr">Schedule</h1>
       {showConnect && (
         <div className="sc-connectnote" role="status">
-          <span>{calendar.connection === null ? "Connect your Zoho Calendar so it matches this one." : "Your Zoho Calendar needs to be reconnected."} <Link href="/settings/calendar">{calendar.connection === null ? "Connect" : "Reconnect"}</Link></span>
+          <span className="sc-connecttext">
+            <b>{calendar.connection === null ? "Connect your Zoho Calendar" : "Reconnect your Zoho Calendar"}</b>
+            <small>{calendar.connection === null ? "So it matches this one." : "Its connection has stopped working, so it no longer matches this one."}</small>
+          </span>
+          <Link href="/settings/calendar" className="btn primary">{calendar.connection === null ? "Connect" : "Reconnect"}</Link>
           <button type="button" aria-label="Hide for a week" onClick={() => writeItem("qft-zoho-note", String(clock() + 7 * 86_400_000))}><Icon name="x" size={16} /></button>
         </div>
       )}
@@ -217,11 +221,8 @@ function Schedule({ business }: { business: BusinessDoc }) {
                 e.currentTarget,
                 [
                   { label: "Reschedule and reassign", icon: "timeline", disabled: !staff.canEdit, onSelect: () => setDialog("reschedule") },
-                  { label: "Create new visits", icon: "hammer", disabled: true },
-                  { label: "Manage crews", icon: "crew", disabled: true },
+                  { label: "Manage crews", icon: "crew", disabled: !staff.can("pipelineConstruction", "edit"), onSelect: () => setDialog("crews") },
                   { label: "Schedule Settings", icon: "sliders", disabled: !staff.canEdit, onSelect: () => setDialog("settings") },
-                  { divider: true },
-                  { label: "Give feedback", icon: "message", onSelect: () => setDialog("feedback") },
                 ],
                 { alignRight: true },
               )
@@ -265,7 +266,6 @@ function Schedule({ business }: { business: BusinessDoc }) {
           people={roster}
           canEdit={staff.canEdit}
           onClose={() => setPopup(null)}
-          onFindTime={() => openForm({ start: popup.item.start, personId: popup.item.assigneeIds[0] }, popup.item, true)}
           onEdit={() => openForm({}, popup.item, false)}
         />
       )}
@@ -284,8 +284,8 @@ function Schedule({ business }: { business: BusinessDoc }) {
         />
       )}
       {dialog === "settings" && <ScheduleSettings businessId={business._id} hours={hours} onClose={() => setDialog(null)} />}
+      {dialog === "crews" && <CrewsModal businessId={business._id} onClose={() => setDialog(null)} />}
       {dialog === "reschedule" && <RescheduleDialog businessId={business._id} people={roster} todayKey={today} onClose={() => setDialog(null)} />}
-      {dialog === "feedback" && <FeedbackDialog onClose={() => setDialog(null)} />}
     </div>
   );
 }

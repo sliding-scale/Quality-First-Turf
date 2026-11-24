@@ -9,6 +9,7 @@ import {
   projectScopes,
   projectSizes,
   projectTimelines,
+  projectTypes,
   serviceLabel,
   yardPlaces,
   type ChoiceOption,
@@ -81,6 +82,9 @@ export function ProjectFields({
   const { project } = form;
   return (
     <div className="intake-fields">
+      <Group id="project-type" required={required} legend="Is this a residential or commercial project?" error={problems["project-type"]}>
+        <Options name="project-type" options={projectTypes} value={project.type} invalid={Boolean(problems["project-type"])} onPick={(type) => onProject({ type })} />
+      </Group>
       <Group id="project-scope" required={required} legend="What are we transforming?" hint="Choose all that apply" error={problems["project-scope"]}>
         <div className="pj-chips">
           {projectScopes.map((scope) => {

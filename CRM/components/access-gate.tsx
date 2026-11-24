@@ -69,7 +69,7 @@ function Waiting() {
   return (
     <div className="auth-page" role="status" aria-busy="true">
       <main className="auth-main">
-        <div className="auth-col">
+        <div className="auth-col still">
           <Image className="auth-logo" src="/brand/logo-full.png" alt="Quality First Turf" width={190} height={147} priority />
           <WelcomeHead line="Getting everything ready for you…" />
           <WelcomeBar />

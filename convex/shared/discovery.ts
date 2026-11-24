@@ -319,6 +319,12 @@ export const projectScopes = [
 
 export type ChoiceOption = { value: string; title: string; detail: string };
 
+/** The first "Your project" question (client notes, 2026-11-24): is the project residential or commercial. */
+export const projectTypes: ChoiceOption[] = [
+  { value: "Residential", title: "Residential", detail: "" },
+  { value: "Commercial", title: "Commercial", detail: "" },
+];
+
 export const projectSizes: ChoiceOption[] = [
   { value: "Small (Under 500 sq. ft.)", title: "Small", detail: "Under 500 sq. ft. For example a dog run or side yard" },
   { value: "Medium (500 - 1,500 sq. ft.)", title: "Medium", detail: "500 to 1,500 sq. ft. A standard yard" },
@@ -347,10 +353,10 @@ export const projectBudgets: ChoiceOption[] = [
   { value: "Not sure / Need a professional recommendation and quote", title: "I'm not sure", detail: "We will recommend an option and quote it" },
 ];
 
-export type ProjectAnswers = { scope: string[]; size: string; goal: string; timeline: string; budget: string };
+export type ProjectAnswers = { type: string; scope: string[]; size: string; goal: string; timeline: string; budget: string };
 
 export function emptyProject(): ProjectAnswers {
-  return { scope: [], size: "", goal: "", timeline: "", budget: "" };
+  return { type: "", scope: [], size: "", goal: "", timeline: "", budget: "" };
 }
 
 /** The services a project scope already tells us about, so the next step can start with them ticked. */
@@ -375,6 +381,7 @@ export function needsQuestions(selected: readonly string[]): boolean {
 export function projectProblems(project: ProjectAnswers): Record<string, string> {
   const problems: Record<string, string> = {};
   const among = (options: ChoiceOption[], value: string) => options.some((option) => option.value === value);
+  if (!among(projectTypes, project.type)) problems["project-type"] = "Choose whether the project is residential or commercial.";
   if (project.scope.length === 0) problems["project-scope"] = "Choose what you would like to transform.";
   if (!among(projectSizes, project.size)) problems["project-size"] = "Choose roughly how big the space is.";
   if (!among(projectGoals, project.goal)) problems["project-goal"] = "Choose your main goal.";
@@ -871,6 +878,7 @@ export function buildDiscovery(input: DiscoveryState, options: { requireProject?
     { question: "Customer type", value: input.customerType },
   ];
   if (input.wantsCall) answers.push({ question: contactPreferenceQuestion, value: reachOutAnswer });
+  if (input.project.type !== "") answers.push({ question: "Project type", value: input.project.type });
   for (const scope of input.project.scope) answers.push({ question: "Project scope", value: scope });
   for (const [question, value] of [
     ["Space size", input.project.size],
@@ -1547,7 +1555,8 @@ export function projectToForm(project: SavedProject): {
   }
 
   for (const answer of project.answers) {
-    if (answer.question === "Project scope") {
+    if (answer.question === "Project type") form.project.type = answer.value;
+    else if (answer.question === "Project scope") {
       if (!form.project.scope.includes(answer.value)) form.project.scope.push(answer.value);
     } else if (answer.question === "Space size") form.project.size = answer.value;
     else if (answer.question === "Main goal") form.project.goal = answer.value;

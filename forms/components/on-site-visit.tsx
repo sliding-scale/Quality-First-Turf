@@ -1390,6 +1390,7 @@ export function OnSiteVisit({
             {(() => {
               // What the customer said they want (D-087): the goal and the budget are what the salesperson needs before the first call.
               const facts: [string, string][] = [
+                ["Project type", form.project.type],
                 ["Transforming", form.project.scope.join(", ")],
                 ["Space size", form.project.size],
                 ["Main goal", form.project.goal],

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildDiscovery, emptyDiscovery, projectBudgets, projectGoals, projectSizes, projectTimelines, type DiscoveryState } from "../../convex/shared/discovery";
+import { buildDiscovery, emptyDiscovery, projectBudgets, projectGoals, projectSizes, projectTimelines, projectTypes, type DiscoveryState } from "../../convex/shared/discovery";
 
 /* "Have a professional reach out" (client notes of 2026-11-20): a request with no services, marked as wanting a call. */
 
@@ -8,7 +8,7 @@ function filled(over: Partial<DiscoveryState> = {}): DiscoveryState {
     ...emptyDiscovery(),
     firstName: "Test", lastName: "Layout", phone: "(555) 123-4567", email: "t@example.com",
     street1: "12 Main St", city: "Portland", state: "Oregon", zip: "97201",
-    project: { scope: ["Backyard"], size: projectSizes[1].value, goal: projectGoals[2].value, timeline: projectTimelines[0].value, budget: projectBudgets[1].value },
+    project: { type: projectTypes[0].value, scope: ["Backyard"], size: projectSizes[1].value, goal: projectGoals[2].value, timeline: projectTimelines[0].value, budget: projectBudgets[1].value },
     ...over,
   };
 }

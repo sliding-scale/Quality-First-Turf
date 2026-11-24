@@ -4,12 +4,11 @@
    The tab is kept in the address (?tab=outcomes) so a reload or a shared link lands on the same tab. */
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useWorkspace, type BusinessDoc } from "@/lib/clients";
 import { EmptyBackend } from "./empty-backend";
 import { Icon } from "./icon";
 import { PipelineBoard } from "./pipeline-board";
-import { FeedbackDialog } from "./pipeline-dialogs";
 import { PipelineOutcomes } from "./pipeline-outcomes";
 import { PipelineSkeleton } from "./skeletons";
 import { useStaff } from "./staff-context";
@@ -31,7 +30,6 @@ function Pipeline({ business }: { business: BusinessDoc }) {
   const { canEdit, isAdmin } = useStaff();
   const raw = params.get("tab");
   const tab: Tab = raw === "outcomes" ? raw : "pipeline";
-  const [feedback, setFeedback] = useState(false);
   // Tasks has its own place in the sidebar now; an old link to the Tasks tab lands there.
   useEffect(() => {
     if (raw === "tasks") router.replace("/tasks");
@@ -67,7 +65,6 @@ function Pipeline({ business }: { business: BusinessDoc }) {
                   [
                     { label: "Edit Stages", icon: "pencil", disabled: !canEdit, onSelect: () => router.push("/pipeline/edit") },
                     { label: "Automations", icon: "calendar", disabled: !isAdmin, onSelect: () => router.push("/settings/automations") },
-                    { label: "Give Feedback", icon: "message", onSelect: () => setFeedback(true) },
                   ],
                   { alignRight: true },
                 )
@@ -82,7 +79,6 @@ function Pipeline({ business }: { business: BusinessDoc }) {
         {tab === "pipeline" && <PipelineBoard business={business} />}
         {tab === "outcomes" && <PipelineOutcomes business={business} />}
       </div>
-      {feedback && <FeedbackDialog onClose={() => setFeedback(false)} />}
     </div>
   );
 }

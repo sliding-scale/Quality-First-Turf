@@ -170,7 +170,7 @@ async function overviewOf(ctx: QueryCtx, o: Doc<"opportunities">, client: Doc<"c
   ];
   // The project questions (D-087): what the customer wants to transform, how big, why, when and the budget, then where each service goes.
   const asked = (question: string) => project.answers.filter((x) => x.question === question).map((x) => x.value);
-  for (const [label, question] of [["Contact preference", "Contact preference"], ["Project scope", "Project scope"], ["Space size", "Space size"], ["Main goal", "Main goal"], ["Timeline", "Timeline"], ["Investment range", "Investment range"]] as const) {
+  for (const [label, question] of [["Contact preference", "Contact preference"], ["Project type", "Project type"], ["Project scope", "Project scope"], ["Space size", "Space size"], ["Main goal", "Main goal"], ["Timeline", "Timeline"], ["Investment range", "Investment range"]] as const) {
     const values = asked(question);
     if (values.length) fields.push({ label, value: values.join(", ") });
   }

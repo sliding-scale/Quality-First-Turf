@@ -221,7 +221,7 @@ export function ScheduleForm({ businessId, people, hours, initial, editing, show
           {kind !== "task" && (
             <>
               {lines.map((line, i) => (
-                <div className="sc-line" key={i}>
+                <div className="sc-lineitem" key={i}>
                   <input aria-label="Line item" placeholder="Name" maxLength={120} value={line.name} onChange={(e) => setLines((ls) => ls.map((l, n) => n === i ? { ...l, name: e.target.value } : l))} />
                   <input aria-label="Quantity" inputMode="decimal" value={line.qty} onChange={(e) => setLines((ls) => ls.map((l, n) => n === i ? { ...l, qty: e.target.value } : l))} />
                   <button type="button" className="icon-btn" aria-label="Remove line item" onClick={() => setLines((ls) => ls.filter((_, n) => n !== i))}><Icon name="x" size={16} /></button>

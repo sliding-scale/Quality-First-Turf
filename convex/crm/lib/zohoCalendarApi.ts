@@ -36,7 +36,11 @@ async function call(method: string, url: string, token: string, extra: Record<st
   return body;
 }
 
-const eventsOf = (body: Record<string, unknown>): ZohoEvent[] => (Array.isArray(body.events) ? (body.events as ZohoEvent[]).map((e) => ({ ...e, etag: String(e.etag ?? "") })) : []);
+/** Zoho can send an empty entry inside `events` (seen on a window with nothing in it), and an entry that is only a message. Anything without an id is not an event, so it is dropped. */
+const eventsOf = (body: Record<string, unknown>): ZohoEvent[] =>
+  Array.isArray(body.events)
+    ? (body.events as ZohoEvent[]).filter((e) => e && e.uid !== undefined && e.uid !== null && String(e.uid) !== "").map((e) => ({ ...e, uid: String(e.uid), etag: String(e.etag ?? "") }))
+    : [];
 
 export async function defaultCalendar(apiBase: string, token: string): Promise<{ uid: string; name: string; timezone: string }> {
   const body = await call("GET", `${apiBase}/api/v1/calendars`, token);
