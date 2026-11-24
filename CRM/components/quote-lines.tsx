@@ -35,8 +35,8 @@ export const newLine = (kind: "item" | "text", over: Partial<DraftLine> = {}): D
 });
 
 /** The lines the site visit works out (`crm.quotePrices.fromVisit`), as draft lines. A price the list does not have is 0.00, to be typed in. */
-export const draftLinesFromVisit = (lines: { name: string; quantity: number; priceCents: number | null }[]): DraftLine[] =>
-  lines.map((l) => newLine("item", { name: l.name, quantity: String(l.quantity), price: l.priceCents === null ? "0.00" : centsToInput(l.priceCents), catalogueName: l.name }));
+export const draftLinesFromVisit = (lines: { name: string; quantity: number; priceCents: number | null; imagePath?: string | null }[]): DraftLine[] =>
+  lines.map((l) => newLine("item", { name: l.name, quantity: String(l.quantity), price: l.priceCents === null ? "0.00" : centsToInput(l.priceCents), catalogueName: l.name, imageUrl: l.imagePath ?? null }));
 
 /** A line's total in cents; NaN while a box holds something that is not a number. */
 export function lineCents(l: DraftLine): number {

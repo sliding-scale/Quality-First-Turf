@@ -3,6 +3,7 @@ import { query } from "../_generated/server";
 import { catalogue } from "../shared/catalogue";
 import { retailPrice, priceUnit } from "../shared/priceList";
 import { planQuoteLines } from "../shared/quoteLines";
+import { productPhotoPath } from "../shared/productPhotos";
 import { requireModule } from "./lib/access";
 import { workAreasOf } from "./lib/visitData";
 import { searchOwn } from "./catalogue";
@@ -51,7 +52,7 @@ export const fromVisit = query({
     const planned = planQuoteLines({ services: project?.services ?? [], products: project?.products ?? [], answers: project?.answers ?? [], measurements: project?.measurements ?? [], workAreas });
     const lines = planned.lines.map((l) => {
       const item = catalogue.find((c) => c.name === l.name);
-      return { name: l.name, quantity: l.quantity, unit: item ? priceUnit(item) : "EA", priceCents: item ? toCents(retailPrice(item)) : null };
+      return { name: l.name, quantity: l.quantity, unit: item ? priceUnit(item) : "EA", priceCents: item ? toCents(retailPrice(item)) : null, imagePath: productPhotoPath(item?.product) };
     });
     return { lines, missing: planned.missing };
   },

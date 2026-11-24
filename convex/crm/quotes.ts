@@ -235,7 +235,7 @@ export const get = query({
         id: l._id,
         name: l.name,
         description: l.description,
-        imageUrl: l.imageId ? await ctx.storage.getUrl(l.imageId) : null,
+        imageUrl: l.imageId ? await ctx.storage.getUrl(l.imageId) : (l.imagePath ?? null),
         quantity: l.quantity,
         unitPriceCents: l.unitPriceCents,
         optional: l.optional,

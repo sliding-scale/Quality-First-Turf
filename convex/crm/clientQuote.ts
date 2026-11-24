@@ -44,7 +44,7 @@ export const get = query({
     for (const l of lineDocs) {
       const text = (l.kind ?? "item") === "text";
       lines.push({
-        id: l._id, kind: l.kind ?? ("item" as const), name: l.name, description: l.description, imageUrl: l.imageId ? await ctx.storage.getUrl(l.imageId) : null,
+        id: l._id, kind: l.kind ?? ("item" as const), name: l.name, description: l.description, imageUrl: l.imageId ? await ctx.storage.getUrl(l.imageId) : (l.imagePath ?? null),
         quantity: !text && view.quantities ? l.quantity : null,
         unitPriceCents: !text && view.unitPrices ? l.unitPriceCents : null,
         totalCents: !text && view.lineTotals ? Math.round(l.quantity * l.unitPriceCents) : null,

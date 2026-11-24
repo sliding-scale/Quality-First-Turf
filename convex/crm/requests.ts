@@ -6,6 +6,7 @@ import { requireModule } from "./lib/access";
 import { checkAssignee } from "./lib/assignees";
 import { checkNoteFiles, noteFilesArg } from "./lib/noteFiles";
 import { opportunitySearchText } from "./lib/clientInput";
+import { linesFromForm } from "./lib/formLines";
 import { DAY_MS, REQUEST_STATUSES, SALES_STAGES, isRequest, requestStatus, type RequestStatus } from "./lib/stages";
 import { notifyMentions } from "./lib/mentionNotify";
 
@@ -347,6 +348,23 @@ export const setLines = mutation({
     if (o === null || !isRequest(o)) throw new ConvexError("That request no longer exists.");
     await requireModule(ctx, o.businessId, "requests", "edit");
     await ctx.db.patch(o._id, { lines: cleanLines(args.lines) });
+  },
+});
+
+/** Fills an empty Product / Service section from the customer form behind the request (client request, 2026-11-24). Does nothing when the request
+ *  already has lines, has no form, or the form gives nothing to plan, so it is safe to call every time the page opens. */
+export const fillLinesFromForm = mutation({
+  args: { id: v.id("opportunities") },
+  handler: async (ctx, args) => {
+    const o = await ctx.db.get(args.id);
+    if (o === null || !isRequest(o) || !o.sourceProjectId || (o.lines?.length ?? 0) > 0) return false;
+    await requireModule(ctx, o.businessId, "requests", "edit");
+    const form = await ctx.db.get(o.sourceProjectId);
+    if (form === null) return false;
+    const lines = linesFromForm(form);
+    if (lines.length === 0) return false;
+    await ctx.db.patch(o._id, { lines });
+    return true;
   },
 });
 

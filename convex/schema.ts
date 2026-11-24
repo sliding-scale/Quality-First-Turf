@@ -703,6 +703,8 @@ export default defineSchema({
     kind: v.optional(v.union(v.literal("item"), v.literal("text"))),
     /** The price-list name this line was picked from, if any. */
     catalogueName: v.optional(v.string()),
+    /** A product photo kept by path (convex/shared/productPhotos.ts), used when no picture was uploaded. */
+    imagePath: v.optional(v.string()),
   }).index("by_quoteId_and_position", ["quoteId", "position"]),
 
   /** What happened to a quote, in order (D-063): created, sent, link created, viewed, changes requested, resubmitted, approved, rejected,

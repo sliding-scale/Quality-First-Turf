@@ -8,6 +8,9 @@ import { systemMove } from "./lib/systemMove";
 import { notifyMentions } from "./lib/mentionNotify";
 import { checkNoteFiles, noteFilesArg } from "./lib/noteFiles";
 import { toggleCheckbox } from "./lib/noteText";
+import { newShortCode } from "../projects/shortCode";
+import { opportunitySearchText } from "./lib/clientInput";
+import { isProductPhotoPath } from "../shared/productPhotos";
 import { MAX_DISCLAIMERS_PER_QUOTE, checkDisclaimer } from "./lib/disclaimers";
 
 /** Building a quote (D-063): create, save, attachments, notes, duplicate, archive. Sending and the client's answers are in quoteFlow.ts and
@@ -62,10 +65,22 @@ export const create = mutation({
     const title = a.title.trim();
     if (title.length > 200) throw new ConvexError("A title can be at most 200 characters.");
     const now = a.now ?? Date.now();
+    // A quote made on its own gets a project under that client (client request, 2026-11-24), so it has a card on the Sales board and a place for its history.
+    let opportunityId = a.opportunityId;
+    if (!project) {
+      const code = await newShortCode(ctx);
+      const stage = "Quote Draft & Site Plan / Design";
+      const name = title || "Quote";
+      opportunityId = await ctx.db.insert("opportunities", {
+        businessId: a.businessId, clientId: client._id, code, title: name, pipeline: "Sales", stage, requestedAt: now, stageEnteredAt: now, owner: "Unassigned",
+        searchText: opportunitySearchText(client, { title: name, code, stage }),
+      });
+      await ctx.db.insert("stageHistory", { opportunityId, businessId: a.businessId, from: "Created by hand", to: stage, byName: staff.name, byUserId: staff.userId, at: now, note: "Project created with a new quote" });
+    }
     const defaults = await ctx.db.query("quoteDefaults").withIndex("by_business", (q) => q.eq("businessId", a.businessId)).first();
     const number = await nextNumber(ctx, a.businessId);
     const doc = {
-      businessId: a.businessId, clientId: a.clientId, opportunityId: a.opportunityId, number, title, status: "Draft" as const, salesperson: staff.name, createdAt: now,
+      businessId: a.businessId, clientId: a.clientId, opportunityId, number, title, status: "Draft" as const, salesperson: staff.name, createdAt: now,
       introHeading: "", introText: "", clientMessage: "", contract: defaults?.contract ?? DEFAULT_CONTRACT, depositPercent: 0, totalCents: 0,
       clientView: { quantities: true, unitPrices: true, lineTotals: true, totals: true }, searchText: "",
     };
@@ -82,6 +97,7 @@ const lineV = v.object({
   name: v.string(),
   description: v.string(),
   imageId: v.optional(v.id("_storage")),
+  imagePath: v.optional(v.string()),
   quantity: v.number(),
   unitPriceCents: v.number(),
   optional: v.boolean(),
@@ -147,7 +163,7 @@ export const save = mutation({
     }
     for (const [position, l] of a.lines.entries()) {
       const fields = {
-        position, name: l.name.trim(), description: l.kind === "text" ? "" : l.description, imageId: l.imageId, quantity: l.kind === "text" ? 1 : l.quantity,
+        position, name: l.name.trim(), description: l.kind === "text" ? "" : l.description, imageId: l.imageId, imagePath: l.imageId || l.imagePath === undefined || !isProductPhotoPath(l.imagePath) ? undefined : l.imagePath, quantity: l.kind === "text" ? 1 : l.quantity,
         unitPriceCents: l.kind === "text" ? 0 : l.unitPriceCents, optional: l.kind === "text" ? false : l.optional, selected: l.selected, kind: l.kind, catalogueName: l.catalogueName,
       };
       const existing = l.id ? old.find((o) => o._id === l.id) : undefined;

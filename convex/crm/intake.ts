@@ -7,6 +7,7 @@ import { clientSearchText, opportunitySearchText } from "./lib/clientInput";
 import { cleanEmail, cleanName, cleanZip, formatPhone } from "./lib/fields";
 import { TURF_NAME, TURF_SLUG } from "./lib/businessNames";
 import { SALES_STAGES } from "./lib/stages";
+import { linesFromForm } from "./lib/formLines";
 
 /* What happens when someone fills in the customer form (D-040):
      1. If they are not already a client of the business, a client is created. Already a client means the same email, or the
@@ -94,7 +95,9 @@ async function record(ctx: MutationCtx, project: Doc<"projects">) {
   const title = titleFor(s.services);
   const code = project.shortCode ?? "";
   const stage = SALES_STAGES[0]; // New Request
+  const formLines = linesFromForm(project);
   const opportunityId = await ctx.db.insert("opportunities", {
+    ...(formLines.length ? { lines: formLines } : {}),
     businessId: client.businessId,
     clientId: client._id,
     code,

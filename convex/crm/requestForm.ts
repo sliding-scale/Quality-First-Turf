@@ -1,3 +1,4 @@
+import { linesFromForm } from "./lib/formLines";
 import { ConvexError, v } from "convex/values";
 import type { Doc } from "../_generated/dataModel";
 import { mutation } from "../_generated/server";
@@ -140,7 +141,9 @@ export const create = mutation({
     // 3. The request, pointing at the forms' record.
     const title = titleFor(args.services);
     const stage = SALES_STAGES[0]; // New Request
+    const formLines = linesFromForm({ services: args.services, products: args.products, answers: args.answers, measurements: args.measurements });
     const opportunityId = await ctx.db.insert("opportunities", {
+      ...(formLines.length ? { lines: formLines } : {}),
       businessId: args.businessId,
       clientId: client._id,
       code,

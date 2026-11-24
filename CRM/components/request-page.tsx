@@ -9,7 +9,7 @@
 import Link from "next/link";
 import { useMutation, useQuery } from "convex/react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { clock } from "@/lib/pipeline";
@@ -82,6 +82,14 @@ function RequestView({ r }: { r: Request }) {
   const resendToJobber = useMutation(api.crm.jobberConsultation.resend);
   const [resending, setResending] = useState(false);
   const setLines = useMutation(api.crm.requests.setLines);
+  // An empty Product / Service section is filled once from what the customer chose on the form (client request, 2026-11-24).
+  const fillLines = useMutation(api.crm.requests.fillLinesFromForm);
+  const triedFill = useRef<string | null>(null);
+  useEffect(() => {
+    if (r.lines.length > 0 || triedFill.current === r.id) return;
+    triedFill.current = r.id;
+    void fillLines({ id: r.id }).catch(() => undefined);
+  }, [r.id, r.lines.length, fillLines]);
   const addNote = useMutation(api.crm.opportunityTasks.addNote);
   const toggleLine = useMutation(api.crm.opportunityTasks.toggleNoteLine);
   const extras = useQuery(api.crm.opportunityTasks.listForProject, { id: r.id });

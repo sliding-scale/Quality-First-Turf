@@ -199,7 +199,7 @@ function Builder({ business, quote, presetClient, presetProject, section }: { bu
     await save({
       id, title: d.title, salesperson: d.salesperson, introHeading: d.introHeading, introText: d.introText, ...(d.introImageId ? { introImageId: d.introImageId } : {}),
       lines: d.lines.map((l) => ({
-        ...(l.id ? { id: l.id } : {}), kind: l.kind, name: l.name, description: l.description, ...(l.imageId ? { imageId: l.imageId } : {}), quantity: l.kind === "text" ? 1 : Number(l.quantity),
+        ...(l.id ? { id: l.id } : {}), kind: l.kind, name: l.name, description: l.description, ...(l.imageId ? { imageId: l.imageId } : l.imageUrl?.startsWith("/images/products/") ? { imagePath: l.imageUrl } : {}), quantity: l.kind === "text" ? 1 : Number(l.quantity),
         unitPriceCents: l.kind === "text" ? 0 : dollarsToCents(l.price), optional: l.optional, selected: l.selected, ...(l.catalogueName ? { catalogueName: l.catalogueName } : {}),
       })),
       ...(m.discountKind ? { discountKind: m.discountKind, discountValue: m.discountValue } : {}), ...(m.taxPercent ? { taxPercent: m.taxPercent } : {}),
