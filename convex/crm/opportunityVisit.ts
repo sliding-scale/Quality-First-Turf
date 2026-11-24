@@ -35,8 +35,19 @@ export const get = query({
       }
       areas.push({ id: row?.areas[i]?.id ?? `form-${i}`, label: w.label, service: w.service ?? "", installType: w.installType ?? "", length: w.length, width: w.width, quantity: w.quantity, notes: w.notes, photos });
     }
+    // Nobody has recorded a work area yet: start from the areas the customer named and sized on the form, so the salesperson confirms them
+    // (and adds photos) instead of typing them again (client request, 2026-11-24).
+    if (!row && areas.length === 0 && form) {
+      for (const [i, m] of form.measurements.entries()) {
+        const size = m.squareFeet ?? m.linearFeet;
+        areas.push({
+          id: `form-${i}`, label: m.label, service: m.service ?? "", installType: m.installType ?? "", length: m.length, width: m.width,
+          quantity: m.length === null && m.width === null ? size : null, notes: "", photos: [],
+        });
+      }
+    }
     return {
-      source: row ? ("crm" as const) : read ? ("form" as const) : ("none" as const),
+      source: row ? ("crm" as const) : read || areas.length > 0 ? ("form" as const) : ("none" as const),
       notes: row?.notes ?? form?.notes ?? "",
       visitedAt: row?.visitedAt ?? (null as number | null),
       canEdit: allows(staff.levels[pipelineModule(o.pipeline)], "edit"),

@@ -130,7 +130,6 @@ function Builder({ business, quote, presetClient, presetProject, section }: { bu
   const [leaving, setLeaving] = useState(false);
   const [clientQuery, setClientQuery] = useState("");
   const [addingClient, setAddingClient] = useState(false);
-  const intro = useRef<HTMLInputElement>(null);
   const attach = useRef<HTMLInputElement>(null);
   const set = (p: Partial<Draft>) => setD((cur) => ({ ...cur, ...p }));
 
@@ -234,17 +233,6 @@ function Builder({ business, quote, presetClient, presetProject, section }: { bu
     }
   }
 
-  async function pickIntro(file: File | undefined) {
-    if (!file) return;
-    if (!file.type.startsWith("image/")) return toast("The picture has to be an image.");
-    try {
-      const id = await uploadFile(await uploadUrl({ businessId: business._id }), file);
-      set({ introImageId: id, introImageUrl: URL.createObjectURL(file) });
-    } catch (e) {
-      toast(failure(e, "The picture could not be uploaded."));
-    }
-  }
-
   async function addFile(file: File | undefined) {
     if (!file || !quote) return;
     try {
@@ -345,18 +333,15 @@ function Builder({ business, quote, presetClient, presetProject, section }: { bu
             <div className="field"><label htmlFor="qb-ih">Heading</label><input id="qb-ih" value={d.introHeading} maxLength={200} onChange={(e) => set({ introHeading: e.target.value })} /></div>
             <div className="field"><label htmlFor="qb-it">Message</label><textarea id="qb-it" value={d.introText} onChange={(e) => set({ introText: e.target.value })} /></div>
           </div>
-          <div className="qb-pic">
-            <input ref={intro} type="file" accept="image/*" hidden onChange={(e) => { void pickIntro(e.target.files?.[0]); e.target.value = ""; }} />
-            {d.introImageUrl ? (
+          {d.introImageUrl && (
+            <div className="qb-pic">
               <div className="qb-thumb">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={d.introImageUrl} alt="" />
                 <button type="button" className="icon-btn" aria-label="Remove the picture" onClick={() => set({ introImageId: undefined, introImageUrl: null })}><Icon name="x" size={18} /></button>
               </div>
-            ) : (
-              <button type="button" className="qb-add-pic" onClick={() => intro.current?.click()}><Icon name="image" size={24} /><span>Add image</span></button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </section>
       )}

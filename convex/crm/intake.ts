@@ -135,3 +135,27 @@ export const backfill = internalMutation({
     return { handled: page.page.length, done: page.isDone };
   },
 });
+
+/**
+ * Fills the empty Product / Service section of every request made from a customer form, from what the customer chose (client request,
+ * 2026-11-24), so earlier requests show product lines without anyone creating a new one. A request that already has lines is left alone,
+ * so it is safe to run again:  npx convex run crm/intake:backfillLines
+ */
+export const backfillLines = internalMutation({
+  args: { cursor: v.optional(v.union(v.string(), v.null())) },
+  handler: async (ctx, args): Promise<{ filled: number; done: boolean }> => {
+    const page = await ctx.db.query("opportunities").order("asc").paginate({ numItems: 50, cursor: args.cursor ?? null });
+    let filled = 0;
+    for (const o of page.page) {
+      if (!o.sourceProjectId || (o.lines?.length ?? 0) > 0 || o.outcome !== undefined) continue;
+      const form = await ctx.db.get(o.sourceProjectId);
+      if (form === null) continue;
+      const lines = linesFromForm(form);
+      if (lines.length === 0) continue;
+      await ctx.db.patch(o._id, { lines });
+      filled++;
+    }
+    if (!page.isDone) await ctx.scheduler.runAfter(0, internal.crm.intake.backfillLines, { cursor: page.continueCursor });
+    return { filled, done: page.isDone };
+  },
+});
