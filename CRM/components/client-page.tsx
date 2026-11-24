@@ -14,7 +14,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { CLIENT_STATUS_LABEL, requestStatus } from "@/convex/crm/lib/stages";
 import { startOfToday, useClient, useClientNotes, useClientProjects, type ClientDoc } from "@/lib/clients";
 import { clientsReturnHref } from "@/lib/clients-place";
-import { BUSINESS_TIME_ZONE, moneyCents, quoteDate, quoteDateTime } from "@/lib/format";
+import { BUSINESS_TIME_ZONE, moneyCents, quoteDate, quoteDateTime, quoteMonthDayTime } from "@/lib/format";
 import { QUOTE_DOT, QUOTE_OPEN_STATUSES } from "@/lib/quotes";
 import { NoteEditor, useUploadPending, type PendingFile } from "./note-editor";
 import { NoteBody } from "./note-view";
@@ -55,7 +55,7 @@ function BackToClients({ className, children }: { className?: string; children: 
   return <Link className={className} href={href}>{children}</Link>;
 }
 
-const noteDate = (ms: number) => new Date(ms).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: BUSINESS_TIME_ZONE });
+const noteDate = quoteMonthDayTime;
 const money = (cents: number) => (cents < 0 ? "-" : "") + moneyCents(Math.abs(cents));
 
 /** "Main phone", "Other email": the label Jobber puts in front of each number and address. */

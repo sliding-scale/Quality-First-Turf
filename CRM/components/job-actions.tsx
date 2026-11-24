@@ -10,7 +10,8 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { moneyCents, quoteDate } from "@/lib/format";
+import { moneyCents, quoteDate, quoteTime } from "@/lib/format";
+import { utcDate } from "@/lib/invoices";
 import { clock, failure } from "@/lib/pipeline";
 import { uploadFile } from "@/lib/quotes";
 export { openText } from "@/lib/sms";
@@ -21,8 +22,7 @@ import { useUI } from "./ui-provider";
 
 export type Job = NonNullable<FunctionReturnType<typeof api.crm.jobs.get>>;
 
-const TZ = "America/Los_Angeles";
-const dateTime = (ms: number) => `${quoteDate(ms)} at ${new Date(ms).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: TZ })}`;
+const dateTime = (ms: number) => `${quoteDate(ms)} at ${quoteTime(ms)}`;
 
 /* ---- The words ---- */
 
@@ -69,10 +69,10 @@ export function jobCostsCsv(job: Job, costs: JobCosts): string {
     }),
     [],
     ["Labor", "Employee", "Date", "Start", "End", "Minutes", "Cost per hour", "Cost"],
-    ...costs.time.map((t) => ["Labor", t.employeeName, quoteDate(t.startAt), new Date(t.startAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: TZ }), new Date(t.endAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: TZ }), t.minutes, d2(t.costPerHourCents), d2(t.costCents)]),
+    ...costs.time.map((t) => ["Labor", t.employeeName, quoteDate(t.startAt), quoteTime(t.startAt), quoteTime(t.endAt), t.minutes, d2(t.costPerHourCents), d2(t.costCents)]),
     [],
     ["Expenses", "Item", "Date", "Description", "Total"],
-    ...costs.expenses.map((x) => ["Expense", x.name, new Date(x.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }), x.description, d2(x.totalCents)]),
+    ...costs.expenses.map((x) => ["Expense", x.name, utcDate(x.date), x.description, d2(x.totalCents)]),
     [],
     ["Revenue", d2(job.totalCents)],
     ["Lines cost", d2(costs.linesCostCents)],

@@ -93,7 +93,7 @@ function Home() {
   return (
     <div className="fade-in">
       <div className="home-top">
-        <div className="eyebrow">{d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</div>
+        <div className="eyebrow">{d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: BUSINESS_TZ })}</div>
         <h1 className="greeting">Good {part}, {first}</h1>
       </div>
 

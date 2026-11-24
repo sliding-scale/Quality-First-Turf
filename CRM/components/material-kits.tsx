@@ -163,7 +163,7 @@ function KitDialog({ businessId, kit, canEdit, canDelete, onClose }: { businessI
           {confirming ? (
             <div className="modal-foot">
               <span className="muted" style={{ marginRight: "auto" }}>Delete this kit? The materials stay.</span>
-              <button type="button" className="btn" disabled={busy} onClick={() => setConfirming(false)}>No</button>
+              <button type="button" className="btn" disabled={busy} onClick={() => setConfirming(false)}>Cancel</button>
               <button type="button" className="btn danger" disabled={busy} onClick={() => { setBusy(true); remove({ id: kit!.id }).then(() => { toast("Kit deleted."); close(); }).catch((err) => { toast(failure(err, "That could not be deleted.")); setBusy(false); }); }}>Yes, delete</button>
             </div>
           ) : (

@@ -11,7 +11,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { moneyCents, quoteDate } from "@/lib/format";
+import { moneyCents, quoteDate, quoteTime } from "@/lib/format";
 import { JOB_PILL, useJob, useJobCosts } from "@/lib/jobs";
 import { clock, failure, usePeople } from "@/lib/pipeline";
 import { todayKey } from "@/lib/schedule";
@@ -45,7 +45,7 @@ export function JobPage({ id }: { id: string }) {
   return <JobView key={job.id} job={job} />;
 }
 
-const timeOf = (ms: number) => new Date(ms).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/Los_Angeles" });
+const timeOf = quoteTime;
 
 function JobView({ job }: { job: Job }) {
   const router = useRouter();

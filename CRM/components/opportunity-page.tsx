@@ -166,6 +166,7 @@ function OverviewTab({ o, timeIn }: { o: Overview; timeIn: number }) {
             <h2>Requested services</h2>
             <div className="op-scroll">
               <table className="table op-table">
+                <colgroup><col style={{ width: "46%" }} /><col style={{ width: "12%" }} /><col style={{ width: "21%" }} /><col style={{ width: "21%" }} /></colgroup>
                 <thead><tr><th>Service</th><th className="num">Qty</th><th className="num">Price</th><th className="num">Total</th></tr></thead>
                 <tbody>{o.requestedLines.map((l, i) => <tr key={i}><td>{l.name}</td><td className="num">{l.quantity}</td><td className="num">{moneyCents(l.unitPriceCents)}</td><td className="num">{moneyCents(l.totalCents)}</td></tr>)}</tbody>
               </table>
@@ -178,6 +179,7 @@ function OverviewTab({ o, timeIn }: { o: Overview; timeIn: number }) {
           {o.confirmed ? (
             <div className="op-scroll">
               <table className="table op-table">
+                <colgroup><col style={{ width: "46%" }} /><col style={{ width: "12%" }} /><col style={{ width: "21%" }} /><col style={{ width: "21%" }} /></colgroup>
                 <thead><tr><th>Service</th><th className="num">Qty</th><th className="num">Price</th><th className="num">Total</th></tr></thead>
                 <tbody>
                   {o.confirmed.lines.map((l, i) => <tr key={i}><td>{l.name}</td><td className="num">{l.quantity}</td><td className="num">{moneyCents(l.unitPriceCents)}</td><td className="num">{moneyCents(l.totalCents)}</td></tr>)}
@@ -229,6 +231,7 @@ function QuotesTab({ o }: { o: Overview }) {
         {quotes === undefined ? <div className="sk" style={{ height: 80 }} /> : quotes.length === 0 ? <p className="muted">No quotes yet.</p> : (
           <div className="op-scroll">
             <table className="table op-table">
+              <colgroup><col style={{ width: "8%" }} /><col style={{ width: "32%" }} /><col style={{ width: "20%" }} /><col style={{ width: "20%" }} /><col style={{ width: "20%" }} /></colgroup>
               <thead><tr><th>#</th><th>Title</th><th>Status</th><th>Sent</th><th className="num">Total</th></tr></thead>
               <tbody>
                 {quotes.map((q) => (
@@ -278,6 +281,7 @@ function VisitTab({ id }: { id: Id<"opportunities"> }) {
         {visit.measurements.length === 0 ? <p className="muted">No measurements.</p> : (
           <div className="op-scroll">
             <table className="table op-table">
+              <colgroup><col style={{ width: "34%" }} /><col style={{ width: "40%" }} /><col style={{ width: "26%" }} /></colgroup>
               <thead><tr><th>Area</th><th>Service</th><th className="num">Size</th></tr></thead>
               <tbody>{visit.measurements.map((m, i) => <tr key={i}><td>{m.label}</td><td>{m.service || "—"}</td><td className="num">{m.unmeasured ? "Not measured" : m.squareFeet !== null ? `${m.squareFeet} sq ft` : m.linearFeet !== null ? `${m.linearFeet} ft` : "—"}</td></tr>)}</tbody>
             </table>

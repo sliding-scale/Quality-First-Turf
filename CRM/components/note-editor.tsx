@@ -14,6 +14,7 @@ import { useWorkspace } from "@/lib/clients";
 import { Icon } from "./icon";
 import { useUI } from "./ui-provider";
 import { useDialogFocus } from "./use-dialog-focus";
+import { quoteMonthDayTime } from "@/lib/format";
 
 export type PendingFile = { id: string; kind: "image" | "audio" | "file"; blob: Blob; name: string; url: string };
 
@@ -49,7 +50,7 @@ export function useUploadPending() {
   };
 }
 
-const stamp = () => new Date().toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+const stamp = () => quoteMonthDayTime(Date.now());
 const clock = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
 export function NoteEditor({ id, value, onChange, files, onFiles, placeholder, rows = 7, autoFocus, disabled, noFiles }: {

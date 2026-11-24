@@ -12,7 +12,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { centsFromText } from "@/convex/crm/lib/catalogue";
 import { formulaInputs } from "@/convex/crm/lib/formula";
 import { READINESS_LABEL } from "@/convex/crm/lib/purchaseOrders";
-import { moneyCents } from "@/lib/format";
+import { moneyCents, quoteMonthDay } from "@/lib/format";
 import { failure } from "@/lib/pipeline";
 import { clock } from "@/lib/pipeline";
 import { Icon } from "./icon";
@@ -105,7 +105,7 @@ function Measurements({ id, t, canEdit }: { id: Id<"opportunities">; t: Takeoff;
             </>
           );
         })()}
-        <p className="muted">{t.updatedAt ? `Saved ${new Date(t.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })} by ${t.updatedByName}.` : "Not saved yet."} Every formula reads these.</p>
+        <p className="muted">{t.updatedAt ? `Saved ${quoteMonthDay(t.updatedAt)} by ${t.updatedByName}.` : "Not saved yet."} Every formula reads these.</p>
         {canEdit && <div className="cat-actions"><button type="submit" className="btn primary" disabled={busy || !dirty}>{busy ? "Saving…" : "Save measurements"}</button></div>}
       </form>
     </section>

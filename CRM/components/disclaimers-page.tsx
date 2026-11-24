@@ -12,14 +12,16 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { MAX_TEXT, MAX_TITLE, checkDisclaimer } from "@/convex/crm/lib/disclaimers";
 import { useWorkspace } from "@/lib/clients";
 import { clock, failure } from "@/lib/pipeline";
+import { ConfirmDelete } from "./confirm-delete";
 import { PipelineModal } from "./pipeline-dialogs";
 import { DisclaimersSkeleton } from "./skeletons";
 import { useStaff } from "./staff-context";
 import { useUI } from "./ui-provider";
+import { quoteDate } from "@/lib/format";
 
 type Item = { id: Id<"disclaimers">; title: string; text: string; updatedAt: number; updatedByName: string };
 
-const when = (ms: number) => new Date(ms).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+const when = quoteDate;
 
 export function DisclaimersPage() {
   const staff = useStaff();
@@ -141,30 +143,14 @@ function DisclaimerForm({ businessId, item, onClose }: { businessId: Id<"busines
 }
 
 function DeleteDisclaimer({ item, onClose }: { item: Item; onClose: () => void }) {
-  const { toast } = useUI();
   const remove = useMutation(api.crm.disclaimers.remove);
-  const [busy, setBusy] = useState(false);
   return (
-    <PipelineModal title="Delete this disclaimer?" onClose={onClose} busy={busy}>
-      {(close) => (
-        <div>
-          <p className="modal-note">&ldquo;{item.title}&rdquo; is removed from the library. Quotes that already attached it keep their copy. This cannot be undone.</p>
-          <div className="modal-foot">
-            <button type="button" className="btn" onClick={close} disabled={busy}>Cancel</button>
-            <button
-              type="button"
-              className="btn danger"
-              disabled={busy}
-              onClick={() => {
-                setBusy(true);
-                remove({ id: item.id }).then(() => { toast("Disclaimer deleted."); close(); }).catch((e) => { toast(failure(e, "That could not be deleted.")); setBusy(false); });
-              }}
-            >
-              Delete
-            </button>
-          </div>
-        </div>
-      )}
-    </PipelineModal>
+    <ConfirmDelete
+      title="Delete this disclaimer?"
+      note={`“${item.title}” is removed from the library. Quotes that already attached it keep their copy. This cannot be undone.`}
+      doneMessage="Disclaimer deleted."
+      action={() => remove({ id: item.id })}
+      onClose={onClose}
+    />
   );
 }

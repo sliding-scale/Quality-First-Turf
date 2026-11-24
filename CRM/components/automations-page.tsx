@@ -22,6 +22,7 @@ import { PipelineModal } from "./pipeline-dialogs";
 import { AutomationsSkeleton } from "./skeletons";
 import { useStaff } from "./staff-context";
 import { useUI } from "./ui-provider";
+import { quoteDateTime } from "@/lib/format";
 
 type Overview = NonNullable<ReturnType<typeof useOverview>>;
 type Automation = Overview["automations"][number];
@@ -44,7 +45,7 @@ const STATUS: Record<RunStatus | "done", { label: string; cls: string }> = {
 };
 
 const nowMs = () => Date.now();
-const when = (ms: number) => new Date(ms).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+const when = quoteDateTime;
 
 export function AutomationsPage() {
   const staff = useStaff();
@@ -199,7 +200,10 @@ function AutomationDialog({ businessId, a, onClose }: { businessId: Id<"business
       {(close) => (
         <form onSubmit={(e) => void submit(e, close)} noValidate>
           <label className="au-switch">
-            <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />
+            <span className="sc-switch">
+              <input type="checkbox" role="switch" checked={active} onChange={(e) => setActive(e.target.checked)} />
+              <span className="track" aria-hidden="true" />
+            </span>
             <span>{active ? "Active" : "Off"}</span>
           </label>
           <div className="au-steps">

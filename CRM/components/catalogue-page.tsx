@@ -284,7 +284,7 @@ function ItemForm({ businessId, doc, newCosts, canEdit, canDelete, onClose }: { 
           {confirming ? (
             <div className="modal-foot">
               <span className="muted" style={{ marginRight: "auto" }}>Delete this item? Quotes and invoices keep their copy.</span>
-              <button type="button" className="btn" disabled={busy} onClick={() => setConfirming(false)}>No</button>
+              <button type="button" className="btn" disabled={busy} onClick={() => setConfirming(false)}>Cancel</button>
               <button type="button" className="btn danger" disabled={busy} onClick={() => { setBusy(true); remove({ id: doc!.id }).then(() => { toast("Item deleted."); close(); }).catch((err) => { toast(failure(err, "That could not be deleted.")); setBusy(false); }); }}>Yes, delete</button>
             </div>
           ) : (

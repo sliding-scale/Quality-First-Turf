@@ -22,6 +22,7 @@ import { DeleteMemberDialog } from "./delete-member-dialog";
 import { UsersSkeleton } from "./skeletons";
 import { useStaff } from "./staff-context";
 import { useUI } from "./ui-provider";
+import { quoteDate, quoteDateTime } from "@/lib/format";
 
 type UserDoc = Doc<"users">;
 type SortKey = "name" | "roles" | "lastActive" | "status";
@@ -34,7 +35,7 @@ const STATUS_PILL: Record<UserDoc["status"], { label: string; cls: string }> = {
   deleted: { label: "Deleted", cls: "draft" },
 };
 
-const day = (ms: number) => new Date(ms).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+const day = quoteDate;
 
 /** What the status pill's hover text says: when an invitation runs out, or that it already has. */
 function statusHint(u: UserDoc) {
@@ -49,8 +50,7 @@ const initials = (name: string) =>
 /** "11/05/2026 at 20:35", or a dash for someone who has never logged in. */
 function lastActive(ms: number | undefined) {
   if (!ms) return "—";
-  const d = new Date(ms);
-  return `${d.toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" })} at ${d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false })}`;
+  return quoteDateTime(ms);
 }
 
 export function UsersPage() {

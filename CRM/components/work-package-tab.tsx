@@ -12,6 +12,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { centsFromText } from "@/convex/crm/lib/catalogue";
 import { budgetTotalCents, lineTotalCents } from "@/convex/crm/lib/workPackage";
 import { moneyCents, quoteDateTime } from "@/lib/format";
+import { utcDate } from "@/lib/invoices";
 import { clock, failure } from "@/lib/pipeline";
 import { Icon } from "./icon";
 import { useStaff } from "./staff-context";
@@ -22,7 +23,7 @@ type Row = { description: string; quantity: string; unit: string; rate: string }
 
 export const dayKey = (ms: number | null) => (ms === null ? "" : new Date(ms).toISOString().slice(0, 10));
 export const dayFromKey = (k: string) => (k ? Date.parse(`${k}T00:00:00Z`) : undefined);
-export const dayLabel = (ms: number) => new Date(ms).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+export const dayLabel = utcDate;
 
 const toRow = (l: Pkg["budgetLines"][number]): Row => ({ description: l.description, quantity: String(l.quantity), unit: l.unit, rate: (l.rateCents / 100).toFixed(2) });
 

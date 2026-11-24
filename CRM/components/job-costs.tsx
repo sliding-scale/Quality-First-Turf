@@ -11,7 +11,7 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { centsFromText } from "@/convex/crm/lib/catalogue";
 import { laborCostCents, minutesBetween } from "@/convex/crm/lib/jobCosts";
-import { moneyCents, quoteDate } from "@/lib/format";
+import { moneyCents, quoteDate, quoteTime } from "@/lib/format";
 import { inputToUtc, todayInput, utcDate, utcToInput } from "@/lib/invoices";
 import { clock, failure } from "@/lib/pipeline";
 import { uploadFile } from "@/lib/quotes";
@@ -23,7 +23,7 @@ import { useUI } from "./ui-provider";
 export type JobCosts = NonNullable<FunctionReturnType<typeof api.crm.jobCosts.get>>;
 type Person = { id: string; name: string };
 const dollars = (cents: number) => (cents / 100).toFixed(2);
-const timeLabel = (ms: number) => new Date(ms).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/Los_Angeles" });
+const timeLabel = quoteTime;
 const hoursText = (minutes: number) => `${Math.floor(minutes / 60)}h${minutes % 60 ? ` ${minutes % 60}m` : ""}`;
 const LATER = "Reading a receipt for you needs a service that is not set up yet";
 

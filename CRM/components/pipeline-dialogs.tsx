@@ -164,8 +164,8 @@ export function AddTaskDialog({ projectId, businessId, people, task, defaultAssi
             {task && (
               sure ? (
                 <>
-                  <span className="muted" style={{ marginRight: "auto" }}>Delete this task for good?</span>
-                  <button type="button" className="btn plain" onClick={() => setSure(false)} disabled={busy}>Keep it</button>
+                  <span className="muted" style={{ marginRight: "auto" }}>Delete this task? This cannot be undone.</span>
+                  <button type="button" className="btn plain" onClick={() => setSure(false)} disabled={busy}>Cancel</button>
                   <button
                     type="button"
                     className="btn danger"
@@ -182,11 +182,11 @@ export function AddTaskDialog({ projectId, businessId, people, task, defaultAssi
                         setSure(false);
                       }
                     }}
-                  >Delete</button>
+                  >Yes, delete</button>
                 </>
               ) : (
                 <>
-                  <button type="button" className="btn plain" style={{ marginRight: "auto" }} onClick={() => setSure(true)} disabled={busy}>Delete</button>
+                  <button type="button" className="btn danger" style={{ marginRight: "auto" }} onClick={() => setSure(true)} disabled={busy}>Delete</button>
                   <button type="button" className="btn plain" onClick={close} disabled={busy}>Cancel</button>
                   <button type="submit" className="btn primary" disabled={busy}>{busy ? "Saving…" : "Save"}</button>
                 </>

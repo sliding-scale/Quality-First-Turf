@@ -12,6 +12,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { useWorkspace } from "@/lib/clients";
 import { useTextingStatus } from "@/lib/messages";
 import { clock, failure } from "@/lib/pipeline";
+import { ConfirmDelete } from "./confirm-delete";
 import { PipelineModal } from "./pipeline-dialogs";
 import { DisclaimersSkeleton } from "./skeletons";
 import { useStaff } from "./staff-context";
@@ -31,7 +32,7 @@ export function PhoneNumbersPage() {
   const numbers = useQuery(api.crm.phoneNumbers.list, businessId && allowed ? { businessId } : "skip");
   const status = useTextingStatus(businessId, allowed);
   const [adding, setAdding] = useState(false);
-  const { toast } = useUI();
+  const [removing, setRemoving] = useState<{ id: Id<"phoneNumbers">; display: string } | null>(null);
   const remove = useMutation(api.crm.phoneNumbers.remove);
 
   if (!allowed) {
@@ -68,7 +69,7 @@ export function PhoneNumbersPage() {
             <li key={n.id} className="card dc-item">
               <div className="dc-body"><h3>{n.display}{i === 0 && <span className="pill active cat-off"><span className="dot" />Sends from this</span>}</h3><p>{n.label || "No label"}</p></div>
               <div className="dc-actions">
-                <button type="button" className="btn danger" onClick={() => void remove({ id: n.id as Id<"phoneNumbers"> }).then(() => toast("Number removed.")).catch((e) => toast(failure(e, "That could not be removed.")))}>Remove</button>
+                <button type="button" className="btn danger" onClick={() => setRemoving({ id: n.id as Id<"phoneNumbers">, display: n.display })}>Remove</button>
               </div>
             </li>
           ))}
@@ -83,6 +84,17 @@ export function PhoneNumbersPage() {
       </section>
 
       {adding && <AddNumber businessId={businessId} onClose={() => setAdding(false)} />}
+      {removing && (
+        <ConfirmDelete
+          title="Remove this number?"
+          note={`${removing.display} is removed from this business's numbers. Texts already sent and received stay in the log, and you can add the number again later.`}
+          confirmLabel="Remove"
+          doneMessage="Number removed."
+          failMessage="That could not be removed."
+          action={() => remove({ id: removing.id })}
+          onClose={() => setRemoving(null)}
+        />
+      )}
     </div>
   );
 }

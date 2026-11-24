@@ -14,7 +14,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { useClientProjects, useWorkspace, type BusinessDoc } from "@/lib/clients";
 import { money, moneyCents } from "@/lib/format";
 import {
-  centsToInput, dollarsToCents, inputToUtc, invoiceTotals, PAYMENT_METHODS, PAYMENT_TERMS, spreadDue, todayInput, todayUtc, useBilling, useDeposits, useInvoice, useInvoiceDefaults, utcToInput,
+  centsToInput, dollarsToCents, inputToUtc, invoiceTotals, PAYMENT_METHODS, PAYMENT_TERMS, spreadDue, todayInput, todayUtc, useBilling, useDeposits, useInvoice, useInvoiceDefaults, utcToInput, utcDate
 } from "@/lib/invoices";
 import { clock, failure, usePeople } from "@/lib/pipeline";
 import { useClientSearch } from "@/lib/quotes";
@@ -122,7 +122,7 @@ function Starter({ business, presetClient, presetProject, scheduleItemId }: { bu
   return <Builder business={business} initial={draft} schedule={scheduleItemId && billing ? { rowCents: billing.rows.find((r) => r.id === scheduleItemId)?.amountCents ?? 0, description: billing.rows.find((r) => r.id === scheduleItemId)?.description ?? "", index: billing.rows.findIndex((r) => r.id === scheduleItemId), count: billing.rows.length, totalCents: billing.billingTotalCents } : undefined} />;
 }
 
-const utcLabel = (ms: number) => new Date(ms).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+const utcLabel = utcDate;
 
 export function EditInvoicePage({ id }: { id: string }) {
   const workspace = useWorkspace();

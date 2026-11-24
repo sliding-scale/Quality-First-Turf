@@ -10,6 +10,7 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useWorkspace } from "@/lib/clients";
 import { clock, failure } from "@/lib/pipeline";
+import { ConfirmDelete } from "./confirm-delete";
 import { PipelineModal } from "./pipeline-dialogs";
 import { DisclaimersSkeleton } from "./skeletons";
 import { useStaff } from "./staff-context";
@@ -125,20 +126,14 @@ function TemplateForm({ businessId, template, onClose }: { businessId: Id<"busin
 }
 
 function DeleteTemplate({ template, onClose }: { template: Template; onClose: () => void }) {
-  const { toast } = useUI();
   const remove = useMutation(api.crm.checklists.removeTemplate);
-  const [busy, setBusy] = useState(false);
   return (
-    <PipelineModal title="Delete this checklist?" onClose={onClose} busy={busy}>
-      {(close) => (
-        <div>
-          <p className="modal-note">&ldquo;{template.name}&rdquo; is removed from the list. Jobs that already have it keep their copy. This cannot be undone.</p>
-          <div className="modal-foot">
-            <button type="button" className="btn" onClick={close} disabled={busy}>Cancel</button>
-            <button type="button" className="btn danger" disabled={busy} onClick={() => { setBusy(true); remove({ id: template.id }).then(() => { toast("Checklist deleted."); close(); }).catch((e) => { toast(failure(e, "That could not be deleted.")); setBusy(false); }); }}>Delete</button>
-          </div>
-        </div>
-      )}
-    </PipelineModal>
+    <ConfirmDelete
+      title="Delete this checklist?"
+      note={`“${template.name}” is removed from the list. Jobs that already have it keep their copy. This cannot be undone.`}
+      doneMessage="Checklist deleted."
+      action={() => remove({ id: template.id })}
+      onClose={onClose}
+    />
   );
 }

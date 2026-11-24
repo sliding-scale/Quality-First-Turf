@@ -162,6 +162,7 @@ export function BillingTab({ id }: { id: Id<"opportunities"> }) {
         <div className="bt-body flush">
           {b.invoices.length === 0 ? <p className="sc-muted bt-pad">No invoices for this project yet.</p> : (
             <table className="table op-table">
+              <colgroup><col style={{ width: "12%" }} /><col style={{ width: "28%" }} /><col style={{ width: "16%" }} /><col style={{ width: "14%" }} /><col style={{ width: "15%" }} /><col style={{ width: "15%" }} /></colgroup>
               <thead><tr><th>Invoice</th><th>Subject</th><th>Status</th><th>Due</th><th className="num">Total</th><th className="num">Balance</th></tr></thead>
               <tbody>
                 {b.invoices.map((i) => (
@@ -188,6 +189,7 @@ export function BillingTab({ id }: { id: Id<"opportunities"> }) {
         <div className="bt-body flush">
           {b.payments.length === 0 ? <p className="sc-muted bt-pad">No payments for this project yet.</p> : (
             <table className="table op-table">
+              <colgroup><col style={{ width: "30%" }} /><col style={{ width: "40%" }} /><col style={{ width: "30%" }} /></colgroup>
               <thead><tr><th>Date</th><th>Method</th><th className="num">Amount</th></tr></thead>
               <tbody>{b.payments.map((p) => (<tr key={p.id}><td>{utcDate(p.paidAt)}</td><td>{p.method}</td><td className="num">{moneyCents(p.amountCents)}</td></tr>))}</tbody>
             </table>

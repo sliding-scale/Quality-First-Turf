@@ -32,3 +32,15 @@ export const quoteDate = (ms: number) =>
 
 export const quoteDateTime = (ms: number) =>
   `${quoteDate(ms)}, ${new Date(ms).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: BUSINESS_TIME_ZONE })}`;
+
+/* The other ways a moment is shown. All of them are in the business's time zone, so a time reads the same for everyone. Dates that are stored
+   as a calendar day (invoice dates, expense dates, work-package days) are shown in UTC instead: `utcDate` in lib/invoices.ts. */
+export const quoteTime = (ms: number) =>
+  new Date(ms).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: BUSINESS_TIME_ZONE });
+
+/** "Nov 23", no year. */
+export const quoteMonthDay = (ms: number) =>
+  new Date(ms).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: BUSINESS_TIME_ZONE });
+
+/** "Nov 23, 3:00 PM", no year: for things that happened recently, such as a note's time. */
+export const quoteMonthDayTime = (ms: number) => `${quoteMonthDay(ms)}, ${quoteTime(ms)}`;

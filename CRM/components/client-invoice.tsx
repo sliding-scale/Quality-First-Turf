@@ -65,6 +65,7 @@ function ClientInvoice({ token, preview }: { token: string; preview: boolean }) 
       <section className="cq-card" aria-label="Products and services">
         <h2>Product / Service</h2>
         <table className="table ci-table">
+          <colgroup><col />{showQty && <col style={{ width: "12%" }} />}{showPrice && <col style={{ width: "20%" }} />}{showTotal && <col style={{ width: "20%" }} />}</colgroup>
           <thead><tr><th>Item</th>{showQty && <th className="num">Qty</th>}{showPrice && <th className="num">Unit price</th>}{showTotal && <th className="num">Total</th>}</tr></thead>
           <tbody>
             {inv.lines.map((l) => (

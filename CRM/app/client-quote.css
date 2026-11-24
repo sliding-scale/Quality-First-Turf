@@ -15,9 +15,9 @@
 .cq-text.small { font-size: 13px; color: var(--muted); }
 .cq-banner { padding: 12px 14px; border-radius: var(--radius); display: grid; gap: 4px; font-size: 15px; animation: fade-in 0.2s ease-out both; }
 .cq-banner p { margin: 0; overflow-wrap: anywhere; }
-.cq-banner.good { background: #e8f3e3; border: 1px solid #b7d8a9; }
+.cq-banner.good { background: var(--green-soft); border: 1px solid #b7d8a9; }
 .cq-banner.warn { background: #fff4d6; border: 1px solid #f1d98a; }
-.cq-banner.bad { background: var(--error-soft); border: 1px solid #f0b8b2; }
+.cq-banner.bad { background: var(--error-soft); border: 1px solid var(--error-edge); }
 
 .cq-lines { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
 .cq-lines li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--shell); align-items: start; transition: opacity 0.15s ease; }
@@ -42,7 +42,7 @@
 .cq-files a { color: var(--green); text-decoration: underline; overflow-wrap: anywhere; }
 
 .cq-actions { display: flex; gap: 10px; flex-wrap: wrap; position: sticky; bottom: 0; padding: 12px 0; background: linear-gradient(to top, var(--white) 70%, transparent); z-index: 5; }
-.cq-btn { min-height: 48px; padding: 0 20px; border: 1px solid #9aa6ac; border-radius: var(--radius); background: var(--white); color: var(--ink); font-weight: 700; font-size: 16px; cursor: pointer; transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.1s ease; }
+.cq-btn { min-height: 48px; padding: 0 20px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--white); color: var(--ink); font-weight: 700; font-size: 16px; cursor: pointer; transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.1s ease; }
 .cq-btn:hover:not(:disabled) { background: var(--hover); }
 .cq-btn:active:not(:disabled) { transform: scale(0.98); }
 .cq-btn.primary { background: var(--green); border-color: var(--green); color: var(--white); }
@@ -53,11 +53,11 @@
 .cq-form { gap: 14px; animation: fade-in 0.2s ease-out both; }
 .cq-field { display: grid; gap: 6px; }
 .cq-field label { font-weight: 600; font-size: 14px; }
-.cq-field input, .cq-field textarea { min-height: 48px; border: 1px solid #9aa6ac; border-radius: var(--radius); padding: 10px 12px; font-size: 16px; width: 100%; }
+.cq-field input, .cq-field textarea { min-height: 48px; border: 1px solid var(--line-strong); border-radius: var(--radius); padding: 10px 12px; font-size: 16px; width: 100%; }
 .cq-field textarea { min-height: 110px; resize: vertical; }
 .cq-field input:focus, .cq-field textarea:focus { outline: 2px solid var(--green); }
 .cq-err { display: none; color: var(--error); font-size: 13px; }
-.cq-field.bad input, .cq-field.bad textarea { border-color: var(--error); background: #fff6f5; }
+.cq-field.bad input, .cq-field.bad textarea { border-color: var(--error); background: var(--error-wash); }
 .cq-field.bad .cq-err { display: block; }
 .cq-field.bad label { color: var(--error); }
 .cq-agree { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; cursor: pointer; }
