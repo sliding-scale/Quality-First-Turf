@@ -1854,3 +1854,21 @@ a.qs-chip:active { background: var(--shell); }
 .menu.filter .mm-av { width: 32px; height: 32px; border-radius: 50%; flex: none; display: inline-grid; place-items: center; background: var(--ink); color: var(--white); font-size: 12px; font-weight: 700; }
 .menu.filter .mm-av.none { background: none; color: var(--error); border: 2px solid var(--error); }
 .mm-foot { display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; border-top: 1px solid var(--line-soft); }
+
+/* Payment Details (Jobber's layout): status, a large amount, the client card and the details. */
+.pay-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.pay-head .who a { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.pay-head .qh-actions, .pay-head .actions { display: flex; align-items: center; gap: 10px; }
+.pay-status { margin: 24px 0 0; }
+.pay-amount { margin: 12px 0 24px; font-size: 44px; line-height: 1.1; }
+.pay-client { padding: 20px 24px; line-height: 1.5; }
+.pay-client h3 { margin: 0 0 10px; font-size: 18px; }
+.pay-client h3 a { color: var(--ink); text-decoration: none; }
+.pay-client h3 a:hover { text-decoration: underline; }
+.pay-contact { display: flex; flex-direction: column; gap: 2px; margin-top: 12px; }
+.pay-details { margin-top: 32px; padding-top: 28px; border-top: 1px solid var(--line-soft); }
+.pay-details h2 { margin: 0 0 18px; }
+.pay-details dl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px 24px; margin: 0; }
+.pay-details dt { color: var(--muted); font-size: 14px; margin-bottom: 4px; }
+.pay-details dd { margin: 0; color: var(--ink); }
+@media (max-width: 700px) { .pay-details dl { grid-template-columns: minmax(0, 1fr); } .pay-amount { font-size: 34px; } }

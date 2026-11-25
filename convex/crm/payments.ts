@@ -66,6 +66,30 @@ export const list = query({
 });
 
 /** The two cards on the Payments page: how long invoices take to be paid, and how many are paid on time. */
+/** One payment, for its own page (Jobber's Payment Details): who paid, how much, when, how, and what it was applied to. null when it does not exist. */
+export const get = query({
+  args: { id: v.id("payments") },
+  handler: async (ctx, a) => {
+    const p = await ctx.db.get(a.id);
+    if (p === null) return null;
+    await requireModule(ctx, p.businessId, "payments", "view");
+    const client = await ctx.db.get(p.clientId);
+    const quote = p.quoteId ? await ctx.db.get(p.quoteId) : null;
+    const applied = [];
+    for (const al of await allocationsOfPayment(ctx, p._id)) {
+      const inv = await ctx.db.get(al.invoiceId);
+      if (inv) applied.push({ invoiceId: inv._id, number: inv.number, amountCents: al.amountCents });
+    }
+    return {
+      id: p._id, businessId: p.businessId, clientId: p.clientId, amountCents: p.amountCents, method: p.method, paidAt: p.paidAt, reference: p.reference, details: p.details,
+      source: p.source, unappliedCents: await unappliedOf(ctx, p),
+      client: client ? { name: client.name, street1: client.street1, street2: client.street2, city: client.city, state: client.state, zip: client.zip, phone: client.phone, email: client.email } : null,
+      quote: quote ? { id: quote._id, number: quote.number } : null,
+      invoices: applied,
+    };
+  },
+});
+
 export const stats = query({
   args: { businessId: v.id("businesses"), now: v.number() },
   handler: async (ctx, a) => {

@@ -1128,3 +1128,17 @@ export function SettingsFormSkeleton() {
     </Busy>
   );
 }
+
+export function PaymentSkeleton() {
+  return (
+    <Busy>
+      <div className="page pay-page">
+        <div className="qh-row"><div className="who"><Sk w={110} h={18} /></div><div className="qh-actions"><Sk w={92} h={40} r={8} /><Sk w={130} h={40} r={8} /></div></div>
+        <div className="pay-status"><Sk w={96} h={24} r={999} /></div>
+        <Sk w={200} h={48} style={{ marginTop: 14 }} />
+        <section className="card pay-client"><Sk w="40%" h={22} /><Sk w="30%" h={16} style={{ marginTop: 14 }} /><Sk w="25%" h={16} style={{ marginTop: 8 }} /></section>
+        <section className="pay-details"><Sk w={120} h={28} />{range(3).map((i) => <Sk key={i} w="60%" h={16} style={{ marginTop: 14 }} />)}</section>
+      </div>
+    </Busy>
+  );
+}

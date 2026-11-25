@@ -150,7 +150,7 @@ function Payments({ business }: { business: BusinessDoc }) {
           <tbody>
             {rows.length ? (
               rows.map((r) => (
-                <tr key={r.id} className="click" onClick={() => router.push(r.invoice ? `/invoices/${r.invoice.id}` : r.quote ? `/quotes/${r.quote.id}` : `/clients/${r.clientId}`)}>
+                <tr key={r.id} className="click" onClick={() => router.push(`/payments/${r.id}`)}>
                   <td>
                     <div className="strong" title={r.clientName}>{r.clientName}</div>
                     {r.invoice && <div className="sub"><Link href={`/invoices/${r.invoice.id}`} onClick={(e) => e.stopPropagation()}>Invoice #{r.invoice.number}</Link></div>}
