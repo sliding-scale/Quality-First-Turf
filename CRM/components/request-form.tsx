@@ -175,7 +175,7 @@ function Form({ business }: { business: BusinessDoc }) {
             </div>
           </div>
           <dl className="qb-meta">
-            <div><dt>Requested on</dt><dd>{quoteDate(Date.now())}</dd></div>
+            <div><dt>Requested on</dt><dd>{quoteDate(clock())}</dd></div>
             <div>
               <dt>Salesperson</dt>
               <dd>

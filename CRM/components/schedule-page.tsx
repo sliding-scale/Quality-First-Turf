@@ -13,7 +13,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { useWorkspace, type BusinessDoc } from "@/lib/clients";
 import { clock, failure, useMinute, usePeople } from "@/lib/pipeline";
 import {
-  BUSINESS_TZ, ITEM_TYPES, VIEWS, addDays, addMonths, isKey, monthDays, monthTitle, parseKey, todayKey, useAvailability, useRange, useScheduleSettings, useUnscheduled, windowOf,
+  BUSINESS_TZ, ITEM_TYPES, VIEWS, addDays, addMonths, isKey, monthDays, monthTitle, parseKey, todayKey, useAvailability, useRange, useScheduleSettings, useUnscheduled, windowOf, initials,
   type RangeFilters, type ScheduleItem, type View,
 } from "@/lib/schedule";
 import { EmptyBackend } from "./empty-backend";
@@ -153,8 +153,8 @@ function Schedule({ business }: { business: BusinessDoc }) {
     }
   }
 
-  const multi = (anchor: HTMLElement, label: string, options: { value: string; label: string }[], selected: string[], set: (v: string[]) => void) =>
-    popover(anchor, () => <MultiMenu label={label} options={options} selected={selected} onChange={set} />, { className: "filter" });
+  const multi = (anchor: HTMLElement, options: { value: string; label: string }[], selected: string[], set: (v: string[]) => void, avatars = false) =>
+    popover(anchor, () => <MultiMenu options={options} selected={selected} onChange={set} avatars={avatars} />, { className: "filter" });
 
   return (
     <div className="sc fade-in">
@@ -197,9 +197,9 @@ function Schedule({ business }: { business: BusinessDoc }) {
           >
             Find a Time
           </button>
-          <button type="button" className="chip" onClick={(e) => multi(e.currentTarget, "Search", TYPE_OPTIONS.map((t) => ({ value: t, label: TYPE_NAME[t] })), types, setTypes)}>Type<span className="sep" /><b>{typeLabel}</b></button>
-          <button type="button" className="chip" onClick={(e) => multi(e.currentTarget, "Search", [...roster.map((p) => ({ value: p.id, label: p.name })), { value: "unassigned", label: "Unassigned" }], team as string[], (v) => setTeam(v as typeof team))}>Team<span className="sep" /><b>{teamLabel}</b></button>
-          <button type="button" className="chip" onClick={(e) => multi(e.currentTarget, "Search", STATUS_OPTIONS.map((s) => ({ value: s[0], label: s[1] })), statuses, setStatuses)}>Status<span className="sep" /><b>{statusLabel}</b></button>
+          <button type="button" className="chip" onClick={(e) => multi(e.currentTarget, TYPE_OPTIONS.map((t) => ({ value: t, label: TYPE_NAME[t] })), types, setTypes)}>Type<span className="sep" /><b>{typeLabel}</b></button>
+          <button type="button" className="chip" onClick={(e) => multi(e.currentTarget, [...roster.map((p) => ({ value: p.id, label: p.name })), { value: "unassigned", label: "Unassigned" }], team as string[], (v) => setTeam(v as typeof team), true)}>Team<span className="sep" /><b>{teamLabel}</b></button>
+          <button type="button" className="chip" onClick={(e) => multi(e.currentTarget, STATUS_OPTIONS.map((s) => ({ value: s[0], label: s[1] })), statuses, setStatuses)}>Status<span className="sep" /><b>{statusLabel}</b></button>
         </div>
         <div className="sc-tools">
           <span className="sc-info" tabIndex={0} aria-label={`Times shown are in the business time zone (${BUSINESS_TZ})`} data-tip={`Times shown are in the business time zone (${BUSINESS_TZ})`}><Icon name="help" size={20} /></span>
@@ -211,7 +211,6 @@ function Schedule({ business }: { business: BusinessDoc }) {
           <button type="button" className={`btn icon sc-unbtn${showUnscheduled ? " on" : ""}`} aria-label="Unscheduled appointments" data-tip="Unscheduled appointments" aria-pressed={showUnscheduled} onClick={() => setShowUnscheduled((s) => !s)}>
             <Icon name="calendar" size={18} /><span className="pl-badge small">{unscheduled?.length ?? 0}</span>
           </button>
-          <button type="button" className="btn icon" disabled aria-label="Map" data-tip="The map needs a map service, which is not set up yet"><Icon name="pin" size={18} /></button>
           <button
             type="button"
             className="btn sc-toolmore"
@@ -290,29 +289,37 @@ function Schedule({ business }: { business: BusinessDoc }) {
   );
 }
 
-/** A searchable list of ticks with "N selected", Clear and Select all (Jobber's Type, Team and Status filters). */
-function MultiMenu({ options, selected, onChange }: { label: string; options: { value: string; label: string }[]; selected: string[]; onChange: (v: string[]) => void }) {
+/** A searchable list of ticks, laid out like Jobber's Type, Team and Status filters: the choices (with a round badge for people), a tick on each
+ *  chosen one, and Select All and Clear under them. The ticks are kept here, so they change the moment one is clicked (the menu is drawn once
+ *  and does not see the page's state change). Everything ticked is the same as no filter; Clear unticks them so a few can be picked. */
+function MultiMenu({ options, selected, onChange, avatars }: { options: { value: string; label: string }[]; selected: string[]; onChange: (v: string[]) => void; avatars: boolean }) {
   const [q, setQ] = useState("");
+  const [ticked, setTicked] = useState<string[]>(selected.length === 0 ? options.map((o) => o.value) : selected);
   const shown = options.filter((o) => o.label.toLowerCase().includes(q.trim().toLowerCase()));
-  const toggle = (v: string) => onChange(selected.includes(v) ? selected.filter((s) => s !== v) : [...selected, v]);
+  const apply = (next: string[]) => {
+    setTicked(next);
+    onChange(next.length === options.length ? [] : next);
+  };
+  const toggle = (v: string) => apply(ticked.includes(v) ? ticked.filter((t) => t !== v) : [...ticked, v]);
+  const all = ticked.length === options.length;
   return (
     <>
       <input className="menu-search" type="search" placeholder="Search" aria-label="Search" value={q} onChange={(e) => setQ(e.target.value)} autoFocus />
-      <div className="pl-leadhead">
-        <span>{selected.length === 0 ? "All" : `${selected.length} selected`}</span>
-        <span style={{ display: "flex", gap: 12 }}>
-          <button type="button" className="pl-clear" onClick={() => onChange(options.map((o) => o.value))} disabled={selected.length === options.length}>Select all</button>
-          <button type="button" className="pl-clear" onClick={() => onChange([])} disabled={selected.length === 0}>Clear</button>
-        </span>
-      </div>
       <div className="menu-list" role="listbox" aria-multiselectable="true">
         {shown.map((o) => (
-          <button key={o.value} type="button" role="option" aria-selected={selected.includes(o.value)} className="opt" onClick={() => toggle(o.value)}>
+          <button key={o.value} type="button" role="option" aria-selected={ticked.includes(o.value)} className="opt" onClick={() => toggle(o.value)}>
+            {avatars && (o.value === "unassigned"
+              ? <span className="mm-av none" aria-hidden="true"><Icon name="x" size={16} /></span>
+              : <span className="mm-av" aria-hidden="true">{initials(o.label)}</span>)}
             <span>{o.label}</span>
-            {selected.includes(o.value) && <Icon name="check" size={22} className="tick" />}
+            {ticked.includes(o.value) && <Icon name="check" size={22} className="tick" />}
           </button>
         ))}
         {shown.length === 0 && <div className="menu-empty">No matches</div>}
+      </div>
+      <div className="mm-foot">
+        <button type="button" className="btn small" onClick={() => apply(options.map((o) => o.value))} disabled={all}>Select All</button>
+        <button type="button" className="pl-clear" onClick={() => apply([])} disabled={ticked.length === 0}>Clear</button>
       </div>
     </>
   );

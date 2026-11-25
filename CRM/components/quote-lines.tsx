@@ -21,6 +21,8 @@ export type DraftLine = {
   description: string;
   imageId?: Id<"_storage">;
   imageUrl: string | null;
+  /** Photos from the visit, one per work-area photo for this line's service. */
+  visitPhotos?: { id: Id<"_storage">; url: string }[];
   quantity: string;
   price: string;
   optional: boolean;
@@ -34,8 +36,8 @@ export const newLine = (kind: "item" | "text", over: Partial<DraftLine> = {}): D
 });
 
 /** The lines the site visit works out (`crm.quotePrices.fromVisit`), as draft lines. A price the list does not have is 0.00, to be typed in. */
-export const draftLinesFromVisit = (lines: { name: string; quantity: number; priceCents: number | null; imagePath?: string | null }[]): DraftLine[] =>
-  lines.map((l) => newLine("item", { name: l.name, quantity: String(l.quantity), price: l.priceCents === null ? "0.00" : centsToInput(l.priceCents), catalogueName: l.name, imageUrl: l.imagePath ?? null }));
+export const draftLinesFromVisit = (lines: { name: string; quantity: number; priceCents: number | null; imagePath?: string | null; photos?: { id: Id<"_storage">; url: string }[] }[]): DraftLine[] =>
+  lines.map((l) => newLine("item", { name: l.name, quantity: String(l.quantity), price: l.priceCents === null ? "0.00" : centsToInput(l.priceCents), catalogueName: l.name, imageUrl: l.imagePath ?? null, visitPhotos: l.photos ?? [] }));
 
 /** A line's total in cents; NaN while a box holds something that is not a number. */
 export function lineCents(l: DraftLine): number {
@@ -122,6 +124,17 @@ export function QuoteLines({ businessId, clientId, projectId, lines, onChange, b
                   <textarea id={`d-${l.key}`} value={l.description} disabled={readOnly} onChange={(e) => patch(l.key, { description: e.target.value })} />
                 </div>
                 {/* Pictures are added in the consultation worksheet (client request, 2026-11-24); a line only shows the one that came from there. */}
+                {(l.visitPhotos?.length ?? 0) > 0 && (
+                  <div className="qb-pic qb-visitpics">
+                    {l.visitPhotos!.map((p) => (
+                      <div key={p.id} className="qb-thumb">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={p.url} alt="" />
+                        {!readOnly && <button type="button" className="icon-btn" aria-label="Remove this photo" onClick={() => patch(l.key, { visitPhotos: l.visitPhotos!.filter((x) => x.id !== p.id) })}><Icon name="x" size={18} /></button>}
+                      </div>
+                    ))}
+                  </div>
+                )}
                 {l.imageUrl && (
                   <div className="qb-pic">
                     <div className="qb-thumb">

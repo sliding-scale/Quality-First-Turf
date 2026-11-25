@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { AccessGate } from "@/components/access-gate";
 import { ConvexClientProvider } from "@/components/convex-provider";
 import { Shell } from "@/components/shell";
+import { TimeZoneGate } from "@/components/time-zone-gate";
 
 /**
  * Everything behind sign-in: a server-side session check (so a protected page is never served to someone without a Clerk session,
@@ -15,7 +16,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <ConvexClientProvider>
       <AccessGate>
-        <Shell>{children}</Shell>
+        <TimeZoneGate>
+          <Shell>{children}</Shell>
+        </TimeZoneGate>
       </AccessGate>
     </ConvexClientProvider>
   );

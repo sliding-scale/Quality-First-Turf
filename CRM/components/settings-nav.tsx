@@ -24,6 +24,11 @@ export function SettingsNav() {
         <div className="group">
           <div className="group-title">Business management</div>
           {staff.isAdmin && (
+            <Link href="/settings/general" className={pathname.startsWith("/settings/general") ? "active" : undefined} aria-current={pathname.startsWith("/settings/general") ? "page" : undefined}>
+              General
+            </Link>
+          )}
+          {staff.isAdmin && (
             <Link href="/settings/businesses" className={pathname.startsWith("/settings/businesses") ? "active" : undefined} aria-current={pathname.startsWith("/settings/businesses") ? "page" : undefined}>
               Businesses
             </Link>

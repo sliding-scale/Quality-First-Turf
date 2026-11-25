@@ -22,7 +22,7 @@ import { NoteEditor, useUploadPending, type PendingFile } from "./note-editor";
 
 export const clientLink = (token: string) => `${window.location.origin}/q/${token}`;
 
-export function SendDialog({ token, revision, clientName, clientEmail, title, onClose }: { token: string; revision: number; clientName: string; clientEmail: string; title: string; onClose: () => void }) {
+export function SendDialog({ token, revision, clientName, clientEmail, title, onEmail, onClose }: { token: string; revision: number; clientName: string; clientEmail: string; title: string; /** Opens the CRM's own email window, when the client has an address. */ onEmail?: () => void; onClose: () => void }) {
   const { toast } = useUI();
   const link = clientLink(token);
   const subject = encodeURIComponent(`Your quote: ${title}`);
@@ -43,10 +43,11 @@ export function SendDialog({ token, revision, clientName, clientEmail, title, on
             </button>
           </div>
           <div className="qd-actions">
+            {onEmail && clientEmail && <button type="button" className="btn primary" onClick={onEmail}><Icon name="mail" size={16} /> Email the client</button>}
             <a className="btn" href={`mailto:${clientEmail}?subject=${subject}&body=${body}`}><Icon name="mail" size={16} /> Open an email draft</a>
             <a className="btn" href={link} target="_blank" rel="noreferrer"><Icon name="newtab" size={16} /> Open the client page</a>
           </div>
-          <p className="sc-muted" style={{ marginTop: 12 }}>Sending email and texts from the CRM comes with the Zoho connection. Until then, paste the link into your own message.</p>
+          <p className="sc-muted" style={{ marginTop: 12 }}>Texts from the CRM come once business texting is registered. Until then, paste the link into your own message.</p>
           <div className="modal-foot"><button type="button" className="btn plain" onClick={close}>Done</button></div>
         </div>
       )}

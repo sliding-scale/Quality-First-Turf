@@ -89,11 +89,14 @@ export function renderTemplate(template: string, vars: TemplateVars): string {
 const escapeHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 /** The email as HTML: the body's paragraphs and line breaks, then a button-style link to the quote the way Jobber's follow-up has one. */
+/** Turns a web address in already-escaped text into a link, so a quote link in an email can be clicked. */
+const linkify = (escaped: string) => escaped.replace(/(https?:\/\/[^\s<]+)/g, (url) => `<a href="${url}" style="color:#3d8b1f">${url}</a>`);
+
 export function followUpHtml(body: string, quoteUrl: string | null): string {
   const paragraphs = body
     .trim()
     .split(/\n{2,}/)
-    .map((p) => `<p style="margin:0 0 14px">${escapeHtml(p).replace(/\n/g, "<br>")}</p>`)
+    .map((p) => `<p style="margin:0 0 14px">${linkify(escapeHtml(p)).replace(/\n/g, "<br>")}</p>`)
     .join("");
   const link = quoteUrl === null ? "" : `<p style="margin:0 0 14px"><a href="${escapeHtml(quoteUrl)}" style="display:inline-block;padding:10px 18px;background:#3d8b1f;color:#fff;border-radius:6px;text-decoration:none;font-weight:bold">View your quote</a></p>`;
   return `<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;color:#1d2b33">${paragraphs}${link}</div>`;

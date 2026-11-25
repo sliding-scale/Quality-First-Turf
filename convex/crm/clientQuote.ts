@@ -3,6 +3,7 @@ import type { Doc } from "../_generated/dataModel";
 import { mutation, query, type MutationCtx, type QueryCtx } from "../_generated/server";
 import { rateLimiter } from "../rateLimits";
 import { checkImage, logEvent } from "./quoteDraft";
+import { photosOf } from "./lib/linePhotos";
 import { quoteTotals } from "./lib/quoteMath";
 import { quoteMoneyOptions } from "./lib/quoteOptions";
 import { systemMove } from "./lib/systemMove";
@@ -49,6 +50,7 @@ export const get = query({
         unitPriceCents: !text && view.unitPrices ? l.unitPriceCents : null,
         totalCents: !text && view.lineTotals ? Math.round(l.quantity * l.unitPriceCents) : null,
         optional: l.optional, selected: l.selected,
+        visitPhotos: await photosOf(ctx, l.visitPhotoIds),
       });
     }
     const attachmentDocs = await ctx.db.query("quoteAttachments").withIndex("by_quoteId", (q) => q.eq("quoteId", quote._id)).take(50);

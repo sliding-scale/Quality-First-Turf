@@ -3,6 +3,7 @@ import type { Doc, Id } from "../_generated/dataModel";
 import { mutation, query, type QueryCtx } from "../_generated/server";
 import { canSee, requireStaff, requireModule } from "./lib/access";
 import { deleteQuote } from "./lib/quoteData";
+import { photosOf } from "./lib/linePhotos";
 import { attachmentLinks } from "./lib/noteFiles";
 import { DEFAULT_CONTRACT } from "./quoteDraft";
 import { quoteTotals } from "./lib/quoteMath";
@@ -236,6 +237,7 @@ export const get = query({
         name: l.name,
         description: l.description,
         imageUrl: l.imageId ? await ctx.storage.getUrl(l.imageId) : (l.imagePath ?? null),
+        visitPhotos: await photosOf(ctx, l.visitPhotoIds),
         quantity: l.quantity,
         unitPriceCents: l.unitPriceCents,
         optional: l.optional,

@@ -191,12 +191,24 @@ function useMergedRef(node: React.RefObject<HTMLDivElement | null>, ref: Ref<HTM
 }
 
 /** Places a menu or popover just under its anchor, lined up with the anchor's left or right edge. */
-function usePlacement(anchor: HTMLElement, alignRight: boolean, dep: unknown) {
+function usePlacement(anchor: HTMLElement, alignRight: boolean, dep: unknown, onClose: () => void) {
   const node = useRef<HTMLDivElement | null>(null);
+  const above = useRef<boolean | null>(null);
+  const closeRef = useRef(onClose);
+  useLayoutEffect(() => { closeRef.current = onClose; });
   useLayoutEffect(() => {
     const menu = node.current;
     if (!menu) return;
+    // Fixed to the window and re-placed whenever anything scrolls or the window resizes, so a menu stays on its button and never makes the page taller.
+    menu.style.position = "fixed";
+    above.current = null;
+    const place = () => {
     const r = anchor.getBoundingClientRect();
+    // The button has scrolled out of view under the top bar or off the bottom: the menu goes with it instead of floating over the page.
+    if (!anchor.closest(".topbar")) {
+      const edge = document.querySelector(".topbar")?.getBoundingClientRect().bottom ?? 0;
+      if (r.bottom <= edge || r.top >= window.innerHeight) { closeRef.current(); return; }
+    }
     // Never wider than the screen, so a wide popover on a phone is not cut off.
     menu.style.maxWidth = `${document.documentElement.clientWidth - 16}px`;
     if (alignRight) {
@@ -215,18 +227,28 @@ function usePlacement(anchor: HTMLElement, alignRight: boolean, dep: unknown) {
     }
     const spaceBelow = window.innerHeight - r.bottom;
     const spaceAbove = r.top;
-    const openAbove = spaceBelow < menu.offsetHeight + 12 && spaceAbove > spaceBelow;
+    // Decided once when it opens, so it does not flip from side to side while the page scrolls.
+    above.current ??= spaceBelow < menu.offsetHeight + 12 && spaceAbove > spaceBelow;
+    const openAbove = above.current;
     const top = openAbove ? Math.max(8, r.top - menu.offsetHeight - 10) : r.bottom + 10;
-    menu.style.top = top + window.scrollY + "px";
+    menu.style.top = top + "px";
     menu.style.transformOrigin = openAbove
       ? (alignRight ? "bottom right" : "bottom left")
       : (alignRight ? "top right" : "top left");
+    };
+    place();
+    window.addEventListener("scroll", place, true);
+    window.addEventListener("resize", place);
+    return () => {
+      window.removeEventListener("scroll", place, true);
+      window.removeEventListener("resize", place);
+    };
   }, [anchor, alignRight, dep]);
   return node;
 }
 
 function Popover({ state, closing, onClose, ref }: { state: PopoverState; closing: boolean; onClose: () => void; ref: Ref<HTMLDivElement> }) {
-  const node = usePlacement(state.anchor, state.alignRight, state);
+  const node = usePlacement(state.anchor, state.alignRight, state, onClose);
   return (
     <div className={`menu panel${state.className ? " " + state.className : ""}${closing ? " closing" : ""}`} role="dialog" aria-label={nameOf(state.anchor)} tabIndex={-1} ref={useMergedRef(node, ref)}>
       {state.render(onClose)}
@@ -235,7 +257,7 @@ function Popover({ state, closing, onClose, ref }: { state: PopoverState; closin
 }
 
 function Dropdown({ state, closing, onClose, ref }: { state: DropdownState; closing: boolean; onClose: () => void; ref: Ref<HTMLDivElement> }) {
-  const node = usePlacement(state.anchor, state.alignRight, state);
+  const node = usePlacement(state.anchor, state.alignRight, state, onClose);
 
   const actions = state.variant === "actions";
   return (

@@ -339,7 +339,6 @@ function Builder({ business, initial, invoice, schedule }: { business: BusinessD
                 </select>
               </dd>
             </div>
-            <div><dt>Customize</dt><dd><button type="button" className="btn" disabled data-tip="Custom fields are not available yet">Add Field</button></dd></div>
           </dl>
         </div>
       </section>

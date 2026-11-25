@@ -10,6 +10,7 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { DAY_MS, type BoardGroup, type WorkPipeline } from "@/convex/crm/lib/stages";
 import { BUSINESS_TZ, dayKey } from "@/convex/crm/lib/schedule";
+import { zonedToInstant, zonedWallClock } from "@/convex/shared/zonedTime";
 import { rangeBounds, type DateRange } from "./dates";
 import { useKept } from "./clients";
 
@@ -109,11 +110,13 @@ export type BoardCard = BoardData["columns"][number]["cards"][number];
 export type WorkBoard = NonNullable<ReturnType<typeof useWorkBoard>>;
 export type WorkCard = WorkBoard["columns"][number]["cards"][number];
 
-/** The start and end of today in ms, for the Tasks tab. */
+/** The start and end of today in ms, in the business time zone (the same day the Schedule highlights), for Home and the Tasks tab. */
 export function todayBounds(): { todayStart: number; todayEnd: number } {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return { todayStart: d.getTime(), todayEnd: d.getTime() + DAY_MS - 1 };
+  const today = zonedWallClock(new Date(), BUSINESS_TZ).date;
+  const [y, m, d] = today.split("-").map(Number);
+  const next = new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10);
+  const todayStart = zonedToInstant(today, "00:00", BUSINESS_TZ).getTime();
+  return { todayStart, todayEnd: zonedToInstant(next, "00:00", BUSINESS_TZ).getTime() - 1 };
 }
 
 /** The moment of a click, passed to the backend (queries must not read the clock). A function of its own so event handlers can call it. */

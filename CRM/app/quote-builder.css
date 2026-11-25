@@ -22,6 +22,8 @@
 .qb-intro { display: grid; grid-template-columns: minmax(0, 1fr) 190px; gap: 16px; align-items: start; }
 .qb-introtext { display: grid; gap: 12px; }
 .qb-pic { min-width: 0; }
+.qb-visitpics { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; align-content: start; }
+.qb-visitpics .qb-thumb img { height: 90px; }
 .qb-add-pic { width: 100%; min-height: 110px; display: grid; place-items: center; align-content: center; gap: 4px; border: 1px dashed var(--line-strong); border-radius: var(--radius-ctl); background: var(--white); color: var(--green); cursor: pointer; transition: background-color 0.15s ease, border-color 0.15s ease; }
 .qb-add-pic:hover:not(:disabled) { background: var(--hover); border-color: var(--green); }
 .qb-thumb { position: relative; border-radius: var(--radius-ctl); overflow: hidden; border: 1px solid var(--line-soft); }

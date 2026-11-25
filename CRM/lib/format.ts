@@ -1,3 +1,6 @@
+import { BUSINESS_TZ as BUSINESS_TIME_ZONE } from "@/convex/crm/lib/schedule";
+
+export { BUSINESS_TIME_ZONE };
 /* Display helpers, ported unchanged from the approved mockups. */
 
 export const money = (n: number) =>
@@ -23,8 +26,6 @@ export function fullDate(daysAgo: number, time?: string, today: Date = new Date(
 /* Quotes (D-056). Money on a quote is whole cents. Dates on a quote are shown in the business's own time zone, so "Oct 19" is the same
    day for everyone whichever country they are looking from. All three businesses are in California for now; the PRD says the time zone
    varies by job, so this becomes a property setting later. */
-export const BUSINESS_TIME_ZONE = "America/Los_Angeles";
-
 export const moneyCents = (cents: number) => money(cents / 100);
 
 export const quoteDate = (ms: number) =>

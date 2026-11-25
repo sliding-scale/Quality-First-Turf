@@ -98,6 +98,7 @@ const lineV = v.object({
   description: v.string(),
   imageId: v.optional(v.id("_storage")),
   imagePath: v.optional(v.string()),
+  visitPhotoIds: v.optional(v.array(v.id("_storage"))),
   quantity: v.number(),
   unitPriceCents: v.number(),
   optional: v.boolean(),
@@ -164,6 +165,7 @@ export const save = mutation({
     for (const [position, l] of a.lines.entries()) {
       const fields = {
         position, name: l.name.trim(), description: l.kind === "text" ? "" : l.description, imageId: l.imageId, imagePath: l.imageId || l.imagePath === undefined || !isProductPhotoPath(l.imagePath) ? undefined : l.imagePath, quantity: l.kind === "text" ? 1 : l.quantity,
+        visitPhotoIds: l.kind === "text" || !l.visitPhotoIds?.length ? undefined : l.visitPhotoIds.slice(0, 12),
         unitPriceCents: l.kind === "text" ? 0 : l.unitPriceCents, optional: l.kind === "text" ? false : l.optional, selected: l.selected, kind: l.kind, catalogueName: l.catalogueName,
       };
       const existing = l.id ? old.find((o) => o._id === l.id) : undefined;

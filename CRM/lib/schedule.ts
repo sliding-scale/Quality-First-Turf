@@ -71,8 +71,7 @@ export function windowOf(view: View, key: string): { from: number; to: number } 
   return { from: dayStartMs(days[0]), to: dayStartMs(addDays(days[41], 1)) };
 }
 
-const clock = new Intl.DateTimeFormat("en-US", { timeZone: BUSINESS_TZ, hour: "numeric", minute: "2-digit" });
-export const timeText = (ms: number) => clock.format(ms);
+export const timeText = (ms: number) => new Intl.DateTimeFormat("en-US", { timeZone: BUSINESS_TZ, hour: "numeric", minute: "2-digit" }).format(ms);
 export const dateText = (ms: number) => new Intl.DateTimeFormat("en-US", { timeZone: BUSINESS_TZ, month: "short", day: "numeric", year: "numeric" }).format(ms);
 export const hourLabel = (h: number) => (h === 0 ? "12 AM" : h < 12 ? `${h} AM` : h === 12 ? "12 PM" : `${h - 12} PM`);
 export const dayLabel = (key: string) => new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: "UTC" }).format(utc(key));

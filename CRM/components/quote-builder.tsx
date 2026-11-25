@@ -16,6 +16,7 @@ import { useClientProjects, useWorkspace, type BusinessDoc } from "@/lib/clients
 import { money } from "@/lib/format";
 import { clock, failure, usePeople } from "@/lib/pipeline";
 import { shouldPrefill } from "@/lib/quote-prefill";
+import { convertBlockReason } from "@/lib/convert-reason";
 import { centsToInput, dollarsToCents, uploadFile, useClientSearch, useQuote } from "@/lib/quotes";
 import { SECTION_TITLE, type Section } from "@/lib/quote-sections";
 import { sameTitle, type DisclaimerCopy } from "@/convex/crm/lib/disclaimers";
@@ -48,7 +49,6 @@ type Draft = {
   depositKind: "percent" | "amount" | null;
   deposit: string;
   clientView: View;
-  showMessage: boolean;
   clientMessage: string;
   /** null until the person types: then a new quote shows (and saves) the business's default contract text. */
   contract: string | null;
@@ -60,17 +60,17 @@ type Draft = {
 const ALL_ON: View = { quantities: true, unitPrices: true, lineTotals: true, totals: true };
 const blank = (salesperson: string): Draft => ({
   title: "", clientName: "", salesperson, introHeading: "", introText: "", introImageUrl: null, lines: [newLine("item")], discountKind: null, discount: "", tax: "", depositKind: null,
-  deposit: "", clientView: ALL_ON, showMessage: false, clientMessage: "", contract: null, applyContract: false, disclaimers: [],
+  deposit: "", clientView: ALL_ON, clientMessage: "", contract: null, applyContract: false, disclaimers: [],
 });
 
 type QuoteDoc = NonNullable<ReturnType<typeof useQuote>>;
 function fromQuote(q: QuoteDoc): Draft {
   return {
     title: q.title, clientId: q.client.id, clientName: q.client.name, opportunityId: q.request?.id, salesperson: q.salesperson, introHeading: q.introHeading, introText: q.introText,
-    introImageUrl: q.introImageUrl, lines: q.lines.map((l) => ({ key: l.id, id: l.id, kind: l.kind, name: l.name, description: l.description, imageUrl: l.imageUrl, quantity: String(l.quantity), price: centsToInput(l.unitPriceCents), optional: l.optional, selected: l.selected, catalogueName: l.catalogueName ?? undefined })),
+    introImageUrl: q.introImageUrl, lines: q.lines.map((l) => ({ key: l.id, id: l.id, kind: l.kind, name: l.name, description: l.description, imageUrl: l.imageUrl, visitPhotos: l.visitPhotos, quantity: String(l.quantity), price: centsToInput(l.unitPriceCents), optional: l.optional, selected: l.selected, catalogueName: l.catalogueName ?? undefined })),
     discountKind: q.discountKind, discount: q.discountKind === "amount" ? centsToInput(q.discountValue) : q.discountKind === "percent" ? String(q.discountValue) : "",
     tax: q.taxPercent ? String(q.taxPercent) : "", depositKind: q.depositKind, deposit: q.depositKind === "amount" ? centsToInput(q.depositValue) : q.depositKind === "percent" ? String(q.depositValue) : "",
-    clientView: q.clientView, showMessage: !!q.clientMessage, clientMessage: q.clientMessage, contract: q.contract, applyContract: false, disclaimers: q.disclaimers,
+    clientView: q.clientView, clientMessage: q.clientMessage, contract: q.contract, applyContract: false, disclaimers: q.disclaimers,
   };
 }
 
@@ -198,12 +198,12 @@ function Builder({ business, quote, presetClient, presetProject, section }: { bu
     await save({
       id, title: d.title, salesperson: d.salesperson, introHeading: d.introHeading, introText: d.introText, ...(d.introImageId ? { introImageId: d.introImageId } : {}),
       lines: d.lines.map((l) => ({
-        ...(l.id ? { id: l.id } : {}), kind: l.kind, name: l.name, description: l.description, ...(l.imageId ? { imageId: l.imageId } : l.imageUrl?.startsWith("/images/products/") ? { imagePath: l.imageUrl } : {}), quantity: l.kind === "text" ? 1 : Number(l.quantity),
+        ...(l.id ? { id: l.id } : {}), kind: l.kind, name: l.name, description: l.description, ...(l.visitPhotos?.length ? { visitPhotoIds: l.visitPhotos.map((p) => p.id) } : {}), ...(l.imageId ? { imageId: l.imageId } : l.imageUrl?.startsWith("/images/products/") ? { imagePath: l.imageUrl } : {}), quantity: l.kind === "text" ? 1 : Number(l.quantity),
         unitPriceCents: l.kind === "text" ? 0 : dollarsToCents(l.price), optional: l.optional, selected: l.selected, ...(l.catalogueName ? { catalogueName: l.catalogueName } : {}),
       })),
       ...(m.discountKind ? { discountKind: m.discountKind, discountValue: m.discountValue } : {}), ...(m.taxPercent ? { taxPercent: m.taxPercent } : {}),
       ...(m.depositKind ? { depositKind: m.depositKind, depositValue: m.depositValue } : {}),
-      clientView: d.clientView, clientMessage: d.showMessage ? d.clientMessage : "", contract: d.contract ?? contractDefault ?? "", applyContractToFuture: d.applyContract, disclaimers: d.disclaimers,
+      clientView: d.clientView, clientMessage: d.clientMessage, contract: d.contract ?? contractDefault ?? "", applyContractToFuture: d.applyContract, disclaimers: d.disclaimers,
     });
     setBaseline(JSON.stringify(d));
     return id;
@@ -219,6 +219,12 @@ function Builder({ business, quote, presetClient, presetProject, section }: { bu
         router.push(`/quotes/${id}?link=1`);
       } else if (after === "convert") {
         // The quote is saved first. If the project cannot be won yet (not signed, deposit not in), the quote stays saved and the reason is shown.
+        const why = convertBlockReason(quote?.status ?? "Draft", !!d.opportunityId);
+        if (why) {
+          toast(why);
+          router.push(`/quotes/${id}`);
+          return;
+        }
         if (!(await convertToJob(d.opportunityId))) {
           router.push(`/quotes/${id}`);
           return;
@@ -311,19 +317,10 @@ function Builder({ business, quote, presetClient, presetProject, section }: { bu
                 </select>
               </dd>
             </div>
-            <div><dt>Customize</dt><dd><button type="button" className="btn" disabled data-tip="Custom fields are not available yet">Add Field</button></dd></div>
           </dl>
         </div>
       </section>
       )}
-
-      {!section && <div className="qb-sections" role="group" aria-label="Add section">
-        <span><Icon name="plus" size={16} /> Add section</span>
-        <button type="button" className="chip outline" disabled data-tip="Add files from the Attachments section below">Attachments</button>
-        <button type="button" className="chip outline" disabled data-tip="Not available yet">Images</button>
-        <button type="button" className="chip outline" disabled data-tip="Not available yet">Reviews</button>
-        <button type="button" className={`chip outline${d.showMessage ? " on" : ""}`} aria-pressed={d.showMessage} onClick={() => set({ showMessage: !d.showMessage })}>Client Message</button>
-      </div>}
 
       {only("intro") && (
       <section className="qb-card" aria-label="Introduction">
@@ -411,10 +408,10 @@ function Builder({ business, quote, presetClient, presetProject, section }: { bu
       </section>
       )}
 
-      {(section === "message" || (!section && d.showMessage)) && (
+      {only("message") && (
         <section className="qb-card" aria-label="Client message">
           <h2 className="qb-h">Client Message</h2>
-          <div className="field"><label htmlFor="qb-msg">Message shown on the quote</label><textarea id="qb-msg" value={d.clientMessage} onChange={(e) => set({ clientMessage: e.target.value, ...(section === "message" ? { showMessage: true } : {}) })} /></div>
+          <div className="field"><label htmlFor="qb-msg">Message shown on the quote</label><textarea id="qb-msg" value={d.clientMessage} onChange={(e) => set({ clientMessage: e.target.value })} /></div>
         </section>
       )}
 
@@ -455,7 +452,7 @@ function Builder({ business, quote, presetClient, presetProject, section }: { bu
         <button type="button" className="btn plain" onClick={cancel} disabled={busy}>Cancel</button>
         <div className="qb-save">
           <button type="button" className="btn primary" disabled={busy || !staff.canEdit} onClick={() => void run("view")}>{busy ? "Saving…" : section ? "Save" : "Save Quote"}</button>
-          {!section && <SaveMenu disabled={busy || !staff.canEdit} canConvert={!!d.opportunityId} onSend={() => void run("send")} onAwaiting={() => void run("awaiting")} onConvert={() => void run("convert")} />}
+          {!section && <SaveMenu disabled={busy || !staff.canEdit} onSend={() => void run("send")} onAwaiting={() => void run("awaiting")} onConvert={() => void run("convert")} />}
         </div>
       </div>
 
@@ -536,7 +533,7 @@ function DisclaimerPicker({ businessId, chosen, onChange }: { businessId: Id<"bu
 }
 
 /** The arrow next to Save Quote: "Save and..." choices, as in Jobber. Email and text delivery come with the Zoho connection. Convert to Job saves, then makes the quote's project a job. */
-function SaveMenu({ disabled, canConvert, onSend, onAwaiting, onConvert }: { disabled: boolean; canConvert: boolean; onSend: () => void; onAwaiting: () => void; onConvert: () => void }) {
+function SaveMenu({ disabled, onSend, onAwaiting, onConvert }: { disabled: boolean; onSend: () => void; onAwaiting: () => void; onConvert: () => void }) {
   const { dropdown } = useUI();
   return (
     <button
@@ -552,7 +549,7 @@ function SaveMenu({ disabled, canConvert, onSend, onAwaiting, onConvert }: { dis
             { label: "Create the client link", icon: "newtab", onSelect: onSend },
             { label: "Send as Email", icon: "mail", disabled: true },
             { label: "Send as Text Message", icon: "sms", disabled: true },
-            { label: "Convert to Job", icon: "hammer", iconColor: "var(--green)", disabled: !canConvert, onSelect: onConvert },
+            { label: "Convert to Job", icon: "hammer", iconColor: "var(--green)", onSelect: onConvert },
             { label: "Mark as Awaiting Response", icon: "timeline", onSelect: onAwaiting },
           ],
           { alignRight: true },

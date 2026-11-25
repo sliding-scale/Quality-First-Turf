@@ -14,6 +14,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { useWorkspace } from "@/lib/clients";
+import { convertBlockReason } from "@/lib/convert-reason";
 import { clock, failure } from "@/lib/pipeline";
 import { QUOTE_DOT, QUOTE_PILL, useQuote } from "@/lib/quotes";
 import { moneyCents, quoteDate, quoteDateTime } from "@/lib/format";
@@ -22,6 +24,7 @@ import type { Section } from "@/lib/quote-sections";
 import { DeleteQuoteDialog } from "./delete-quote-dialog";
 import { Icon } from "./icon";
 import { ImageViewer, type ViewerImage } from "./image-viewer";
+import { SendEmailDialog } from "./client-dialogs";
 import { ActivityDialog, DepositDialog, SendDialog, SignDialog, SignatureWarningDialog } from "./quote-dialogs";
 import { NoteEditor, useUploadPending, type PendingFile } from "./note-editor";
 import { QuoteSkeleton } from "./skeletons";
@@ -108,6 +111,8 @@ function QuoteView({ q }: { q: Quote }) {
   const convertToJob = useConvertToJob();
   const { dropdown, toast } = useUI();
   const { canEdit } = useStaff();
+  const workspace = useWorkspace();
+  const businessName = workspace.state === "ready" ? (workspace.businesses.find((b) => b._id === q.businessId)?.name ?? workspace.business.name) : "";
   const addNote = useMutation(api.crm.quoteDraft.addNote);
   const uploadPending = useUploadPending();
   const [note, setNote] = useState("");
@@ -115,7 +120,7 @@ function QuoteView({ q }: { q: Quote }) {
   const [savingNote, setSavingNote] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const params = useSearchParams();
-  const [dialog, setDialog] = useState<null | "send" | "sign" | "deposit" | "activity" | "note">(() => (params.get("link") === "1" && q.shareToken ? "send" : null));
+  const [dialog, setDialog] = useState<null | "send" | "email" | "sign" | "deposit" | "activity" | "note">(() => (params.get("link") === "1" && q.shareToken ? "send" : null));
   const send = useMutation(api.crm.quoteFlow.send);
   const duplicate = useMutation(api.crm.quoteDraft.duplicate);
   const archive = useMutation(api.crm.quoteDraft.archive);
@@ -133,10 +138,10 @@ function QuoteView({ q }: { q: Quote }) {
       <button type="button" className="icon-btn" aria-label={label} title="A declined or archived quote cannot be edited" disabled><Icon name="pencil" size={24} /></button>
     ) : null;
   const fail = (e: unknown, fallback: string) => toast(failure(e, fallback));
-  async function sendNow() {
+  async function sendNow(then: "send" | "email" = "send") {
     try {
       await send({ id: q.id, now: clock() });
-      setDialog("send");
+      setDialog(then);
     } catch (e) {
       fail(e, "The quote could not be sent.");
     }
@@ -145,6 +150,7 @@ function QuoteView({ q }: { q: Quote }) {
   const photos: ViewerImage[] = [
     ...(q.introImageUrl ? [{ url: q.introImageUrl, caption: q.introHeading || "Introduction" }] : []),
     ...q.lines.flatMap((l) => (l.imageUrl ? [{ url: l.imageUrl, caption: l.name }] : [])),
+    ...q.lines.flatMap((l) => l.visitPhotos.map((p) => ({ url: p.url, caption: l.name }))),
   ];
   const [viewing, setViewing] = useState<number | null>(null);
   const photoIndex = (url: string | null) => (url ? photos.findIndex((p) => p.url === url) : -1);
@@ -178,11 +184,11 @@ function QuoteView({ q }: { q: Quote }) {
   const moreItems: MenuItem[] = [
     ...(canEdit
       ? [
-          { label: "Convert to Job", icon: "hammer", iconColor: "var(--green)", disabled: !q.request || !(q.status === "Approved" || q.status === "Converted"), onSelect: () => void convertToJob(q.request?.id as Id<"opportunities"> | undefined) } as MenuItem,
+          { label: "Convert to Job", icon: "hammer", iconColor: "var(--green)", onSelect: () => { const why = convertBlockReason(q.status, !!q.request); if (why) toast(why); else void convertToJob(q.request?.id as Id<"opportunities"> | undefined); } } as MenuItem,
           rule,
           { heading: "Send as..." } as MenuItem,
           { label: q.shareToken ? "Client link" : "Create the client link", icon: "newtab", onSelect: () => (q.shareToken ? setDialog("send") : void sendNow()), disabled: !(q.shareToken || q.status === "Draft") } as MenuItem,
-          later("Email", "mail"),
+          { label: "Email", icon: "mail", disabled: !q.client.email || !(q.shareToken || q.status === "Draft"), onSelect: () => (q.shareToken ? setDialog("email") : void sendNow("email")) } as MenuItem,
           later("Send Text", "sms"),
           rule,
         ]
@@ -325,6 +331,11 @@ function QuoteView({ q }: { q: Quote }) {
                         {l.description && <div className="ql-desc">{l.description}</div>}
                       </td>
                       <td className="ql-img">
+                        {l.visitPhotos.map((p) => (
+                          <button key={p.id} type="button" className="ql-thumb photo-btn" aria-label={`View photo: ${l.name}`} onClick={() => setViewing(photoIndex(p.url))}>
+                            <Image src={p.url} alt="" width={56} height={56} unoptimized />
+                          </button>
+                        ))}
                         {l.imageUrl && (
                           <button type="button" className="ql-thumb photo-btn" aria-label={`View photo: ${l.name}`} onClick={() => setViewing(photoIndex(l.imageUrl))}>
                             <Image src={l.imageUrl} alt="" width={56} height={56} unoptimized />
@@ -472,7 +483,23 @@ function QuoteView({ q }: { q: Quote }) {
 
       {viewing !== null && viewing >= 0 && <ImageViewer images={photos} start={viewing} onClose={() => setViewing(null)} />}
 
-      {dialog === "send" && q.shareToken && <SendDialog token={q.shareToken} revision={q.revision} clientName={q.client.name} clientEmail={q.client.email} title={q.title} onClose={() => { setDialog(null); if (params.get("link")) router.replace(`/quotes/${q.id}`); }} />}
+      {dialog === "send" && q.shareToken && <SendDialog token={q.shareToken} revision={q.revision} clientName={q.client.name} clientEmail={q.client.email} title={q.title} onEmail={q.client.email ? () => setDialog("email") : undefined} onClose={() => { setDialog(null); if (params.get("link")) router.replace(`/quotes/${q.id}`); }} />}
+      {dialog === "email" && q.shareToken && (
+        <SendEmailDialog
+          client={{ id: q.client.id as Id<"clients">, name: q.client.name, email: q.client.email }}
+          preset={{
+            subject: `Your quote from ${businessName}: ${q.title}`,
+            body: `Hi ${q.client.name.split(" ")[0]},
+
+Here is your quote. You can read it, ask for changes or approve it with your signature here:
+${typeof window === "undefined" ? "" : window.location.origin}/q/${q.shareToken}
+
+Thank you.
+${businessName}`,
+          }}
+          onClose={() => setDialog(null)}
+        />
+      )}
       {dialog === "sign" && <SignDialog quoteId={q.id as Id<"quotes">} businessId={q.businessId} defaultName={q.client.name} onClose={() => setDialog(null)} />}
       {dialog === "deposit" && <DepositDialog quoteId={q.id as Id<"quotes">} businessId={q.businessId} outstandingCents={q.totals.depositOutstandingCents} onClose={() => setDialog(null)} />}
       {dialog === "activity" && <ActivityDialog quoteId={q.id} onClose={() => setDialog(null)} />}

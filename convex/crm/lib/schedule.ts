@@ -1,8 +1,13 @@
 /* Schedule rules (D-062): item types, overlap and double-booking, working hours and repeats. Pure TypeScript, shared by the backend and the
    app, so no Convex or React imports. All times are milliseconds; "local" means the business's time zone. */
 
-/** The business time zone, for every time the Schedule shows or reads. */
-export const BUSINESS_TZ = "America/Los_Angeles";
+/** The CRM's time zone, for every time the Schedule shows or reads. This is the starting value. The app sets the saved one when it opens
+ *  (Settings > General) with `setBusinessTimeZone`; the backend never sets it, it reads the saved one from the database and passes it in. */
+export const DEFAULT_TIME_ZONE = "America/Los_Angeles";
+export let BUSINESS_TZ = DEFAULT_TIME_ZONE;
+export function setBusinessTimeZone(tz: string) {
+  BUSINESS_TZ = tz;
+}
 
 export const ITEM_TYPES = ["consultation", "visit", "event", "reminder"] as const;
 export type ItemType = (typeof ITEM_TYPES)[number];

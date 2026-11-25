@@ -147,6 +147,7 @@ function ClientQuote({ token, preview }: { token: string; preview: boolean }) {
                 <div className="cq-lmain">
                   <b>{l.name}{l.optional && <span className="cq-optional">Optional</span>}</b>
                   {l.description && <p>{l.description}</p>}
+                  {l.visitPhotos.map((p) => <Image key={p.id} className="cq-lpic" src={p.url} alt="" width={240} height={160} unoptimized />)}
                   {l.imageUrl && <Image className="cq-lpic" src={l.imageUrl} alt="" width={240} height={160} unoptimized />}
                 </div>
                 <div className="cq-lnum">

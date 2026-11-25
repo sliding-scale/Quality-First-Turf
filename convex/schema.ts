@@ -705,6 +705,8 @@ export default defineSchema({
     catalogueName: v.optional(v.string()),
     /** A product photo kept by path (convex/shared/productPhotos.ts), used when no picture was uploaded. */
     imagePath: v.optional(v.string()),
+    /** Photos from the project's visit (work area photos), shown on the line. Not owned by the quote: removing the line never deletes them. */
+    visitPhotoIds: v.optional(v.array(v.id("_storage"))),
   }).index("by_quoteId_and_position", ["quoteId", "position"]),
 
   /** What happened to a quote, in order (D-063): created, sent, link created, viewed, changes requested, resubmitted, approved, rejected,
@@ -1099,6 +1101,12 @@ export default defineSchema({
   }).index("by_state", ["state"]),
 
   /** A business's working days and hours (default Monday to Friday, 8 to 5), used to grey the Schedule and to warn on bookings. */
+  /** Settings for the whole CRM (user, 2026-11-25): one row. The time zone every date, time and "today" is worked out in. Written only by crm/settings.ts. */
+  crmSettings: defineTable({
+    singleton: v.literal("default"),
+    timeZone: v.string(),
+  }).index("by_singleton", ["singleton"]),
+
   scheduleSettings: defineTable({
     businessId: v.id("businesses"),
     days: v.array(v.number()),

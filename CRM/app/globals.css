@@ -119,7 +119,7 @@ input, select, textarea { font: inherit; color: var(--text); }
 .collapse { margin-top: 8px; display: flex; align-items: center; gap: 12px; border: 0; background: none; padding: 9px 12px; border-radius: var(--radius-ctl); color: var(--ink); }
 .collapse:hover { background: rgba(0, 0, 0, 0.05); }
 
-.main { background: var(--white); border-top-left-radius: 10px; overflow: auto; scrollbar-gutter: stable; padding: var(--pad) var(--padx) 56px; min-width: 0; }
+.main { position: relative; background: var(--white); border-top-left-radius: 10px; overflow: auto; scrollbar-gutter: stable; padding: var(--pad) var(--padx) 56px; min-width: 0; }
 .page { max-width: none; }
 .rail .app { grid-template-columns: 64px minmax(0, 1fr); }
 /* Collapsed: the column narrows and the labels fade (animated, D-037). Icons keep their x position, which is already the centre of the 64px rail. */
@@ -499,7 +499,7 @@ input[type="checkbox"]:disabled { cursor: not-allowed; }
 .menu.filter { min-width: 250px; border-radius: var(--radius-lg); overflow: hidden; }
 .menu-search { display: block; width: 100%; height: 56px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; padding: 0 18px; background: var(--white); outline: 0; font: inherit; color: var(--ink); transition: border-color 0.15s ease; }
 .menu-search::placeholder { color: var(--muted); }
-.menu-search:focus { border-bottom-color: var(--green); }
+.menu-search:focus, .menu-search:focus-visible { border-bottom-color: var(--green); outline: 0; }
 .menu-list { max-height: 270px; overflow-y: auto; padding: 4px 0; scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
 .menu.filter .opt { display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px 18px; border: 0; border-radius: 0; background: none; text-align: left; color: var(--ink); font-weight: 600; }
 .menu.filter .opt:hover { background: var(--chip); }
@@ -1237,7 +1237,7 @@ a.qs-chip:active { background: var(--shell); }
 .rq-sechead { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 .rq-sechead h2 { margin: 0; }
 .rq-overview .muted { margin: 0 0 12px; }
-.rq-overview .quote-lines { margin: 0 -20px; width: calc(100% + 40px); }
+.rq-overview .quote-lines { margin: 0; width: 100%; }
 .rl-totals { margin: 12px 0 0 auto; max-width: 420px; }
 .rl-empty { margin: 0; color: var(--muted); }
 .rl-bar { display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; }
@@ -1849,3 +1849,8 @@ a.qs-chip:active { background: var(--shell); }
 .cb, .table th button.cb { width: 24px; height: 24px; }
 .table th button:not(.cb), .cat-sort, .member-name, .pl-ttitle { padding-block: 6px; margin-block: -6px; }
 .ov-item, .kpis.compact .ov-item { min-height: 28px; }
+
+/* The Schedule's Type, Team and Status filters, laid out like Jobber's: a round badge on each person, and Select All and Clear along the bottom. */
+.menu.filter .mm-av { width: 32px; height: 32px; border-radius: 50%; flex: none; display: inline-grid; place-items: center; background: var(--ink); color: var(--white); font-size: 12px; font-weight: 700; }
+.menu.filter .mm-av.none { background: none; color: var(--error); border: 2px solid var(--error); }
+.mm-foot { display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; border-top: 1px solid var(--line-soft); }

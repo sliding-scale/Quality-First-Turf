@@ -39,7 +39,7 @@ export function SchedulePopup({ item, anchor, people, canEdit, onClose, onEdit }
   const setDone = useMutation(api.crm.opportunityTasks.setDone);
   const setStatus = useMutation(api.crm.schedule.setStatus);
   const remove = useMutation(api.crm.schedule.remove);
-  const box = useDialogFocus(false); // the calendar behind it stays usable, so Tab is not trapped
+  const box = useDialogFocus(false, false); // the calendar behind it stays usable, so Tab is not trapped
   const [leaving, setLeaving] = useState(false);
   const isTask = item.kind === "task";
   const nameOf = (id: string) => people.find((p) => p.id === id)?.name ?? "Someone";
