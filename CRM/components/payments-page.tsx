@@ -155,7 +155,6 @@ function Payments({ business }: { business: BusinessDoc }) {
                     <div className="strong" title={r.clientName}>{r.clientName}</div>
                     {r.invoice && <div className="sub"><Link href={`/invoices/${r.invoice.id}`} onClick={(e) => e.stopPropagation()}>Invoice #{r.invoice.number}</Link></div>}
                     {!r.invoice && r.quote && <div className="sub"><Link href={`/quotes/${r.quote.id}`} onClick={(e) => e.stopPropagation()}>Quote #{r.quote.number}</Link></div>}
-                    {r.unappliedCents > 0 && <div className="sub">{moneyCents(r.unappliedCents)} not applied to an invoice yet</div>}
                   </td>
                   <td data-label="Payment date">{utcDate(r.paidAt)}</td>
                   <td data-label="Status"><span className="pill active"><span className="dot" />Succeeded</span></td>
