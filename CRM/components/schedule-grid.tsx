@@ -33,6 +33,8 @@ export type GridProps = {
   onResizeItem: (item: ScheduleItem, end: number) => void;
   onDropUnscheduled: (payload: DropPayload, start: number, personId?: string) => void;
   onOpenDay: (key: string) => void;
+  /** Day view's Unassigned column: only for people who may see everyone's calendar. */
+  showUnassigned?: boolean;
 };
 
 const SNAP = 15;
@@ -83,8 +85,8 @@ function TimeGrid(p: GridProps) {
   const today = todayKey(p.now);
   const columns: Column[] = useMemo(() => {
     if (p.view === "week") return weekDays(p.dateKey).map((d) => ({ key: d, day: d }));
-    return [{ key: "unassigned", day: p.dateKey, person: "unassigned" as const }, ...p.people.map((pe) => ({ key: pe.id, day: p.dateKey, person: pe }))];
-  }, [p.view, p.dateKey, p.people]);
+    return [...(p.showUnassigned === false ? [] : [{ key: "unassigned", day: p.dateKey, person: "unassigned" as const }]), ...p.people.map((pe) => ({ key: pe.id, day: p.dateKey, person: pe }))];
+  }, [p.view, p.dateKey, p.people, p.showUnassigned]);
   const [resizing, setResizing] = useState<{ key: string; end: number } | null>(null);
 
   useLayoutEffect(() => {
@@ -177,7 +179,7 @@ function TimeGrid(p: GridProps) {
         {columns.map((c) => (
           <div key={c.key} className="sc-anycell">
             {anytimeOf(c).map((i) => (
-              <button key={i.key} type="button" className="sc-chip" style={{ background: KIND_STYLE[i.kind].bg, borderLeftColor: KIND_STYLE[i.kind].edge }} onClick={(e) => p.onOpenItem(i, e.currentTarget.getBoundingClientRect())}>
+              <button key={i.key} data-item-key={i.key} type="button" className="sc-chip" style={{ background: KIND_STYLE[i.kind].bg, borderLeftColor: KIND_STYLE[i.kind].edge }} onClick={(e) => p.onOpenItem(i, e.currentTarget.getBoundingClientRect())}>
                 {i.title}
               </button>
             ))}
@@ -231,6 +233,7 @@ function TimeGrid(p: GridProps) {
                   return (
                     <article
                       key={s.item.key}
+                      data-item-key={s.item.key}
                       className={`sc-item${s.item.status === "completed" ? " done" : ""}${s.item.status === "lost" ? " lost" : ""}${s.item.overdue ? " overdue" : ""}`}
                       style={{
                         top: (s.startMin / 60) * HOUR_PX, height: Math.max(22, ((endMin - s.startMin) / 60) * HOUR_PX - 2),

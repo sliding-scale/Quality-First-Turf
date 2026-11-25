@@ -7,7 +7,9 @@ import { checkAssignee } from "./lib/assignees";
 import { checkNoteFiles, noteFilesArg } from "./lib/noteFiles";
 import { opportunitySearchText } from "./lib/clientInput";
 import { linesFromForm } from "./lib/formLines";
-import { DAY_MS, REQUEST_STATUSES, SALES_STAGES, isRequest, requestStatus, type RequestStatus } from "./lib/stages";
+import { DAY_MS, PIPELINE_GROUPS, REQUEST_STATUSES, SALES_STAGES, isRequest, requestStatus, type RequestStatus } from "./lib/stages";
+import { logActivity } from "./lib/activity";
+import { mirrorRemoved } from "./lib/mirror";
 import { notifyMentions } from "./lib/mentionNotify";
 
 /* Requests (D-039): not a table. A request is a project (`opportunities`) seen through its stage, and its status is worked out from the stage
@@ -227,7 +229,7 @@ export const get = query({
       /** The booked on-site assessment (a consultation on the Schedule), with the instructions kept in its notes. */
       assessment: shown
         ? { id: shown._id, start: shown.start, end: shown.end, anytime: shown.anytime, assigneeIds: shown.assigneeIds, status: shown.status, instructions: o.assessmentInstructions ?? shown.notes,
-            offline: shown.offline ?? false, inJobber: shown.jobberAssessmentId !== undefined, jobberError: shown.jobberError ?? null }
+            offline: shown.offline ?? false, confirmEmail: shown.confirmEmail && shown.confirmEmail.start === shown.start ? { status: shown.confirmEmail.status, detail: shown.confirmEmail.detail } : null }
         : null,
       /** The instructions with or without a booked assessment. */
       assessmentInstructions: o.assessmentInstructions ?? shown?.notes ?? "",
@@ -412,5 +414,44 @@ export const create = mutation({
     if (note || attachments.length) await ctx.db.insert("opportunityNotes", { opportunityId: id, text: note, author: staff.name, createdAt: now, ...(attachments.length ? { attachments } : {}) });
     await notifyMentions(ctx, { businessId: args.businessId, staff, text: note, target: { kind: "project", opportunityId: id }, now });
     return id;
+  },
+});
+
+/** Deletes a request (client, 2026-11-25): only while it is still a request (New Request, Schedule Onsite Consultation, Onsite Consultation)
+ *  or was lost, and only when no quote, invoice or payment was made for it, so no money or signed paperwork is ever lost. Its own
+ *  tasks, notes, files, schedule items (and their Zoho copies), visit and history go with it. The customer form's own record, if any, is
+ *  left alone (the forms' tables are never changed by the CRM). Needs "Edit and delete" on Requests. */
+export const remove = mutation({
+  args: { id: v.id("opportunities") },
+  handler: async (ctx, args) => {
+    const o = await ctx.db.get(args.id);
+    if (o === null) return;
+    const staff = await requireModule(ctx, o.businessId, "requests", "full");
+    if (staff.assignedOnly && o.salespersonId !== staff.userId) throw new ConvexError("You can only delete your own requests.");
+    const stillRequest = o.pipeline === "Sales" && ((PIPELINE_GROUPS.Requests as readonly string[]).includes(o.stage) || o.stage === "Closed Lost");
+    if (!stillRequest) throw new ConvexError("Only a request that has not been quoted, or one that was lost, can be deleted.");
+    const byOpp = (table: "quotes" | "invoices" | "payments") => ctx.db.query(table).withIndex("by_opportunityId", (q) => q.eq("opportunityId", o._id)).first();
+    if ((await byOpp("quotes")) !== null) throw new ConvexError("This request has a quote. Delete or move the quote first.");
+    if ((await byOpp("invoices")) !== null || (await byOpp("payments")) !== null) throw new ConvexError("This request has an invoice or a payment, so it cannot be deleted.");
+
+    for (const e of await ctx.db.query("calendarEvents").withIndex("by_opportunity", (q) => q.eq("opportunityId", o._id)).take(500)) {
+      await mirrorRemoved(ctx, "event", e._id);
+      await ctx.db.delete(e._id);
+    }
+    for (const t of await ctx.db.query("opportunityTasks").withIndex("by_opportunity", (q) => q.eq("opportunityId", o._id)).take(500)) {
+      if (t.startAt !== undefined) await mirrorRemoved(ctx, "task", t._id);
+      await ctx.db.delete(t._id);
+    }
+    for (const n of await ctx.db.query("opportunityNotes").withIndex("by_opportunity", (q) => q.eq("opportunityId", o._id)).take(500)) await ctx.db.delete(n._id);
+    for (const f of await ctx.db.query("opportunityFiles").withIndex("by_opportunity", (q) => q.eq("opportunityId", o._id)).take(500)) {
+      await ctx.storage.delete(f.storageId);
+      await ctx.db.delete(f._id);
+    }
+    for (const h of await ctx.db.query("stageHistory").withIndex("by_opportunity", (q) => q.eq("opportunityId", o._id)).take(1000)) await ctx.db.delete(h._id);
+    for (const r of await ctx.db.query("opportunityVisits").withIndex("by_opportunity", (q) => q.eq("opportunityId", o._id)).take(10)) await ctx.db.delete(r._id);
+    for (const r of await ctx.db.query("automationRuns").withIndex("by_opportunity_and_key", (q) => q.eq("opportunityId", o._id)).take(500)) await ctx.db.delete(r._id);
+    for (const r of await ctx.db.query("activities").withIndex("by_opportunityId", (q) => q.eq("opportunityId", o._id)).take(1000)) await ctx.db.delete(r._id);
+    await ctx.db.delete(o._id);
+    await logActivity(ctx, { businessId: o.businessId, clientId: o.clientId, title: `Request deleted: ${o.title}`, detail: o.code ? `#${o.code}` : "", staff });
   },
 });

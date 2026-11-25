@@ -4,12 +4,14 @@
    Assignee filter. The counts and rows come from crm/opportunityTasks:listAll. */
 
 import { useMutation, useQuery } from "convex/react";
-import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useKept, type BusinessDoc } from "@/lib/clients";
 import { quoteDate } from "@/lib/format";
 import { failure, todayBounds, useMinute, usePeople } from "@/lib/pipeline";
+import { ConfirmDelete } from "./confirm-delete";
 import { FilterMenu } from "./filter-menus";
 import { AddTaskDialog, type EditableTask } from "./pipeline-dialogs";
 import { Icon } from "./icon";
@@ -35,9 +37,24 @@ export function PipelineTasks({ business }: { business: BusinessDoc }) {
   const [assignee, setAssignee] = useState<Id<"users"> | null>(null);
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<EditableTask | null>(null);
+  const [deleting, setDeleting] = useState<{ id: Id<"opportunityTasks">; title: string } | null>(null);
   const setDone = useMutation(api.crm.opportunityTasks.setDone);
+  const removeTask = useMutation(api.crm.opportunityTasks.removeTask);
+  // "/tasks?task=<id>" (a task's name on Home): scroll to that task and flash it once.
+  const wanted = useRef(useSearchParams().get("task"));
+  const [found, setFound] = useState<string | null>(null);
   const { todayStart, todayEnd } = todayBounds();
   const data = useKept(useQuery(api.crm.opportunityTasks.listAll, { businessId: business._id, now, todayStart, todayEnd, ...(assignee ? { assigneeId: assignee } : {}) }));
+  const ready = data !== undefined && people !== undefined;
+  useEffect(() => {
+    const id = wanted.current;
+    if (!id || !ready) return;
+    wanted.current = null;
+    const el = document.getElementById(`task-${id}`);
+    if (!el) return toast("That task is no longer in the list.");
+    el.scrollIntoView({ block: "center", behavior: "smooth" });
+    setFound(id);
+  }, [ready, toast]);
   if (data === undefined || people === undefined) return <PipelineTasksSkeleton />;
 
   const nameOf = (id: Id<"users"> | undefined) => (id ? (people.find((p) => p.id === id)?.name ?? "") : "Unassigned");
@@ -46,6 +63,14 @@ export function PipelineTasks({ business }: { business: BusinessDoc }) {
     if (r.dueAt === undefined) return false;
     return chip === "overdue" ? r.dueAt < todayStart : chip === "today" ? r.dueAt >= todayStart && r.dueAt <= todayEnd : r.dueAt > todayEnd;
   });
+
+  const actions = (t: { id: Id<"opportunityTasks">; title: string; description?: string; dueAt?: number; assigneeId?: Id<"users"> }) =>
+    canMake ? (
+      <span className="pl-tact">
+        <button type="button" className="icon-btn" aria-label={`Edit ${t.title}`} data-tip="Edit" onClick={() => setEditing({ id: t.id, title: t.title, description: t.description, dueAt: t.dueAt, assigneeId: t.assigneeId })}><Icon name="pencil" size={18} /></button>
+        <button type="button" className="icon-btn" aria-label={`Delete ${t.title}`} data-tip="Delete" onClick={() => setDeleting({ id: t.id, title: t.title })}><Icon name="trash" size={18} /></button>
+      </span>
+    ) : <span />;
 
   return (
     <div className="pl-taskspage">
@@ -83,21 +108,19 @@ export function PipelineTasks({ business }: { business: BusinessDoc }) {
       {rows.length === 0 ? (
         <p className="pl-none" style={{ textAlign: "left" }}>No tasks to show.</p>
       ) : (
-        <ul className="pl-tasklist">
+        <TaskTable>
           {rows.map((t) => (
-            <li key={t.id} className="fade-in">
-              <span className="pl-tcell">
-                <input type="checkbox" checked={false} disabled={!canEdit} onChange={() => void setDone({ taskId: t.id, done: true }).catch((e) => toast(failure(e, "The task could not be updated.")))} aria-label={`Complete ${t.title}`} />
-                {canMake ? (
-                  <button type="button" className="pl-ttitle" onClick={() => setEditing({ id: t.id, title: t.title, dueAt: t.dueAt, assigneeId: t.assigneeId })}>{t.title}</button>
-                ) : <span className="t">{t.title}</span>}
-              </span>
-              <span className="pl-tproject">{t.projectTitle ? `${t.projectTitle} · ${t.code}` : "No project"}</span>
-              <span className="pl-tdue">{t.dueAt === undefined ? "No due date" : quoteDate(t.dueAt)}</span>
-              <span className="pl-tname">{nameOf(t.assigneeId)}</span>
-            </li>
+            <tr key={t.id} id={`task-${t.id}`} className={found === t.id ? "found" : ""}>
+              <td><input type="checkbox" checked={false} disabled={!canEdit} onChange={() => void setDone({ taskId: t.id, done: true }).catch((e) => toast(failure(e, "The task could not be updated.")))} aria-label={`Complete ${t.title}`} /></td>
+              <td><b className="strong">{t.title}</b></td>
+              <td title={t.description}>{t.description || <span className="sub">—</span>}</td>
+              <td title={t.projectTitle ? `${t.projectTitle} · ${t.code}` : undefined}>{t.projectTitle ? `${t.projectTitle} · ${t.code}` : <span className="sub">No project</span>}</td>
+              <td>{t.dueAt === undefined ? <span className="sub">No due date</span> : quoteDate(t.dueAt)}</td>
+              <td>{nameOf(t.assigneeId)}</td>
+              <td>{actions(t)}</td>
+            </tr>
           ))}
-        </ul>
+        </TaskTable>
       )}
 
       <section className="pl-completed" aria-label="Completed tasks">
@@ -105,23 +128,48 @@ export function PipelineTasks({ business }: { business: BusinessDoc }) {
         {data.completed.length === 0 ? (
           <p className="pl-none" style={{ textAlign: "left" }}>Tasks you finish will be kept here.</p>
         ) : (
-          <ul className="pl-tasklist done">
+          <TaskTable done>
             {data.completed.map((t) => (
-              <li key={t.id} className="fade-in">
-                <label>
-                  <input type="checkbox" checked disabled={!canEdit} onChange={() => void setDone({ taskId: t.id, done: false }).catch((e) => toast(failure(e, "The task could not be updated.")))} aria-label={`Reopen ${t.title}`} />
-                  <span className="t">{t.title}</span>
-                </label>
-                <span className="pl-tproject">{t.projectTitle ? `${t.projectTitle} · ${t.code}` : "No project"}</span>
-                <span className="pl-tdue">{t.completedAt ? `Done ${quoteDate(t.completedAt)}` : "Done"}</span>
-                <span className="pl-tname">{nameOf(t.assigneeId)}</span>
-              </li>
+              <tr key={t.id} id={`task-${t.id}`} className={found === t.id ? "found" : ""}>
+                <td><input type="checkbox" checked disabled={!canEdit} onChange={() => void setDone({ taskId: t.id, done: false }).catch((e) => toast(failure(e, "The task could not be updated.")))} aria-label={`Reopen ${t.title}`} /></td>
+                <td><b className="strong t">{t.title}</b></td>
+                <td title={t.description}>{t.description || <span className="sub">—</span>}</td>
+                <td title={t.projectTitle ? `${t.projectTitle} · ${t.code}` : undefined}>{t.projectTitle ? `${t.projectTitle} · ${t.code}` : <span className="sub">No project</span>}</td>
+                <td>{t.completedAt ? `Done ${quoteDate(t.completedAt)}` : "Done"}</td>
+                <td>{nameOf(t.assigneeId)}</td>
+                <td>{actions(t)}</td>
+              </tr>
             ))}
-          </ul>
+          </TaskTable>
         )}
       </section>
       {creating && <AddTaskDialog businessId={business._id} people={people} defaultAssignee={me} onClose={() => setCreating(false)} />}
+      {deleting && (
+        <ConfirmDelete
+          title="Delete this task?"
+          note={`"${deleting.title}" will be deleted. This cannot be undone.`}
+          doneMessage="The task was deleted."
+          failMessage="The task could not be deleted."
+          action={() => removeTask({ taskId: deleting.id })}
+          onClose={() => setDeleting(null)}
+        />
+      )}
       {editing && <AddTaskDialog businessId={business._id} people={people} task={editing} onClose={() => setEditing(null)} />}
+    </div>
+  );
+}
+
+/** The columns of both task tables (fixed widths, D-035): tick, Task, Description, Project, Due (or Done), Assignee, and the Edit and Delete buttons. */
+export const TASK_COLS = [44, "17%", "24%", "18%", 120, "14%", 88] as const;
+
+function TaskTable({ done, children }: { done?: boolean; children: React.ReactNode }) {
+  return (
+    <div className="table-wrap">
+      <table className={`table single pl-tasktable${done ? " done" : ""}`}>
+        <colgroup>{TASK_COLS.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
+        <thead><tr><th><span className="sr">Done</span></th><th>Task</th><th>Description</th><th>Project</th><th>{done ? "Completed" : "Due"}</th><th>Assignee</th><th><span className="sr">Actions</span></th></tr></thead>
+        <tbody>{children}</tbody>
+      </table>
     </div>
   );
 }

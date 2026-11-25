@@ -22,6 +22,7 @@ crons.interval("run pipeline automations", { minutes: 15 }, internal.crm.automat
 crons.interval("run custom automations", { minutes: 15 }, internal.crm.customAutomations.tick, {});
 
 // Zoho Calendar mirror (D-069): reads each connected person's calendar and sends what the CRM has changed. Does nothing until someone connects.
-crons.interval("mirror Zoho calendars", { minutes: 5 }, internal.crm.calendarSync.pullAll, {});
+// Every minute (D-124): Zoho Calendar has no push or webhook, so this is as quick as it gets; opening the Schedule also reads your own at once.
+crons.interval("mirror Zoho calendars", { minutes: 1 }, internal.crm.calendarSync.pullAll, {});
 
 export default crons;

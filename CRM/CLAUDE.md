@@ -104,7 +104,7 @@ Still to ask of the client (user's call, 2026-11-23; ask in one message, each is
 
 The contract, invoice and completion sign-off templates are **not asked for now** (user, 2026-11-23): we keep using our own, and the client's replace them when they send them.
 
-## To do: check the Jobber link (D-085), on a machine where Jobber is connected
+## ~~To do: check the Jobber link (D-085)~~ Dropped: Jobber is ending (D-123) and consultations no longer go to Jobber (D-126). Kept below for the record only.
 The CRM sends consultations to Jobber (`convex/crm/jobberConsultation.ts`), but it was built on a machine where Jobber was not connected, so **no call to Jobber has ever been tried**. Do this in a new session on the dev deployment, then delete this section and note the result in D-085:
 1. Confirm the dev deployment is connected to Jobber (the forms app's connect link). Never use production for this test.
 2. Check the GraphQL names against Jobber's schema, especially `assessmentComplete(assessmentId:)`, `assessmentCreate`, `assessmentEdit`, `assessmentDelete`, `requestEdit` and `users { email { raw } }` (a throwaway internal action that introspects `__type(name: "Mutation")`, deleted afterwards, worked as a plan).

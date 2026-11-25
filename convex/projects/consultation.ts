@@ -1,112 +1,23 @@
-import { ConvexError, v } from "convex/values";
+import { ConvexError, v, type Infer } from "convex/values";
 import { internal } from "../_generated/api";
-import type { Doc } from "../_generated/dataModel";
+import type { Doc, Id } from "../_generated/dataModel";
 import type { ActionCtx } from "../_generated/server";
 import { action, internalAction, internalMutation, internalQuery } from "../_generated/server";
-import { clockFromMinutes, minutesFromDayStart, overlaps, zonedToInstant, zonedWallClock } from "../shared/zonedTime";
-import { createRequest, jobberGraphql } from "../jobber/client";
+import { clockFromMinutes, overlaps } from "../shared/zonedTime";
 import { consultationValidator } from "../schema";
 import { salespersonName } from "../sales/accounts";
-import { accessTokenFor } from "./actions";
 import { saveVisitSnapshot } from "./visits";
-import { formatShortCode } from "../shared/errors";
-import { visitLabel } from "../shared/visits";
 
-type MutationErrors = { userErrors: { message: string }[] };
+/* The sales form's Schedule consultation (and follow-up visits). Bookings go on the Launchpad CRM's calendar, not in Jobber (D-126 in
+   CRM/docs/decisions.md; the Jobber subscription is ending, D-123): the CRM item is made by crm/formsConsultation, shows on the Schedule and
+   the person's Zoho Calendar at once, and moves the project to Onsite Consultation. The booking's CRM id is kept in `assessmentId`, the field
+   that used to hold Jobber's id, so the rest of the sales form is unchanged. Older bookings still carry a Jobber id and are left as they are. */
+
 type Who = { email: string; name: string };
 type Booking = { _id: Doc<"projects">["_id"]; consultation: NonNullable<Doc<"projects">["consultation"]> };
 
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
-
-/** Adds minutes to a wall-clock date and time without any time zone maths; Jobber applies the account's zone. */
-function endOf(date: string, time: string, minutes: number): { date: string; time: string } {
-  const [year, month, day] = date.split("-").map(Number);
-  const [hour, minute] = time.split(":").map(Number);
-  const end = new Date(Date.UTC(year, month - 1, day, hour, minute + minutes));
-  const pad = (value: number) => String(value).padStart(2, "0");
-  return {
-    date: `${end.getUTCFullYear()}-${pad(end.getUTCMonth() + 1)}-${pad(end.getUTCDate())}`,
-    time: `${pad(end.getUTCHours())}:${pad(end.getUTCMinutes())}`,
-  };
-}
-
-function schedule(date: string, time: string, minutes: number, timezone: string, teamMemberId: string | null) {
-  return {
-    startAt: { date, time, timezone },
-    endAt: { ...endOf(date, time, minutes), timezone },
-    notifyTeam: false,
-    ...(teamMemberId === null ? {} : { teamMemberIdsToAssign: [teamMemberId] }),
-  };
-}
-
-function problem(errors: { message: string }[]): string | null {
-  return errors.length === 0 ? null : errors.map((error) => error.message).join("; ");
-}
-
-/** The title Jobber shows on the request and its calendar entry: which visit, who is going, and for whom. */
-function jobberTitle(label: string, salesperson: string, project: Doc<"projects">): string {
-  const homeowner = `${project.firstName} ${project.lastName}`.trim();
-  const code = formatShortCode(project.shortCode);
-  return [label, salesperson, homeowner, code].filter((part) => part !== "").join(" · ").slice(0, 200);
-}
-
-/** The appointment notes Jobber shows: the visit and salesperson first, then the project, then whatever was typed. */
-function jobberNotes(label: string, salesperson: string, project: Doc<"projects">, notes: string): string {
-  const address = [project.street1, project.street2, project.city, project.state, project.zip]
-    .filter((part) => part.trim() !== "")
-    .join(", ");
-  const details = [
-    ["Homeowner", `${project.firstName} ${project.lastName}`.trim()],
-    ["Project ID", formatShortCode(project.shortCode)],
-    ["Address", address],
-    ["Phone", project.phone],
-    ["Email", project.email],
-    ["Services", project.services.join(", ")],
-  ]
-    .filter(([, value]) => value.trim() !== "")
-    .map(([name, value]) => `${name}: ${value}`);
-  return [`${label} · Salesperson: ${salesperson}`, details.join("\n"), notes]
-    .filter((block) => block !== "")
-    .join("\n\n");
-}
-
-/** A new Jobber request for a follow-up, because a request holds only one appointment. */
-async function createFollowUpRequest(
-  accessToken: string,
-  project: Doc<"projects">,
-  label: string,
-  salesperson: string,
-): Promise<string> {
-  const clientId = project.jobberClientId;
-  if (clientId === null) throw new ConvexError("This project has no Jobber client yet, so a follow-up cannot be booked.");
-  const found = await jobberGraphql<{ client: { clientProperties: { nodes: { id: string }[] } } | null }>(
-    accessToken,
-    `query Property($id: EncodedId!) { client(id: $id) { clientProperties(first: 1) { nodes { id } } } }`,
-    { id: clientId },
-  );
-  const propertyId = found.client?.clientProperties.nodes[0]?.id ?? null;
-  if (propertyId === null) throw new ConvexError("The Jobber client has no property, so a follow-up cannot be booked.");
-  const address = [project.street1, project.street2, project.city, project.state, project.zip]
-    .filter((part) => part.trim() !== "")
-    .join(", ");
-  return await createRequest({
-    accessToken,
-    clientId,
-    propertyId,
-    title: jobberTitle(label, salesperson, project),
-    details: [
-      { label: "Visit", value: label },
-      { label: "Salesperson", value: salesperson },
-      { label: "Homeowner", value: `${project.firstName} ${project.lastName}`.trim() },
-      { label: "Project ID", value: formatShortCode(project.shortCode) },
-      { label: "Address", value: address },
-      { label: "Phone", value: project.phone },
-      { label: "Email", value: project.email },
-      { label: "Services", value: project.services.join(", ") },
-    ].filter((row) => row.value.trim() !== ""),
-  });
-}
 
 /**
  * Which visit a booking is for. A project whose current visit is saved complete is waiting for its next
@@ -124,7 +35,7 @@ export const record = internalMutation({
     consultation: v.union(consultationValidator, v.null()),
     /** Starts the next follow-up: the finished visit is kept as its card and the new booking takes its place. */
     advance: v.optional(v.boolean()),
-    /** The Jobber request created for a follow-up's appointment. */
+    /** The Jobber request created for a follow-up's appointment (older bookings only). */
     followUpRequestId: v.optional(v.string()),
   },
   returns: v.null(),
@@ -155,7 +66,7 @@ export const record = internalMutation({
   },
 });
 
-/** Consultations the app already holds for a salesperson on a day, so a clash is caught even without Jobber. */
+/** Consultations the app already holds for a salesperson on a day, so a clash is caught even for a project with no CRM item. */
 export const heldOn = internalQuery({
   args: { email: v.string(), date: v.string(), exceptProjectId: v.id("projects") },
   returns: v.array(
@@ -190,9 +101,6 @@ async function signedInProject(
   const loaded = await ctx.runQuery(internal.projects.queries.get, { projectId });
   if (loaded === null) throw new ConvexError("Project not found.");
   const project = loaded.project;
-  if (!project.jobberRequestId) {
-    throw new ConvexError("This project has no Jobber request yet, so a consultation cannot be booked.");
-  }
   if (project.assignedTo === undefined) {
     throw new ConvexError("Assign this lead to yourself before booking a consultation.");
   }
@@ -202,96 +110,34 @@ async function signedInProject(
   return { project, who };
 }
 
-/** The Jobber team member with this email, so the appointment lands on their own calendar. */
-async function jobberUserFor(accessToken: string, email: string): Promise<string | null> {
-  const data = await jobberGraphql<{ users: { nodes: { id: string; email: { raw: string | null } | null }[] } }>(
-    accessToken,
-    `query Team { users(first: 100) { nodes { id email { raw } } } }`,
-    {},
-  );
-  const wanted = email.trim().toLowerCase();
-  return data.users.nodes.find((user) => user.email?.raw?.trim().toLowerCase() === wanted)?.id ?? null;
-}
-
 type Busy = { start: number; end: number; title: string; isBreak: boolean };
 
-/** A Jobber calendar event the team has named a break, lunch or time off. */
-function isBreakEvent(typename: string | undefined, title: string | null): boolean {
-  return typename === "Event" && /break|lunch|time\s*off|day\s*off/i.test(title ?? "");
-}
-
-/**
- * What the salesperson already has around `date`, as minutes from midnight in the Jobber account's zone.
- * Combines their Jobber calendar (when they are a Jobber team member) with the app's own bookings.
- */
+/** What the salesperson already has on `date`, as minutes from midnight: the CRM calendar (their bookings and Zoho busy times) and the app's own bookings. */
 async function busyOn(
   ctx: ActionCtx,
-  accessToken: string,
-  args: {
-    who: Who;
-    jobberUserId: string | null;
-    date: string;
-    timezone: string;
-    projectId: Doc<"projects">["_id"];
-    ownAssessmentId: string | null;
-  },
+  args: { who: Who; date: string; projectId: Doc<"projects">["_id"]; ownId: string | null },
 ): Promise<Busy[]> {
   const busy: Busy[] = [];
+  const crm: { id: string; start: number; end: number; title: string; external: boolean }[] = await ctx.runQuery(internal.crm.formsConsultation.busyOn, {
+    formsProjectId: args.projectId,
+    email: args.who.email,
+    date: args.date,
+    ...(args.ownId ? { exceptEventId: args.ownId } : {}),
+  });
+  // Zoho busy times are a warning on the CRM Schedule, never a refusal, so they are left out here.
+  for (const item of crm) if (!item.external) busy.push({ start: item.start, end: item.end, title: item.title, isBreak: false });
   const held = await ctx.runQuery(internal.projects.consultation.heldOn, {
     email: args.who.email,
     date: args.date,
     exceptProjectId: args.projectId,
   });
-  // The same appointment can come from both the app and Jobber; count it once.
-  const heldIds = new Set(held.map((item) => item.assessmentId));
+  const onCalendar = new Set(crm.map((item) => item.id));
   for (const item of held) {
+    if (onCalendar.has(item.assessmentId)) continue; // booked from here and already on the CRM calendar: count it once
     const start = Number(item.time.slice(0, 2)) * 60 + Number(item.time.slice(3, 5));
     busy.push({ start, end: start + item.minutes, title: item.title, isBreak: false });
   }
-  if (args.jobberUserId !== null) {
-    // From the start of the day to the end of the next, since a long visit can run past midnight.
-    const from = zonedToInstant(args.date, "00:00", args.timezone);
-    const next = endOf(args.date, "00:00", 2 * 1440);
-    const to = zonedToInstant(next.date, next.time, args.timezone);
-    const data = await jobberGraphql<{
-      scheduledItems: {
-        nodes: { __typename?: string; id: string; title: string | null; startAt: string | null; endAt: string | null; allDay: boolean | null }[];
-      };
-    }>(
-      accessToken,
-      `query Busy($filter: ScheduledItemsFilterAttributes!) {
-        scheduledItems(first: 100, filter: $filter) { nodes { __typename id title startAt endAt allDay } }
-      }`,
-      {
-        filter: {
-          occursWithin: { startAt: from.toISOString(), endAt: to.toISOString() },
-          assignedTo: [args.jobberUserId],
-        },
-      },
-    );
-    for (const item of data.scheduledItems.nodes) {
-      if (item.id === args.ownAssessmentId || heldIds.has(item.id) || item.allDay === true) continue;
-      if (item.startAt === null || item.endAt === null) continue;
-      busy.push({
-        start: minutesFromDayStart(args.date, item.startAt, args.timezone),
-        end: minutesFromDayStart(args.date, item.endAt, args.timezone),
-        title: item.title?.trim() || (isBreakEvent(item.__typename, item.title) ? "Break" : "Booked in Jobber"),
-        isBreak: isBreakEvent(item.__typename, item.title),
-      });
-    }
-  }
   return busy.sort((left, right) => left.start - right.start);
-}
-
-async function jobberTimezone(accessToken: string): Promise<string> {
-  const zone = await jobberGraphql<{ user: { timezone: string | null } }>(
-    accessToken,
-    `query Zone { user { timezone } }`,
-    {},
-  );
-  const timezone = zone.user.timezone;
-  if (timezone === null || timezone === "") throw new ConvexError("Jobber did not say which time zone to use.");
-  return timezone;
 }
 
 /** The signed-in salesperson's commitments on a day, for the booking form to show. */
@@ -301,29 +147,19 @@ export const busy = action({
   handler: async (ctx, args) => {
     if (!datePattern.test(args.date)) return [];
     const { project, who } = await signedInProject(ctx, args.sessionToken, args.projectId);
-    const accessToken = await accessTokenFor(ctx);
-    const timezone = await jobberTimezone(accessToken);
-    const jobberUserId = await jobberUserFor(accessToken, who.email);
-    const items = await busyOn(ctx, accessToken, {
-      who,
-      jobberUserId,
-      date: args.date,
-      timezone,
-      projectId: args.projectId,
-      ownAssessmentId: project.consultation?.assessmentId ?? null,
-    });
+    const items = await busyOn(ctx, { who, date: args.date, projectId: args.projectId, ownId: project.consultation?.assessmentId ?? null });
     return items
       .filter((item) => item.end > 0 && item.start < 1440)
       .map((item) => ({
         start: clockFromMinutes(Math.max(item.start, 0)),
-        end: clockFromMinutes(item.end),
+        end: clockFromMinutes(Math.min(item.end, 1440)),
         title: item.title,
         isBreak: item.isBreak,
       }));
   },
 });
 
-/** Books, or moves, the consultation on the project's Jobber request. Jobber emails the homeowner. */
+/** Books, or moves, the consultation (or the next follow-up visit) on the CRM calendar. */
 export const book = action({
   args: {
     sessionToken: v.string(),
@@ -334,7 +170,7 @@ export const book = action({
     instructions: v.string(),
   },
   returns: consultationValidator,
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<Infer<typeof consultationValidator>> => {
     if (!datePattern.test(args.date) || !timePattern.test(args.time)) {
       throw new ConvexError("Choose a date and a time.");
     }
@@ -347,107 +183,35 @@ export const book = action({
     const instructions = args.instructions.trim().slice(0, 1000);
     const { project, who } = await signedInProject(ctx, args.sessionToken, args.projectId);
     const { visit, advancing } = targetVisit(project);
-    const label = visitLabel(visit);
-    const accessToken = await accessTokenFor(ctx);
-    // A request holds one appointment, so the consultation lives on the project's own request and every
-    // follow-up gets a request of its own (null until it is created below, once the time is known to be free).
-    let requestId: string | null =
-      visit === 0 ? (project.jobberRequestId as string) : advancing ? null : (project.followUpRequestId ?? null);
+    // Moving the current visit keeps its CRM item; starting the next follow-up makes a new one.
+    const ownId = advancing ? null : (project.consultation?.assessmentId ?? null);
 
-    // Move the visit's existing appointment rather than adding a second to the same request.
-    let assessmentId = requestId === null ? null : (project.consultation?.assessmentId ?? null);
-    if (requestId !== null && assessmentId === null) {
-      const found = await jobberGraphql<{ request: { assessment: { id: string } | null } | null }>(
-        accessToken,
-        `query Existing($id: EncodedId!) { request(id: $id) { assessment { id } } }`,
-        { id: requestId },
-      );
-      assessmentId = found.request?.assessment?.id ?? null;
-    }
-
-    // Times are the salesperson's wall-clock; they are placed in the connected Jobber user's time zone.
-    const timezone = await jobberTimezone(accessToken);
-    const teamMemberId = await jobberUserFor(accessToken, who.email);
-
-    // The salesperson cannot be in two places at once.
-    const items = await busyOn(ctx, accessToken, {
-      who,
-      jobberUserId: teamMemberId,
-      date: args.date,
-      timezone,
-      projectId: args.projectId,
-      ownAssessmentId: assessmentId,
-    });
+    // The salesperson cannot be in two places at once. Zoho busy times are only a warning on the CRM Schedule, so they are skipped here too.
+    const items = await busyOn(ctx, { who, date: args.date, projectId: args.projectId, ownId });
     const start = Number(args.time.slice(0, 2)) * 60 + Number(args.time.slice(3, 5));
     const clash = items.find((item) => overlaps(start, start + args.minutes, item.start, item.end));
     if (clash !== undefined) {
       throw new ConvexError(
-        clash.isBreak
-          ? `${who.name} is on a break from ${clockFromMinutes(clash.start)} to ${clockFromMinutes(clash.end)} (${clash.title}). Choose another time.`
-          : `${who.name} is already booked from ${clockFromMinutes(clash.start)} to ${clockFromMinutes(clash.end)} (${clash.title}). Choose another time.`,
+        `${who.name} is already booked from ${clockFromMinutes(clash.start)} to ${clockFromMinutes(Math.min(clash.end, 1440))} (${clash.title}). Choose another time.`,
       );
     }
 
-    const madeRequest = requestId === null;
-    if (requestId === null) requestId = await createFollowUpRequest(accessToken, project, label, who.name);
+    // The CRM checks the clash again and refuses it with its own message if someone booked the same time in between.
+    const eventId: Id<"calendarEvents"> | null = await ctx.runMutation(internal.crm.formsConsultation.book, {
+      formsProjectId: args.projectId,
+      email: who.email,
+      name: who.name,
+      date: args.date,
+      time: args.time,
+      minutes: args.minutes,
+      instructions,
+      visit,
+      ...(ownId ? { existingId: ownId } : {}),
+    });
 
-    const input = {
-      instructions: jobberNotes(label, who.name, project, instructions),
-      schedule: schedule(args.date, args.time, args.minutes, timezone, teamMemberId),
-    };
-    if (assessmentId === null) {
-      const data = await jobberGraphql<{
-        assessmentCreate: { assessment: { id: string } | null } & MutationErrors;
-      }>(
-        accessToken,
-        `mutation Book($requestId: EncodedId!, $input: AssessmentCreateInput!) {
-          assessmentCreate(requestId: $requestId, input: $input) {
-            assessment { id }
-            userErrors { message }
-          }
-        }`,
-        { requestId, input },
-      );
-      const failed = problem(data.assessmentCreate.userErrors);
-      if (failed !== null || data.assessmentCreate.assessment === null) {
-        throw new ConvexError(failed ?? `Jobber did not book the ${label.toLowerCase()}.`);
-      }
-      assessmentId = data.assessmentCreate.assessment.id;
-    } else {
-      const data = await jobberGraphql<{ assessmentEdit: MutationErrors }>(
-        accessToken,
-        `mutation Move($id: EncodedId!, $input: AssessmentEditInput!) {
-          assessmentEdit(assessmentId: $id, input: $input) {
-            userErrors { message }
-          }
-        }`,
-        { id: assessmentId, input },
-      );
-      const failed = problem(data.assessmentEdit.userErrors);
-      if (failed !== null) throw new ConvexError(failed);
-    }
-
-    // The request's title is what Jobber shows on the calendar entry. A request made for a follow-up is
-    // already titled. Otherwise this is best effort: the notes above carry the visit and salesperson,
-    // so a title Jobber refuses must not undo the booking.
-    if (!madeRequest) {
-      try {
-        const edited = await jobberGraphql<{ requestEdit: MutationErrors }>(
-          accessToken,
-          `mutation Title($id: EncodedId!, $input: RequestEditInput!) {
-            requestEdit(requestId: $id, input: $input) { userErrors { message } }
-          }`,
-          { id: requestId, input: { title: jobberTitle(label, who.name, project) } },
-        );
-        const refused = problem(edited.requestEdit.userErrors);
-        if (refused !== null) console.error(`Jobber did not retitle request ${requestId}: ${refused}`);
-      } catch (failure) {
-        console.error(`Could not retitle Jobber request ${requestId}`, failure);
-      }
-    }
-
-    const consultation = {
-      assessmentId,
+    const consultation: Infer<typeof consultationValidator> = {
+      // A record that has no CRM project yet keeps the booking here only.
+      assessmentId: eventId ?? `app-${Date.now()}`,
       date: args.date,
       time: args.time,
       minutes: args.minutes,
@@ -458,7 +222,6 @@ export const book = action({
       projectId: args.projectId,
       consultation,
       advance: advancing,
-      followUpRequestId: visit > 0 ? requestId : undefined,
     });
     return consultation;
   },
@@ -471,16 +234,7 @@ export const cancel = action({
     const { project } = await signedInProject(ctx, args.sessionToken, args.projectId);
     // A finished visit has nothing booked to cancel; its next follow-up has not been scheduled yet.
     if (project.consultation === undefined || project.visitedAt !== undefined) return null;
-    const accessToken = await accessTokenFor(ctx);
-    const data = await jobberGraphql<{ assessmentDelete: MutationErrors }>(
-      accessToken,
-      `mutation Cancel($id: EncodedId!) {
-        assessmentDelete(assessmentId: $id) { userErrors { message } }
-      }`,
-      { id: project.consultation.assessmentId },
-    );
-    const failed = problem(data.assessmentDelete.userErrors);
-    if (failed !== null) throw new ConvexError(failed);
+    await ctx.runMutation(internal.crm.formsConsultation.cancel, { existingId: project.consultation.assessmentId });
     await ctx.runMutation(internal.projects.consultation.record, {
       projectId: args.projectId,
       consultation: null,
@@ -489,52 +243,24 @@ export const cancel = action({
   },
 });
 
-/** What Jobber says about the appointment now: its times, or that it is gone. */
-type Remote = { state: "missing" } | { state: "scheduled"; startAt: string; endAt: string };
-
-async function readAssessment(accessToken: string, assessmentId: string): Promise<Remote> {
-  try {
-    const data = await jobberGraphql<{ assessment: { startAt: string | null; endAt: string | null } | null }>(
-      accessToken,
-      `query Read($id: EncodedId!) { assessment(id: $id) { startAt endAt } }`,
-      { id: assessmentId },
-    );
-    const found = data.assessment;
-    if (found === null || found.startAt === null || found.endAt === null) return { state: "missing" };
-    return { state: "scheduled", startAt: found.startAt, endAt: found.endAt };
-  } catch (failure) {
-    // Only a clear "it does not exist" counts as removed; a network or auth failure must not wipe a booking.
-    if (failure instanceof Error && /not found|does not exist|couldn't find|could not find/i.test(failure.message)) {
-      return { state: "missing" };
-    }
-    throw failure;
-  }
-}
-
-/** Brings one project's stored consultation in line with Jobber, whoever changed it there. */
-async function syncProject(
-  ctx: ActionCtx,
-  accessToken: string,
-  timezone: string,
-  project: Booking,
-): Promise<"unchanged" | "moved" | "removed"> {
-  const remote = await readAssessment(accessToken, project.consultation.assessmentId);
+/** Brings one project's stored booking in line with the CRM calendar, whoever moved or removed it there. */
+async function syncProject(ctx: ActionCtx, project: Booking): Promise<"unchanged" | "moved" | "removed"> {
+  const remote: { state: "unknown" } | { state: "missing" } | { state: "scheduled"; date: string; time: string; minutes: number } = await ctx.runQuery(internal.crm.formsConsultation.where, { existingId: project.consultation.assessmentId });
+  if (remote.state === "unknown") return "unchanged"; // an older Jobber booking, or one kept here only
   if (remote.state === "missing") {
     await ctx.runMutation(internal.projects.consultation.record, { projectId: project._id, consultation: null });
     return "removed";
   }
-  const begins = zonedWallClock(remote.startAt, timezone);
-  const minutes = Math.round((new Date(remote.endAt).getTime() - new Date(remote.startAt).getTime()) / 60_000);
   const current = project.consultation;
-  if (begins.date === current.date && begins.time === current.time && minutes === current.minutes) return "unchanged";
+  if (remote.date === current.date && remote.time === current.time && remote.minutes === current.minutes) return "unchanged";
   await ctx.runMutation(internal.projects.consultation.record, {
     projectId: project._id,
-    consultation: { ...current, date: begins.date, time: begins.time, minutes },
+    consultation: { ...current, date: remote.date, time: remote.time, minutes: remote.minutes },
   });
   return "moved";
 }
 
-/** Called when a project is opened, so what the salesperson sees matches the Jobber calendar right now. */
+/** Called when a project is opened, so what the salesperson sees matches the CRM calendar right now. */
 export const refresh = action({
   args: { sessionToken: v.string(), projectId: v.id("projects") },
   returns: v.null(),
@@ -543,10 +269,8 @@ export const refresh = action({
     if (!signedIn) return null;
     const loaded = await ctx.runQuery(internal.projects.queries.get, { projectId: args.projectId });
     const consultation = loaded?.project.consultation;
-    if (loaded === null || consultation === undefined) return null;
-    const accessToken = await accessTokenFor(ctx);
-    const timezone = await jobberTimezone(accessToken);
-    await syncProject(ctx, accessToken, timezone, { _id: loaded.project._id, consultation });
+    if (loaded === null || consultation === undefined || loaded.project.visitedAt !== undefined) return null;
+    await syncProject(ctx, { _id: loaded.project._id, consultation });
     return null;
   },
 });
@@ -557,24 +281,21 @@ export const booked = internalQuery({
   handler: async (ctx) => {
     const recent = await ctx.db.query("projects").order("desc").take(500);
     return recent.flatMap((project) =>
-      project.consultation === undefined ? [] : [{ _id: project._id, consultation: project.consultation }],
+      project.consultation === undefined || project.visitedAt !== undefined ? [] : [{ _id: project._id, consultation: project.consultation }],
     );
   },
 });
 
-/** Scheduled sweep: edits and removals made by office staff in Jobber flow back into the app. */
+/** Scheduled sweep (kept as a safety net): bookings moved or removed on the CRM calendar flow back into the app. */
 export const syncAll = internalAction({
   args: {},
   returns: v.object({ checked: v.number(), moved: v.number(), removed: v.number() }),
   handler: async (ctx) => {
     const bookings: Booking[] = await ctx.runQuery(internal.projects.consultation.booked, {});
     const totals = { checked: 0, moved: 0, removed: 0 };
-    if (bookings.length === 0) return totals;
-    const accessToken = await accessTokenFor(ctx);
-    const timezone = await jobberTimezone(accessToken);
     for (const booking of bookings) {
       try {
-        const result = await syncProject(ctx, accessToken, timezone, booking);
+        const result = await syncProject(ctx, booking);
         totals.checked += 1;
         if (result === "moved") totals.moved += 1;
         if (result === "removed") totals.removed += 1;

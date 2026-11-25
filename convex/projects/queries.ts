@@ -216,7 +216,8 @@ export const visit = query({
       return result;
     };
     const workAreas = await withPhotoUrls(stored);
-    const canSchedule = Boolean(project.jobberRequestId);
+    // Bookings go on the CRM calendar now (D-126), so a project does not have to be in Jobber first.
+    const canSchedule = true;
     const {
       jobberClientId: _client,
       jobberRequestId: _request,

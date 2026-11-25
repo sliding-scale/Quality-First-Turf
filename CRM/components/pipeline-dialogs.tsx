@@ -7,7 +7,10 @@ import { useMutation } from "convex/react";
 import { useEffect, useState, type ReactNode } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { failure } from "@/lib/pipeline";
+import { zonedToInstant, zonedWallClock } from "@/convex/shared/zonedTime";
+import { BUSINESS_TIME_ZONE } from "@/lib/format";
+import { clock, failure } from "@/lib/pipeline";
+import { fromInputs, todayKey } from "@/lib/schedule";
 import { Icon } from "./icon";
 import { useDialogFocus } from "./use-dialog-focus";
 
@@ -89,14 +92,10 @@ export function LostReasonDialog({ project, onConfirm, onClose }: { project: str
   );
 }
 
-export type EditableTask = { id: Id<"opportunityTasks">; title: string; dueAt?: number; assigneeId?: Id<"users"> };
+export type EditableTask = { id: Id<"opportunityTasks">; title: string; description?: string; dueAt?: number; assigneeId?: Id<"users"> };
 
-/** yyyy-mm-dd of a moment, in the browser's own day, for a date box. */
-const dateBox = (ms: number | undefined) => {
-  if (ms === undefined) return "";
-  const d = new Date(ms);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-};
+/** yyyy-mm-dd of a moment, in the business's day (the same day Home and Tasks use for "Due today"), for a date box. */
+const dateBox = (ms: number | undefined) => (ms === undefined ? "" : zonedWallClock(new Date(ms), BUSINESS_TIME_ZONE).date);
 
 /** A task on a project (`projectId`), or, with none, a task of the business's own from the Tasks page or Home (PRD 3.5). With `task` it
  *  edits that task, and offers Delete (after a second click to be sure). `defaultAssignee` is who a new task starts with. */
@@ -108,6 +107,7 @@ export function AddTaskDialog({ projectId, businessId, people, task, defaultAssi
   const updateTask = useMutation(api.crm.opportunityTasks.updateTask);
   const removeTask = useMutation(api.crm.opportunityTasks.removeTask);
   const [title, setTitle] = useState(task?.title ?? "");
+  const [description, setDescription] = useState(task?.description ?? "");
   const [assignee, setAssignee] = useState<string>(task ? (task.assigneeId ?? "") : (defaultAssignee ?? ""));
   const [due, setDue] = useState(dateBox(task?.dueAt));
   const [bad, setBad] = useState(false);
@@ -129,10 +129,11 @@ export function AddTaskDialog({ projectId, businessId, people, task, defaultAssi
             setBusy(true);
             setError("");
             try {
-              const dueAt = due ? new Date(`${due}T12:00:00`).getTime() : undefined;
-              if (task) await updateTask({ taskId: task.id, title, dueAt: dueAt ?? null, assigneeId: assignee ? (assignee as Id<"users">) : null });
+              // Noon on the chosen day in the business's time zone, so the due date is the same day wherever the person's browser is.
+              const dueAt = due ? zonedToInstant(due, "12:00", BUSINESS_TIME_ZONE).getTime() : undefined;
+              if (task) await updateTask({ taskId: task.id, title, description, dueAt: dueAt ?? null, assigneeId: assignee ? (assignee as Id<"users">) : null });
               else {
-                const extra = { ...(assignee ? { assigneeId: assignee as Id<"users"> } : {}), ...(dueAt ? { dueAt } : {}) };
+                const extra = { ...(description.trim() ? { description } : {}), ...(assignee ? { assigneeId: assignee as Id<"users"> } : {}), ...(dueAt ? { dueAt } : {}) };
                 if (projectId) await addTask({ id: projectId, title, ...extra });
                 else await createTask({ businessId, title, ...extra });
               }
@@ -147,6 +148,10 @@ export function AddTaskDialog({ projectId, businessId, people, task, defaultAssi
             <label htmlFor="task-title">Title</label>
             <input id="task-title" aria-invalid={bad} maxLength={200} autoFocus value={title} onChange={(e) => { setTitle(e.target.value); setBad(false); }} />
             <span className="err">Give the task a title.</span>
+          </div>
+          <div className="field" style={{ marginTop: 14 }}>
+            <label htmlFor="task-description">Description</label>
+            <textarea id="task-description" rows={3} maxLength={2000} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional" />
           </div>
           <div className="field" style={{ marginTop: 14 }}>
             <label htmlFor="task-assignee">Assignee</label>
@@ -198,6 +203,117 @@ export function AddTaskDialog({ projectId, businessId, people, task, defaultAssi
                 <button type="submit" className="btn primary" disabled={busy}>{busy ? "Saving…" : "Save"}</button>
               </>
             )}
+          </div>
+        </form>
+      )}
+    </PipelineModal>
+  );
+}
+
+const CONSULT_LENGTHS = [
+  { minutes: 30, label: "30 minutes" },
+  { minutes: 45, label: "45 minutes" },
+  { minutes: 60, label: "1 hour" },
+  { minutes: 90, label: "1 hour 30 minutes" },
+  { minutes: 120, label: "2 hours" },
+];
+/** Quarter-hour start times, as "HH:MM". */
+const CONSULT_TIMES = Array.from({ length: 96 }, (_, i) => `${String(Math.floor(i / 4)).padStart(2, "0")}:${String((i % 4) * 15).padStart(2, "0")}`);
+const clockLabel = (t: string) => {
+  const [h, m] = t.split(":").map(Number);
+  return `${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
+};
+
+/** Schedule consultation from a card in "Schedule Onsite Consultation" (client, 2026-11-25): the person, the day, the time, the length and
+ *  notes for the visit. Booking it puts it on that person's calendar (and their Zoho Calendar when connected) and moves the project to
+ *  "Onsite Consultation" (crm/schedule.book, D-085). A clash with another booking is refused by the server and shown here. */
+export function ScheduleConsultationDialog({ businessId, project, people, defaultAssignee, onClose, onBooked }: {
+  businessId: Id<"businesses">;
+  project: { id: Id<"opportunities">; title: string; clientId: Id<"clients"> };
+  people: { id: Id<"users">; name: string }[];
+  defaultAssignee?: Id<"users">;
+  onClose: () => void;
+  onBooked?: () => void;
+}) {
+  const book = useMutation(api.crm.schedule.book);
+  const [assignee, setAssignee] = useState<string>(defaultAssignee ?? "");
+  const [date, setDate] = useState("");
+  const [time, setTime] = useState("09:00");
+  const [minutes, setMinutes] = useState(60);
+  const [notes, setNotes] = useState("");
+  const [bad, setBad] = useState<{ assignee?: boolean; date?: string }>({});
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const today = todayKey(clock());
+  return (
+    <PipelineModal title="Schedule consultation" onClose={onClose} busy={busy}>
+      {(close) => (
+        <form
+          noValidate
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const next: { assignee?: boolean; date?: string } = {};
+            if (!assignee) next.assignee = true;
+            const start = date ? fromInputs(date, time) : NaN;
+            if (!date) next.date = "Choose a date.";
+            else if (start <= clock()) next.date = "That time has already passed. Choose a later one.";
+            setBad(next);
+            if (next.assignee || next.date) {
+              document.getElementById(next.assignee ? "sc-cons-who" : "sc-cons-date")?.focus();
+              return;
+            }
+            setBusy(true);
+            setError("");
+            try {
+              await book({
+                businessId, type: "consultation", title: `Consultation: ${project.title}`, start, end: start + minutes * 60_000, anytime: false,
+                assigneeIds: [assignee as Id<"users">], opportunityId: project.id, clientId: project.clientId, notes: notes.trim(), now: clock(),
+              });
+              onBooked?.();
+              close();
+            } catch (err) {
+              setError(failure(err, "The consultation could not be booked. Try again."));
+              setBusy(false);
+            }
+          }}
+        >
+          <p className="muted" style={{ marginTop: 0 }}>For {project.title}. Booking it moves the project to Onsite Consultation.</p>
+          <div className={`field${bad.assignee ? " bad" : ""}`}>
+            <label htmlFor="sc-cons-who">Who is going</label>
+            <select id="sc-cons-who" aria-invalid={!!bad.assignee} value={assignee} onChange={(e) => { setAssignee(e.target.value); setBad((b) => ({ ...b, assignee: false })); }}>
+              <option value="">Choose a person</option>
+              {people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+            <span className="err">Choose who is going.</span>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 14 }}>
+            <div className={`field${bad.date ? " bad" : ""}`}>
+              <label htmlFor="sc-cons-date">Date</label>
+              <input id="sc-cons-date" type="date" min={today} aria-invalid={!!bad.date} value={date} onChange={(e) => { setDate(e.target.value); setBad((b) => ({ ...b, date: undefined })); }} />
+              <span className="err">{bad.date ?? "Choose a date."}</span>
+            </div>
+            <div className="field">
+              <label htmlFor="sc-cons-time">Start time</label>
+              <select id="sc-cons-time" value={time} onChange={(e) => { setTime(e.target.value); setBad((b) => ({ ...b, date: undefined })); }}>
+                {CONSULT_TIMES.map((t) => <option key={t} value={t}>{clockLabel(t)}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="field" style={{ marginTop: 14 }}>
+            <label htmlFor="sc-cons-len">Length</label>
+            <select id="sc-cons-len" value={minutes} onChange={(e) => setMinutes(Number(e.target.value))}>
+              {CONSULT_LENGTHS.map((l) => <option key={l.minutes} value={l.minutes}>{l.label}</option>)}
+            </select>
+          </div>
+          <div className="field" style={{ marginTop: 14 }}>
+            <label htmlFor="sc-cons-notes">Notes for the visit</label>
+            <textarea id="sc-cons-notes" rows={3} maxLength={1000} placeholder="Optional: gate code, parking, who to ask for" value={notes} onChange={(e) => setNotes(e.target.value)} />
+          </div>
+          <p className="muted" style={{ fontSize: 13 }}>Times are in the business time zone ({BUSINESS_TIME_ZONE}).</p>
+          {error && <p className="modal-error" role="alert">{error}</p>}
+          <div className="modal-foot">
+            <button type="button" className="btn plain" onClick={close} disabled={busy}>Cancel</button>
+            <button type="submit" className="btn primary" disabled={busy}>{busy ? "Booking…" : "Schedule"}</button>
           </div>
         </form>
       )}

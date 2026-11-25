@@ -83,10 +83,12 @@ export function SchedulePopup({ item, anchor, people, canEdit, onClose, onEdit }
       ) : (
         <div className="sc-statusrow">
           <span className="sc-label">Status</span>
-          <select aria-label="Status" value={item.status} disabled={!canEdit} onChange={(e) => void run(setStatus({ id: item.id as Id<"calendarEvents">, status: e.target.value as ScheduleItem["status"] }), "The status could not be changed.")}>
+          <select aria-label="Status" value={item.overdue && item.status === "upcoming" ? "overdue" : item.status} disabled={!canEdit} onChange={(e) => void run(setStatus({ id: item.id as Id<"calendarEvents">, status: e.target.value as ScheduleItem["status"] }), "The status could not be changed.")}>
+            {/* Overdue is worked out from the end time, so it is shown but cannot be picked. */}
+            {item.overdue && item.status === "upcoming" && <option value="overdue" disabled>Overdue</option>}
             {(Object.keys(STATUS_LABEL) as (keyof typeof STATUS_LABEL)[]).map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
           </select>
-          {item.overdue && <span className="sc-overduetag">Overdue</span>}
+          {item.overdue && item.status === "confirmed" && <span className="sc-overduetag">Overdue</span>}
         </div>
       )}
 

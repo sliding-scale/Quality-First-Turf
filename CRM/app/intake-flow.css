@@ -166,3 +166,25 @@ html[data-step-dir="back"]::view-transition-new(root) { animation: nrf-step-ente
   html[data-step-dir]::view-transition-old(root), html[data-step-dir]::view-transition-new(root) { animation-duration: 120ms; animation-name: nrf-step-fade; }
   @keyframes nrf-step-fade { from { opacity: 0; } }
 }
+
+/* The New Request flow's dropdowns open 0.2 s quicker than the forms app's (user, 2026-11-25). intake.css is generated, so the time is
+   overridden here; keep it in step with DURATION_MS in components/intake/collapse.tsx. */
+.nrf .collapse {
+  transition:
+    grid-template-rows 500ms cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 500ms ease,
+    margin-bottom 500ms cubic-bezier(0.4, 0, 0.2, 1),
+    visibility 0s linear 500ms;
+}
+.nrf .collapse.is-open { transition-delay: 0s; }
+.nrf .review-page .collapse {
+  transition:
+    grid-template-rows 500ms cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 500ms ease,
+    margin-bottom 500ms cubic-bezier(0.4, 0, 0.2, 1),
+    visibility 0s linear 500ms !important;
+}
+.nrf .review-page .collapse.is-open { transition-delay: 0s !important; }
+@media (prefers-reduced-motion: reduce) {
+  .nrf .collapse, .nrf .review-page .collapse { transition: none !important; }
+}

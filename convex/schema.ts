@@ -997,6 +997,8 @@ export default defineSchema({
     opportunityId: v.optional(v.id("opportunities")),
     businessId: v.id("businesses"),
     title: v.string(),
+    /** Extra detail on the task, up to 2,000 characters. Absent on older tasks. */
+    description: v.optional(v.string()),
     assigneeId: v.optional(v.id("users")),
     dueAt: v.optional(v.number()),
     done: v.boolean(),
@@ -1045,6 +1047,13 @@ export default defineSchema({
     jobberError: v.optional(v.string()),
     /** Marked done without a booking: the consultation happened offline (D-085). Never sent to Jobber. */
     offline: v.optional(v.boolean()),
+    /** The booking confirmation emailed to the customer (D-127): which start time it was for, and how the send went. Absent until one is tried. */
+    confirmEmail: v.optional(v.object({
+      start: v.number(),
+      status: v.union(v.literal("sent"), v.literal("tested"), v.literal("logged"), v.literal("skipped"), v.literal("failed")),
+      detail: v.string(),
+      at: v.number(),
+    })),
   })
     .index("by_business_and_start", ["businessId", "start"])
     .index("by_opportunity", ["opportunityId"]),

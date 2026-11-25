@@ -201,3 +201,18 @@ export const connectionDoc = internalQuery({
   args: { connectionId: v.id("calendarConnections") },
   handler: async (ctx, a) => await ctx.db.get(a.connectionId),
 });
+
+/** Opening the Schedule reads the signed-in person's Zoho Calendar straight away (D-124), instead of waiting for the next minute's run.
+ *  Zoho Calendar has no push or webhook, so this and the every-minute run are how changes made in Zoho arrive. Skipped when their calendar
+ *  was read in the last 20 seconds. */
+export const refreshMine = mutation({
+  args: { now: v.number() },
+  handler: async (ctx, a) => {
+    const staff = await requireStaff(ctx);
+    const c = await ctx.db.query("calendarConnections").withIndex("by_userId", (q) => q.eq("userId", staff.userId)).unique();
+    if (!c || c.status !== "connected") return false;
+    if (c.lastSyncAt !== undefined && a.now - c.lastSyncAt < 20_000) return false;
+    await ctx.scheduler.runAfter(0, internal.crm.calendarSync.pullConnection, { connectionId: c._id });
+    return true;
+  },
+});

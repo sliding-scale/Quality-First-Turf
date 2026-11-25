@@ -69,6 +69,9 @@ function Schedule({ business }: { business: BusinessDoc }) {
   const [availUsers, setAvailUsers] = useState<Id<"users">[] | null>(null);
   // A note asking people to connect their Zoho Calendar (D-069), hidden for a week once dismissed.
   const calendar = useQuery(api.crm.calendarConnect.mine, {});
+  // Read my Zoho Calendar now that the Schedule is open (Zoho has no push; the background run is every minute, D-124).
+  const refreshZoho = useMutation(api.crm.calendarConnect.refreshMine);
+  useEffect(() => { void refreshZoho({ now: clock() }).catch(() => undefined); }, [refreshZoho]);
   const hiddenUntil = Number(useStoredString("qft-zoho-note", "0"));
   const showConnect = calendar !== undefined && calendar.available && (calendar.connection === null || calendar.connection.status !== "connected") && hiddenUntil < clock();
   const [dialog, setDialog] = useState<"settings" | "reschedule" | "crews" | null>(null);
@@ -93,10 +96,32 @@ function Schedule({ business }: { business: BusinessDoc }) {
     if (!params.get("view") || !isKey(params.get("date"))) go(view, dateKey);
   }, [params, go, view, dateKey]);
 
+  // "/schedule?view=day&date=...&open=<item key>": opens that item's pop-up (Home's Open button). Read once; the address is then tidied.
+  const wanted = useRef(params.get("open"));
+  useEffect(() => {
+    const key = wanted.current;
+    if (!key || data === undefined || people === undefined || hours === undefined) return;
+    const item = data.items.find((i) => i.key === key);
+    wanted.current = null;
+    if (item) {
+      // The grid scrolls itself to the working hours when it first appears, so measure the item after that.
+      setTimeout(() => {
+        const el = Array.from(document.querySelectorAll<HTMLElement>("[data-item-key]")).find((e) => e.dataset.itemKey === key);
+        el?.scrollIntoView({ block: "center", behavior: "instant" });
+        setPopup({ item, rect: el?.getBoundingClientRect() ?? new DOMRect(window.innerWidth / 2 - 160, 120, 0, 0) });
+      }, 250);
+    } else {
+      toast("That appointment is no longer on the Schedule.");
+    }
+    go(view, dateKey);
+  }, [data, people, hours, go, view, dateKey, toast]);
+
   if (people === undefined || hours === undefined || data === undefined) return <ScheduleSkeleton />;
 
   const roster = people.map((p) => ({ id: p.id as string, name: p.name }));
-  const dayPeople = team.length > 0 ? roster.filter((p) => (team as string[]).includes(p.id)) : roster;
+  // Only an Admin sees everyone's calendar; anyone else sees their own (the backend filters the items the same way).
+  const everyone = staff.isAdmin;
+  const dayPeople = !everyone ? roster.filter((p) => p.id === staff._id) : team.length > 0 ? roster.filter((p) => (team as string[]).includes(p.id)) : roster;
   const step = (dir: 1 | -1) => go(view, view === "month" ? addMonths(dateKey, dir) : addDays(dateKey, dir * (view === "week" ? 7 : 1)));
   const teamLabel = team.length === 0 ? "All" : team.length === 1 ? (team[0] === "unassigned" ? "Unassigned" : (roster.find((p) => p.id === team[0])?.name ?? "1 selected")) : `${team.length} selected`;
   const typeLabel = types.length === 0 ? "All" : types.length === 1 ? TYPE_NAME[types[0]] : `${types.length} selected`;
@@ -198,7 +223,7 @@ function Schedule({ business }: { business: BusinessDoc }) {
             Find a Time
           </button>
           <button type="button" className="chip" onClick={(e) => multi(e.currentTarget, TYPE_OPTIONS.map((t) => ({ value: t, label: TYPE_NAME[t] })), types, setTypes)}>Type<span className="sep" /><b>{typeLabel}</b></button>
-          <button type="button" className="chip" onClick={(e) => multi(e.currentTarget, [...roster.map((p) => ({ value: p.id, label: p.name })), { value: "unassigned", label: "Unassigned" }], team as string[], (v) => setTeam(v as typeof team), true)}>Team<span className="sep" /><b>{teamLabel}</b></button>
+          {everyone && <button type="button" className="chip" onClick={(e) => multi(e.currentTarget, [...roster.map((p) => ({ value: p.id, label: p.name })), { value: "unassigned", label: "Unassigned" }], team as string[], (v) => setTeam(v as typeof team), true)}>Team<span className="sep" /><b>{teamLabel}</b></button>}
           <button type="button" className="chip" onClick={(e) => multi(e.currentTarget, STATUS_OPTIONS.map((s) => ({ value: s[0], label: s[1] })), statuses, setStatuses)}>Status<span className="sep" /><b>{statusLabel}</b></button>
         </div>
         <div className="sc-tools">
@@ -238,6 +263,7 @@ function Schedule({ business }: { business: BusinessDoc }) {
           dateKey={dateKey}
           items={data.items}
           people={view === "day" ? dayPeople : roster}
+          showUnassigned={everyone}
           hours={hours}
           now={now}
           busy={avail?.busy ?? []}

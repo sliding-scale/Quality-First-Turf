@@ -1,6 +1,5 @@
 import type { Doc, Id } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
-import { internal } from "../../_generated/api";
 import { jobberChanged } from "./jobberHooks";
 import { stageList } from "./pipelineStages";
 
@@ -51,9 +50,5 @@ export async function consultationsOnMove(
     await ctx.db.patch(e._id, { status: "completed", updatedAt: now });
     await jobberChanged(ctx, e._id);
   }
-  // A consultation booked from the sales form has no CRM item, but is still open in Jobber. One the CRM sent is completed above.
-  if (project.sourceProjectId) {
-    const skip = events.flatMap((e) => (e.jobberAssessmentId ? [e.jobberAssessmentId] : []));
-    await ctx.scheduler.runAfter(0, internal.crm.jobberConsultation.completeFormsConsultation, { formsProjectId: project.sourceProjectId, skip });
-  }
+  // Bookings made from the sales form are CRM items now (D-126), so they are completed above; nothing is sent to Jobber (D-123).
 }

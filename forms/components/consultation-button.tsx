@@ -58,7 +58,6 @@ export function ConsultationButton({
   canSchedule,
   assignment,
   assignedToName,
-  email,
   consultation,
   visit,
 }: {
@@ -67,6 +66,7 @@ export function ConsultationButton({
   canSchedule: boolean;
   assignment: "none" | "me" | "other";
   assignedToName: string | null;
+  /** The customer's email. Kept for the callers; the booking no longer emails them (it went through Jobber, D-126). */
   email: string;
   /** The booking for the visit being scheduled; undefined when that visit has not been booked yet. */
   consultation: Consultation | undefined;
@@ -136,7 +136,7 @@ export function ConsultationButton({
   const booked = consultation !== undefined;
   const tipId = useId();
   const tip = !canSchedule
-    ? "Available once this project has reached Jobber."
+    ? "This project cannot be scheduled yet."
     : assignment === "none"
       ? "Assign this lead to yourself first."
       : assignment === "other"
@@ -240,9 +240,7 @@ export function ConsultationButton({
           </div>
 
           <p className="consultation-form__note">
-            {email.trim() === ""
-              ? "There is no email on file for this customer, so Jobber cannot send a confirmation."
-              : `Jobber adds this to the calendar and emails ${email.trim()}.`}
+            Goes on your Launchpad calendar, and on your Zoho Calendar when it is connected.
           </p>
 
           {error !== null ? (

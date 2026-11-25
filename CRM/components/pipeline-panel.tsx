@@ -16,7 +16,7 @@ import { FilterMenu } from "./filter-menus";
 import { Icon } from "./icon";
 import { NoteEditor, useUploadPending, type PendingFile } from "./note-editor";
 import { NoteBody } from "./note-view";
-import { AddTaskDialog } from "./pipeline-dialogs";
+import { AddTaskDialog, ScheduleConsultationDialog } from "./pipeline-dialogs";
 import { useStaff } from "./staff-context";
 import { useUI } from "./ui-provider";
 
@@ -29,7 +29,7 @@ export function PipelinePanel({ business, card, people, onClose }: {
   onClose: () => void;
 }) {
   const { popover, toast } = useUI();
-  const { canEdit } = useStaff();
+  const { canEdit, can, _id: me } = useStaff();
   const client = useClient(card.clientId);
   const extras = useQuery(api.crm.opportunityTasks.listForProject, { id: card.id });
   const history = useQuery(api.crm.pipeline.history, { id: card.id });
@@ -42,6 +42,7 @@ export function PipelinePanel({ business, card, people, onClose }: {
   const [leaving, setLeaving] = useState(false);
   const [adding, setAdding] = useState(false);
   const [emailing, setEmailing] = useState(false);
+  const [consulting, setConsulting] = useState(false);
   const [note, setNote] = useState("");
   const [noteFiles, setNoteFiles] = useState<PendingFile[]>([]);
   const [savingNote, setSavingNote] = useState(false);
@@ -64,11 +65,11 @@ export function PipelinePanel({ business, card, people, onClose }: {
   }, [leaving, onClose]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !adding) setLeaving(true);
+      if (e.key === "Escape" && !adding && !consulting) setLeaving(true);
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [adding]);
+  }, [adding, consulting]);
 
   // Clicking outside the window closes it (client, 2026-11-16). A board card is not "outside" (clicking one opens or switches the window by itself),
   // and neither are the menus, pop-ups, dialogs, photo viewer and toasts that are drawn over the page.
@@ -76,11 +77,11 @@ export function PipelinePanel({ business, card, people, onClose }: {
     const onDown = (e: PointerEvent) => {
       const el = e.target instanceof Element ? e.target : null;
       if (!el || !el.isConnected || el.closest(".pl-panel, .pl-card, .menu, .create-pop, .modal-back, .viewer-back, .toast")) return;
-      if (!adding) setLeaving(true);
+      if (!adding && !consulting) setLeaving(true);
     };
     document.addEventListener("pointerdown", onDown);
     return () => document.removeEventListener("pointerdown", onDown);
-  }, [adding]);
+  }, [adding, consulting]);
 
   const address = client ? [client.street1, [client.city, [client.state, client.zip].filter(Boolean).join(" ")].filter(Boolean).join(", ")].filter(Boolean) : [];
 
@@ -94,6 +95,9 @@ export function PipelinePanel({ business, card, people, onClose }: {
           <div className="pl-quickrow pl-headactions">
             <button type="button" className="btn" disabled={!client} onClick={() => setEmailing(true)}><Icon name="mail" size={18} /> Email</button>
             <Link className="btn" href={`/opportunities/${card.id}`}><Icon name="inbox" size={18} /> View opportunity</Link>
+            {card.stage === "Schedule Onsite Consultation" && can("schedule", "edit") && (
+              <button type="button" className="btn primary" onClick={() => setConsulting(true)}><Icon name="calendar" size={18} /> Schedule consultation</button>
+            )}
           </div>
         </div>
         <button type="button" className="icon-btn" aria-label="Close" onClick={() => setLeaving(true)}><Icon name="x" size={22} /></button>
@@ -243,6 +247,16 @@ export function PipelinePanel({ business, card, people, onClose }: {
         </section>
       </div>
       {adding && <AddTaskDialog projectId={card.id} businessId={business._id} people={people} onClose={() => setAdding(false)} />}
+      {consulting && (
+        <ScheduleConsultationDialog
+          businessId={business._id}
+          project={{ id: card.id, title: card.title, clientId: card.clientId }}
+          people={people}
+          defaultAssignee={people.find((p) => p.name === card.salespersonName)?.id ?? (people.some((p) => p.id === me) ? me : undefined)}
+          onClose={() => setConsulting(false)}
+          onBooked={() => toast("The consultation is booked. The project moved to Onsite Consultation.")}
+        />
+      )}
       {emailing && client && <SendEmailDialog client={{ id: card.clientId, name: client.name, email: client.email }} onClose={() => setEmailing(false)} />}
     </aside>
   );

@@ -7,6 +7,8 @@ import { checkAssignee } from "./lib/assignees";
 import {
   BLOCKING, DEFAULT_HOURS, expandRepeats, overlaps, type ItemType, type Repeat, type WorkingHours,
 } from "./lib/schedule";
+import { zonedToInstant, zonedWallClock } from "../shared/zonedTime";
+import { queueBookingEmail } from "./lib/bookingEmailQueue";
 import { jobberChanged } from "./lib/jobberHooks";
 import { mirrorChanged, mirrorRemoved } from "./lib/mirror";
 import { applyMove } from "./pipeline";
@@ -35,7 +37,7 @@ function checkFields(f: { title: string; start: number; end: number; anytime: bo
 type Busy = { id: Id<"calendarEvents">; userId: Id<"users">; title: string; start: number; end: number; /** From someone's Zoho Calendar: shown as busy, and a warning, never a refusal (D-069). */ external: boolean };
 
 /** The blocking items of the given people in [from, to), repeats expanded. External calendars plug in at `externalBusy`. */
-async function busyFor(ctx: QueryCtx, businessId: Id<"businesses">, userIds: readonly Id<"users">[], from: number, to: number): Promise<Busy[]> {
+export async function busyFor(ctx: QueryCtx, businessId: Id<"businesses">, userIds: readonly Id<"users">[], from: number, to: number): Promise<Busy[]> {
   const rows = await ctx.db.query("calendarEvents").withIndex("by_business_and_start", (q) => q.eq("businessId", businessId).lt("start", to)).order("desc").take(MAX_ROWS);
   const out: Busy[] = [];
   const tz = await businessZone(ctx);
@@ -54,7 +56,7 @@ export function externalBusy(): Busy[] {
 }
 
 /** Throws if any of the people already has a blocking item that overlaps (any occurrence of) the new one. */
-async function checkConflicts(
+export async function checkConflicts(
   ctx: MutationCtx,
   businessId: Id<"businesses">,
   f: { type: ItemType; start: number; end: number; anytime: boolean; assigneeIds: Id<"users">[]; repeat: Repeat; repeatUntil?: number },
@@ -112,6 +114,7 @@ export const book = mutation({
     if (a.type === "consultation" && project && project.pipeline === "Sales" && (project.stage === "New Request" || project.stage === "Schedule Onsite Consultation")) {
       await applyMove(ctx, project, "Onsite Consultation", staff, undefined, a.now);
     }
+    await queueBookingEmail(ctx, id);
     return id;
   },
 });
@@ -142,6 +145,8 @@ export const update = mutation({
     if (event === null) throw new ConvexError("That item no longer exists.");
     await requireModule(ctx, event.businessId, "schedule", "edit");
     await saveChanges(ctx, event, changes);
+    // A consultation moved to another time is confirmed again (one already confirmed for this time is not repeated).
+    if (changes.start !== undefined || changes.anytime !== undefined) await queueBookingEmail(ctx, id);
   },
 });
 
@@ -207,6 +212,14 @@ export type ScheduleItem = {
   seriesEnd: number;
 };
 
+/** The whole business day an Anytime occurrence starts on. */
+function anytimeDay<T extends { start: number; end: number }>(o: T, tz: string): T {
+  const date = zonedWallClock(new Date(o.start), tz).date;
+  const [y, m, d] = date.split("-").map(Number);
+  const next = new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10);
+  return { ...o, start: zonedToInstant(date, "00:00", tz).getTime(), end: zonedToInstant(next, "00:00", tz).getTime() };
+}
+
 const STATUS_KEYS = ["completed", "overdue", "upcoming", "confirmed", "lost"] as const;
 
 export const range = query({
@@ -232,7 +245,10 @@ export const range = query({
     const items: ScheduleItem[] = [];
     const tz = await businessZone(ctx);
     for (const e of events) {
-      for (const o of expandRepeats(e, a.from, a.to, tz)) {
+      for (const raw of expandRepeats(e, a.from, a.to, tz)) {
+        // An "Anytime" item belongs to one business day, whatever instant it was saved with: it runs from that day's start to the next day's
+        // start, so it is overdue as soon as the day is over (not 24 hours after whatever hour it was booked at).
+        const o = e.anytime ? anytimeDay(raw, tz) : raw;
         items.push({
           key: `${e._id}:${o.occurrence}`, id: e._id, kind: e.type, title: e.title, start: o.start, end: o.end, anytime: e.anytime, assigneeIds: e.assigneeIds,
           status: e.status, overdue: e.status !== "completed" && e.status !== "lost" && o.end < a.now, repeat: e.repeat, clientId: e.clientId, clientName: await clientName(e.clientId),
@@ -252,7 +268,7 @@ export const range = query({
     }
     const wantedStatus = new Set(a.statuses.filter((s) => (STATUS_KEYS as readonly string[]).includes(s)));
     const shown = items.filter((i) => {
-      if (who.assignedOnly && !i.assigneeIds.includes(who.userId)) return false; // a person limited to their own records sees only their own items (PRD 5.5)
+      if ((who.assignedOnly || !who.isAdmin) && !i.assigneeIds.includes(who.userId)) return false; // only an Admin sees everyone's calendar; everyone else sees only their own items (PRD 5.5)
       if (a.types.length > 0 && !a.types.includes(i.kind)) return false;
       if (a.assigneeIds.length > 0 && !(i.assigneeIds.length === 0 ? a.assigneeIds.includes("unassigned") : i.assigneeIds.some((u) => a.assigneeIds.includes(u)))) return false;
       if (wantedStatus.size > 0) {

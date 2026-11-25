@@ -36,14 +36,16 @@ describe("reading the calendar", () => {
   });
 
   it("filters by type, by person (including Unassigned) and by status, with Overdue worked out from now", async () => {
-    const { sales, qft, sam } = await world();
+    const { sales, admin, qft, sam } = await world();
     const mk = (type: "visit" | "reminder", title: string, assigneeIds: Id<"users">[], s: number) =>
       sales.mutation(api.crm.schedule.book, { ...base, businessId: qft, type, title, start: s, end: s + 3_600_000, assigneeIds });
     await mk("visit", "Mine", [sam], at(10, 9));
     await mk("reminder", "Nobody", [], at(10, 10));
     const done = await mk("visit", "Done", [sam], at(10, 13));
     await sales.mutation(api.crm.schedule.setStatus, { id: done, status: "completed" });
-    const titles = async (over: Record<string, unknown>) => (await sales.query(api.crm.schedule.range, read(qft, { from: at(10, 0), to: at(11, 0), ...over }))).items.map((i) => i.title).sort();
+    // Only an Admin sees everyone's calendar (client, 2026-11-25); anyone else sees their own items, not the unassigned one.
+    const titles = async (over: Record<string, unknown>) => (await admin.query(api.crm.schedule.range, read(qft, { from: at(10, 0), to: at(11, 0), ...over }))).items.map((i) => i.title).sort();
+    expect((await sales.query(api.crm.schedule.range, read(qft, { from: at(10, 0), to: at(11, 0) }))).items.map((i) => i.title).sort()).toEqual(["Done", "Mine"]);
     expect(await titles({})).toEqual(["Done", "Mine", "Nobody"]);
     expect(await titles({ types: ["reminder"] })).toEqual(["Nobody"]);
     expect(await titles({ assigneeIds: ["unassigned"] })).toEqual(["Nobody"]);
@@ -124,11 +126,12 @@ describe("unscheduled, availability and settings", () => {
 
 describe("reschedule and reassign", () => {
   it("shifts several items and reassigns them together", async () => {
-    const { sales, qft, sam, adminId } = await world();
+    const { sales, admin, qft, sam, adminId } = await world();
     const a = await sales.mutation(api.crm.schedule.book, { ...base, businessId: qft, type: "visit", title: "A", start: at(10, 9), end: at(10, 10), assigneeIds: [sam] });
     const b = await sales.mutation(api.crm.schedule.book, { ...base, businessId: qft, type: "visit", title: "B", start: at(10, 11), end: at(10, 12), assigneeIds: [sam] });
     await sales.mutation(api.crm.schedule.bulkReschedule, { businessId: qft, ids: [a, b], shiftMs: 24 * 3_600_000, assigneeIds: [adminId], now: NOW });
-    const got = await sales.query(api.crm.schedule.range, read(qft, { from: at(11, 0), to: at(12, 0) }));
+    // Read as the Admin: the items are now theirs, and only an Admin sees other people's calendar.
+    const got = await admin.query(api.crm.schedule.range, read(qft, { from: at(11, 0), to: at(12, 0) }));
     expect(got.items.map((i) => [i.title, i.assigneeIds])).toEqual([["A", [adminId]], ["B", [adminId]]]);
   });
 

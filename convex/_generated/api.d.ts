@@ -11,6 +11,7 @@
 import type * as crm_automationSend from "../crm/automationSend.js";
 import type * as crm_automations from "../crm/automations.js";
 import type * as crm_billing from "../crm/billing.js";
+import type * as crm_bookingEmail from "../crm/bookingEmail.js";
 import type * as crm_businesses from "../crm/businesses.js";
 import type * as crm_calendarConnect from "../crm/calendarConnect.js";
 import type * as crm_calendarHttp from "../crm/calendarHttp.js";
@@ -33,6 +34,7 @@ import type * as crm_customAutomations from "../crm/customAutomations.js";
 import type * as crm_devBoardDemo from "../crm/devBoardDemo.js";
 import type * as crm_disclaimers from "../crm/disclaimers.js";
 import type * as crm_exports from "../crm/exports.js";
+import type * as crm_formsConsultation from "../crm/formsConsultation.js";
 import type * as crm_intake from "../crm/intake.js";
 import type * as crm_invitations from "../crm/invitations.js";
 import type * as crm_invoiceSettings from "../crm/invoiceSettings.js";
@@ -45,6 +47,7 @@ import type * as crm_lib_activity from "../crm/lib/activity.js";
 import type * as crm_lib_assignees from "../crm/lib/assignees.js";
 import type * as crm_lib_automationRules from "../crm/lib/automationRules.js";
 import type * as crm_lib_billing from "../crm/lib/billing.js";
+import type * as crm_lib_bookingEmailQueue from "../crm/lib/bookingEmailQueue.js";
 import type * as crm_lib_businessNames from "../crm/lib/businessNames.js";
 import type * as crm_lib_calendarCrypto from "../crm/lib/calendarCrypto.js";
 import type * as crm_lib_calendarSync from "../crm/lib/calendarSync.js";
@@ -163,6 +166,7 @@ declare const fullApi: ApiFromModules<{
   "crm/automationSend": typeof crm_automationSend;
   "crm/automations": typeof crm_automations;
   "crm/billing": typeof crm_billing;
+  "crm/bookingEmail": typeof crm_bookingEmail;
   "crm/businesses": typeof crm_businesses;
   "crm/calendarConnect": typeof crm_calendarConnect;
   "crm/calendarHttp": typeof crm_calendarHttp;
@@ -185,6 +189,7 @@ declare const fullApi: ApiFromModules<{
   "crm/devBoardDemo": typeof crm_devBoardDemo;
   "crm/disclaimers": typeof crm_disclaimers;
   "crm/exports": typeof crm_exports;
+  "crm/formsConsultation": typeof crm_formsConsultation;
   "crm/intake": typeof crm_intake;
   "crm/invitations": typeof crm_invitations;
   "crm/invoiceSettings": typeof crm_invoiceSettings;
@@ -197,6 +202,7 @@ declare const fullApi: ApiFromModules<{
   "crm/lib/assignees": typeof crm_lib_assignees;
   "crm/lib/automationRules": typeof crm_lib_automationRules;
   "crm/lib/billing": typeof crm_lib_billing;
+  "crm/lib/bookingEmailQueue": typeof crm_lib_bookingEmailQueue;
   "crm/lib/businessNames": typeof crm_lib_businessNames;
   "crm/lib/calendarCrypto": typeof crm_lib_calendarCrypto;
   "crm/lib/calendarSync": typeof crm_lib_calendarSync;

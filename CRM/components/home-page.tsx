@@ -10,12 +10,11 @@ import { useState, type CSSProperties } from "react";
 import { api } from "@/convex/_generated/api";
 import { useWorkspace } from "@/lib/clients";
 import { moneyCents, quoteDate } from "@/lib/format";
-import { failure, todayBounds, useMinute, usePeople } from "@/lib/pipeline";
-import { useInvoiceStats } from "@/lib/invoices";
+import { failure, todayBounds, useMinute, usePeople } from "@/lib/pipeline";import { useInvoiceStats } from "@/lib/invoices";
 import { useJobCounts } from "@/lib/jobs";
 import { useQuoteStats } from "@/lib/quotes";
 import { useRequestStats } from "@/lib/requests";
-import { BUSINESS_TZ } from "@/lib/schedule";
+import { BUSINESS_TZ, todayKey } from "@/lib/schedule";
 import { useIsClient } from "@/lib/store";
 import { Icon } from "./icon";
 import { AddTaskDialog } from "./pipeline-dialogs";
@@ -24,7 +23,6 @@ import { useStaff } from "./staff-context";
 import { useUI } from "./ui-provider";
 
 const DAY_MS = 86_400_000;
-const MAX_TASKS_SHOWN = 5;
 const MAX_CONSULTS_SHOWN = 5;
 
 const clockTime = (ms: number) => new Date(ms).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: BUSINESS_TZ });
@@ -34,13 +32,43 @@ const dayTime = (ms: number) =>
 type Item = NonNullable<ReturnType<typeof useToday>>["items"][number];
 type ApptState = "completed" | "active" | "upcoming" | "overdue";
 
-function useToday(businessId: string, now: number) {
+const OVERDUE_LOOKBACK_DAYS = 30;
+
+/** Today's items plus anything from the last 30 days that was never completed, so a missed visit does not vanish at midnight.
+ *  Someone who is not an Admin sees only their own (Admins see everyone's). */
+function useToday(businessId: string, now: number, mineOnly: string | undefined) {
   const { todayStart, todayEnd } = todayBounds();
   return useQuery(
     api.crm.schedule.range,
-    { businessId: businessId as never, from: todayStart, to: todayEnd + 1, types: ["consultation", "visit", "event"], assigneeIds: [], statuses: [], now },
+    {
+      businessId: businessId as never, from: todayStart - OVERDUE_LOOKBACK_DAYS * DAY_MS, to: todayEnd + 1, types: ["consultation", "visit", "event"],
+      assigneeIds: mineOnly ? [mineOnly as never] : [], statuses: [], now,
+    },
   );
 }
+
+const dayText = (ms: number) => new Date(ms).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: BUSINESS_TZ });
+const monthDay = (ms: number) => new Date(ms).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: BUSINESS_TZ });
+
+/** "Wed, Nov 25, 9:00 AM – 10:30 AM", "Nov 25, 9:00 AM – Nov 26, 10:00 AM", or with Anytime in place of the times. */
+function whenText(i: Item): string {
+  const sameDay = todayKey(i.start) === todayKey(Math.max(i.start, i.end - 1));
+  if (i.anytime) return sameDay ? `${dayText(i.start)} · Anytime` : `${monthDay(i.start)} – ${monthDay(i.end - 1)} · Anytime`;
+  return sameDay ? `${dayText(i.start)}, ${clockTime(i.start)} – ${clockTime(i.end)}` : `${monthDay(i.start)}, ${clockTime(i.start)} – ${monthDay(i.end)}, ${clockTime(i.end)}`;
+}
+
+/** How long ago something ended: "25 min", "2 h 10 min", "3 days 4 h". */
+function lateText(ms: number): string {
+  const m = Math.max(1, Math.floor(ms / 60_000));
+  if (m < 60) return `${m} min`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return m % 60 ? `${h} h ${m % 60} min` : `${h} h`;
+  const d = Math.floor(h / 24);
+  return h % 24 ? `${d} ${d === 1 ? "day" : "days"} ${h % 24} h` : `${d} ${d === 1 ? "day" : "days"}`;
+}
+
+/** Opens the Schedule on the item's day with its pop-up open. */
+const openHref = (i: Item) => `/schedule?view=day&date=${todayKey(i.start)}&open=${encodeURIComponent(i.key)}`;
 
 /** Where an appointment is now: finished, under way, late, or still to come. */
 function stateOf(i: Item, now: number): ApptState {
@@ -57,11 +85,12 @@ function Row({ a, now }: { a: Item; now: number }) {
   const state = stateOf(a, now);
   return (
     <div className="appt">
-      <div className="time">{a.anytime ? "Anytime" : clockTime(a.start)}</div>
       <div className="t">
         <b>{a.title}{a.clientName && a.clientName !== a.title ? ` · ${a.clientName}` : ""}</b>
+        <span className="when">{whenText(a)}</span>
       </div>
-      <span className={`pill ${STATE_PILL[state]}`}>{STATE_LABEL[state]}</span>
+      <span className={`pill ${STATE_PILL[state]}`}>{state === "overdue" ? `Overdue by ${lateText(now - a.end)}` : STATE_LABEL[state]}</span>
+      <Link className="btn small" href={openHref(a)} aria-label={`Open ${a.title} on the Schedule`}>Open</Link>
     </div>
   );
 }
@@ -85,7 +114,6 @@ function Home() {
   const ws = useWorkspace();
   const businessId = ws.state === "ready" ? ws.business._id : undefined;
   const now = useMinute();
-  const [mode, setMode] = useState<"Visit" | "Employee">("Visit");
   const d = new Date();
   const part = d.getHours() < 12 ? "morning" : d.getHours() < 18 ? "afternoon" : "evening";
   const first = staff.name.trim().split(/\s+/)[0] || "there";
@@ -107,8 +135,8 @@ function Home() {
 
       <div className="home-grid">
         <div className="col">
-          <h2 className="section-title">Today&apos;s appointments</h2>
-          {businessId ? <Appointments businessId={businessId} now={now} mode={mode} setMode={setMode} /> : <div className="card"><div className="sk" style={{ height: 160, margin: 12 }} /></div>}
+          <h2 className="section-title">My appointments</h2>
+          {businessId ? <Appointments businessId={businessId} now={now} /> : <div className="card"><div className="sk" style={{ height: 160, margin: 12 }} /></div>}
         </div>
         <div className="col aside">
           <MyTasks />
@@ -165,23 +193,19 @@ function Workflow({ businessId }: { businessId: Parameters<typeof useRequestStat
   );
 }
 
-/* ---- Today's appointments ---- */
+/* ---- My appointments ---- */
 
-function Appointments({ businessId, now, mode, setMode }: { businessId: string; now: number; mode: "Visit" | "Employee"; setMode: (m: "Visit" | "Employee") => void }) {
-  const data = useToday(businessId, now);
-  const people = usePeople(businessId as never);
+function Appointments({ businessId, now }: { businessId: string; now: number }) {
+  const staff = useStaff();
+  const data = useToday(businessId, now, staff.isAdmin ? undefined : staff._id);
   if (data === undefined) {
     return <div className="card"><div className="stats"><span className="sk" style={{ display: "block", height: 44, width: "100%" }} /></div><div className="sk" style={{ height: 120, margin: 12 }} /></div>;
   }
-  const items = data.items.filter((i) => i.status !== "lost"); // a lost project has no visits to do
+  const { todayStart, todayEnd } = todayBounds();
+  // Today's items, and earlier ones still not done (shown under Overdue). A lost project has no visits to do.
+  const items = data.items.filter((i) => i.status !== "lost" && ((i.start <= todayEnd && i.end >= todayStart) || stateOf(i, now) === "overdue"));
   const states = items.map((i) => ({ i, s: stateOf(i, now) }));
   const of = (s: ApptState) => states.filter((x) => x.s === s).map((x) => x.i);
-  const nameOf = (id: string) => people?.find((p) => p.id === id)?.name ?? "Someone";
-  const byPerson = new Map<string, Item[]>();
-  for (const i of items) {
-    const keys = i.assigneeIds.length ? i.assigneeIds.map(nameOf) : ["Unassigned"];
-    for (const k of keys) byPerson.set(k, [...(byPerson.get(k) ?? []), i]);
-  }
   return (
     <div className="card">
       <div className="stats">
@@ -192,22 +216,14 @@ function Appointments({ businessId, now, mode, setMode }: { businessId: string; 
         <div className="stat"><div className="k">Remaining</div><div className="v">{of("upcoming").length + of("active").length}</div></div>
         <Link className="btn" href="/schedule">View Schedule</Link>
       </div>
-      <div className="seg" role="tablist">
-        <button type="button" className={mode === "Visit" ? "on" : ""} onClick={() => setMode("Visit")}>Visit</button>
-        <button type="button" className={mode === "Employee" ? "on" : ""} onClick={() => setMode("Employee")}>Employee</button>
-      </div>
       {items.length === 0 ? (
         <div className="empty" style={{ padding: "20px 16px" }}>Nothing is scheduled for today.</div>
-      ) : mode === "Visit" ? (
-        <div key="visit" className="fade-in">
+      ) : (
+        <div className="fade-in">
           <Group label="OVERDUE" list={of("overdue")} emptyText="No overdue events" now={now} />
           <Group label="ACTIVE" list={of("active")} emptyText="No active events" now={now} />
           <Group label="UPCOMING" list={of("upcoming")} emptyText="No upcoming events" now={now} />
           <Group label="COMPLETED" list={of("completed")} emptyText="Nothing completed yet" now={now} />
-        </div>
-      ) : (
-        <div key="employee" className="fade-in">
-          {[...byPerson.entries()].map(([who, list]) => <Group key={who} label={who.toUpperCase()} list={list} emptyText="No events" now={now} />)}
         </div>
       )}
       <div style={{ height: 8 }} />
@@ -228,34 +244,49 @@ function MyTasks() {
   const setDone = useMutation(api.crm.opportunityTasks.setDone);
   const data = useQuery(api.crm.opportunityTasks.listAll, ws.state === "ready" ? { businessId: ws.business._id, assigneeId: me, now, todayStart, todayEnd } : "skip");
   const rows = data?.rows ?? [];
+  // Tasks finished today stay in the list, struck through, until tomorrow (untick to reopen).
+  const doneToday = (data?.completed ?? []).filter((t) => t.completedAt !== undefined && t.completedAt >= todayStart);
   const people = useQuery(api.crm.pipeline.people, ws.state === "ready" ? { businessId: ws.business._id } : "skip");
   const overdue = data?.counts.overdue ?? 0;
   const label = (due: number | undefined) => (due === undefined ? "No due date" : due < todayStart ? `Overdue · ${quoteDate(due)}` : due <= todayEnd ? "Due today" : `Due ${quoteDate(due)}`);
 
   return (
     <>
-      <h2 className="section-title">My tasks{overdue > 0 ? <span className="pill overdue" style={{ marginLeft: 10, verticalAlign: "middle" }}>{overdue} overdue</span> : null}</h2>
+      <h2 className="section-title">Pending tasks{overdue > 0 ? <span className="pill overdue" style={{ marginLeft: 10, verticalAlign: "middle" }}>{overdue} overdue</span> : null}</h2>
       <div className="card list-card">
         {ws.state === "loading" || (ws.state === "ready" && data === undefined) ? (
           <div className="task"><div style={{ flex: 1 }}><span className="sk" style={{ display: "block", height: 16, width: "70%" }} /><span className="sk" style={{ display: "block", height: 12, width: "40%", marginTop: 6 }} /></div></div>
-        ) : rows.length === 0 ? (
-          <div className="empty">No open tasks. Nice work.</div>
+        ) : rows.length === 0 && doneToday.length === 0 ? (
+          <div className="empty">No pending tasks. Nice work.</div>
         ) : (
-          rows.slice(0, MAX_TASKS_SHOWN).map((t) => (
-            <div className="task" key={t.id}>
-              <input type="checkbox" checked={false} disabled={!canEdit} aria-label={`Complete ${t.title}`} onChange={() => void setDone({ taskId: t.id, done: true }).catch((e) => toast(failure(e, "The task could not be updated.")))} />
-              <div>
-                <b style={{ color: "var(--ink)" }}>{t.title}</b>
-                <div className="d" style={t.dueAt !== undefined && t.dueAt < todayStart ? { color: "#b3261e" } : undefined}>
-                  {label(t.dueAt)}{t.clientName ? ` · ${t.clientName}` : ""}
+          <>
+            {rows.map((t) => (
+              <div className="task" key={t.id}>
+                <input type="checkbox" checked={false} disabled={!canEdit} aria-label={`Complete ${t.title}`} onChange={() => void setDone({ taskId: t.id, done: true }).catch((e) => toast(failure(e, "The task could not be updated.")))} />
+                <div>
+                  <Link className="task-link" href={`/tasks?task=${t.id}`}><b>{t.title}</b></Link>
+                  {t.description && <div className="d task-desc" title={t.description}>{t.description}</div>}
+                  <div className="d" style={t.dueAt !== undefined && t.dueAt < todayStart ? { color: "#b3261e" } : undefined}>
+                    {label(t.dueAt)}{t.clientName ? ` · ${t.clientName}` : ""}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))
+            ))}
+            {doneToday.map((t) => (
+              <div className="task done" key={t.id}>
+                <input type="checkbox" checked disabled={!canEdit} aria-label={`Reopen ${t.title}`} onChange={() => void setDone({ taskId: t.id, done: false }).catch((e) => toast(failure(e, "The task could not be updated.")))} />
+                <div>
+                  <Link className="task-link" href={`/tasks?task=${t.id}`}><b>{t.title}</b></Link>
+                  {t.description && <div className="d task-desc" title={t.description}>{t.description}</div>}
+                  <div className="d">Completed today</div>
+                </div>
+              </div>
+            ))}
+          </>
         )}
-        <div className="task">
+        <div className="task task-foot">
           {can("tasks", "edit") && ws.state === "ready" && people !== undefined && <button type="button" className="btn small" onClick={() => setAdding(true)}><Icon name="plus" size={16} /> New task</button>}
-          {rows.length > 0 && <Link href="/tasks" className="btn link">{rows.length > MAX_TASKS_SHOWN ? `View all ${rows.length} tasks` : "View all tasks"}</Link>}
+          {rows.length > 0 && <Link href="/tasks" className="btn link">View all tasks</Link>}
         </div>
       </div>
       {adding && ws.state === "ready" && people !== undefined && <AddTaskDialog businessId={ws.business._id} people={people} defaultAssignee={me} onClose={() => setAdding(false)} />}

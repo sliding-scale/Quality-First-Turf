@@ -17,6 +17,19 @@ const areaV = v.object({
   notes: v.string(), photoIds: v.array(v.id("_storage")),
 });
 
+/** The one "L x W ft" a customer form answer recorded for this area, or nulls when it had none or had several rectangles. */
+function dimensionsFromAnswers(answers: { question: string; value: string }[], m: { label: string; service?: string; installType?: string }): { length: number | null; width: number | null } {
+  const none = { length: null, width: null };
+  if (!m.service) return none;
+  const prefix = `${m.installType ?? ""}: ${m.label}: `;
+  const hit = answers.find((a) => a.question === `${m.service} area detail` && a.value.startsWith(prefix));
+  const match = hit?.value.slice(prefix.length).match(/^([\d.]+) x ([\d.]+) ft = /);
+  if (!match) return none;
+  const length = Number(match[1]);
+  const width = Number(match[2]);
+  return length > 0 && width > 0 ? { length, width } : none;
+}
+
 export const get = query({
   args: { id: v.id("opportunities") },
   handler: async (ctx, a) => {
@@ -40,9 +53,11 @@ export const get = query({
     if (!row && areas.length === 0 && form) {
       for (const [i, m] of form.measurements.entries()) {
         const size = m.squareFeet ?? m.linearFeet;
+        // Requests saved before the form kept length and width only have them in the answers ("Deluxe: Back yard: 20 x 23 ft = 460 sq ft").
+        const dims = m.length === null && m.width === null ? dimensionsFromAnswers(form.answers, m) : { length: m.length, width: m.width };
         areas.push({
-          id: `form-${i}`, label: m.label, service: m.service ?? "", installType: m.installType ?? "", length: m.length, width: m.width,
-          quantity: m.length === null && m.width === null ? size : null, notes: "", photos: [],
+          id: `form-${i}`, label: m.label, service: m.service ?? "", installType: m.installType ?? "", length: dims.length, width: dims.width,
+          quantity: dims.length === null && dims.width === null ? size : null, notes: "", photos: [],
         });
       }
     }

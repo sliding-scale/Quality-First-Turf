@@ -62,6 +62,9 @@ function Editor({ id, visit }: { id: Id<"opportunities">; visit: Visit }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState<"" | "save" | "complete" | "photo">("");
   const pickers = useRef<Record<string, HTMLInputElement | null>>({});
+  // Each work area opens and closes on its own (client, 2026-11-25). They start closed; a new one starts open.
+  const [open, setOpen] = useState<Set<string>>(() => new Set());
+  const toggle = (areaId: string) => setOpen((o) => { const n = new Set(o); if (n.has(areaId)) n.delete(areaId); else n.add(areaId); return n; });
   const set = (areaId: string, patch: Partial<Draft>) => setAreas((all) => all.map((a) => (a.id === areaId ? { ...a, ...patch } : a)));
 
   const problem = checkVisit({ notes, areas: areas.map(asInput) });
@@ -96,7 +99,13 @@ function Editor({ id, visit }: { id: Id<"opportunities">; visit: Visit }) {
   async function submit(e: FormEvent | null, complete: boolean) {
     e?.preventDefault();
     setAttempted(true);
-    if (problem) { setError(problem); return; }
+    if (problem) {
+      setError(problem);
+      // Open every area with something to fix, so the red field can be seen.
+      const bad = areas.filter((a) => a.label.trim() === "" || (a.length.trim() === "") !== (a.width.trim() === "") || checkVisit({ notes: "", areas: [asInput(a)] }) !== null).map((a) => a.id);
+      if (bad.length) setOpen((o) => new Set([...o, ...bad]));
+      return;
+    }
     setBusy(complete ? "complete" : "save");
     setError("");
     try {
@@ -129,7 +138,7 @@ function Editor({ id, visit }: { id: Id<"opportunities">; visit: Visit }) {
       <section className="card op-card">
         <div className="op-sechead">
           <h2>Work areas{visit.visitedAt ? <small className="op-sub"> · visit completed {quoteDate(visit.visitedAt)}</small> : null}</h2>
-          <button type="button" className="btn small" disabled={areas.length >= MAX_AREAS || busy !== ""} onClick={() => setAreas((all) => [...all, { id: newId(), label: "", service: "", installType: "", length: "", width: "", quantity: "", notes: "", photos: [] }])}>
+          <button type="button" className="btn small" disabled={areas.length >= MAX_AREAS || busy !== ""} onClick={() => { const nid = newId(); setAreas((all) => [...all, { id: nid, label: "", service: "", installType: "", length: "", width: "", quantity: "", notes: "", photos: [] }]); setOpen((o) => new Set([...o, nid])); }}>
             <Icon name="plus" size={16} /> Add work area
           </button>
         </div>
@@ -140,7 +149,16 @@ function Editor({ id, visit }: { id: Id<"opportunities">; visit: Visit }) {
           const badLabel = attempted && a.label.trim() === "";
           const badPair = attempted && (a.length.trim() === "") !== (a.width.trim() === "");
           return (
-            <div key={a.id} className="vz-area">
+            <div key={a.id} className={`vz-area${open.has(a.id) ? " open" : ""}`}>
+              <button type="button" className="vz-areahead" aria-expanded={open.has(a.id)} aria-controls={`vz-body-${a.id}`} onClick={() => toggle(a.id)}>
+                <span className="vz-areatitle">
+                  <b>{a.label.trim() || `Work area ${i + 1}`}</b>
+                  <small>{[a.service ? `${a.service}${a.installType ? `, ${a.installType}` : ""}` : "", sizeText(a), a.photos.length ? `${a.photos.length} photo${a.photos.length === 1 ? "" : "s"}` : ""].filter(Boolean).join(" · ")}</small>
+                </span>
+                <Icon name="chevdown" size={20} className="vz-chev" />
+              </button>
+              <div className="vz-areabody" id={`vz-body-${a.id}`}>
+              <div className="vz-areainner">
               <div className={`vz-row${badLabel ? " bad" : ""}`}>
                 <label className="vz-field grow">
                   <span>Name</span>
@@ -188,6 +206,8 @@ function Editor({ id, visit }: { id: Id<"opportunities">; visit: Visit }) {
                   <Icon name="image" size={22} /><span>{busy === "photo" ? "Uploading…" : "Add photos"}</span>
                 </button>
                 <input ref={(el) => { pickers.current[a.id] = el; }} type="file" accept="image/*" multiple hidden onChange={(e) => void addPhotos(a.id, e.target.files)} />
+              </div>
+              </div>
               </div>
             </div>
           );

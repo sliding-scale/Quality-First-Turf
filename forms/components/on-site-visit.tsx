@@ -736,7 +736,7 @@ export function OnSiteVisit({
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty]);
-  // Office staff can move or remove the appointment in Jobber; pick that up as soon as the project opens.
+  // The office can move or remove the appointment on the Launchpad CRM calendar; pick that up as soon as the project opens.
   useEffect(() => {
     if (project.consultation === undefined) return;
     refreshConsultation({ sessionToken, projectId }).catch(() => undefined);

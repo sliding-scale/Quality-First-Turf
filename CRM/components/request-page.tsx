@@ -16,6 +16,7 @@ import { clock } from "@/lib/pipeline";
 import { failure, usePeople, useRequest } from "@/lib/requests";
 import { quoteDate, quoteDateTime } from "@/lib/format";
 import { Checkbox } from "./checkbox";
+import { ConfirmDelete } from "./confirm-delete";
 import { Icon } from "./icon";
 import { NoteEditor, useUploadPending, type PendingFile } from "./note-editor";
 import { NoteBody } from "./note-view";
@@ -27,6 +28,7 @@ import { useConvertToJob } from "./use-convert-to-job";
 import { useUI, type MenuItem } from "./ui-provider";
 
 const PILL = { New: "lead", Overdue: "overdue", Consultation: "consult", Converted: "active", Lost: "draft" } as const;
+const CONFIRM_LABEL = { sent: "sent to the customer", tested: "sent to the test address", logged: "not sent (the business is set to Log only)", skipped: "not sent", failed: "could not be sent" } as const;
 const UNASSIGNED = "";
 
 /** Jobber's red "nobody" mark next to Unassigned: a person with a slash through it. */
@@ -61,7 +63,11 @@ function RequestView({ r }: { r: Request }) {
   const router = useRouter();
   const { toast, dropdown } = useUI();
   const convertToJob = useConvertToJob();
-  const { canEdit } = useStaff();
+  const { canEdit, can } = useStaff();
+  const removeRequest = useMutation(api.crm.requests.remove);
+  const resendConfirmation = useMutation(api.crm.bookingEmail.resend);
+  const [resending, setResending] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const people = usePeople(r.businessId);
   const setSalesperson = useMutation(api.crm.pipeline.setSalesperson);
   const restore = useMutation(api.crm.automations.restoreRequest);
@@ -79,8 +85,6 @@ function RequestView({ r }: { r: Request }) {
   const book = useMutation(api.crm.schedule.book);
   const updateEvent = useMutation(api.crm.schedule.update);
   const setStatus = useMutation(api.crm.schedule.setStatus);
-  const resendToJobber = useMutation(api.crm.jobberConsultation.resend);
-  const [resending, setResending] = useState(false);
   const setLines = useMutation(api.crm.requests.setLines);
   // An empty Product / Service section is filled once from what the customer chose on the form (client request, 2026-11-24).
   const fillLines = useMutation(api.crm.requests.fillLinesFromForm);
@@ -145,14 +149,13 @@ function RequestView({ r }: { r: Request }) {
     setAssessing(false);
     toast("The assessment is deleted.");
   }
-  async function sendToJobber() {
+  async function emailAgain() {
     if (!r.assessment) return;
     setResending(true);
     try {
-      await resendToJobber({ id: r.assessment.id });
-      toast("Sending the consultation to Jobber.");
+      await resendConfirmation({ id: r.assessment.id as Id<"calendarEvents"> });
     } catch (e) {
-      toast(failure(e, "The consultation could not be sent to Jobber."));
+      toast(failure(e, "The confirmation could not be sent."));
     } finally {
       setResending(false);
     }
@@ -223,7 +226,7 @@ function RequestView({ r }: { r: Request }) {
     }
   }
 
-  // Jobber's More menu on a request. The booking email, archiving by hand and deleting are not built, so they are greyed.
+  // Jobber's More menu on a request. The booking email and archiving by hand are not built, so they are greyed.
   const rule: MenuItem = { divider: true };
   const moreItems: MenuItem[] = [
     { label: "Email Booking Confirmation", icon: "mail", disabled: true },
@@ -233,7 +236,7 @@ function RequestView({ r }: { r: Request }) {
     rule,
     { label: "Archive", icon: "stage", disabled: true },
     { label: "Print", icon: "pdf", onSelect: () => window.print() },
-    { label: "Delete", icon: "trash", danger: true, disabled: true },
+    { label: "Delete", icon: "trash", danger: true, disabled: !can("requests", "full"), onSelect: () => setDeleting(true) },
   ];
 
   return (
@@ -382,13 +385,13 @@ function RequestView({ r }: { r: Request }) {
             </dl>
             {r.assessment?.offline ? (
               <p className="as-jobber">Done offline. Marked complete when the request moved to Onsite Consultation.</p>
-            ) : r.assessment?.jobberError ? (
-              <p className="as-jobber bad" role="status">
-                <span>Not in Jobber: {r.assessment.jobberError}</span>
-                {canEdit && <button type="button" className="btn small" disabled={resending} onClick={() => void sendToJobber()}>{resending ? "Sending…" : "Send to Jobber"}</button>}
+            ) : r.assessment && !r.assessment.anytime && r.assessment.status !== "completed" ? (
+              <p className={`as-jobber${r.assessment.confirmEmail?.status === "failed" ? " bad" : ""}`} role="status">
+                <span>
+                  {r.assessment.confirmEmail === null ? "Confirmation email: being sent." : `Confirmation email: ${CONFIRM_LABEL[r.assessment.confirmEmail.status]}${r.assessment.confirmEmail.detail ? `. ${r.assessment.confirmEmail.detail}` : ""}`}
+                </span>
+                {canEdit && r.assessment.confirmEmail !== null && <button type="button" className="btn small" disabled={resending} onClick={() => void emailAgain()}>{resending ? "Sending…" : "Email the customer again"}</button>}
               </p>
-            ) : r.assessment?.inJobber ? (
-              <p className="as-jobber">Also booked in Jobber.</p>
             ) : null}
             <div className="as-reminder">
               <div className="rq-label">Assessment Reminder</div>
@@ -474,6 +477,16 @@ function RequestView({ r }: { r: Request }) {
       </aside>
       </div>
 
+      {deleting && (
+        <ConfirmDelete
+          title="Delete this request?"
+          note={`"${r.title}" will be deleted with its tasks, notes, files and scheduled visits. This cannot be undone. A request with a quote, an invoice or a payment cannot be deleted.`}
+          doneMessage="The request was deleted."
+          failMessage="The request could not be deleted."
+          action={() => removeRequest({ id: r.id as Id<"opportunities"> }).then(() => router.push("/requests"))}
+          onClose={() => setDeleting(false)}
+        />
+      )}
     </div>
   );
 }

@@ -3,7 +3,7 @@
 import { type CSSProperties, type ReactNode, useEffect, useState } from "react";
 
 /** How long a section takes to open or close. The same number is in the .collapse rules in globals.css. */
-const DURATION_MS = 700;
+const DURATION_MS = 500; // keep in step with .nrf .collapse in app/intake-flow.css (0.2 s quicker than the forms app, client 2026-11-25)
 
 /**
  * Opens and closes a section with a slide instead of letting it pop in and out. Wrap the section's own element in it and pass

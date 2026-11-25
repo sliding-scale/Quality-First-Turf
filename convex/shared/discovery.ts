@@ -1243,13 +1243,16 @@ function collectAreas(
       });
     }
     const owner = { service, installType: type };
+    // One rectangle measured by length and width: keep both numbers, not only the size they make, so the visit shows what was entered.
+    const sized = area.sections.filter((section) => section.size.trim() !== "");
+    const single = !linear && sized.length === 1 && workedSize(sized[0]) !== null ? sized[0] : null;
     measurements.push(
       parts.length === 0
         ? { ...blankMeasurement(label), ...owner }
         : {
             label,
-            length: null,
-            width: null,
+            length: single ? Number(single.length) : null,
+            width: single ? Number(single.width) : null,
             squareFeet: linear ? null : total,
             linearFeet: linear ? total : null,
             unmeasured: false,

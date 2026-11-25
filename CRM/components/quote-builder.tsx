@@ -141,17 +141,35 @@ function Builder({ business, quote, presetClient, presetProject, section }: { bu
   const found = useClientSearch(business._id, clientQuery);
   const contractDefault = useQuery(api.crm.quotes.contractDefault, { businessId: business._id });
 
-  // A new quote for a project starts with the lines its site visit works out (client notes of 2026-11-20). Once only, and only while nothing is typed.
-  const prefilled = useRef(false);
+  // A new quote for a project starts with the lines its site visit works out (client notes of 2026-11-20). Only while nothing is typed.
+  // `filled` remembers which project the lines came from and what they were, so changing or removing the project replaces lines nobody has
+  // touched since (client, 2026-11-25). Lines someone has edited are kept, and "Fill from the site visit" can still replace them.
+  const filled = useRef<{ project: Id<"opportunities"> | undefined; lines: string } | null>(null);
   useEffect(() => {
-    if (prefilled.current || !shouldPrefill(d.lines, !!d.opportunityId, !quote)) return;
-    prefilled.current = true;
-    void convex.query(api.crm.quotePrices.fromVisit, { opportunityId: d.opportunityId! }).then((r) => {
-      if (r.lines.length === 0) return;
+    if (quote) return;
+    const pid = d.opportunityId;
+    const f = filled.current;
+    if (f && f.project !== pid) {
+      if (JSON.stringify(d.lines) === f.lines) {
+        filled.current = null;
+        const blankLines = [newLine("item")];
+        setD((cur) => ({ ...cur, lines: blankLines }));
+        setBaseline(JSON.stringify({ ...initial, opportunityId: pid, lines: blankLines }));
+      } else {
+        filled.current = { project: pid, lines: "" };
+        toast("The lines were changed by hand, so they were kept. Use Fill from the site visit to replace them.");
+      }
+      return;
+    }
+    if (f || !pid || !shouldPrefill(d.lines, true, true)) return;
+    filled.current = { project: pid, lines: JSON.stringify(d.lines) };
+    void convex.query(api.crm.quotePrices.fromVisit, { opportunityId: pid }).then((r) => {
+      if (filled.current?.project !== pid || r.lines.length === 0) return;
       const lines = draftLinesFromVisit(r.lines);
+      filled.current = { project: pid, lines: JSON.stringify(lines) };
       // The lines are the page's own start, not the person's typing, so leaving without saving does not ask "leave site?".
       setD((cur) => (shouldPrefill(cur.lines, true, true) ? { ...cur, lines } : cur));
-      setBaseline(JSON.stringify({ ...initial, lines }));
+      setBaseline(JSON.stringify({ ...initial, opportunityId: pid, lines }));
       toast("Started this quote from the site visit. Check the lines and prices.");
     }).catch(() => undefined);
   }, [convex, d.lines, d.opportunityId, initial, quote, toast]);

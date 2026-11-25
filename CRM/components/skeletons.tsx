@@ -42,7 +42,7 @@ export function HomeSkeleton() {
 
       <div className="home-grid">
         <div className="col">
-          <h2 className="section-title">Today&apos;s appointments</h2>
+          <h2 className="section-title">My appointments</h2>
           <div className="card">
             <div className="stats">
               {range(5).map((i) => (
@@ -54,9 +54,9 @@ export function HomeSkeleton() {
             </div>
             {range(3).map((i) => (
               <div className="appt" key={i}>
-                <Sk w={84} h={16} />
                 <div className="t"><Sk w="55%" h={16} /><Sk w="35%" h={14} style={{ marginTop: 6 }} /></div>
                 <Sk w={84} h={24} r={999} />
+                <Sk w={56} h={32} />
               </div>
             ))}
           </div>
@@ -762,7 +762,17 @@ export function PipelineTasksSkeleton() {
           <div className="chips">{[70, 100, 90, 110].map((w, i) => (<Sk key={i} w={w} h={38} r={999} />))}</div>
           <Sk w={150} h={38} r={999} />
         </div>
-        {range(3).map((i) => (<Sk key={i} w="100%" h={44} style={{ marginBottom: 8 }} />))}
+        <div className="table-wrap">
+          <table className="table single pl-tasktable">
+            <colgroup><col style={{ width: 44 }} /><col style={{ width: "17%" }} /><col style={{ width: "24%" }} /><col style={{ width: "18%" }} /><col style={{ width: 120 }} /><col style={{ width: "14%" }} /><col style={{ width: 88 }} /></colgroup>
+            <thead><tr><th /><th>Task</th><th>Description</th><th>Project</th><th>Due</th><th>Assignee</th><th /></tr></thead>
+            <tbody>
+              {range(3).map((i) => (
+                <tr key={i}><td><Sk w={16} h={16} /></td><td><Sk w="70%" h={14} /></td><td><Sk w="80%" h={14} /></td><td><Sk w="60%" h={14} /></td><td><Sk w={80} h={14} /></td><td><Sk w="60%" h={14} /></td><td /></tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </Busy>
   );

@@ -129,7 +129,7 @@
 .pl-taskbar { display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
 .chip.outline.on { background: var(--shell); border-color: var(--line-strong); font-weight: 600; }
 .pl-tasklist { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line-soft); }
-.pl-tasklist li { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) 130px 160px; gap: 12px; align-items: center; padding: 12px 4px; border-bottom: 1px solid var(--line-soft); font-size: 14px; }
+.pl-tasklist li { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) 130px 160px 76px; gap: 12px; align-items: center; padding: 12px 4px; border-bottom: 1px solid var(--line-soft); font-size: 14px; }
 .pl-tasklist label { display: flex; align-items: center; gap: 10px; cursor: pointer; }
 .pl-completed { margin-top: 32px; }
 .pl-completed h2 { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; font-size: 18px; }
@@ -202,11 +202,12 @@ button.pl-iconbox:hover:not(:disabled) { background: var(--shell-2); }
 @media (max-width: 1100px) {
   .main:has(.pl) { overflow: auto; }
   .pl-panel { position: fixed; top: 60px; }
-  .pl-tasklist li { grid-template-columns: minmax(0, 1fr) 110px; }
+  .pl-tasklist li { grid-template-columns: minmax(0, 1fr) 110px 76px; }
   .pl-tproject, .pl-tname { display: none; }
 }
 @media (max-width: 700px) {
-  .pl-tasklist li { grid-template-columns: minmax(0, 1fr); gap: 2px; align-items: start; }
+  .pl-tasklist li { grid-template-columns: minmax(0, 1fr) 76px; gap: 2px; align-items: start; }
+  .pl-tasklist .pl-tact { grid-column: 2; grid-row: 1; }
   .pl-tasklist .t { white-space: normal; overflow-wrap: anywhere; }
   .pl-tproject, .pl-tname, .pl-tdue {
     display: block; white-space: normal; overflow: visible; text-overflow: unset; padding-left: 30px;
@@ -357,4 +358,18 @@ button.pl-iconbox:hover:not(:disabled) { background: var(--shell-2); }
 /* Tasks: a task's title opens it for editing (PRD 3.5). */
 .pl-ttitle { border: 0; background: none; padding: 0; font: inherit; color: var(--ink); font-weight: 600; text-align: left; cursor: pointer; overflow-wrap: anywhere; border-radius: 4px; transition: color 0.15s ease; }
 .pl-ttitle:hover { color: var(--green); text-decoration: underline; }
+.pl-tact { display: flex; justify-content: flex-end; gap: 2px; }
+.pl-tasklist li.found { animation: pl-found 2.4s ease-out; }
+@keyframes pl-found { 0%, 60% { background: var(--hover); } 100% { background: transparent; } }
+@media (prefers-reduced-motion: reduce) { .pl-tasklist li.found { animation: none; background: var(--hover); } }
+.pl-ttext { display: flex; flex-direction: column; min-width: 0; }
+.pl-tdesc { color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pl-tasklist.done .pl-tdesc { text-decoration: none; }
 .pl-tcell { display: flex; align-items: center; gap: 10px; min-width: 0; }
+
+.pl-tasktable tbody tr.found { animation: pl-found 2.4s ease-out; }
+.pl-tasktable td input[type="checkbox"] { margin: 0; }
+.pl-tasktable .pl-tact { justify-content: flex-end; }
+.pl-tasktable.done td, .pl-tasktable.done .strong { color: var(--muted); }
+.pl-tasktable.done .t { text-decoration: line-through; font-weight: 600; }
+@media (prefers-reduced-motion: reduce) { .pl-tasktable tbody tr.found { animation: none; background: var(--hover); } }
