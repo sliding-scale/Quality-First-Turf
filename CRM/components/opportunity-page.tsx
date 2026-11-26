@@ -9,6 +9,7 @@ import type { FunctionReturnType } from "convex/server";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useRef, useState } from "react";
+import { useRequest, usePeople } from "@/lib/requests";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { moneyCents, quoteDate, quoteDateTime } from "@/lib/format";
@@ -16,6 +17,7 @@ import { clock, failure, timeLabel, useMinute } from "@/lib/pipeline";
 import { BillingTab } from "./billing-tab";
 import { ConstructionTab } from "./construction-tab";
 import { QUOTE_PILL } from "@/lib/quotes";
+import { AssessmentSection, hasConsultation } from "./assessment-section";
 import { Icon } from "./icon";
 import { ProjectNotes } from "./project-notes";
 import { TakeoffTab } from "./takeoff-tab";
@@ -36,6 +38,9 @@ const parseTab = (s: string | null, pipeline: string): Tab => {
   const wanted = (TABS as readonly string[]).includes(s ?? "") ? (s as Tab) : firstTab(pipeline);
   return hasTab(wanted, pipeline) ? wanted : "overview";
 };
+
+/** A request is quoted only after its on-site consultation is booked (user, 2026-11-25, D-129); the server refuses it too. */
+const quotable = (o: { pipeline: string; stage: string }) => !(o.pipeline === "Sales" && (o.stage === "New Request" || o.stage === "Schedule Onsite Consultation"));
 
 const size = (n: number) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : n >= 1024 ? `${Math.round(n / 1024)} KB` : n ? `${n} B` : "");
 
@@ -82,7 +87,7 @@ function OpportunityView({ o }: { o: Overview }) {
           {/* A won project keeps its request page after it moves on to Preplanning or Construction; a project that never was a request has none. */}
           {staff.can("requests") && (o.pipeline === "Sales" || o.outcome === "won") && <Link className="btn" href={`/requests/${o.id}`}><Icon name="pencil" size={18} /> Edit request</Link>}
           {o.outcome === "won" && staff.can("jobs") && <Link className="btn" href={`/jobs/${o.id}`}><Icon name="hammer" size={18} /> View job</Link>}
-          {staff.can("quotes", "edit") && <Link className="btn primary" href={`/quotes/new?clientId=${o.clientId}&projectId=${o.id}`}><Icon name="quote" size={18} /> New quote</Link>}
+          {staff.can("quotes", "edit") && quotable(o) && <Link className="btn primary" href={`/quotes/new?clientId=${o.clientId}&projectId=${o.id}`}><Icon name="quote" size={18} /> New quote</Link>}
         </div>
       </div>
       <div className="op-title">
@@ -111,7 +116,7 @@ function OpportunityView({ o }: { o: Overview }) {
       {tab === "construction" && <ConstructionTab id={o.id} businessId={o.businessId} title={o.title} />}
       {tab === "billing" && staff.can("invoices") && <BillingTab id={o.id} />}
       {tab === "quotes" && seesQuotes && <QuotesTab o={o} />}
-      {tab === "visit" && <VisitTab id={o.id} />}
+      {tab === "visit" && <VisitTab o={o} />}
       {tab === "files" && <FilesTab o={o} />}
       {tab === "activity" && <ActivityTab id={o.id} />}
     </div>
@@ -125,20 +130,14 @@ const CONTRACT: Record<Overview["contract"]["state"], { label: string; cls: stri
   none: { label: "No open quote", cls: "draft" }, noquote: { label: "No quote yet", cls: "draft" },
 };
 
-function nextStep(o: Overview): string {
-  if (o.pipeline === "Preplanning") return `In Preplanning: ${o.stage}.`;
-  if (o.pipeline === "Construction") return o.stage === "100% Completed & Sign-off" ? "Construction is signed off." : `In Construction: ${o.stage}.`;
-  if (o.pipeline === "Finance") return `In Finance: ${o.stage}.`;
-  if (o.outcome === "won") return "Closed Won. Next is Preplanning.";
-  if (o.outcome === "lost") return o.lostReason ? `Closed Lost: ${o.lostReason}` : "Closed Lost.";
-  if (o.contract.state === "noquote") return "Next step: make a quote for this project.";
-  if (o.contract.state === "out") return "Next step: get the quote signed. Closed Won needs the signed contract" + (o.deposit.required ? " and the deposit." : ".");
-  if (o.contract.state === "signed" || o.contract.state === "uploaded") return o.deposit.required && !o.deposit.collected ? "Next step: record the deposit, then close the project as won." : "Ready to close as won.";
-  return "Next step: send or update a quote.";
-}
-
 function OverviewTab({ o, timeIn }: { o: Overview; timeIn: number }) {
-  const { canEdit } = useStaff();
+  const { canEdit, can } = useStaff();
+  // A request (still in Sales, or won from it) has a request record: its answers and its assessment card come from there (D-129).
+  const isRequest = (o.pipeline === "Sales" || o.outcome === "won") && can("requests");
+  const r = useRequest(isRequest ? o.id : null);
+  const request = isRequest ? r : null;
+  const people = usePeople(o.businessId);
+  const [assessing, setAssessing] = useState(false);
   const c = o.client;
   const city = [c.city, [c.state, c.zip].filter(Boolean).join(" ")].filter(Boolean).join(", ");
   const confirmedTotal = o.confirmed?.lines.reduce((n, l) => n + l.totalCents, 0) ?? 0;
@@ -147,8 +146,29 @@ function OverviewTab({ o, timeIn }: { o: Overview; timeIn: number }) {
   return (
     <div className="op-body">
       <div className="op-col">
-        <section className="card op-card"><h2>Overview</h2><h3>Service details</h3><p className="op-text">{o.details || "—"}</p></section>
+        <section className="card op-card">
+          <h2>Overview</h2>
+          {request ? (
+            <>
+              <div className="rq-qa-source">{request.overview.source}</div>
+              {request.overview.heading && <h3 className="rq-qa-head">{request.overview.heading}</h3>}
+              <div className="rq-qa">
+                {request.overview.fields.length === 0 ? <p className="muted">No answers were given.</p> : request.overview.fields.map((f, i) => (
+                  <div key={i} className="rq-qa-row">
+                    <div className="rq-label">{f.label}</div>
+                    <p className="rq-text">{f.value || "—"}</p>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : request === undefined && isRequest ? <div className="sk" style={{ height: 80 }} /> : (
+            <><h3>Service details</h3><p className="op-text">{o.details || "—"}</p></>
+          )}
+        </section>
 
+        {request ? (
+          <AssessmentSection r={request} people={people} canEdit={canEdit} editing={assessing} onEditing={setAssessing} />
+        ) : (
         <section className="card op-card">
           <h2>On-site assessment</h2>
           {o.assessment ? (
@@ -160,6 +180,7 @@ function OverviewTab({ o, timeIn }: { o: Overview; timeIn: number }) {
             <p className="muted">No assessment is booked yet.</p>
           )}
         </section>
+        )}
 
         {o.requestedLines.length > 0 && (
           <section className="card op-card">
@@ -213,7 +234,6 @@ function OverviewTab({ o, timeIn }: { o: Overview; timeIn: number }) {
             <div><dt>Deposit</dt><dd>{o.deposit.required ? (o.deposit.collected ? `Received ${o.deposit.collectedAt ? quoteDate(o.deposit.collectedAt) : ""}` : "Required, not received") : "Not asked for"}</dd></div>
           </dl>
         </section>
-        <div className="op-next" role="status">{nextStep(o)}</div>
       </div>
     </div>
   );
@@ -227,8 +247,8 @@ function QuotesTab({ o }: { o: Overview }) {
   return (
     <div className="op-body one">
       <section className="card op-card">
-        <div className="op-sechead"><h2>Quotes for this project</h2>{canEdit && <Link className="btn primary" href={`/quotes/new?clientId=${o.clientId}&projectId=${o.id}`}>New quote</Link>}</div>
-        {quotes === undefined ? <div className="sk" style={{ height: 80 }} /> : quotes.length === 0 ? <p className="muted">No quotes yet.</p> : (
+        <div className="op-sechead"><h2>Quotes for this project</h2>{canEdit && quotable(o) && <Link className="btn primary" href={`/quotes/new?clientId=${o.clientId}&projectId=${o.id}`}>New quote</Link>}</div>
+        {quotes === undefined ? <div className="sk" style={{ height: 80 }} /> : quotes.length === 0 ? <p className="muted">{quotable(o) ? "No quotes yet." : "No quotes yet. Book the on-site consultation first; a quote can be made once it is booked."}</p> : (
           <div className="op-scroll">
             <table className="table op-table">
               <colgroup><col style={{ width: "8%" }} /><col style={{ width: "32%" }} /><col style={{ width: "20%" }} /><col style={{ width: "20%" }} /><col style={{ width: "20%" }} /></colgroup>
@@ -254,49 +274,47 @@ function QuotesTab({ o }: { o: Overview }) {
 
 /* ---- Visit ---- */
 
-function VisitTab({ id }: { id: Id<"opportunities"> }) {
-  const visit = useQuery(api.crm.opportunityPage.visit, { id });
-  if (visit === undefined) return <div className="op-body one"><div className="sk" style={{ height: 160 }} /></div>;
-  if (visit === null || !visit.available) {
+function VisitTab({ o }: { o: Overview }) {
+  const { canEdit, can } = useStaff();
+  const visit = useQuery(api.crm.opportunityPage.visit, { id: o.id });
+  const isRequest = (o.pipeline === "Sales" || o.outcome === "won") && can("requests");
+  const r = useRequest(isRequest ? o.id : null);
+  const request = isRequest ? r : null;
+  const people = usePeople(o.businessId);
+  const [assessing, setAssessing] = useState(false);
+  if (visit === undefined || (isRequest && r === undefined)) return <div className="op-body one"><div className="sk" style={{ height: 160 }} /></div>;
+  // The worksheet needs a consultation first (user, 2026-11-25, D-129): until one is booked, the tab offers to book it.
+  if (request && !hasConsultation(request)) {
     return (
       <div className="op-body one">
-        <section className="card op-card"><h2>Visit</h2><p className="muted">{visit?.reason ?? "There is no site visit to show."} You can still record the work areas and photos below.</p></section>
-        <VisitEditor id={id} />
+        <div className="op-span">
+        <section className="card op-card op-locked">
+          <h2>Schedule the consultation first</h2>
+          <p className="muted">The visit worksheet opens once the on-site consultation is booked. Book it here; the project moves to Onsite Consultation.</p>
+        </section>
+        <AssessmentSection r={request} people={people} canEdit={canEdit} editing={assessing} onEditing={setAssessing} />
+        </div>
       </div>
     );
   }
+  const extras = visit && visit.available ? { products: visit.products, addOns: visit.addOns } : undefined;
   return (
     <div className="op-body one">
-      <section className="card op-card">
-        <h2>Site visit{visit.visitedAt ? <small className="op-sub"> · {quoteDate(visit.visitedAt)}</small> : null}</h2>
-        <dl className="op-facts">
-          <div><dt>Services</dt><dd>{visit.services.join(", ") || "—"}</dd></div>
-          {visit.products.length > 0 && <div><dt>Products</dt><dd>{visit.products.join(", ")}</dd></div>}
-          {visit.addOns.length > 0 && <div><dt>Add-ons</dt><dd>{visit.addOns.join(", ")}</dd></div>}
-          {visit.notes && <div><dt>Notes</dt><dd className="op-text">{visit.notes}</dd></div>}
-        </dl>
-      </section>
-      <section className="card op-card">
-        <h2>Measurements</h2>
-        {visit.measurements.length === 0 ? <p className="muted">No measurements.</p> : (
-          <div className="op-scroll">
-            <table className="table op-table">
-              <colgroup><col style={{ width: "34%" }} /><col style={{ width: "40%" }} /><col style={{ width: "26%" }} /></colgroup>
-              <thead><tr><th>Area</th><th>Service</th><th className="num">Size</th></tr></thead>
-              <tbody>{visit.measurements.map((m, i) => <tr key={i}><td>{m.label}</td><td>{m.service || "—"}</td><td className="num">{m.unmeasured ? "Not measured" : m.squareFeet !== null ? `${m.squareFeet} sq ft` : m.linearFeet !== null ? `${m.linearFeet} ft` : "—"}</td></tr>)}</tbody>
-            </table>
-          </div>
-        )}
-      </section>
-      <VisitEditor id={id} />
+      <VisitEditor id={o.id} extras={extras} />
     </div>
   );
 }
 
 /* ---- Files ---- */
 
-const KIND_LABEL = { plan: "Site plan", photo: "Photo", contract: "Contract", other: "Other" } as const;
-type Kind = keyof typeof KIND_LABEL;
+type Kind = "plan" | "photo" | "contract" | "other";
+/** One card per kind of file, each with its own Add button (user, 2026-11-25, D-129; it was one list with filter chips). */
+const KIND_CARD: Record<Kind, { title: string; empty: string; accept: string }> = {
+  plan: { title: "Site plans", empty: "No site plans yet.", accept: "application/pdf,image/*" },
+  photo: { title: "Photos", empty: "No photos yet.", accept: "image/*" },
+  contract: { title: "Contracts", empty: "No contract papers yet. The signed contract from a quote shows here too.", accept: "application/pdf,image/*" },
+  other: { title: "Other files", empty: "No other files yet.", accept: "application/pdf,image/*" },
+};
 
 function FilesTab({ o }: { o: Overview }) {
   const { toast } = useUI();
@@ -305,14 +323,12 @@ function FilesTab({ o }: { o: Overview }) {
   const makeUrl = useMutation(api.crm.noteFiles.generateUploadUrl);
   const add = useMutation(api.crm.opportunityPage.addFile);
   const remove = useMutation(api.crm.opportunityPage.removeFile);
-  const picker = useRef<HTMLInputElement>(null);
-  const [kind, setKind] = useState<Kind>("plan");
-  const [filter, setFilter] = useState<"all" | Kind>("all");
-  const [busy, setBusy] = useState(false);
+  const pickers = useRef<Partial<Record<Kind, HTMLInputElement | null>>>({});
+  const [busy, setBusy] = useState<Kind | null>(null);
 
-  async function pick(list: FileList | null) {
+  async function pick(kind: Kind, list: FileList | null) {
     if (!list || list.length === 0) return;
-    setBusy(true);
+    setBusy(kind);
     try {
       for (const f of Array.from(list)) {
         const url = await makeUrl({});
@@ -325,52 +341,50 @@ function FilesTab({ o }: { o: Overview }) {
     } catch (e) {
       toast(failure(e, "The file could not be added."));
     } finally {
-      setBusy(false);
-      if (picker.current) picker.current.value = "";
+      setBusy(null);
+      const input = pickers.current[kind];
+      if (input) input.value = "";
     }
   }
 
-  const shown = (files ?? []).filter((f) => filter === "all" || f.kind === filter);
   return (
-    <div className="op-body one">
-      <section className="card op-card op-wide">
-        <div className="op-sechead">
-          <h2>Files</h2>
-          {canEdit && (
-            <div className="op-upload">
-              <select aria-label="What kind of file" value={kind} disabled={busy} onChange={(e) => setKind(e.target.value as Kind)}>
-                {(Object.keys(KIND_LABEL) as Kind[]).map((k) => <option key={k} value={k}>{KIND_LABEL[k]}</option>)}
-              </select>
-              <input ref={picker} type="file" accept="application/pdf,image/*" multiple hidden onChange={(e) => void pick(e.target.files)} />
-              <button type="button" className="btn primary" disabled={busy} onClick={() => picker.current?.click()}><Icon name="upload" size={18} /> {busy ? "Uploading…" : "Add files"}</button>
+    <div className="op-body one op-files-grid">
+      {(Object.keys(KIND_CARD) as Kind[]).map((kind) => {
+        const card = KIND_CARD[kind];
+        const mine = (files ?? []).filter((f) => f.kind === kind);
+        return (
+          <section key={kind} className="card op-card op-wide" aria-label={card.title}>
+            <div className="op-sechead">
+              <h2>{card.title}{mine.length > 0 && <small className="op-sub"> · {mine.length}</small>}</h2>
+              {canEdit && (
+                <>
+                  <input ref={(el) => { pickers.current[kind] = el; }} type="file" accept={card.accept} multiple hidden onChange={(e) => void pick(kind, e.target.files)} />
+                  <button type="button" className="btn" disabled={busy !== null} onClick={() => pickers.current[kind]?.click()}><Icon name="upload" size={18} /> {busy === kind ? "Uploading…" : "Add"}</button>
+                </>
+              )}
             </div>
-          )}
-        </div>
-        <div className="op-chips" role="group" aria-label="Filter files">
-          {(["all", "plan", "photo", "contract", "other"] as const).map((k) => (
-            <button key={k} type="button" className={`chip outline${filter === k ? " on" : ""}`} aria-pressed={filter === k} onClick={() => setFilter(k)}>{k === "all" ? "All" : KIND_LABEL[k]}</button>
-          ))}
-        </div>
-        {files === undefined ? <div className="sk" style={{ height: 80 }} /> : shown.length === 0 ? (
-          <p className="muted">{files.length === 0 ? "No files yet. Add site plans, photos and contract papers here." : "No files of that kind."}</p>
-        ) : (
-          <ul className="op-files">
-            {shown.map((f) => (
-              <li key={f.key}>
-                <span className={`op-ft${f.contentType.startsWith("image/") ? " img" : ""}`}>{f.contentType.startsWith("image/") ? "IMG" : "PDF"}</span>
-                <span className="op-fname">
-                  {f.url ? <a href={f.url} target="_blank" rel="noreferrer">{f.name}</a> : f.name}
-                  <small>{KIND_LABEL[f.kind]}{f.from ? ` · ${f.from}` : ""}{f.by ? ` · ${f.by}` : ""} · {quoteDate(f.at)}{size(f.size) ? ` · ${size(f.size)}` : ""}</small>
-                </span>
-                {canEdit && f.fileId && (
-                  <button type="button" className="icon-btn" aria-label={`Remove ${f.name}`} onClick={() => void remove({ fileId: f.fileId! }).then(() => toast("File removed.")).catch((e) => toast(failure(e, "The file could not be removed.")))}><Icon name="trash" size={20} /></button>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-      <p className="op-hint">The signed contract and a quote&apos;s attachments show here too, marked with where they came from. They stay on that quote or checklist.</p>
+            {files === undefined ? <div className="sk" style={{ height: 48 }} /> : mine.length === 0 ? (
+              <p className="muted">{card.empty}</p>
+            ) : (
+              <ul className="op-files">
+                {mine.map((f) => (
+                  <li key={f.key}>
+                    <span className={`op-ft${f.contentType.startsWith("image/") ? " img" : ""}`}>{f.contentType.startsWith("image/") ? "IMG" : "PDF"}</span>
+                    <span className="op-fname">
+                      {f.url ? <a href={f.url} target="_blank" rel="noreferrer">{f.name}</a> : f.name}
+                      <small>{[f.from, f.by, quoteDate(f.at), size(f.size)].filter(Boolean).join(" · ")}</small>
+                    </span>
+                    {canEdit && f.fileId && (
+                      <button type="button" className="icon-btn" aria-label={`Remove ${f.name}`} onClick={() => void remove({ fileId: f.fileId! }).then(() => toast("File removed.")).catch((e) => toast(failure(e, "The file could not be removed.")))}><Icon name="trash" size={20} /></button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        );
+      })}
+      <p className="op-hint">A quote&apos;s attachments and the signed contract show here too, marked with where they came from. They stay on that quote or checklist.</p>
     </div>
   );
 }

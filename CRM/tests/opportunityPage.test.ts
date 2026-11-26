@@ -10,7 +10,7 @@ const store = (w: Awaited<ReturnType<typeof seeded>>, type: string, bytes = 100)
 
 describe("the opportunity page", () => {
   it("shows the project, its client and stage, and nothing to confirm before a quote is approved", async () => {
-    const w = await seeded();
+    const w = await seeded({ stage: "New Request" });
     const o = await w.sales.query(api.crm.opportunityPage.overview, { id: w.project });
     expect(o).toMatchObject({ code: "TST-001", title: "Test turf", stage: "New Request", group: "Requests", confirmed: null, contract: { state: "noquote" }, deposit: { required: false } });
     expect(o?.stages[0]).toBe("New Request");

@@ -6,6 +6,7 @@ import { FormEvent, useId, useRef, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { friendlyError } from "@/convex/shared/errors";
+import { TimePicker, addMinutesTo, minutesBetween } from "@/components/time-picker";
 import { visitLabel } from "@/convex/shared/visits";
 
 export type Consultation = {
@@ -17,21 +18,9 @@ export type Consultation = {
   salesperson?: string;
 };
 
-const lengths = [
-  { minutes: 30, label: "30 minutes" },
-  { minutes: 45, label: "45 minutes" },
-  { minutes: 60, label: "1 hour" },
-  { minutes: 90, label: "1 hour 30 minutes" },
-  { minutes: 120, label: "2 hours" },
-];
 
 const defaultMinutes = 60;
 
-/** Quarter-hour start times across the day, as "HH:MM". */
-const startTimes = Array.from({ length: 96 }, (_, index) => {
-  const total = index * 15;
-  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
-});
 
 function clock(time: string): string {
   const [hour, minute] = time.split(":").map(Number);
@@ -80,7 +69,8 @@ export function ConsultationButton({
   const dialog = useRef<HTMLDialogElement>(null);
   const [date, setDate] = useState("");
   const [time, setTime] = useState("09:00");
-  const [minutes, setMinutes] = useState(defaultMinutes);
+  const [endTime, setEndTime] = useState(addMinutesTo("09:00", defaultMinutes));
+  const minutes = minutesBetween(time, endTime);
   const [instructions, setInstructions] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<"book" | "cancel" | null>(null);
@@ -90,7 +80,7 @@ export function ConsultationButton({
   function open() {
     setDate(consultation?.date ?? "");
     setTime(consultation?.time ?? "09:00");
-    setMinutes(consultation?.minutes ?? defaultMinutes);
+    setEndTime(addMinutesTo(consultation?.time ?? "09:00", consultation?.minutes ?? defaultMinutes));
     setInstructions(consultation?.instructions ?? "");
     setError(null);
     setConfirmingCancel(false);
@@ -105,6 +95,10 @@ export function ConsultationButton({
     event.preventDefault();
     if (date === "") {
       setError("Choose a date.");
+      return;
+    }
+    if (minutes < 15) {
+      setError("The end has to be at least 15 minutes after the start.");
       return;
     }
     setError(null);
@@ -207,26 +201,14 @@ export function ConsultationButton({
                 required
               />
             </label>
-            <label className="consultation-field">
+            <div className="consultation-field">
               <span>Start time</span>
-              <select value={time} onChange={(event) => setTime(event.target.value)}>
-                {startTimes.map((slot) => (
-                  <option key={slot} value={slot}>
-                    {clock(slot)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="consultation-field consultation-field--wide">
-              <span>Length</span>
-              <select value={minutes} onChange={(event) => setMinutes(Number(event.target.value))}>
-                {lengths.map((length) => (
-                  <option key={length.minutes} value={length.minutes}>
-                    {length.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+              <TimePicker label="Start time" value={time} onChange={(next) => { setEndTime(addMinutesTo(next, minutes > 0 ? minutes : defaultMinutes)); setTime(next); }} />
+            </div>
+            <div className="consultation-field">
+              <span>End time</span>
+              <TimePicker label="End time" value={endTime} bad={!(minutes > 0)} onChange={setEndTime} />
+            </div>
             <label className="consultation-field consultation-field--wide">
               <span>Notes for the visit (optional)</span>
               <textarea

@@ -80,6 +80,7 @@ describe("booking and double-booking", () => {
 
   it("moves a project to Onsite Consultation when a consultation is booked at New Request or Schedule Onsite Consultation (D-085)", async () => {
     const { sales, base: db, qft, sam, project } = await world();
+    await db.run((ctx) => ctx.db.patch(project, { stage: "New Request" }));
     await sales.mutation(api.crm.schedule.book, { ...base, businessId: qft, type: "consultation", title: "Walk the yard", start: at(10, 9), end: at(10, 10), assigneeIds: [sam], opportunityId: project });
     expect((await db.run((ctx) => ctx.db.get(project)))?.stage).toBe("Onsite Consultation");
     const history = await sales.query(api.crm.pipeline.history, { id: project });

@@ -11,7 +11,7 @@ const numberOf = (w: World, id: Id<"opportunities">) => w.base.run(async (ctx) =
 /** A second project in the same business, with its own signed quote. */
 async function otherProject(w: World, businessId: Id<"businesses">, clientId: Id<"clients">, code: string) {
   return w.base.run((ctx) =>
-    ctx.db.insert("opportunities", { businessId, clientId, code, title: "More turf", pipeline: "Sales", stage: "New Request", requestedAt: NOW, owner: "Unassigned", searchText: `${code} More turf New Request` }),
+    ctx.db.insert("opportunities", { businessId, clientId, code, title: "More turf", pipeline: "Sales", stage: "Onsite Consultation", requestedAt: NOW, owner: "Unassigned", searchText: `${code} More turf Onsite Consultation` }),
   );
 }
 

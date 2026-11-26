@@ -79,7 +79,7 @@ describe("tagging a person in a note", () => {
 
 describe("stage-change notifications", () => {
   it("tells the salesperson when someone else moves their project, and nobody when they move it themselves", async () => {
-    const w = await seeded();
+    const w = await seeded({ stage: "New Request" });
     const sam = (await w.base.run((ctx) => ctx.db.query("users").collect())).find((u) => u.name === "Sam Sales")!;
     await w.admin.mutation(api.crm.pipeline.setSalesperson, { id: w.project, salespersonId: sam._id });
     await w.admin.mutation(api.crm.pipeline.moveStage, { id: w.project, to: "Schedule Onsite Consultation", now: 10 });

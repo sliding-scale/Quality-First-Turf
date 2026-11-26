@@ -1894,3 +1894,46 @@ a.qs-chip:active { background: var(--shell); }
 .pay-details dt { color: var(--muted); font-size: 14px; margin-bottom: 4px; }
 .pay-details dd { margin: 0; color: var(--ink); }
 @media (max-width: 700px) { .pay-details dl { grid-template-columns: minmax(0, 1fr); } .pay-amount { font-size: 34px; } }
+
+/* The time picker (components/time-picker.tsx, D-129): a button that opens hour, minute and AM/PM columns, with Now and Done. */
+.tp { position: relative; min-width: 0; }
+.tp-trigger { width: 100%; height: var(--control); display: flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid var(--line); border-radius: var(--radius-ctl); background: var(--white); color: var(--ink); font: inherit; text-align: left; cursor: pointer; transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease; }
+.tp-trigger:hover:not(:disabled) { border-color: #b8c2c4; background: var(--hover); }
+.tp-trigger:active:not(:disabled) { background: var(--line-soft); }
+.tp-trigger:focus-visible, .tp-trigger[aria-expanded="true"] { outline: 0; border-color: var(--green); box-shadow: 0 0 0 2px rgba(56, 133, 35, 0.2); }
+.tp-trigger:disabled { cursor: not-allowed; opacity: 0.5; }
+.tp-trigger svg { flex: none; color: var(--muted); }
+.tp-placeholder { color: var(--muted); }
+.tp.bad .tp-trigger { border-color: var(--error); background: var(--error-soft); }
+.tp-panel { position: absolute; z-index: 60; top: calc(100% + 6px); left: 0; width: 232px; padding: 8px; border: 1px solid var(--line); border-radius: var(--radius-ctl); background: var(--white); box-shadow: 0 10px 28px rgba(3, 43, 58, 0.16); animation: tp-in 0.14s ease-out both; }
+.tp-panel.leaving { animation: tp-out 0.12s ease-in both; }
+@keyframes tp-in { from { opacity: 0; transform: translateY(-4px) scale(0.98); } to { opacity: 1; transform: none; } }
+@keyframes tp-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(-4px) scale(0.98); } }
+.tp-cols { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+.tp-col { display: grid; gap: 2px; align-content: start; max-height: 196px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.tp-col button { height: 32px; border: 0; border-radius: var(--radius-sm); background: none; color: var(--ink); font: inherit; font-size: 14px; cursor: pointer; transition: background-color 0.12s ease, color 0.12s ease; }
+.tp-col button:hover { background: var(--hover); }
+.tp-col button:active { background: var(--line-soft); }
+.tp-col button.on { background: var(--green); color: var(--white); font-weight: 700; }
+.tp-ampm { align-content: start; }
+.tp-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line-soft); }
+@media (prefers-reduced-motion: reduce) { .tp-panel, .tp-panel.leaving { animation: none; } }
+.tp-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+/* Inside the assessment's joined boxes the picker is one half of the box, not a box of its own. */
+.ai-group .tp { flex: 1 1 0; }
+.ai-group .tp-trigger { height: 50px; border: 0; border-radius: 0; background: transparent; padding: 0 16px; box-shadow: none; }
+.ai-group .tp + .tp, .ai-group .ai-pick + .tp, .ai-group .tp + .ai-pick { border-left: 1px solid #d5d9dc; }
+.ai-group .tp-trigger:focus-visible, .ai-group .tp-trigger[aria-expanded="true"] { box-shadow: inset 0 0 0 2px rgba(56, 133, 35, 0.35); }
+.ai-group:has(.tp) { overflow: visible; }
+.sc-times { margin-top: 10px; }
+/* The consultation worksheet inside the On-site assessment card (D-129): it opens once a consultation is booked. */
+.as-worksheet { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line-soft); }
+.as-worksheet .rq-text { margin: 4px 0 0; color: var(--muted); }
+@media (max-width: 700px) { .as-worksheet { flex-direction: column; align-items: flex-start; } }
+/* Products and the Add-ons dropdown in the Work areas card (D-129). */
+.vz-meta { margin: 4px 0 8px; color: var(--text); }
+.vz-meta span { color: var(--muted); font-size: 13px; margin-right: 6px; }
+.vz-addonlist { margin: 0; padding: 0 0 0 18px; display: grid; gap: 4px; }
+.op-locked { border-color: var(--line-strong); }
+.op-files-grid { gap: 16px; }
+.op-body.one > .op-span { grid-column: 1 / -1; display: grid; gap: 16px; align-content: start; max-width: 980px; }

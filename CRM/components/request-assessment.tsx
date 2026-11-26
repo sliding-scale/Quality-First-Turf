@@ -10,6 +10,7 @@ import { fromInputs, inputParts, todayKey } from "@/lib/schedule";
 import { quoteDateTime } from "@/lib/format";
 import { clock, failure } from "@/lib/pipeline";
 import { Checkbox } from "./checkbox";
+import { TimePicker } from "./time-picker";
 import { Icon } from "./icon";
 import { PipelineModal } from "./pipeline-dialogs";
 
@@ -162,6 +163,8 @@ export type AssessmentInput = { scheduleLater: boolean; start: number; end: numb
 /** A date or time box that shows its own words ("Start date") until it is used, then becomes a real date or time input, as Jobber's does. */
 function Pick({ kind, label, value, onChange, disabled, bad, id }: { kind: "date" | "time"; label: string; value: string; onChange: (v: string) => void; disabled: boolean; bad?: boolean; id: string }) {
   const [focused, setFocused] = useState(false);
+  // Times use the shared time picker (D-129); dates stay the browser's date box.
+  if (kind === "time") return <TimePicker id={id} label={label} value={value} onChange={onChange} disabled={disabled} bad={bad} />;
   return (
     <input
       id={id}

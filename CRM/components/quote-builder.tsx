@@ -320,7 +320,11 @@ function Builder({ business, quote, presetClient, presetProject, section }: { bu
                 <label htmlFor="qb-project">Project</label>
                 <select id="qb-project" disabled={!!quote} value={d.opportunityId ?? ""} onChange={(e) => set({ opportunityId: (e.target.value || undefined) as Id<"opportunities"> | undefined })}>
                   <option value="">No project</option>
-                  {(projects ?? []).filter((p) => p.pipeline === "Sales").map((p) => <option key={p._id} value={p._id}>{p.title} · {p.code}</option>)}
+                  {(projects ?? []).filter((p) => p.pipeline === "Sales").map((p) => {
+                    // A request is quoted only after its consultation is booked (D-129); the server refuses it too.
+                    const waiting = p.stage === "New Request" || p.stage === "Schedule Onsite Consultation";
+                    return <option key={p._id} value={p._id} disabled={waiting && p._id !== d.opportunityId}>{p.title} · {p.code}{waiting ? " (book the consultation first)" : ""}</option>;
+                  })}
                 </select>
               </div>
             )}

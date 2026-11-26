@@ -9,7 +9,7 @@ const historyOf = (t: Awaited<ReturnType<typeof seeded>>["admin"], id: Id<"oppor
 
 describe("moveStage", () => {
   it("moves a project, saves the new stage time, and writes one history row", async () => {
-    const { sales, project } = await seeded();
+    const { sales, project } = await seeded({ stage: "New Request" });
     const r = await sales.mutation(api.crm.pipeline.moveStage, { id: project, to: "Onsite Consultation", now: NOW });
     expect(r).toEqual({ from: "New Request", to: "Onsite Consultation", handedOff: false });
     const rows = await historyOf(sales, project);
@@ -18,13 +18,13 @@ describe("moveStage", () => {
   });
 
   it("refuses a move to the same stage and writes no history", async () => {
-    const { sales, project } = await seeded();
+    const { sales, project } = await seeded({ stage: "New Request" });
     await expect(sales.mutation(api.crm.pipeline.moveStage, { id: project, to: "New Request", now: NOW })).rejects.toThrow(/already/);
     expect(await historyOf(sales, project)).toHaveLength(0);
   });
 
   it("keeps history in order, each from equal to the previous to", async () => {
-    const { sales, project } = await seeded();
+    const { sales, project } = await seeded({ stage: "New Request" });
     await sales.mutation(api.crm.pipeline.moveStage, { id: project, to: "Schedule Onsite Consultation", now: NOW });
     await sales.mutation(api.crm.pipeline.moveStage, { id: project, to: "Changes Requested", now: NOW + 1000 });
     const rows = await historyOf(sales, project);
@@ -35,7 +35,7 @@ describe("moveStage", () => {
   });
 
   it("needs a reason for Closed Lost and then records the outcome", async () => {
-    const { sales, base, project } = await seeded();
+    const { sales, base, project } = await seeded({ stage: "New Request" });
     await expect(sales.mutation(api.crm.pipeline.moveStage, { id: project, to: "Closed Lost", now: NOW })).rejects.toThrow(/why/);
     await sales.mutation(api.crm.pipeline.moveStage, { id: project, to: "Closed Lost", reason: "Went with another company", now: NOW });
     const doc = await base.run((ctx) => ctx.db.get(project));
@@ -61,7 +61,7 @@ describe("moveStage", () => {
   });
 
   it("refuses a Project Manager and a person from another business", async () => {
-    const { pm, outsider, project } = await seeded();
+    const { pm, outsider, project } = await seeded({ stage: "New Request" });
     await expect(pm.mutation(api.crm.pipeline.moveStage, { id: project, to: "Onsite Consultation", now: NOW })).rejects.toThrow();
     await expect(outsider.mutation(api.crm.pipeline.moveStage, { id: project, to: "Onsite Consultation", now: NOW })).rejects.toThrow();
     await expect(outsider.query(api.crm.pipeline.history, { id: project })).rejects.toThrow();
@@ -73,7 +73,7 @@ const cardsOf = (b: { columns: { cards: { id: Id<"opportunities"> }[] }[] }) => 
 
 describe("board", () => {
   it("has the seven open columns and then Closed Won and Closed Lost, and every count and total adds up", async () => {
-    const { admin, qft } = await seeded();
+    const { admin, qft } = await seeded({ stage: "New Request" });
     const b = await admin.query(api.crm.pipeline.board, { businessId: qft, ...boardArgs });
     expect(b.columns.map((c) => c.name)).toEqual([
       "New Request", "Schedule Onsite Consultation", "Onsite Consultation", "Quote Draft & Site Plan / Design",
@@ -89,7 +89,7 @@ describe("board", () => {
   });
 
   it("shows a project with no quote at $0, and one with quotes at its latest quote's total", async () => {
-    const { admin, base, qft, project, clientId } = await seeded();
+    const { admin, base, qft, project, clientId } = await seeded({ stage: "New Request" });
     let b = await admin.query(api.crm.pipeline.board, { businessId: qft, ...boardArgs });
     expect(cardsOf(b).find((c) => c.id === project)).toMatchObject({ valueCents: 0 });
     expect(cardsOf(b).find((c) => c.id === project)?.quoteId).toBeUndefined();
@@ -107,7 +107,7 @@ describe("board", () => {
   });
 
   it("measures time in stage from the stage time, or from the request when there is none", async () => {
-    const { admin, sales, qft, project } = await seeded();
+    const { admin, sales, qft, project } = await seeded({ stage: "New Request" });
     let b = await admin.query(api.crm.pipeline.board, { businessId: qft, ...boardArgs });
     expect(cardsOf(b).find((c) => c.id === project)?.timeInStageMs).toBe(3_600_000);
     await sales.mutation(api.crm.pipeline.moveStage, { id: project, to: "Onsite Consultation", now: NOW - 60_000 });
@@ -116,7 +116,7 @@ describe("board", () => {
   });
 
   it("filters by salesperson, lead source, date range and search together with matching counts", async () => {
-    const { admin, base, qft, project } = await seeded();
+    const { admin, base, qft, project } = await seeded({ stage: "New Request" });
     const salesUser = await base.run(async (ctx) => (await ctx.db.query("users").collect()).find((u) => u.email === "sales-1@example.com")!._id);
     await base.run((ctx) => ctx.db.patch(project, { salespersonId: salesUser, leadSource: "Google" }));
     const mine = await admin.query(api.crm.pipeline.board, { businessId: qft, ...boardArgs, salespersonId: salesUser });
@@ -139,7 +139,7 @@ describe("board", () => {
   });
 
   it("sorts by value, and a closed project moves to the Closed Won or Closed Lost column", async () => {
-    const w = await seeded();
+    const w = await seeded({ stage: "New Request" });
     const { admin, base, qft, project, clientId } = w;
     await base.run(async (ctx) => {
       await ctx.db.insert("quotes", {
@@ -164,14 +164,14 @@ describe("board", () => {
   });
 
   it("is closed to people from another business", async () => {
-    const { outsider, qft } = await seeded();
+    const { outsider, qft } = await seeded({ stage: "New Request" });
     await expect(outsider.query(api.crm.pipeline.board, { businessId: qft, ...boardArgs })).rejects.toThrow();
   });
 });
 
 describe("card actions and outcomes", () => {
   it("sets and clears the salesperson, and refuses someone outside the business", async () => {
-    const { sales, base, admin, qft, project } = await seeded();
+    const { sales, base, admin, qft, project } = await seeded({ stage: "New Request" });
     const people = await admin.query(api.crm.pipeline.people, { businessId: qft });
     const sam = people.find((p) => p.name === "Sam Sales")!;
     expect(people.some((p) => p.name === "Olive Outsider")).toBe(false);
@@ -184,7 +184,7 @@ describe("card actions and outcomes", () => {
   });
 
   it("sets a lead source from the list only", async () => {
-    const { sales, base, project } = await seeded();
+    const { sales, base, project } = await seeded({ stage: "New Request" });
     await sales.mutation(api.crm.pipeline.setLeadSource, { id: project, leadSource: "Referral" });
     expect((await base.run((ctx) => ctx.db.get(project)))?.leadSource).toBe("Referral");
     await expect(sales.mutation(api.crm.pipeline.setLeadSource, { id: project, leadSource: "Carrier pigeon" })).rejects.toThrow(/lead source/i);
@@ -193,7 +193,7 @@ describe("card actions and outcomes", () => {
   });
 
   it("marks lost with a reason and won only with a signed quote, and lists them under outcomes", async () => {
-    const w = await seeded();
+    const w = await seeded({ stage: "New Request" });
     const { sales, admin, qft, project } = w;
     await expect(sales.mutation(api.crm.pipeline.markOutcome, { id: project, outcome: "lost", now: NOW })).rejects.toThrow(/why/);
     await expect(sales.mutation(api.crm.pipeline.markOutcome, { id: project, outcome: "won", now: NOW })).rejects.toThrow();
@@ -211,7 +211,7 @@ describe("card actions and outcomes", () => {
   });
 
   it("pages and sorts outcomes, and clamps the page size", async () => {
-    const { admin, base, qft, clientId } = await seeded();
+    const { admin, base, qft, clientId } = await seeded({ stage: "New Request" });
     await base.run(async (ctx) => {
       for (let i = 0; i < 3; i++) {
         await ctx.db.insert("opportunities", {
@@ -234,7 +234,7 @@ describe("custom and hidden stages", () => {
   const names = (b: { columns: { name: string }[] }) => b.columns.map((c) => c.name);
 
   it("adds a custom stage to a group, and it shows on the board and accepts projects", async () => {
-    const { sales, admin, qft, project } = await seeded();
+    const { sales, admin, qft, project } = await seeded({ stage: "New Request" });
     await admin.mutation(api.crm.pipeline.addStage, { businessId: qft, group: "Requests", name: "  Site Survey " });
     const b = await admin.query(api.crm.pipeline.board, { businessId: qft, ...boardArgs });
     expect(names(b).slice(0, 4)).toEqual(["New Request", "Schedule Onsite Consultation", "Onsite Consultation", "Site Survey"]);
@@ -245,7 +245,7 @@ describe("custom and hidden stages", () => {
   });
 
   it("refuses an empty, too-long, duplicate or PRD-named stage", async () => {
-    const { admin, qft } = await seeded();
+    const { admin, qft } = await seeded({ stage: "New Request" });
     const add = (name: string) => admin.mutation(api.crm.pipeline.addStage, { businessId: qft, group: "Quotes", name });
     await expect(add("   ")).rejects.toThrow(/name/i);
     await expect(add("x".repeat(61))).rejects.toThrow(/name/i);
@@ -256,7 +256,7 @@ describe("custom and hidden stages", () => {
   });
 
   it("reorders stages in a group", async () => {
-    const { admin, qft } = await seeded();
+    const { admin, qft } = await seeded({ stage: "New Request" });
     await admin.mutation(api.crm.pipeline.addStage, { businessId: qft, group: "Requests", name: "Site Survey" });
     await admin.mutation(api.crm.pipeline.reorderStages, {
       businessId: qft, group: "Requests", names: ["Site Survey", "New Request", "Schedule Onsite Consultation", "Onsite Consultation"],
@@ -269,7 +269,7 @@ describe("custom and hidden stages", () => {
   });
 
   it("hides a stage with no projects, refuses one that holds projects, and hides it from moves", async () => {
-    const { admin, sales, qft, project } = await seeded();
+    const { admin, sales, qft, project } = await seeded({ stage: "New Request" });
     await expect(admin.mutation(api.crm.pipeline.setStageHidden, { businessId: qft, name: "New Request", hidden: true })).rejects.toThrow(/projects/i);
     await admin.mutation(api.crm.pipeline.addStage, { businessId: qft, group: "Quotes", name: "Walkthrough" });
     await admin.mutation(api.crm.pipeline.setStageHidden, { businessId: qft, name: "Walkthrough", hidden: true });
@@ -281,7 +281,7 @@ describe("custom and hidden stages", () => {
   });
 
   it("deletes a custom stage only when empty, and never a PRD stage", async () => {
-    const { admin, sales, qft, project } = await seeded();
+    const { admin, sales, qft, project } = await seeded({ stage: "New Request" });
     await admin.mutation(api.crm.pipeline.addStage, { businessId: qft, group: "Quotes", name: "Walkthrough" });
     await sales.mutation(api.crm.pipeline.moveStage, { id: project, to: "Walkthrough", now: NOW });
     await expect(admin.mutation(api.crm.pipeline.deleteStage, { businessId: qft, name: "Walkthrough" })).rejects.toThrow(/projects/i);
@@ -292,7 +292,7 @@ describe("custom and hidden stages", () => {
   });
 
   it("renames a custom stage and carries its projects with it", async () => {
-    const { admin, sales, qft, project } = await seeded();
+    const { admin, sales, qft, project } = await seeded({ stage: "New Request" });
     await admin.mutation(api.crm.pipeline.addStage, { businessId: qft, group: "Quotes", name: "Walkthrough" });
     await sales.mutation(api.crm.pipeline.moveStage, { id: project, to: "Walkthrough", now: NOW });
     await admin.mutation(api.crm.pipeline.renameStage, { businessId: qft, name: "Walkthrough", newName: "Site walk" });
@@ -301,7 +301,7 @@ describe("custom and hidden stages", () => {
   });
 
   it("lists every stage for editing with locks and project counts, and is closed to Project Managers", async () => {
-    const { admin, pm, qft } = await seeded();
+    const { admin, pm, qft } = await seeded({ stage: "New Request" });
     const list = await admin.query(api.crm.pipeline.stagesForEdit, { businessId: qft });
     expect(list.find((s) => s.name === "New Request")).toMatchObject({ locked: true, hidden: false });
     expect(list.find((s) => s.name === "New Request")!.projects).toBeGreaterThan(0);
@@ -311,7 +311,7 @@ describe("custom and hidden stages", () => {
 
 describe("sample data", () => {
   it("puts cards in every column and one won and one lost outcome on the board's data", async () => {
-    const { admin, qft } = await seeded();
+    const { admin, qft } = await seeded({ stage: "New Request" });
     const b = await admin.query(api.crm.pipeline.board, { businessId: qft, ...boardArgs });
     for (const c of b.columns) expect(c.count, c.name).toBeGreaterThan(0);
     const args = { businessId: qft, from: 0, to: NOW * 2, sortKey: "closedOn", dir: "desc", page: 1, size: 10 } as const;

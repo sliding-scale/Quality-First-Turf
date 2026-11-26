@@ -14,6 +14,7 @@ import { FilterMenu } from "./filter-menus";
 import { Icon } from "./icon";
 import { PipelineModal } from "./pipeline-dialogs";
 import type { Person } from "./schedule-grid";
+import { TimePicker, addMinutesTo } from "./time-picker";
 import { useUI } from "./ui-provider";
 
 type Kind = ItemType | "task";
@@ -73,7 +74,8 @@ export function ScheduleForm({ businessId, people, hours, initial, editing, show
   const startParts = seeded !== undefined ? inputParts(seeded) : { date: "", time: inputParts(defaultStart()).time };
   const [date, setDate] = useState(startParts.date);
   const [time, setTime2] = useState(startParts.time);
-  const [duration, setDuration] = useState(editing ? String(Math.round(((editing.end - editing.start) / 3_600_000) * 100) / 100) : "1");
+  // Start and end times from the time picker (D-129); a new item starts as an hour long.
+  const [endTime, setEndTime] = useState(editing && !editing.anytime ? inputParts(editing.end).time : addMinutesTo(startParts.time, 60));
   const [anytime, setAnytime] = useState(editing?.anytime ?? false);
   const [title, setTitle] = useState(editing?.title ?? initial.title ?? "");
   const parsedNotes = splitNotes(editing?.notes ?? "");
@@ -101,6 +103,7 @@ export function ScheduleForm({ businessId, people, hours, initial, editing, show
     setSeen(picked.n);
     setDate(parts.date);
     setTime2(parts.time);
+    setEndTime(addMinutesTo(parts.time, 60));
     setAnytime(false);
     if (picked.personId) setAssignees([picked.personId]);
   }
@@ -112,8 +115,8 @@ export function ScheduleForm({ businessId, people, hours, initial, editing, show
   }, [avail, assignees, onAvailability]);
 
   const start = date && time && !anytime ? fromInputs(date, time) : date ? fromInputs(date, "00:00") : NaN;
-  const hrs = Number(duration);
-  const end = anytime ? start + 86_400_000 : start + hrs * 3_600_000;
+  const end = anytime ? start + 86_400_000 : date && endTime ? fromInputs(date, endTime) : NaN;
+  const hrs = (end - start) / 3_600_000;
   const outside = kind !== "reminder" && !anytime && Number.isFinite(start) && Number.isFinite(end) && end > start && !inWorkingHours({ start, end }, hours, BUSINESS_TZ);
   const nameOf = (id: string) => people.find((p) => p.id === id)?.name ?? "Someone";
   // Booking over someone's Zoho event is a warning, never a refusal (D-069).
@@ -129,7 +132,6 @@ export function ScheduleForm({ businessId, people, hours, initial, editing, show
     if (!anytime && (!time || !(hrs > 0))) next.time = true;
     if (kind === "consultation" && !projectId && !editing) next.project = true;
     setBad(next);
-    if (next.time) setMore(true);
     if (Object.keys(next).length) {
       document.getElementById(next.title ? "sc-title" : next.project ? "sc-project" : "sc-date")?.focus();
       return;
@@ -275,23 +277,17 @@ export function ScheduleForm({ businessId, people, hours, initial, editing, show
               </button>
               <span className="err">Pick a date.</span>
             </div>
-            {!anytime && (
-              <label className={`sc-durbox${bad.time && !(hrs > 0) ? " bad" : ""}`}>
-                <span>Duration in hours</span>
-                <input id="sc-dur" aria-label="Duration in hours" type="number" min="0.25" step="0.25" value={duration} onChange={(e) => { setDuration(e.target.value); setBad((b) => ({ ...b, time: false })); }} />
-              </label>
-            )}
           </div>
-          {bad.time && !(hrs > 0) && <span className="sc-inline-err">Enter how long it takes.</span>}
+          {!anytime && (
+            <div className="tp-pair sc-times">
+              <TimePicker id="sc-time" label="Start time" value={time} bad={bad.time && !time} onChange={(v) => { setEndTime(addMinutesTo(v, Math.max(15, Math.round(hrs > 0 ? hrs * 60 : 60)))); setTime2(v); setBad((b) => ({ ...b, time: false })); }} />
+              <TimePicker id="sc-end" label="End time" value={endTime} bad={bad.time && !!time && !(hrs > 0)} onChange={(v) => { setEndTime(v); setBad((b) => ({ ...b, time: false })); }} />
+            </div>
+          )}
+          {bad.time && <span className="sc-inline-err">{time ? "The end has to be after the start." : "Pick a start time."}</span>}
 
           {more && (
             <div className="sc-moreopts">
-              {!anytime && (
-                <div className={`field${bad.time ? " bad" : ""}`}>
-                  <label htmlFor="sc-time">Start time</label>
-                  <input id="sc-time" type="time" aria-invalid={!!bad.time} value={time} onChange={(e) => { setTime2(e.target.value); setBad((b) => ({ ...b, time: false })); }} />
-                </div>
-              )}
               {kind !== "task" && (
                 <label className="sc-check"><input type="checkbox" checked={anytime} onChange={(e) => setAnytime(e.target.checked)} /> Anytime that day</label>
               )}

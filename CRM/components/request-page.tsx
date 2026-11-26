@@ -12,15 +12,13 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { clock } from "@/lib/pipeline";
 import { failure, usePeople, useRequest } from "@/lib/requests";
 import { quoteDate, quoteDateTime } from "@/lib/format";
-import { Checkbox } from "./checkbox";
 import { ConfirmDelete } from "./confirm-delete";
 import { Icon } from "./icon";
 import { NoteEditor, useUploadPending, type PendingFile } from "./note-editor";
 import { NoteBody } from "./note-view";
-import { AssessmentInline, whenLabel, type AssessmentInput } from "./request-assessment";
+import { AssessmentSection, hasConsultation } from "./assessment-section";
 import { RequestLinesEditor, RequestLinesView, checkRequestLines, newRequestLine, toRequestLines, type RequestLine } from "./request-lines";
 import { RequestSkeleton } from "./skeletons";
 import { useStaff } from "./staff-context";
@@ -28,19 +26,7 @@ import { useConvertToJob } from "./use-convert-to-job";
 import { useUI, type MenuItem } from "./ui-provider";
 
 const PILL = { New: "lead", Overdue: "overdue", Consultation: "consult", Converted: "active", Lost: "draft" } as const;
-const CONFIRM_LABEL = { sent: "sent to the customer", tested: "sent to the test address", logged: "not sent (the business is set to Log only)", skipped: "not sent", failed: "could not be sent" } as const;
 const UNASSIGNED = "";
-
-/** Jobber's red "nobody" mark next to Unassigned: a person with a slash through it. */
-function NoOne() {
-  return (
-    <svg className="as-noone" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="12" cy="8" r="3.5" />
-      <path d="M5 20c0-3.6 3-6 7-6s7 2.4 7 6" />
-      <path d="M4 4l16 16" />
-    </svg>
-  );
-}
 
 export function RequestPage({ id }: { id: string }) {
   const request = useRequest(id);
@@ -65,8 +51,6 @@ function RequestView({ r }: { r: Request }) {
   const convertToJob = useConvertToJob();
   const { canEdit, can } = useStaff();
   const removeRequest = useMutation(api.crm.requests.remove);
-  const resendConfirmation = useMutation(api.crm.bookingEmail.resend);
-  const [resending, setResending] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const people = usePeople(r.businessId);
   const setSalesperson = useMutation(api.crm.pipeline.setSalesperson);
@@ -79,12 +63,8 @@ function RequestView({ r }: { r: Request }) {
   const [fieldsDraft, setFieldsDraft] = useState<{ label: string; value: string }[]>([]);
   const [savingOverview, setSavingOverview] = useState(false);
   const updateRequest = useMutation(api.crm.requests.update);
-  const removeEvent = useMutation(api.crm.schedule.remove);
   const [saving, setSaving] = useState(false);
 
-  const book = useMutation(api.crm.schedule.book);
-  const updateEvent = useMutation(api.crm.schedule.update);
-  const setStatus = useMutation(api.crm.schedule.setStatus);
   const setLines = useMutation(api.crm.requests.setLines);
   // An empty Product / Service section is filled once from what the customer chose on the form (client request, 2026-11-24).
   const fillLines = useMutation(api.crm.requests.fillLinesFromForm);
@@ -106,7 +86,6 @@ function RequestView({ r }: { r: Request }) {
   const [note, setNote] = useState("");
   const [noteFiles, setNoteFiles] = useState<PendingFile[]>([]);
   const [savingNote, setSavingNote] = useState(false);
-  const teamNames = (r.assessment?.assigneeIds ?? []).map((id) => people?.find((p) => p.id === id)?.name).filter(Boolean).join(", ");
 
   function startLines() {
     setDraftLines(r.lines.length ? toRequestLines(r.lines) : [newRequestLine()]);
@@ -128,47 +107,6 @@ function RequestView({ r }: { r: Request }) {
       setSavingLines(false);
     }
   }
-  /** Saves the assessment form: the instructions always, then the booking. A date books (or changes) the consultation on the Schedule, so a clash
-   *  with someone's time throws and the form shows it; "Schedule later" takes any booked time off the Schedule and keeps the instructions. */
-  async function saveAssessment(a: AssessmentInput) {
-    const assigneeIds = a.assigneeIds as Id<"users">[];
-    await updateRequest({ id: r.id, assessmentInstructions: a.instructions });
-    if (a.scheduleLater) {
-      if (r.assessment) await removeEvent({ id: r.assessment.id });
-    } else if (r.assessment) {
-      await updateEvent({ id: r.assessment.id, start: a.start, end: a.end, anytime: a.anytime, assigneeIds, notes: a.instructions, now: clock() });
-    } else {
-      await book({ businessId: r.businessId, type: "consultation", title: r.title, start: a.start, end: a.end, anytime: a.anytime, assigneeIds, notes: a.instructions, opportunityId: r.id, clientId: r.clientId, now: clock() });
-    }
-    setAssessing(false);
-    toast("The assessment is saved.");
-  }
-  async function deleteAssessment() {
-    if (r.assessment) await removeEvent({ id: r.assessment.id });
-    await updateRequest({ id: r.id, assessmentInstructions: "" });
-    setAssessing(false);
-    toast("The assessment is deleted.");
-  }
-  async function emailAgain() {
-    if (!r.assessment) return;
-    setResending(true);
-    try {
-      await resendConfirmation({ id: r.assessment.id as Id<"calendarEvents"> });
-    } catch (e) {
-      toast(failure(e, "The confirmation could not be sent."));
-    } finally {
-      setResending(false);
-    }
-  }
-  async function completeAssessment(done: boolean) {
-    if (!r.assessment) return;
-    try {
-      await setStatus({ id: r.assessment.id, status: done ? "completed" : "upcoming" });
-    } catch (e) {
-      toast(failure(e, "The assessment could not be updated."));
-    }
-  }
-
   // Only one section can be edited at a time: while one is open, every other pencil is off until it is saved or cancelled.
   const anyEditing = editing || editingOverview || assessing || editingLines;
   const lockedTip = "Save or cancel the section you are editing first";
@@ -231,7 +169,7 @@ function RequestView({ r }: { r: Request }) {
   const moreItems: MenuItem[] = [
     { label: "Email Booking Confirmation", icon: "mail", disabled: true },
     rule,
-    { label: "Convert to Quote", icon: "quote", iconColor: "var(--green)", disabled: !canEdit, onSelect: () => router.push(`/quotes/new?clientId=${r.clientId}&projectId=${r.id}`) },
+    { label: hasConsultation(r) ? "Convert to Quote" : "Convert to Quote (book the consultation first)", icon: "quote", iconColor: "var(--green)", disabled: !canEdit || !hasConsultation(r), onSelect: () => router.push(`/quotes/new?clientId=${r.clientId}&projectId=${r.id}`) },
     { label: "Convert to Job", icon: "hammer", iconColor: "var(--green)", disabled: !canEdit, onSelect: () => void convertToJob(r.id as Id<"opportunities">) },
     rule,
     { label: "Archive", icon: "stage", disabled: true },
@@ -351,69 +289,7 @@ function RequestView({ r }: { r: Request }) {
         )}
       </section>
 
-      <section className={`card rq-overview${assessing ? " rq-editing" : ""}`} aria-label="On-site assessment">
-        <div className="rq-sechead">
-          <h2>On-site assessment</h2>
-          {canEdit && !assessing && <button type="button" className="icon-btn" aria-label="Edit the on-site assessment" disabled={anyEditing} title={anyEditing ? lockedTip : undefined} onClick={() => setAssessing(true)}><Icon name="pencil" size={20} /></button>}
-        </div>
-        {assessing ? (
-          <AssessmentInline
-            people={people}
-            initial={r.assessment}
-            instructions={r.assessmentInstructions}
-            onSave={saveAssessment}
-            onDelete={deleteAssessment}
-            onCancel={() => setAssessing(false)}
-          />
-        ) : (
-          <>
-            <div className="rq-label">Instructions</div>
-            {r.assessmentInstructions && <p className="rq-text">{r.assessmentInstructions}</p>}
-            <dl className="as-facts as-three as-view">
-              <div>
-                <dt>Schedule</dt>
-                <dd>
-                  {r.assessment ? whenLabel(r.assessment) : "Unscheduled"}
-                  <label className={`ai-check as-done${r.assessment ? "" : " off"}`} title={r.assessment ? undefined : "Schedule the assessment first"}>
-                    <Checkbox state={r.assessment?.status === "completed"} label="Complete assessment" disabled={!canEdit || !r.assessment} onChange={() => void completeAssessment(r.assessment?.status !== "completed")} />
-                    <span>Complete assessment</span>
-                  </label>
-                </dd>
-              </div>
-              <div><dt>Team</dt><dd>{teamNames || <span className="as-unassigned"><NoOne /><i>Unassigned</i></span>}</dd></div>
-              <div><dt>Checklists</dt><dd>—</dd></div>
-            </dl>
-            {r.assessment?.offline ? (
-              <p className="as-jobber">Done offline. Marked complete when the request moved to Onsite Consultation.</p>
-            ) : r.assessment && !r.assessment.anytime && r.assessment.status !== "completed" ? (
-              <p className={`as-jobber${r.assessment.confirmEmail?.status === "failed" ? " bad" : ""}`} role="status">
-                <span>
-                  {r.assessment.confirmEmail === null ? "Confirmation email: being sent." : `Confirmation email: ${CONFIRM_LABEL[r.assessment.confirmEmail.status]}${r.assessment.confirmEmail.detail ? `. ${r.assessment.confirmEmail.detail}` : ""}`}
-                </span>
-                {canEdit && r.assessment.confirmEmail !== null && <button type="button" className="btn small" disabled={resending} onClick={() => void emailAgain()}>{resending ? "Sending…" : "Email the customer again"}</button>}
-              </p>
-            ) : null}
-            <div className="as-reminder">
-              <div className="rq-label">Assessment Reminder</div>
-              <div>Remind client 1 hour before by text</div>
-              <div>Remind client 1 day before at 1:30 PM by email</div>
-              <small>Reminders are not sent yet.</small>
-            </div>
-          </>
-        )}
-      </section>
-
-      <section className="card rq-overview" aria-label="Consultation worksheet">
-        <div className="rq-sechead">
-          <h2>Consultation Worksheet</h2>
-          {canEdit ? (
-            <Link className="btn" href={`/opportunities/${r.id}?tab=visit`}><Icon name="pencil" size={16} /> Edit worksheet</Link>
-          ) : (
-            <button type="button" className="btn" disabled title="You can look at this but not change it"><Icon name="pencil" size={16} /> Edit worksheet</button>
-          )}
-        </div>
-        <p className="rq-text">The salesperson&apos;s on-site form: the services and areas measured, products, photos and notes. Only staff see it. The quote can start from it.</p>
-      </section>
+      <AssessmentSection r={r} people={people} canEdit={canEdit} editing={assessing} onEditing={setAssessing} locked={anyEditing && !assessing} />
 
       <section className="card rq-overview" aria-label="Product / Service">
         <div className="rq-sechead">

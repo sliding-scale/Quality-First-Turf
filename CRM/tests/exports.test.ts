@@ -28,7 +28,7 @@ const count = (w: World, table: "clients" | "opportunities" | "quotes" | "invoic
 
 describe("Export data (plan 2026-11-20-export)", () => {
   it("gives every row of every kind for the business, each row as wide as its header", async () => {
-    const w = await seeded();
+    const w = await seeded({ stage: "New Request" });
     await w.base.run(async (ctx) => {
       const base = { businessId: w.qft, clientId: w.clientId, createdAt: 1 };
       await ctx.db.insert("payments", { ...base, opportunityId: w.project, method: "Cash", paidAt: Date.UTC(2026, 10, 2), reference: "R1", details: "", amountCents: 12345, source: "manual", byName: "Olga" });

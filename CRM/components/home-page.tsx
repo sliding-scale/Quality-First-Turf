@@ -244,8 +244,10 @@ function MyTasks() {
   const setDone = useMutation(api.crm.opportunityTasks.setDone);
   const data = useQuery(api.crm.opportunityTasks.listAll, ws.state === "ready" ? { businessId: ws.business._id, assigneeId: me, now, todayStart, todayEnd } : "skip");
   const rows = data?.rows ?? [];
-  // Tasks finished today stay in the list, struck through, until tomorrow (untick to reopen).
-  const doneToday = (data?.completed ?? []).filter((t) => t.completedAt !== undefined && t.completedAt >= todayStart);
+  // Pending tasks are only the incomplete ones (user, 2026-11-25). One ticked while the page is open stays, struck through, until the page is
+  // left, so a slip of the finger can be undone; it is gone the next time Home opens.
+  const [justDone, setJustDone] = useState<Set<string>>(() => new Set());
+  const doneToday = (data?.completed ?? []).filter((t) => justDone.has(t.id));
   const people = useQuery(api.crm.pipeline.people, ws.state === "ready" ? { businessId: ws.business._id } : "skip");
   const overdue = data?.counts.overdue ?? 0;
   const label = (due: number | undefined) => (due === undefined ? "No due date" : due < todayStart ? `Overdue · ${quoteDate(due)}` : due <= todayEnd ? "Due today" : `Due ${quoteDate(due)}`);
@@ -262,7 +264,7 @@ function MyTasks() {
           <>
             {rows.map((t) => (
               <div className="task" key={t.id}>
-                <input type="checkbox" checked={false} disabled={!canEdit} aria-label={`Complete ${t.title}`} onChange={() => void setDone({ taskId: t.id, done: true }).catch((e) => toast(failure(e, "The task could not be updated.")))} />
+                <input type="checkbox" checked={false} disabled={!canEdit} aria-label={`Complete ${t.title}`} onChange={() => { setJustDone((d) => new Set(d).add(t.id)); void setDone({ taskId: t.id, done: true }).catch((e) => toast(failure(e, "The task could not be updated."))); }} />
                 <div>
                   <Link className="task-link" href={`/tasks?task=${t.id}`}><b>{t.title}</b></Link>
                   {t.description && <div className="d task-desc" title={t.description}>{t.description}</div>}
@@ -278,7 +280,7 @@ function MyTasks() {
                 <div>
                   <Link className="task-link" href={`/tasks?task=${t.id}`}><b>{t.title}</b></Link>
                   {t.description && <div className="d task-desc" title={t.description}>{t.description}</div>}
-                  <div className="d">Completed today</div>
+                  <div className="d">Completed</div>
                 </div>
               </div>
             ))}

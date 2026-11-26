@@ -207,7 +207,7 @@ describe("automations: test and live mode", () => {
 describe("automations: archiving requests", () => {
   it("closes an old unanswered request as lost, archives it off the board and list, and Restore puts it back", async () => {
     vi.useFakeTimers();
-    const w = await seeded();
+    const w = await seeded({ stage: "New Request" });
     await w.admin.mutation(api.crm.automations.ensure, { businessId: w.qft, now: T0 });
     await w.base.run((ctx) => ctx.db.patch(w.project, { requestedAt: T0 + DAY_MS }));
     await settings(w, "test");

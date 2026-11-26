@@ -61,6 +61,10 @@ export const create = mutation({
     if (a.opportunityId) {
       project = await ctx.db.get(a.opportunityId);
       if (project === null || project.businessId !== a.businessId || project.clientId !== a.clientId) throw new ConvexError("That project does not belong to this client.");
+      // A request is quoted only after its on-site consultation is booked (user, 2026-11-25, D-129).
+      if (project.pipeline === "Sales" && (project.stage === "New Request" || project.stage === "Schedule Onsite Consultation")) {
+        throw new ConvexError("Book the on-site consultation for this request before making a quote.");
+      }
     }
     const title = a.title.trim();
     if (title.length > 200) throw new ConvexError("A title can be at most 200 characters.");

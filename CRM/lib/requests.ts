@@ -27,9 +27,9 @@ export function useRequestList(businessId: Id<"businesses">, filters: RequestFil
 
 export { failure, usePeople } from "./pipeline";
 
-export function useRequest(id: string) {
-  // An id that is not a request id makes the query throw; the page treats that as "not found".
-  return useQuery(api.crm.requests.get, { id: id as Id<"opportunities">, today: startOfToday() });
+export function useRequest(id: string | null) {
+  // An id that is not a request id makes the query throw; the page treats that as "not found". Null skips it (a project that is not a request).
+  return useQuery(api.crm.requests.get, id ? { id: id as Id<"opportunities">, today: startOfToday() } : "skip");
 }
 
 export function useRequestStats(businessId: Id<"businesses">) {

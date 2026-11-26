@@ -35,11 +35,37 @@ const asInput = (d: Draft): VisitAreaInput => ({ id: d.id, label: d.label, servi
 
 const sizeText = (d: Draft) => [d.length && d.width ? `${d.length} × ${d.width} ft` : "", d.quantity ? `${d.quantity} total` : ""].filter(Boolean).join(" · ") || "No size";
 
-export function VisitEditor({ id }: { id: Id<"opportunities"> }) {
+/** What the customer form also recorded, shown in the Work areas card (the old Site visit and Measurements cards repeated the areas, D-129). */
+type Extras = { products: string[]; addOns: string[] };
+
+export function VisitEditor({ id, extras }: { id: Id<"opportunities">; extras?: Extras }) {
   const visit = useVisit(id);
   if (visit === undefined) return <VisitEditorSkeleton />;
   // Starts again from the saved visit after a save, so what is shown is what was stored.
-  return <Editor key={`${visit.source}-${visit.visitedAt ?? 0}-${visit.areas.length}`} id={id} visit={visit} />;
+  return <Editor key={`${visit.source}-${visit.visitedAt ?? 0}-${visit.areas.length}`} id={id} visit={visit} extras={extras} />;
+}
+
+/** The products and the add-ons from the customer form. Add-ons open and close like a work area. */
+function FormExtras({ extras, open, onToggle }: { extras: Extras | undefined; open: boolean; onToggle: () => void }) {
+  if (!extras) return null;
+  return (
+    <>
+      {extras.products.length > 0 && <p className="vz-meta"><span>Products</span> {extras.products.join(", ")}</p>}
+      {extras.addOns.length > 0 && (
+        <div className={`vz-area vz-addons${open ? " open" : ""}`}>
+          <button type="button" className="vz-areahead" aria-expanded={open} aria-controls="vz-body-addons" onClick={onToggle}>
+            <span className="vz-areatitle"><b>Add-ons</b><small>{extras.addOns.length} from the customer form</small></span>
+            <Icon name="chevdown" size={20} className="vz-chev" />
+          </button>
+          <div className="vz-areabody" id="vz-body-addons">
+            <div className="vz-areainner">
+              <ul className="vz-addonlist">{extras.addOns.map((a) => <li key={a}>{a}</li>)}</ul>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
 }
 
 function VisitEditorSkeleton() {
@@ -52,7 +78,7 @@ function VisitEditorSkeleton() {
   );
 }
 
-function Editor({ id, visit }: { id: Id<"opportunities">; visit: Visit }) {
+function Editor({ id, visit, extras }: { id: Id<"opportunities">; visit: Visit; extras?: Extras }) {
   const { toast } = useUI();
   const save = useMutation(api.crm.opportunityVisit.save);
   const makeUrl = useMutation(api.crm.noteFiles.generateUploadUrl);
@@ -121,6 +147,7 @@ function Editor({ id, visit }: { id: Id<"opportunities">; visit: Visit }) {
     return (
       <section className="card op-card">
         <h2>Work areas</h2>
+        {extras?.products.length ? <p className="vz-meta"><span>Products</span> {extras.products.join(", ")}</p> : null}
         {areas.length === 0 ? <p className="muted">No work areas were recorded.</p> : areas.map((a) => (
           <div key={a.id} className="op-area">
             <h3>{a.label}{a.service ? <small className="op-sub"> · {a.service}{a.installType ? `, ${a.installType}` : ""}</small> : null}</h3>
@@ -129,6 +156,7 @@ function Editor({ id, visit }: { id: Id<"opportunities">; visit: Visit }) {
             {a.photos.length > 0 && <div className="op-photos">{a.photos.map((p, j) => <a key={p.id} href={p.url} target="_blank" rel="noreferrer"><Image src={p.url} alt={`${a.label} photo ${j + 1}`} width={280} height={210} unoptimized /></a>)}</div>}
           </div>
         ))}
+        {extras?.addOns.length ? <div className="op-area"><h3>Add-ons</h3><div className="muted">{extras.addOns.join(", ")}</div></div> : null}
       </section>
     );
   }
@@ -144,6 +172,7 @@ function Editor({ id, visit }: { id: Id<"opportunities">; visit: Visit }) {
         </div>
         {visit.source === "form" && visit.areas.length > 0 && <p className="muted">These come from the customer form. Saving keeps them here, on the project.</p>}
         {areas.length === 0 && <p className="muted">No work areas yet. Add one for each part of the property being worked on.</p>}
+        {extras?.products.length ? <p className="vz-meta"><span>Products</span> {extras.products.join(", ")}</p> : null}
         {areas.map((a, i) => {
           const types = installTypes[a.service] ?? [];
           const badLabel = attempted && a.label.trim() === "";
@@ -212,6 +241,7 @@ function Editor({ id, visit }: { id: Id<"opportunities">; visit: Visit }) {
             </div>
           );
         })}
+        <FormExtras extras={extras ? { products: [], addOns: extras.addOns } : undefined} open={open.has("__addons")} onToggle={() => toggle("__addons")} />
       </section>
       <section className="card op-card">
         <h2>Visit notes</h2>

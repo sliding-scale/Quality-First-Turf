@@ -11,6 +11,10 @@ import { zonedToInstant, zonedWallClock } from "@/convex/shared/zonedTime";
 import { BUSINESS_TIME_ZONE } from "@/lib/format";
 import { clock, failure } from "@/lib/pipeline";
 import { fromInputs, todayKey } from "@/lib/schedule";
+import { TimePicker, addMinutesTo } from "./time-picker";
+
+/** Minutes from one "HH:MM" to a later one. */
+const minutesBetween = (a: string, b: string) => { const [ah, am] = a.split(":").map(Number); const [bh, bm] = b.split(":").map(Number); return bh * 60 + bm - (ah * 60 + am); };
 import { Icon } from "./icon";
 import { useDialogFocus } from "./use-dialog-focus";
 
@@ -210,22 +214,8 @@ export function AddTaskDialog({ projectId, businessId, people, task, defaultAssi
   );
 }
 
-const CONSULT_LENGTHS = [
-  { minutes: 30, label: "30 minutes" },
-  { minutes: 45, label: "45 minutes" },
-  { minutes: 60, label: "1 hour" },
-  { minutes: 90, label: "1 hour 30 minutes" },
-  { minutes: 120, label: "2 hours" },
-];
-/** Quarter-hour start times, as "HH:MM". */
-const CONSULT_TIMES = Array.from({ length: 96 }, (_, i) => `${String(Math.floor(i / 4)).padStart(2, "0")}:${String((i % 4) * 15).padStart(2, "0")}`);
-const clockLabel = (t: string) => {
-  const [h, m] = t.split(":").map(Number);
-  return `${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
-};
-
 /** Schedule consultation from a card in "Schedule Onsite Consultation" (client, 2026-11-25): the person, the day, the time, the length and
- *  notes for the visit. Booking it puts it on that person's calendar (and their Zoho Calendar when connected) and moves the project to
+ *  notes for the visit, with start and end times from the time picker (D-129). Booking it puts it on that person's calendar (and their Zoho Calendar when connected) and moves the project to
  *  "Onsite Consultation" (crm/schedule.book, D-085). A clash with another booking is refused by the server and shown here. */
 export function ScheduleConsultationDialog({ businessId, project, people, defaultAssignee, onClose, onBooked }: {
   businessId: Id<"businesses">;
@@ -239,9 +229,9 @@ export function ScheduleConsultationDialog({ businessId, project, people, defaul
   const [assignee, setAssignee] = useState<string>(defaultAssignee ?? "");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("09:00");
-  const [minutes, setMinutes] = useState(60);
+  const [endTime, setEndTime] = useState("10:00");
   const [notes, setNotes] = useState("");
-  const [bad, setBad] = useState<{ assignee?: boolean; date?: string }>({});
+  const [bad, setBad] = useState<{ assignee?: boolean; date?: string; end?: boolean }>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const today = todayKey(clock());
@@ -252,21 +242,23 @@ export function ScheduleConsultationDialog({ businessId, project, people, defaul
           noValidate
           onSubmit={async (e) => {
             e.preventDefault();
-            const next: { assignee?: boolean; date?: string } = {};
+            const next: { assignee?: boolean; date?: string; end?: boolean } = {};
             if (!assignee) next.assignee = true;
             const start = date ? fromInputs(date, time) : NaN;
+            const end = date && endTime ? fromInputs(date, endTime) : NaN;
             if (!date) next.date = "Choose a date.";
             else if (start <= clock()) next.date = "That time has already passed. Choose a later one.";
+            if (date && !(end > start)) next.end = true;
             setBad(next);
-            if (next.assignee || next.date) {
-              document.getElementById(next.assignee ? "sc-cons-who" : "sc-cons-date")?.focus();
+            if (next.assignee || next.date || next.end) {
+              document.getElementById(next.assignee ? "sc-cons-who" : next.date ? "sc-cons-date" : "sc-cons-end")?.focus();
               return;
             }
             setBusy(true);
             setError("");
             try {
               await book({
-                businessId, type: "consultation", title: `Consultation: ${project.title}`, start, end: start + minutes * 60_000, anytime: false,
+                businessId, type: "consultation", title: `Consultation: ${project.title}`, start, end, anytime: false,
                 assigneeIds: [assignee as Id<"users">], opportunityId: project.id, clientId: project.clientId, notes: notes.trim(), now: clock(),
               });
               onBooked?.();
@@ -286,24 +278,21 @@ export function ScheduleConsultationDialog({ businessId, project, people, defaul
             </select>
             <span className="err">Choose who is going.</span>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 14 }}>
-            <div className={`field${bad.date ? " bad" : ""}`}>
-              <label htmlFor="sc-cons-date">Date</label>
-              <input id="sc-cons-date" type="date" min={today} aria-invalid={!!bad.date} value={date} onChange={(e) => { setDate(e.target.value); setBad((b) => ({ ...b, date: undefined })); }} />
-              <span className="err">{bad.date ?? "Choose a date."}</span>
-            </div>
-            <div className="field">
-              <label htmlFor="sc-cons-time">Start time</label>
-              <select id="sc-cons-time" value={time} onChange={(e) => { setTime(e.target.value); setBad((b) => ({ ...b, date: undefined })); }}>
-                {CONSULT_TIMES.map((t) => <option key={t} value={t}>{clockLabel(t)}</option>)}
-              </select>
-            </div>
+          <div className={`field${bad.date ? " bad" : ""}`} style={{ marginTop: 14 }}>
+            <label htmlFor="sc-cons-date">Date</label>
+            <input id="sc-cons-date" type="date" min={today} aria-invalid={!!bad.date} value={date} onChange={(e) => { setDate(e.target.value); setBad((b) => ({ ...b, date: undefined })); }} />
+            <span className="err">{bad.date ?? "Choose a date."}</span>
           </div>
-          <div className="field" style={{ marginTop: 14 }}>
-            <label htmlFor="sc-cons-len">Length</label>
-            <select id="sc-cons-len" value={minutes} onChange={(e) => setMinutes(Number(e.target.value))}>
-              {CONSULT_LENGTHS.map((l) => <option key={l.minutes} value={l.minutes}>{l.label}</option>)}
-            </select>
+          <div className="tp-pair" style={{ marginTop: 14 }}>
+            <div className="field">
+              <label htmlFor="sc-cons-start">Start time</label>
+              <TimePicker id="sc-cons-start" label="Start time" value={time} onChange={(v) => { setEndTime((e) => (e && e > time ? addMinutesTo(v, minutesBetween(time, e)) : addMinutesTo(v, 60))); setTime(v); setBad((b) => ({ ...b, date: undefined, end: false })); }} />
+            </div>
+            <div className={`field${bad.end ? " bad" : ""}`}>
+              <label htmlFor="sc-cons-end">End time</label>
+              <TimePicker id="sc-cons-end" label="End time" value={endTime} bad={bad.end} onChange={(v) => { setEndTime(v); setBad((b) => ({ ...b, end: false })); }} />
+              <span className="err">The end has to be after the start.</span>
+            </div>
           </div>
           <div className="field" style={{ marginTop: 14 }}>
             <label htmlFor="sc-cons-notes">Notes for the visit</label>

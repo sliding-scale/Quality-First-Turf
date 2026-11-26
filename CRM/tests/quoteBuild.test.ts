@@ -32,7 +32,15 @@ describe("creating and saving a quote", () => {
     await sales.mutation(api.crm.quoteDraft.create, { businessId: qft, clientId, opportunityId: project, title: "Turf" });
     expect((await base.run((ctx) => ctx.db.get(project)))?.stage).toBe("Quote Draft & Site Plan / Design");
     const history = await sales.query(api.crm.pipeline.history, { id: project });
-    expect(history[0]).toMatchObject({ from: "New Request", to: "Quote Draft & Site Plan / Design" });
+    expect(history[0]).toMatchObject({ from: "Onsite Consultation", to: "Quote Draft & Site Plan / Design" });
+  });
+
+  it("refuses a quote for a request whose consultation is not booked yet (D-129)", async () => {
+    const { sales, base, qft, clientId, project } = await world();
+    for (const stage of ["New Request", "Schedule Onsite Consultation"]) {
+      await base.run((ctx) => ctx.db.patch(project, { stage }));
+      await expect(sales.mutation(api.crm.quoteDraft.create, { businessId: qft, clientId, opportunityId: project, title: "Turf" })).rejects.toThrow(/consultation/);
+    }
   });
 
   it("saves the lines in order and works the total out from them: optional, text lines, discount and tax", async () => {

@@ -10,7 +10,9 @@ const modules = import.meta.glob(["../../convex/**/*.ts", "../../convex/**/*.js"
 export const NOW = Date.UTC(2026, 10, 10, 20, 0, 0);
 
 /** Seeded sample data plus one fresh project at "New Request" that the tests can move around. */
-export async function seeded() {
+/** `stage`: where the test project starts. Onsite Consultation by default, because a request is only quoted once its consultation is booked (D-129). */
+export async function seeded(opts: { stage?: string } = {}) {
+  const stage = opts.stage ?? "Onsite Consultation";
   process.env.CRM_ALLOW_SAMPLE_DATA = "true";
   const base = convexTest(schema, modules);
   rateLimiterTest.register(base);
@@ -27,8 +29,8 @@ export async function seeded() {
   const project = await base.run(async (ctx) => {
     const client = (await ctx.db.query("clients").collect()).find((c) => c.businessId === qft)!;
     const id = await ctx.db.insert("opportunities", {
-      businessId: qft, clientId: client._id, code: "TST-001", title: "Test turf", pipeline: "Sales", stage: "New Request",
-      requestedAt: NOW - 3_600_000, owner: "Unassigned", searchText: `${client.name} Test turf TST-001 New Request`,
+      businessId: qft, clientId: client._id, code: "TST-001", title: "Test turf", pipeline: "Sales", stage,
+      requestedAt: NOW - 3_600_000, owner: "Unassigned", searchText: `${client.name} Test turf TST-001 ${stage}`,
     });
     return { id, clientId: client._id };
   });

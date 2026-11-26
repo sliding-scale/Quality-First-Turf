@@ -16,19 +16,9 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { clock as now } from "@/lib/pipeline";
 import { failure } from "@/lib/requests";
 import { BUSINESS_TZ, fromInputs, inWorkingHours, todayKey } from "@/lib/schedule";
+import { TimePicker, addMinutesTo } from "@/components/time-picker";
 
 export type ConsultationDraft = { date: string; time: string; minutes: number; instructions: string; start: number; end: number };
-
-const lengths = [
-  { minutes: 30, label: "30 minutes" },
-  { minutes: 45, label: "45 minutes" },
-  { minutes: 60, label: "1 hour" },
-  { minutes: 90, label: "1 hour 30 minutes" },
-  { minutes: 120, label: "2 hours" },
-];
-
-/** Quarter-hour start times across the day, as "HH:MM" (the sales form's list). */
-const startTimes = Array.from({ length: 96 }, (_, i) => `${String(Math.floor((i * 15) / 60)).padStart(2, "0")}:${String((i * 15) % 60).padStart(2, "0")}`);
 
 function clock(time: string): string {
   const [hour, minute] = time.split(":").map(Number);
@@ -41,7 +31,6 @@ function day(date: string, long = false): string {
 }
 
 const timeOf = (ms: number) => new Intl.DateTimeFormat("en-US", { timeZone: BUSINESS_TZ, hour: "numeric", minute: "2-digit" }).format(ms);
-const lengthLabel = (minutes: number) => lengths.find((l) => l.minutes === minutes)?.label ?? `${minutes} minutes`;
 
 type Clash = { title: string; start: number; end: number };
 type Check = { kind: "busy"; clashes: Clash[] } | { kind: "warn"; lines: string[]; draft: ConsultationDraft };
@@ -57,7 +46,8 @@ export function ConsultationPicker({ businessId, assignee, value, onChange, disa
   const dialog = useRef<HTMLDialogElement>(null);
   const [date, setDate] = useState("");
   const [time, setTime] = useState("09:00");
-  const [minutes, setMinutes] = useState(60);
+  const [endTime, setEndTime] = useState("10:00");
+  const minutes = (() => { const [ah, am] = time.split(":").map(Number); const [bh, bm] = endTime.split(":").map(Number); return bh * 60 + bm - (ah * 60 + am); })();
   const [instructions, setInstructions] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [check, setCheck] = useState<Check | null>(null);
@@ -66,7 +56,7 @@ export function ConsultationPicker({ businessId, assignee, value, onChange, disa
   function open() {
     setDate(value?.date ?? "");
     setTime(value?.time ?? "09:00");
-    setMinutes(value?.minutes ?? 60);
+    setEndTime(addMinutesTo(value?.time ?? "09:00", value?.minutes ?? 60));
     setInstructions(value?.instructions ?? "");
     setError(null);
     setCheck(null);
@@ -89,6 +79,7 @@ export function ConsultationPicker({ businessId, assignee, value, onChange, disa
     event.preventDefault();
     if (checking) return;
     if (date === "") return setError("Choose a date.");
+    if (!(minutes > 0)) return setError("The end has to be after the start.");
     const start = fromInputs(date, time);
     const end = start + minutes * 60_000;
     if (start <= now()) return setError("That time has already passed. Choose a later one.");
@@ -126,7 +117,7 @@ export function ConsultationPicker({ businessId, assignee, value, onChange, disa
             {value ? (
               <>
                 <small>Consultation</small>
-                {`${day(value.date)} · ${clock(value.time)} · ${lengthLabel(value.minutes)}`}
+                {`${day(value.date)} · ${clock(value.time)} – ${clock(addMinutesTo(value.time, value.minutes))}`}
               </>
             ) : (
               "Schedule consultation"
@@ -159,18 +150,14 @@ export function ConsultationPicker({ businessId, assignee, value, onChange, disa
               <span>Date</span>
               <input type="date" value={date} min={todayKey(now())} onChange={(e) => edited(setDate)(e.target.value)} required />
             </label>
-            <label className="consultation-field">
+            <div className="consultation-field">
               <span>Start time</span>
-              <select value={time} onChange={(e) => edited(setTime)(e.target.value)}>
-                {startTimes.map((slot) => <option key={slot} value={slot}>{clock(slot)}</option>)}
-              </select>
-            </label>
-            <label className="consultation-field consultation-field--wide">
-              <span>Length</span>
-              <select value={minutes} onChange={(e) => edited(setMinutes)(Number(e.target.value))}>
-                {lengths.map((l) => <option key={l.minutes} value={l.minutes}>{l.label}</option>)}
-              </select>
-            </label>
+              <TimePicker label="Start time" value={time} onChange={(v) => { setEndTime(addMinutesTo(v, minutes > 0 ? minutes : 60)); edited(setTime)(v); }} />
+            </div>
+            <div className="consultation-field">
+              <span>End time</span>
+              <TimePicker label="End time" value={endTime} bad={!(minutes > 0)} onChange={(v) => edited(setEndTime)(v)} />
+            </div>
             <label className="consultation-field consultation-field--wide">
               <span>Notes for the visit (optional)</span>
               <textarea rows={3} maxLength={1000} placeholder="Gate code, parking, who to ask for" value={instructions} onChange={(e) => setInstructions(e.target.value)} />

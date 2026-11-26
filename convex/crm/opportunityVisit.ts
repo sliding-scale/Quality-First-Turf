@@ -78,6 +78,10 @@ export const save = mutation({
     const o = await ctx.db.get(a.id);
     if (o === null) throw new ConvexError("That project no longer exists.");
     const staff = await requireProject(ctx, o, pipelineModule(o.pipeline), "edit");
+    // The worksheet opens once the on-site consultation is booked (user, 2026-11-25, D-129); booking one moves the request past these stages.
+    if (o.pipeline === "Sales" && (o.stage === "New Request" || o.stage === "Schedule Onsite Consultation")) {
+      throw new ConvexError("Book the on-site consultation before filling in the visit.");
+    }
     const problem = checkVisit({ notes: a.notes, areas: a.areas });
     if (problem) throw new ConvexError(problem);
     const areas = a.areas.map((x) => ({ ...x, label: x.label.trim() }));

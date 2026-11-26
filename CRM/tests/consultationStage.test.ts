@@ -21,7 +21,7 @@ const book = (type: "consultation" | "visit", d: number) => ({ type, title: "X",
 describe("consultations follow the pipeline", () => {
   it("records a completed offline consultation when a project is moved to Onsite Consultation with none booked", async () => {
     const { sales, project, events, base, sam } = await world();
-    await base.run((ctx) => ctx.db.patch(project, { salespersonId: sam }));
+    await base.run((ctx) => ctx.db.patch(project, { salespersonId: sam, stage: "New Request" }));
     await sales.mutation(api.crm.pipeline.moveStage, { id: project, to: "Onsite Consultation", now: NOW });
     const rows = await events();
     expect(rows).toHaveLength(1);
