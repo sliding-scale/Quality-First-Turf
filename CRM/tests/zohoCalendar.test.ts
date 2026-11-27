@@ -363,6 +363,22 @@ describe("the CRM to Zoho", () => {
     expect(await linksOf(w)).toHaveLength(0);
   });
 
+  it("keeps an Anytime item on its date when the Zoho calendar is far east of the CRM (D-136)", async () => {
+    const w = await world();
+    await w.base.run((ctx) => ctx.db.patch(w.conn._id, { timezone: "Asia/Karachi" }));
+    await w.base.run((ctx) => ctx.db.insert("crmSettings", { singleton: "default", timeZone: "America/New_York" }));
+    // Midnight of 3 December in New York.
+    const at = Date.UTC(2026, 11, 3, 5);
+    const id = await w.sales.mutation(api.crm.schedule.book, { businessId: w.qft, type: "event", title: "All day", start: at, end: at + DAY, anytime: true, assigneeIds: [w.user._id], now: Date.now() });
+    await push(w, "event", id);
+    const [uid, sent] = [...w.zoho.z.events.entries()][0];
+    expect((sent as unknown as { dateandtime: { start: string } }).dateandtime.start).toBe("20261203");
+    // Zoho answers with the calendar's own zone on the event.
+    w.zoho.put(uid, { dateandtime: { timezone: "Asia/Karachi", start: "20261203", end: "20261204" } });
+    await pull(w);
+    expect(await w.base.run((ctx) => ctx.db.get(id))).toMatchObject({ start: at, anytime: true });
+  });
+
   it("only sends the kinds the person ticked", async () => {
     const w = await world();
     await w.sales.mutation(api.crm.calendarConnect.setSyncTypes, { tasks: true, reminders: true, events: true, visits: true, consultations: false });

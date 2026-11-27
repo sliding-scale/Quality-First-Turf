@@ -120,15 +120,18 @@ export type ZohoEvent = {
   lastmodifiedtime?: string;
 };
 
-/** A Zoho event as the CRM fields. null when its time cannot be read. */
-export function fromZohoEvent(e: ZohoEvent, tz = BUSINESS_TZ): (Mirrored & { lossy: boolean }) | null {
+/** A Zoho event as the CRM fields. null when its time cannot be read. `tz` is the zone of the Zoho calendar; `dayZone` the CRM's. An all-day
+ *  event is a date, not a moment, so it starts at that date's midnight in the CRM's zone whatever zone Zoho names, or it lands a day early
+ *  for someone whose calendar is east of the CRM (D-136). */
+export function fromZohoEvent(e: ZohoEvent, tz = BUSINESS_TZ, dayZone = BUSINESS_TZ): (Mirrored & { lossy: boolean }) | null {
   const zone = e.dateandtime?.timezone || tz;
   const startText = e.dateandtime?.start ?? e.start;
   const endText = e.dateandtime?.end ?? e.end;
   if (!startText || !endText) return null;
   const anytime = e.isallday === true || /^\d{8}$/.test(startText);
-  const start = parseZohoTime(startText, zone);
-  let end = parseZohoTime(endText, zone);
+  const at = (text: string) => (anytime ? parseZohoTime(text.trim().slice(0, 8), dayZone) : parseZohoTime(text, zone));
+  const start = at(startText);
+  let end = at(endText);
   if (start === null || end === null) return null;
   if (end <= start) end = anytime ? start + 86_400_000 : start + 30 * 60_000;
   const r = rruleToRepeat(e.rrule);

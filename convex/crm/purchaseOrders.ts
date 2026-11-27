@@ -4,6 +4,7 @@ import { mutation, query, type QueryCtx } from "../_generated/server";
 import { requireProject } from "./lib/access";
 import { allows } from "./lib/permissions";
 import { nextStatusProblem, readinessOf, remainingToOrder, type OrderFacts, type PoStatus } from "./lib/purchaseOrders";
+import { materialsShortfall } from "./lib/readiness";
 
 /** A project's purchase orders and material readiness (PRD 4.4, plan 2026-11-20-purchase-orders). Preplanning work, so it follows the Preplanning
  *  module. Unit costs are prices and show only with the Prices module. Readiness is worked out here from the takeoff and the live orders, never stored. */
@@ -46,6 +47,17 @@ export const list = query({
       },
       toOrderCount: remaining.size,
     };
+  },
+});
+
+/** What is still missing, asked before a project is moved to Construction (D-136). null: nothing to warn about. */
+export const handoffWarning = query({
+  args: { id: v.id("opportunities") },
+  handler: async (ctx, args) => {
+    const p = await ctx.db.get(args.id);
+    if (p === null) return null;
+    await requireProject(ctx, p, "pipelinePreplanning", "view");
+    return materialsShortfall(ctx, p._id);
   },
 });
 

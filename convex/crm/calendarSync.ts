@@ -3,6 +3,7 @@ import type { Doc, Id } from "../_generated/dataModel";
 import { internalAction, internalMutation, internalQuery, type ActionCtx, type QueryCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { calendarSettings } from "./calendarConnect";
+import { businessZone } from "./settings";
 import { decryptToken } from "./lib/calendarCrypto";
 import {
   fieldsHash, fromZohoEvent, searchWindows, syncsKind, toZohoEvent, whoWins, type ItemKind, type Mirrored, type ZohoEvent,
@@ -93,7 +94,7 @@ const message = (e: unknown) => (e instanceof Error ? e.message : "The sync fail
 
 /* ---- CRM to Zoho ---- */
 
-type PushInfo = { mirrored: NonNullable<Awaited<ReturnType<typeof mirroredOf>>> | null; connections: Doc<"calendarConnections">[]; links: Doc<"calendarLinks">[] };
+type PushInfo = { mirrored: NonNullable<Awaited<ReturnType<typeof mirroredOf>>> | null; connections: Doc<"calendarConnections">[]; links: Doc<"calendarLinks">[]; zone: string };
 
 export const pushInfo = internalQuery({
   args: { kind: v.union(v.literal("event"), v.literal("task")), id: v.string() },
@@ -110,7 +111,7 @@ export const pushInfo = internalQuery({
       const c = await ctx.db.query("calendarConnections").withIndex("by_userId", (q) => q.eq("userId", u)).unique();
       if (c && c.status === "connected") connections.push(c);
     }
-    return { mirrored, connections, links };
+    return { mirrored, connections, links, zone: await businessZone(ctx) };
   },
 });
 
@@ -198,7 +199,7 @@ export const pushItem = internalAction({
 async function sendItem(ctx: ActionCtx, a: { kind: Kind; id: string }): Promise<void> {
   const info: PushInfo | null = await ctx.runQuery(internal.crm.calendarSync.pushInfo, a);
   if (!info) return;
-  const { mirrored, connections, links } = info;
+  const { mirrored, connections, links, zone } = info;
   const wanted = new Set<Id<"calendarConnections">>();
   if (mirrored) {
     const hash = fieldsHash(mirrored.m);
@@ -207,7 +208,7 @@ async function sendItem(ctx: ActionCtx, a: { kind: Kind; id: string }): Promise<
       const existing = links.find((l) => l.connectionId === c._id);
       if (existing?.lossy) continue;
       if (!existing && !syncsKind(c.syncTypes, mirrored.itemKind)) continue;
-      const data = toZohoEvent(mirrored.m, mirrored.link);
+      const data = toZohoEvent(mirrored.m, mirrored.link, zone);
       try {
         const token = await tokenFor(ctx, c);
         const ev = existing
@@ -283,9 +284,10 @@ export const applyZoho = internalMutation({
     let created = 0;
     let changed = 0;
     let removed = 0;
+    const zone = await businessZone(ctx);
     for (const ev of a.events as ZohoEvent[]) {
       seen.add(ev.uid);
-      const f = fromZohoEvent(ev, conn.timezone || undefined);
+      const f = fromZohoEvent(ev, conn.timezone || undefined, zone);
       if (!f) continue;
       const zh = fieldsHash(f);
       const link = await ctx.db.query("calendarLinks").withIndex("by_connection_and_zohoUid", (q) => q.eq("connectionId", conn._id).eq("zohoUid", ev.uid)).unique();

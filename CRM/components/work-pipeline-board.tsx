@@ -4,15 +4,18 @@
    Crossing into the next pipeline is a menu action, so a drag never leaves this board. */
 
 import { useConvex, useMutation } from "convex/react";
+import type { FunctionReturnType } from "convex/server";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { api } from "@/convex/_generated/api";
 import type { BusinessDoc } from "@/lib/clients";
 import { moneyCents } from "@/lib/format";
+import { utcDate } from "@/lib/invoices";
 import { clock, failure, timeLabel, useCoarsePointer, useMinute, usePeople, useWorkBoard, type WorkCard } from "@/lib/pipeline";
 import { COMPLETION_STAGE, CONSTRUCTION_STAGES, FINANCE_ENTRY, FINANCE_STAGES, pipelineLabel, PREPLANNING_STAGES, type WorkPipeline } from "@/convex/crm/lib/stages";
 import { FilterMenu } from "./filter-menus";
 import { Icon } from "./icon";
+import { PipelineModal } from "./pipeline-dialogs";
 import { PipelinePanel } from "./pipeline-panel";
 import { PipelineList } from "./pipeline-list";
 import { BoardBar, useBoardFilters, useBoardView, useTouchDrag } from "./pipeline-shared";
@@ -23,6 +26,37 @@ import { useUI } from "./ui-provider";
 const LAST_PREPLANNING = PREPLANNING_STAGES[PREPLANNING_STAGES.length - 1];
 const FIRST_PREPLANNING = PREPLANNING_STAGES[0];
 const FIRST_CONSTRUCTION = CONSTRUCTION_STAGES[0];
+
+type Shortfall = NonNullable<FunctionReturnType<typeof api.crm.purchaseOrders.handoffWarning>>;
+type Held = { card: WorkCard; short: Shortfall; go: () => Promise<void> };
+
+/** "Materials are not ready" before a project goes to Construction: what is missing, then Cancel or move anyway. */
+function MaterialsWarning({ held, onClose }: { held: Held; onClose: () => void }) {
+  const { short, card } = held;
+  const list = (title: string, names: string[]) =>
+    names.length > 0 && (
+      <>
+        <h3 className="mw-h">{title} ({names.length})</h3>
+        <ul className="mw-list">{names.slice(0, 8).map((n, i) => <li key={`${n}-${i}`}>{n}</li>)}{names.length > 8 && <li>and {names.length - 8} more</li>}</ul>
+      </>
+    );
+  return (
+    <PipelineModal title="Materials are not ready" onClose={onClose}>
+      {(close) => (
+        <>
+          <p className="modal-lead">{card.title} · {card.code} would move to Construction before everything is here.</p>
+          {list("Not ordered", short.notOrdered)}
+          {list("Ordered, not delivered", short.onTheWay)}
+          {short.latestExpected !== null && <p className="muted">Last delivery expected {utcDate(short.latestExpected)}.</p>}
+          <div className="modal-foot">
+            <button type="button" className="btn plain" onClick={close}>Cancel</button>
+            <button type="button" className="btn primary" onClick={() => { close(); void held.go(); }}>Move to Construction anyway</button>
+          </div>
+        </>
+      )}
+    </PipelineModal>
+  );
+}
 
 export function WorkPipelineBoard({ pipeline, business }: { pipeline: WorkPipeline; business: BusinessDoc }) {
   const router = useRouter();
@@ -48,6 +82,8 @@ export function WorkPipelineBoard({ pipeline, business }: { pipeline: WorkPipeli
   const [over, setOver] = useState<string | null>(null);
   const [openId, setOpenId] = useState<WorkCard["id"] | null>(null);
 
+  const [held, setHeld] = useState<Held | null>(null);
+
   const touchStart = useTouchDrag<WorkCard>(canMove);
   const board = useWorkBoard(business._id, pipeline, filters, now);
   if (board === undefined || people === undefined) return view === "list" ? <PipelineListSkeleton /> : <WorkPipelineBoardSkeleton />;
@@ -60,9 +96,18 @@ export function WorkPipelineBoard({ pipeline, business }: { pipeline: WorkPipeli
       toast(failure(e, "The project could not be moved. Try again."));
     }
   }
+  /** A move that takes the project into Construction asks first when materials are still missing (D-136). It never holds the move back. */
+  async function intoConstruction(card: WorkCard, done: string, go: () => Promise<unknown>) {
+    // If the check itself cannot be made, the move goes ahead: the server still decides whether it is allowed.
+    const short = await convex.query(api.crm.purchaseOrders.handoffWarning, { id: card.id }).catch(() => null);
+    if (short) setHeld({ card, short, go: () => act(card, done, go) });
+    else await act(card, done, go);
+  }
   async function move(card: WorkCard, to: string) {
     if (card.stage === to || card.movedTo) return;
-    await act(card, `was moved to ${to}.`, () => moveStage({ id: card.id, to, now: clock() }));
+    const go = () => moveStage({ id: card.id, to, now: clock() });
+    if (pipeline === "Preplanning" && to === LAST_PREPLANNING) await intoConstruction(card, `was moved to ${to}.`, go);
+    else await act(card, `was moved to ${to}.`, go);
   }
 
   function cardMenu(card: WorkCard, anchor: HTMLElement) {
@@ -127,7 +172,7 @@ export function WorkPipelineBoard({ pipeline, business }: { pipeline: WorkPipeli
             { className: "filter" },
           ),
       }]),
-      ...(handoff && !card.movedTo ? [{ label: handoff.label, icon: "stage", reason: !canEdit ? "Your role can look at this but not change it." : undefined, onSelect: () => void act(card, handoff.done, handoff.go) }] : []),
+      ...(handoff && !card.movedTo ? [{ label: handoff.label, icon: "stage", reason: !canEdit ? "Your role can look at this but not change it." : undefined, onSelect: () => void (pipeline === "Preplanning" && card.stage === LAST_PREPLANNING ? intoConstruction : act)(card, handoff.done, handoff.go) }] : []),
     ]);
   }
 
@@ -226,6 +271,7 @@ export function WorkPipelineBoard({ pipeline, business }: { pipeline: WorkPipeli
         {open && <PipelinePanel business={business} card={open} people={people} onClose={() => setOpenId(null)} />}
       </div>
       )}
+      {held && <MaterialsWarning held={held} onClose={() => setHeld(null)} />}
     </div>
   );
 }

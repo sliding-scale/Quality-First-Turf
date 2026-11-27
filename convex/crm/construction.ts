@@ -1,7 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { mutation, query, type MutationCtx } from "../_generated/server";
-import { requireModule, requireProject, type Staff } from "./lib/access";
+import { requireModule, requireProject, requireStaff, type Staff } from "./lib/access";
 import { checkAssignee } from "./lib/assignees";
 import {
   MAX_PROGRESS,
@@ -15,6 +15,7 @@ import {
 } from "./lib/construction";
 import { formatPhone } from "./lib/fields";
 import { allows } from "./lib/permissions";
+import { syncInstallDays } from "./lib/installDays";
 import { attachmentLinks, checkNoteFiles, deleteNoteFiles, noteFilesArg } from "./lib/noteFiles";
 import { completeConstruction } from "./pipeline";
 import { checkImage } from "./quoteDraft";
@@ -25,6 +26,14 @@ import { checkImage } from "./quoteDraft";
    reinspections are Schedule visits with a `visitKind` (schedule.ts book). */
 
 const MAX_CREWS = 200;
+
+/** The team is chosen while the job is planned (Pipeline: Preplanning) as well as on site (Construction), PRD 4.4 and 4.6. */
+async function loadForTeam(ctx: MutationCtx, id: Id<"opportunities">) {
+  const project = await ctx.db.get(id);
+  if (project === null) throw new ConvexError("That project no longer exists.");
+  const staff = project.pipeline === "Preplanning" ? await requireProject(ctx, project, "pipelinePreplanning", "edit") : await requireSite(ctx, project);
+  return { project, staff };
+}
 
 async function loadProject(ctx: MutationCtx, id: Id<"opportunities">) {
   const project = await ctx.db.get(id);
@@ -134,7 +143,7 @@ export const uploadUrl = mutation({
 export const setTeam = mutation({
   args: { id: v.id("opportunities"), projectManagerId: v.union(v.id("users"), v.null()), crewIds: v.array(v.id("crews")), installerIds: v.optional(v.array(v.id("users"))), now: v.number() },
   handler: async (ctx, args) => {
-    const { project, staff } = await loadProject(ctx, args.id);
+    const { project, staff } = await loadForTeam(ctx, args.id);
     if (staff.assignedOnly) throw new ConvexError("Your role can view this but not change it."); // choosing who works on a project is not an Installer's job
     if (args.projectManagerId !== null) {
       const pm = await ctx.db.get(args.projectManagerId);
@@ -161,6 +170,36 @@ export const setTeam = mutation({
     if (args.projectManagerId !== null && args.projectManagerId !== project.projectManagerId) {
       await tellPerson(ctx, { project, userId: args.projectManagerId, by: staff, text: `You are the project manager on ${project.title}.`, now: args.now });
     }
+    // The installation days still to come follow the team (D-136).
+    await syncInstallDays(ctx, project._id, staff.userId, args.now, { team: true });
+  },
+});
+
+/** Who is on a project and who can be, for the Team card on the Construction and Work package tabs (D-136). */
+export const team = query({
+  args: { id: v.id("opportunities") },
+  handler: async (ctx, args) => {
+    const project = await ctx.db.get(args.id);
+    if (project === null) return null;
+    const own = project.pipeline === "Construction" ? "pipelineConstruction" : "pipelinePreplanning";
+    // Someone who plans jobs but has no part in Construction can still read who is on one.
+    const me = await requireStaff(ctx);
+    const staff = await requireProject(ctx, project, allows(me.levels[own], "view") ? own : "pipelinePreplanning", "view");
+    const users = await ctx.db.query("users").take(500);
+    const here = users.filter((u) => u.status === "active" && (u.roles.includes("admin") || u.businessIds.includes(project.businessId)));
+    const person = (id: Id<"users">) => ({ id, name: users.find((u) => u._id === id)?.name ?? "" });
+    const costs = allows(staff.levels.prices, "view");
+    const crews = await ctx.db.query("crews").withIndex("by_business", (q) => q.eq("businessId", project.businessId)).take(MAX_CREWS);
+    const crew = (c: Doc<"crews">) => ({ id: c._id, name: c.name, leadName: c.leadName, phone: c.phone, availability: c.availability ?? "", rateCents: costs ? c.rateCents ?? null : null });
+    return {
+      canEdit: (project.pipeline === "Preplanning" || project.pipeline === "Construction") && allows(staff.levels[own], "edit") && !staff.assignedOnly,
+      projectManager: project.projectManagerId ? person(project.projectManagerId) : null,
+      crews: (project.crewIds ?? []).map((id) => crews.find((c) => c._id === id)).filter((c): c is Doc<"crews"> => c !== undefined).map(crew),
+      crewOptions: crews.filter((c) => c.active).map(crew),
+      managers: here.filter((u) => u.roles.includes("pm") || u.roles.includes("admin")).map((u) => ({ id: u._id, name: u.name })),
+      installers: (project.installerIds ?? []).map(person),
+      installerOptions: here.filter((u) => u.roles.includes("installer")).map((u) => ({ id: u._id, name: u.name })),
+    };
   },
 });
 

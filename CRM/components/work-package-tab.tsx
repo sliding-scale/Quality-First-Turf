@@ -1,20 +1,23 @@
 "use client";
 
 /* The project's Work package tab (PRD 4.3, plan 2026-11-20-work-packages): what an installer needs to do the job, in one place that can be printed
-   or shared by a secret link that expires. The crew and installers are the project's team (set on the Construction tab); the budget is priced,
-   so only people who can see prices see or change it. The page behind the link is components/client-work-package.tsx. */
+   or shared by a secret link that expires. The crew and installers are the project's team, chosen at the top (components/project-team.tsx); the
+   install dates go on the Schedule for them when saved (D-136). The budget is priced, so only people who can see prices see or change it. The page behind the link is components/client-work-package.tsx. */
 
 import { useMutation, useQuery } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
+import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { centsFromText } from "@/convex/crm/lib/catalogue";
-import { budgetTotalCents, lineTotalCents } from "@/convex/crm/lib/workPackage";
+import { budgetTotalCents, installDays, lineTotalCents, MAX_INSTALL_DAYS } from "@/convex/crm/lib/workPackage";
 import { moneyCents, quoteDateTime } from "@/lib/format";
 import { utcDate } from "@/lib/invoices";
 import { clock, failure } from "@/lib/pipeline";
+import { todayKey } from "@/lib/schedule";
 import { Icon } from "./icon";
+import { ProjectTeam } from "./project-team";
 import { useStaff } from "./staff-context";
 import { useUI } from "./ui-provider";
 
@@ -35,6 +38,8 @@ export function WorkPackageTab({ id, businessId, title }: { id: Id<"opportunitie
   if (p === null) return <div className="card op-card"><p className="muted">A work package starts once the project is Closed Won.</p></div>;
   return (
     <div className="op-body one wp">
+      {/* Outside the package's form: it saves on its own, and Manage crews has a form of its own. */}
+      <ProjectTeam id={id} businessId={businessId} />
       <Editor key={`${p.updatedAt}`} id={id} p={p} canEdit={canEdit} />
       {canEdit && <Share id={id} p={p} businessId={businessId} title={title} canWhatsApp={staff.can("messages", "edit")} />}
     </div>
@@ -43,6 +48,7 @@ export function WorkPackageTab({ id, businessId, title }: { id: Id<"opportunitie
 
 function Editor({ id, p, canEdit }: { id: Id<"opportunities">; p: Pkg; canEdit: boolean }) {
   const { toast } = useUI();
+  const { can } = useStaff();
   const save = useMutation(api.crm.workPackages.save);
   const [scope, setScope] = useState(p.scope);
   const [target, setTarget] = useState(dayKey(p.targetStartDate));
@@ -60,7 +66,9 @@ function Editor({ id, p, canEdit }: { id: Id<"opportunities">; p: Pkg; canEdit: 
 
   const parsed = rows.map((r) => ({ description: r.description.trim(), quantity: Number(r.quantity), unit: r.unit.trim(), rateCents: centsFromText(r.rate) }));
   const rowBad = (i: number) => !parsed[i].description || !Number.isFinite(parsed[i].quantity) || parsed[i].quantity < 0 || parsed[i].rateCents === null;
-  const endBad = !!start && !!end && end < start;
+  // The server counts the business's own working days; this catches the same mistake before saving, Monday to Friday.
+  const tooLong = !!start && !!end && installDays(dayFromKey(start), dayFromKey(end), [1, 2, 3, 4, 5]).length > MAX_INSTALL_DAYS;
+  const endBad = (!!start && !!end && end < start) || tooLong;
   const total = budgetTotalCents(parsed.map((r) => ({ quantity: Number.isFinite(r.quantity) ? r.quantity : 0, rateCents: r.rateCents ?? 0 })));
   const patchRow = (i: number, patch: Partial<Row>) => setRows((all) => all.map((r, j) => (j === i ? { ...r, ...patch } : r)));
   const crewRate = p.crews.find((c) => c.rateCents !== null)?.rateCents ?? null;
@@ -105,30 +113,17 @@ function Editor({ id, p, canEdit }: { id: Id<"opportunities">; p: Pkg; canEdit: 
         <div className="wp-dates">
           <div className="field"><label htmlFor="wp-target">Target start</label><input id="wp-target" type="date" disabled={!canEdit} value={target} onChange={(e) => setTarget(e.target.value)} /></div>
           <div className="field"><label htmlFor="wp-start">Install starts</label><input id="wp-start" type="date" disabled={!canEdit} value={start} onChange={(e) => setStart(e.target.value)} /></div>
-          <div className={`field${tried && endBad ? " bad" : ""}`}><label htmlFor="wp-end">Install ends</label><input id="wp-end" type="date" disabled={!canEdit} min={start || undefined} aria-invalid={tried && endBad} value={end} onChange={(e) => setEnd(e.target.value)} /><span className="err">The end is before the start.</span></div>
+          <div className={`field${tried && endBad ? " bad" : ""}`}><label htmlFor="wp-end">Install ends</label><input id="wp-end" type="date" disabled={!canEdit} min={start || undefined} aria-invalid={tried && endBad} value={end} onChange={(e) => setEnd(e.target.value)} /><span className="err">{tooLong ? `An installation can cover up to ${MAX_INSTALL_DAYS} working days.` : "The end is before the start."}</span></div>
         </div>
+        <p className="muted wp-booked">
+          {p.installVisits.count === 0 ? "Saving puts each working day from Install starts to Install ends on the Schedule, for the installers on the team." : `${p.installVisits.count} installation day${p.installVisits.count === 1 ? " is" : "s are"} on the Schedule.`}
+          {p.installVisits.first !== null && can("schedule") && <> <Link href={`/schedule?view=week&date=${todayKey(p.installVisits.first)}`}>Open the Schedule</Link></>}
+        </p>
         {area("Schedule notes", "wp-sched", scheduleNotes, setScheduleNotes, 2, "Phases, days off, anything that moves the dates")}
         {area("Site access", "wp-access", siteAccess, setSiteAccess, 2, "Gate codes, parking, where to unload, pets")}
         {area("Customer availability", "wp-avail", availability, setAvailability, 2, "When the customer is home, or can be reached")}
       </section>
 
-      <section className="card op-card">
-        <h2>Team</h2>
-        {p.crews.length === 0 && p.installers.length === 0 ? (
-          <p className="muted">No crew or installers are assigned yet. Choose them on the Construction tab once the project is there.</p>
-        ) : (
-          <ul className="wp-team">
-            {p.crews.map((c) => (
-              <li key={c.id}>
-                <b>{c.name}</b>{c.leadName && <> · lead {c.leadName}</>}{c.phone && <> · {c.phone}</>}
-                {c.availability && <span className="muted"> · free: {c.availability}</span>}
-                {c.rateCents !== null && <span className="muted"> · agreed {moneyCents(c.rateCents)}/hr</span>}
-              </li>
-            ))}
-            {p.installers.map((u) => <li key={u.id}>{u.name} <span className="muted">(installer)</span></li>)}
-          </ul>
-        )}
-      </section>
 
       <section className="card op-card">
         <h2>Drawings, specifications and photos</h2>

@@ -7,6 +7,21 @@ export const DEFAULT_LINK_DAYS = 14;
 export const MAX_LINK_DAYS = 90;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+export const MAX_INSTALL_DAYS = 60;
+
+/** The days (yyyy-mm-dd) an installation covers: its first and last day, and every working day between. Dates are UTC midnight; working
+ *  days are 0 (Sunday) to 6. No start date, no days. */
+export function installDays(start: number | undefined, end: number | undefined, workingDays: readonly number[]): string[] {
+  if (start === undefined) return [];
+  const last = end ?? start;
+  const out: string[] = [];
+  // Stops past the limit, so a mistyped year cannot loop for long; the caller refuses a longer one.
+  for (let day = start; day <= last && out.length <= MAX_INSTALL_DAYS; day += DAY_MS) {
+    if (day === start || day + DAY_MS > last || workingDays.includes(new Date(day).getUTCDay())) out.push(new Date(day).toISOString().slice(0, 10));
+  }
+  return out;
+}
+
 /** One budget line's amount: quantity times rate, to the cent. */
 export const lineTotalCents = (l: Pick<BudgetLine, "quantity" | "rateCents">): number => Math.round(l.quantity * l.rateCents);
 

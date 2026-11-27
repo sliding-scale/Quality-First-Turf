@@ -552,6 +552,8 @@ export default defineSchema({
     budgetLines: v.array(v.object({ description: v.string(), quantity: v.number(), unit: v.string(), rateCents: v.number() })),
     fileIds: v.array(v.id("opportunityFiles")),
     includeMaterials: v.boolean(),
+    /** The install dates last put on the Schedule ("start:end", D-136). The Schedule is rewritten only when they change. */
+    bookedDates: v.optional(v.string()),
     shareToken: v.optional(v.string()),
     shareExpiresAt: v.optional(v.number()),
     updatedAt: v.number(),
@@ -1065,6 +1067,8 @@ export default defineSchema({
     updatedAt: v.optional(v.number()),
     /** A construction visit (D-081): a job walk, an installation day or a reinspection. Only on `type: "visit"`. */
     visitKind: v.optional(v.union(v.literal("jobWalk"), v.literal("install"), v.literal("reinspection"))),
+    /** An installation day put here by the project's work package dates (D-136): changing those dates may move or remove it. */
+    fromWorkPackage: v.optional(v.boolean()),
     /** A consultation sent to Jobber (D-085): the assessment on the project's Jobber request. */
     jobberAssessmentId: v.optional(v.string()),
     /** Why the last send to Jobber did not go through; cleared when one does. Shown on the request page with a retry. */

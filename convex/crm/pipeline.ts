@@ -13,6 +13,8 @@ import { assertPaidUp, projectMoney } from "./lib/billing";
 import { assignJobNumber } from "./lib/jobNumber";
 import { notifyStage } from "./lib/mentionNotify";
 import { completionBlock, completionState } from "./lib/construction";
+import { clearInstallDays } from "./lib/installDays";
+import { materialsShortfall } from "./lib/readiness";
 
 /** The pipeline boards (D-061, D-080). `moveStage` changes a stage inside the project's current pipeline.
  *  `startPreplanning`, `startConstruction`, `returnToSales` and `returnToPreplanning` are the only moves between pipelines. */
@@ -58,6 +60,14 @@ async function checkWon(ctx: MutationCtx, project: Doc<"opportunities">): Promis
   return r.contract.via === "quote" ? `Quote #${r.contract.quoteNumber} approved and signed` : "Signed contract uploaded";
 }
 
+/** The history note for a move into Construction, which says when materials were still missing (D-136). The move is never held back. */
+async function handoffNote(ctx: MutationCtx, id: Id<"opportunities">, note: string) {
+  const short = await materialsShortfall(ctx, id);
+  if (!short) return note;
+  const parts = [short.notOrdered.length && `${short.notOrdered.length} not ordered`, short.onTheWay.length && `${short.onTheWay.length} on the way`].filter(Boolean);
+  return `${note}. Materials not ready: ${parts.join(", ")}`;
+}
+
 /** A move inside Preplanning or Construction. The same rules as Sales for history and notifications; the outcome of the sale stays. */
 async function applyWorkMove(ctx: MutationCtx, project: Doc<"opportunities">, to: string, staff: Staff, now: number) {
   if (project.pipeline === "Sales") throw new ConvexError("This pipeline is not open yet.");
@@ -88,7 +98,7 @@ async function applyWorkMove(ctx: MutationCtx, project: Doc<"opportunities">, to
   if (project.pipeline === "Preplanning" && to === PREPLANNING_LAST && project.archivedAt === undefined) {
     const ready = await ctx.db.get(project._id);
     if (ready !== null) {
-      await changePipeline(ctx, ready, staff, { from: ["Preplanning", PREPLANNING_LAST], to: ["Construction", CONSTRUCTION_ENTRY], now, note: "Sent to Construction automatically", quiet: true });
+      await changePipeline(ctx, ready, staff, { from: ["Preplanning", PREPLANNING_LAST], to: ["Construction", CONSTRUCTION_ENTRY], now, note: await handoffNote(ctx, ready._id, "Sent to Construction automatically"), quiet: true });
       handedOff = true;
     }
   }
@@ -458,7 +468,7 @@ export const startConstruction = mutation({
     const project = await ctx.db.get(args.id);
     if (project === null) throw new ConvexError("That project no longer exists.");
     const staff = await requireModule(ctx, project.businessId, "pipelineConstruction", "edit");
-    return changePipeline(ctx, project, staff, { from: ["Preplanning", PREPLANNING_LAST], to: ["Construction", CONSTRUCTION_ENTRY], now: args.now, note: "Sent to Construction", refuse: `Only a project at "${PREPLANNING_LAST}" can start construction.` });
+    return changePipeline(ctx, project, staff, { from: ["Preplanning", PREPLANNING_LAST], to: ["Construction", CONSTRUCTION_ENTRY], now: args.now, note: await handoffNote(ctx, project._id, "Sent to Construction"), refuse: `Only a project at "${PREPLANNING_LAST}" can start construction.` });
   },
 });
 
@@ -470,7 +480,9 @@ export const returnToSales = mutation({
     if (project === null) throw new ConvexError("That project no longer exists.");
     const staff = await requireModule(ctx, project.businessId, "pipelineSales", "edit");
     if (project.outcome !== "won") throw new ConvexError("Only a won project can go back to Sales.");
-    return changePipeline(ctx, project, staff, { from: ["Preplanning", PREPLANNING_ENTRY], to: ["Sales", "Closed Won"], now: args.now, note: "Returned to Sales", refuse: `Only a project at "${PREPLANNING_ENTRY}" can go back to Sales.` });
+    const moved = await changePipeline(ctx, project, staff, { from: ["Preplanning", PREPLANNING_ENTRY], to: ["Sales", "Closed Won"], now: args.now, note: "Returned to Sales", refuse: `Only a project at "${PREPLANNING_ENTRY}" can go back to Sales.` });
+    await clearInstallDays(ctx, project._id);
+    return moved;
   },
 });
 

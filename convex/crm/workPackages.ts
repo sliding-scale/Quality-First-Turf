@@ -8,10 +8,13 @@ import {
   budgetTotalCents,
   DEFAULT_LINK_DAYS,
   expiryFrom,
+  installDays,
   linkDaysProblem,
   MAX_BUDGET_LINES,
+  MAX_INSTALL_DAYS,
   shareState,
 } from "./lib/workPackage";
+import { installVisitsOf, syncInstallDays, workingDaysOf } from "./lib/installDays";
 
 /** A project's installer work package (PRD 4.3, plan 2026-11-20-work-packages): scope, schedule, site access, the installer budget, the files that
  *  go with it and a secret expiring link to share it. It is Preplanning work, so it follows the Preplanning module. The budget is priced, so it needs
@@ -49,6 +52,7 @@ export const get = query({
     const installerRows = await Promise.all((p.installerIds ?? []).map((id) => ctx.db.get(id)));
     const take = await ctx.db.query("takeoffLines").withIndex("by_opportunity", (q) => q.eq("opportunityId", p._id)).take(500);
     const now = Date.now();
+    const installs = await installVisitsOf(ctx, p._id);
     const budgetLines = costs ? (w?.budgetLines ?? []) : [];
     return {
       saved: w !== null,
@@ -69,6 +73,8 @@ export const get = query({
       crews: crewRows.filter((c): c is Doc<"crews"> => c !== null).map((c) => ({ id: c._id, name: c.name, leadName: c.leadName, phone: c.phone, availability: c.availability ?? "", rateCents: costs ? c.rateCents ?? null : null })),
       installers: installerRows.filter((u): u is Doc<"users"> => u !== null).map((u) => ({ id: u._id, name: u.name })),
       materials: take.map((l) => ({ name: l.name, unit: l.unit, qty: l.qtyOverride ?? l.calcQty ?? 0 })),
+      /** The installation visits on the Schedule, however they were booked: how many, and when the first one is. */
+      installVisits: { count: installs.length, first: installs[0]?.start ?? null },
       share: w ? { state: shareState(w, now), token: shareState(w, now) === "live" ? w.shareToken ?? null : null, expiresAt: w.shareExpiresAt ?? null } : { state: "none" as const, token: null, expiresAt: null },
       updatedAt: w?.updatedAt ?? null,
       updatedByName: w?.updatedByName ?? null,
@@ -101,6 +107,9 @@ export const save = mutation({
     const { p, staff } = await projectOf(ctx, args.id, "edit");
     for (const d of [args.targetStartDate, args.startDate, args.endDate]) if (d !== undefined && (!Number.isFinite(d) || d < 0)) throw new ConvexError("Check the dates.");
     if (args.startDate !== undefined && args.endDate !== undefined && args.endDate < args.startDate) throw new ConvexError("The end date is before the start date.");
+    if (installDays(args.startDate, args.endDate, await workingDaysOf(ctx, p.businessId)).length > MAX_INSTALL_DAYS) {
+      throw new ConvexError(`An installation can cover up to ${MAX_INSTALL_DAYS} working days. Check the dates.`);
+    }
     const fileIds = [...new Set(args.fileIds)];
     if (fileIds.length > 50) throw new ConvexError("A work package can carry up to 50 files.");
     for (const id of fileIds) {
@@ -132,11 +141,12 @@ export const save = mutation({
       updatedAt: args.now,
       updatedByName: staff.name,
     };
-    if (existing) {
-      await ctx.db.patch(existing._id, row);
-      return existing._id;
-    }
-    return ctx.db.insert("workPackages", { businessId: p.businessId, opportunityId: p._id, ...row });
+    let id = existing?._id;
+    if (id) await ctx.db.patch(id, row);
+    else id = await ctx.db.insert("workPackages", { businessId: p.businessId, opportunityId: p._id, ...row });
+    // The install dates go on the Schedule for the team (D-136).
+    await syncInstallDays(ctx, p._id, staff.userId, args.now);
+    return id;
   },
 });
 

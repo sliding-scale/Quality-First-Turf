@@ -88,7 +88,11 @@ export function UIProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!menu) return;
     const anchor = menu.anchor;
+    const since = performance.now();
     const onClick = (e: MouseEvent) => {
+      // The click that opened this one (a menu item such as "Move to…") is still on its way up the page when this starts listening, and
+      // would close it at once (D-136).
+      if (e.timeStamp <= since) return;
       const t = e.target as Node;
       // A time picker opened from inside a popover draws its panel over the page; a click in it is still inside (D-129).
       if (menuRef.current?.contains(t) || anchor.contains(t) || (t instanceof Element && t.closest(".tp-panel"))) return;
