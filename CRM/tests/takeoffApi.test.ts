@@ -80,7 +80,7 @@ describe("A project's takeoff", () => {
     await w.pm.mutation(api.crm.takeoff.addLine, { id: project, materialId: await material(w, "Turf roll") });
     await measure(w, project, { area: 3200 });
     const line = (await w.pm.query(api.crm.takeoff.get, { id: project }))!.lines[0];
-    const edit = (qtyOverride: number | null) => w.pm.mutation(api.crm.takeoff.updateLine, { lineId: line.id, qtyOverride, supplier: "TurfCo", leadTimeDays: 10, inStock: 1, unitCostCents: 120000, notes: "" });
+    const edit = (qtyOverride: number | null) => w.pm.mutation(api.crm.takeoff.updateLine, { lineId: line.id, qtyOverride, supplier: "TurfCo", leadTimeDays: 10, unitCostCents: 120000, notes: "" });
     await edit(5);
     await measure(w, project, { area: 4000 });
     expect((await w.pm.query(api.crm.takeoff.get, { id: project }))?.lines[0]).toMatchObject({ qtyOverride: 5, qty: 5, calcQty: 3 });

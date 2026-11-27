@@ -36,11 +36,13 @@ export function coverage(lineId: string, orders: OrderFacts[]): { covered: numbe
   return { covered: Math.round(covered * 100) / 100, delivered: Math.round(delivered * 100) / 100, expected };
 }
 
-export type Readiness = "stock" | "open" | "ordered" | "delivered";
-export const READINESS_LABEL: Record<Readiness, string> = { stock: "In stock", open: "Not ordered", ordered: "Ordered", delivered: "Delivered" };
+export type Readiness = "none" | "stock" | "open" | "ordered" | "delivered";
+export const READINESS_LABEL: Record<Readiness, string> = { none: "No quantity yet", stock: "In stock", open: "Not ordered", ordered: "Ordered", delivered: "Delivered" };
 
 /** One takeoff line's readiness. A line with an order of draft status counts as "Not ordered" until the order is placed. */
 export function lineReadiness(line: { id: string; qty: number; inStock: number | null }, orders: OrderFacts[]) {
+  // A quantity of nothing (its measurement is not entered) says nothing about stock, so it is not shown as "In stock" (D-137).
+  if (line.qty <= 0) return { state: "none" as Readiness, need: 0, ordered: 0, delivered: 0, expected: null as number | null };
   const need = toOrderQty(line.qty, line.inStock);
   if (need <= 0) return { state: "stock" as Readiness, need, ordered: 0, delivered: 0, expected: null as number | null };
   const placed = orders.map((o) => (o.status === "draft" ? { ...o, status: "cancelled" as PoStatus } : o)); // a draft is not bought yet
@@ -49,13 +51,13 @@ export function lineReadiness(line: { id: string; qty: number; inStock: number |
   return { state, need, ordered: c.covered, delivered: c.delivered, expected: state === "ordered" ? c.expected : null };
 }
 
-/** The whole project: ready when every line is in stock or delivered; otherwise how many are still open or on the way, and the latest expected date. */
+/** The whole project: ready when every line that has a quantity is in stock or delivered; otherwise how many are still open or on the way, and the latest expected date. */
 export function readinessOf(lines: { id: string; qty: number; inStock: number | null }[], orders: OrderFacts[]) {
   const per = lines.map((l) => ({ id: l.id, ...lineReadiness(l, orders) }));
   const open = per.filter((p) => p.state === "open").length;
   const onTheWay = per.filter((p) => p.state === "ordered").length;
   const dates = per.flatMap((p) => (p.expected === null ? [] : [p.expected]));
-  return { lines: per, open, onTheWay, ready: per.length > 0 && open === 0 && onTheWay === 0, latestExpected: dates.length ? Math.max(...dates) : null };
+  return { lines: per, open, onTheWay, ready: per.some((p) => p.state !== "none") && open === 0 && onTheWay === 0, latestExpected: dates.length ? Math.max(...dates) : null };
 }
 
 /** What a new order would cover for each line: the need less what live orders (drafts included) already cover. Lines that are covered are left out. */

@@ -106,7 +106,10 @@ describe("install dates on the Schedule", () => {
 
 describe("the warning before Construction", () => {
   const line = (w: World, name: string, inStock?: number) =>
-    w.base.run((ctx) => ctx.db.insert("takeoffLines", { businessId: w.qft, opportunityId: w.project, position: 1, name, sku: "", unit: "roll", formula: "1", wastagePercent: 0, rounding: "up", calcQty: 2, supplier: "S", notes: "", ...(inStock === undefined ? {} : { inStock }) }));
+    w.base.run(async (ctx) => {
+      const materialId = await ctx.db.insert("materials", { businessId: w.qft, name, nameKey: name.toLowerCase(), sku: "", category: "", unit: "roll", supplier: "S", sizeDetails: "", formula: "1", wastagePercent: 0, rounding: "up", createdAt: 1, updatedAt: 1, ...(inStock === undefined ? {} : { inStock }) });
+      return ctx.db.insert("takeoffLines", { businessId: w.qft, opportunityId: w.project, materialId, position: 1, name, sku: "", unit: "roll", formula: "1", wastagePercent: 0, rounding: "up", calcQty: 2, supplier: "S", notes: "" });
+    });
 
   it("has nothing to say without a takeoff or when everything is in stock", async () => {
     const w = await planning();

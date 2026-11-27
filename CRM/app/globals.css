@@ -1652,6 +1652,7 @@ span.member-name { color: var(--muted); cursor: default; }
 .po-ready { margin: 0 0 12px; font-weight: 600; color: var(--orange); }
 .po-ready.ok { color: var(--green); }
 .po-chip { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--chip, var(--shell)); color: var(--ink); }
+.po-chip.none { background: var(--chip, var(--shell)); color: var(--muted); }
 .po-chip.stock, .po-chip.delivered { background: var(--green-soft); color: var(--green-dark); }
 .po-chip.open, .po-chip.draft { background: #fbeedd; color: #9a5a00; }
 .po-chip.ordered { background: #e3eef6; color: #1d5f8a; }

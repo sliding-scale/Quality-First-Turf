@@ -368,6 +368,22 @@ export function OpportunitySkeleton() {
   );
 }
 
+/** The Stock page; `bare` is the part under its heading and tabs. */
+export function StockSkeleton({ bare = false }: { bare?: boolean }) {
+  return (
+    <Busy>
+      {!bare && (
+        <>
+          <div className="page-head"><h1>Stock</h1></div>
+          <div className="tabs st-tabs"><Sk w={80} h={20} style={{ margin: "12px 14px" }} /><Sk w={70} h={20} style={{ margin: "12px 14px" }} /></div>
+        </>
+      )}
+      <div className="toolbar"><div className="st-actions"><Sk w={140} h={40} r={8} /><Sk w={190} h={40} r={8} /></div><Sk w={240} h={40} r={8} /></div>
+      <div className="table-wrap">{range(6).map((n) => <div key={n} style={{ padding: "16px 12px" }}><Sk w="100%" h={20} /></div>)}</div>
+    </Busy>
+  );
+}
+
 export function DisclaimersSkeleton() {
   return (
     <Busy>

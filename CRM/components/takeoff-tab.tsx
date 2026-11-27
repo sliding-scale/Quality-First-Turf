@@ -6,6 +6,7 @@
 
 import { useMutation, useQuery } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
+import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -19,6 +20,8 @@ import { Icon } from "./icon";
 import { PipelineModal } from "./pipeline-dialogs";
 import { PurchaseOrders } from "./purchase-orders";
 import { useStaff } from "./staff-context";
+import { CountDialog, UseDialog } from "./stock-dialogs";
+import { FromQuote } from "./takeoff-from-quote";
 import { useUI } from "./ui-provider";
 
 type Takeoff = NonNullable<FunctionReturnType<typeof api.crm.takeoff.get>>;
@@ -38,9 +41,10 @@ export function TakeoffTab({ id, businessId, title }: { id: Id<"opportunities">;
   if (t === null) return <div className="card op-card"><p className="muted">A takeoff starts once the project is Closed Won.</p></div>;
   return (
     <div className="op-body one tk">
+      <FromQuote id={id} kits={kits ?? []} canEdit={canEdit} />
       <Measurements key={`${t.updatedAt}`} id={id} t={t} canEdit={canEdit} />
-      <Summary t={t} title={title} po={po} />
-      <Materials id={id} t={t} options={options ?? []} kits={kits ?? []} canEdit={canEdit} po={po} />
+      <Summary id={id} t={t} title={title} po={po} canEdit={canEdit} />
+      <Materials id={id} businessId={businessId} t={t} options={options ?? []} kits={kits ?? []} canEdit={canEdit} po={po} />
       <PurchaseOrders id={id} canEdit={canEdit} />
     </div>
   );
@@ -112,7 +116,7 @@ function Measurements({ id, t, canEdit }: { id: Id<"opportunities">; t: Takeoff;
   );
 }
 
-function Materials({ id, t, options, kits, canEdit, po }: { id: Id<"opportunities">; t: Takeoff; options: { id: Id<"materials">; name: string; unit: string; category: string }[]; kits: { id: Id<"materialKits">; name: string; group: string; uses: string[]; items: { id: Id<"materials"> }[] }[]; canEdit: boolean; po: PurchaseData | null | undefined }) {
+function Materials({ id, businessId, t, options, kits, canEdit, po }: { id: Id<"opportunities">; businessId: Id<"businesses">; t: Takeoff; options: { id: Id<"materials">; name: string; unit: string; category: string }[]; kits: { id: Id<"materialKits">; name: string; group: string; uses: string[]; items: { id: Id<"materials"> }[] }[]; canEdit: boolean; po: PurchaseData | null | undefined }) {
   const { toast } = useUI();
   const add = useMutation(api.crm.takeoff.addLine);
   const refresh = useMutation(api.crm.takeoff.refreshLine);
@@ -121,6 +125,7 @@ function Materials({ id, t, options, kits, canEdit, po }: { id: Id<"opportunitie
   const [pick, setPick] = useState("");
   const [kitPick, setKitPick] = useState("");
   const [editing, setEditing] = useState<Line | null>(null);
+  const [counting, setCounting] = useState<Line | null>(null);
   // Which sections are folded away. Kept per project in this browser; with no saved choice, a long takeoff starts with every section but the first folded.
   const storeKey = `tk-closed-${id}`;
   const [closed, setClosed] = useState<Set<string>>(() => {
@@ -141,7 +146,7 @@ function Materials({ id, t, options, kits, canEdit, po }: { id: Id<"opportunitie
   const groupOf = (l: Line) => (groupBy === "job" ? l.category : l.supplier.trim() || "No supplier yet");
   const headings = [...new Set(t.lines.map(groupOf))];
   const costOf = new Map(t.summary.suppliers.flatMap((g) => g.lines.map((l) => [l.name, l.costCents] as const)));
-  const statusOf = new Map((po?.readiness.lines ?? []).map((l) => [l.name, l.state] as const));
+  const statusOf = new Map((po?.readiness.lines ?? []).map((l) => [l.id, l.state] as const));
   const sumCost = (rows: Line[]) => rows.reduce((n, l) => n + (costOf.get(l.name) ?? 0), 0);
   const toOrder = new Map(t.summary.suppliers.flatMap((s) => s.lines.map((l) => [l.name, l.toOrder] as const)));
   const fail = (e: unknown, fallback: string) => toast(failure(e, fallback));
@@ -164,6 +169,7 @@ function Materials({ id, t, options, kits, canEdit, po }: { id: Id<"opportunitie
     <section className="card op-card op-wide">
       <div className="op-sechead">
         <h2>Materials</h2>
+        <Link className="btn tk-noprint" href="/stock"><Icon name="package" size={16} /> Open stock</Link>
       </div>
       {canEdit && (
         <div className="tk-add">
@@ -237,7 +243,7 @@ function Materials({ id, t, options, kits, canEdit, po }: { id: Id<"opportunitie
             </span>
           </div>
           <table className="table op-table">
-            <colgroup><col /><col style={{ width: 100 }} /><col style={{ width: 90 }} /><col style={{ width: 80 }} /><col style={{ width: 80 }} /><col style={{ width: 80 }} />{t.canSeeCosts && <col style={{ width: 100 }} />}<col style={{ width: 120 }} /><col style={{ width: 130 }} /></colgroup>
+            <colgroup><col /><col style={{ width: 100 }} /><col style={{ width: 90 }} /><col style={{ width: 80 }} /><col style={{ width: 80 }} /><col style={{ width: 80 }} />{t.canSeeCosts && <col style={{ width: 100 }} />}<col style={{ width: 130 }} /><col style={{ width: 196 }} /></colgroup>
             <thead><tr><th>Material</th><th>Unit</th><th className="num">Worked out</th><th className="num">Order</th><th className="num">In stock</th><th className="num">To order</th>{t.canSeeCosts && <th className="num">Cost</th>}<th>Status</th><th /></tr></thead>
           </table>
           {headings.map((h) => {
@@ -253,22 +259,23 @@ function Materials({ id, t, options, kits, canEdit, po }: { id: Id<"opportunitie
                 <div className="tk-collapse" data-open={open}>
                   <div className="tk-collapse-inner">
                     <table className="table op-table">
-                      <colgroup><col /><col style={{ width: 100 }} /><col style={{ width: 90 }} /><col style={{ width: 80 }} /><col style={{ width: 80 }} /><col style={{ width: 80 }} />{t.canSeeCosts && <col style={{ width: 100 }} />}<col style={{ width: 120 }} /><col style={{ width: 130 }} /></colgroup>
+                      <colgroup><col /><col style={{ width: 100 }} /><col style={{ width: 90 }} /><col style={{ width: 80 }} /><col style={{ width: 80 }} /><col style={{ width: 80 }} />{t.canSeeCosts && <col style={{ width: 100 }} />}<col style={{ width: 130 }} /><col style={{ width: 196 }} /></colgroup>
                       <tbody>
                         {rows.map((l) => (
                           <tr key={l.id}>
-                  <td><b>{l.name}</b>{l.sku && <span className="muted"> {l.sku}</span>}<div className="muted op-text">{l.supplier || "No supplier yet"}{l.leadTimeDays !== null ? ` · ${l.leadTimeDays} d lead time` : ""}{l.inStock !== null ? ` · ${l.inStock} in stock` : ""}</div>{l.calcError && <div className="cat-bad">{l.calcError}</div>}{l.notes && <div className="muted op-text">{l.notes}</div>}</td>
+                  <td><b>{l.name}</b>{l.sku && <span className="muted"> {l.sku}</span>}<div className="muted op-text">{l.supplier || "No supplier yet"}{l.leadTimeDays !== null ? ` · ${l.leadTimeDays} d lead time` : ""}</div>{l.measures && <div className="muted">Sized from the quote: {Object.entries(l.measures).map(([k, v]) => `${v} ${t.inputList.find((x) => x.key === k)?.unit ?? k}`).join(", ")}</div>}{l.calcError && <div className="cat-bad">{l.calcError}</div>}{l.notes && <div className="muted op-text">{l.notes}</div>}</td>
                   <td>{l.unit}</td>
                   <td className="num">{l.calcQty === null ? "—" : l.calcQty}</td>
                   <td className="num">{l.qtyOverride !== null ? <b>{l.qtyOverride}</b> : l.qty}{l.qtyOverride !== null && <div className="muted">typed</div>}</td>
-                          <td className="num">{l.inStock ?? "—"}</td>
+                          <td className="num">{t.stockUsedAt !== null || l.onHand === null || l.inStock === null ? <span className="muted">—</span> : <>{l.inStock}{l.inStock < l.onHand && <div className="muted">of {l.onHand}</div>}</>}</td>
                           <td className="num"><span className={(toOrder.get(l.name) ?? 0) > 0 ? "tk-short" : "muted"}>{toOrder.get(l.name) ?? 0}</span></td>
                           {t.canSeeCosts && <td className="num">{costOf.get(l.name) == null ? "—" : moneyCents(costOf.get(l.name)!)}</td>}
-                          <td>{statusOf.get(l.name) ? <span className={`po-chip ${statusOf.get(l.name)}`}>{READINESS_LABEL[statusOf.get(l.name)!]}</span> : <span className="muted">—</span>}</td>
+                          <td>{t.stockUsedAt !== null ? <span className="po-chip delivered">Used</span> : statusOf.get(l.id) ? <span className={`po-chip ${statusOf.get(l.id)}`}>{READINESS_LABEL[statusOf.get(l.id)!]}</span> : <span className="muted">—</span>}</td>
                   <td>
                     {canEdit && (
                       <span className="job-rowbtns tk-noprint">
-                        <button type="button" className="btn icon" aria-label="Edit line" data-tip="Quantity, supplier, lead time and stock" onClick={() => setEditing(l)}><Icon name="pencil" size={18} /></button>
+                        <button type="button" className="btn icon" aria-label={`Count stock of ${l.name}`} data-tip="Count the stock" disabled={!l.materialId} onClick={() => setCounting(l)}><Icon name="package" size={18} /></button>
+                        <button type="button" className="btn icon" aria-label="Edit line" data-tip="Quantity, supplier and lead time" onClick={() => setEditing(l)}><Icon name="pencil" size={18} /></button>
                         <button type="button" className="btn icon" aria-label="Refresh from the material" data-tip="Read the material and its formula again" disabled={!l.materialId} onClick={() => void refresh({ lineId: l.id as Id<"takeoffLines"> }).catch((e) => fail(e, "That could not be refreshed."))}><Icon name="timeline" size={18} /></button>
                         <button type="button" className="btn icon" aria-label="Remove line" data-tip="Remove" onClick={() => void remove({ lineId: l.id as Id<"takeoffLines"> }).catch((e) => fail(e, "That could not be removed."))}><Icon name="trash" size={18} /></button>
                       </span>
@@ -286,6 +293,7 @@ function Materials({ id, t, options, kits, canEdit, po }: { id: Id<"opportunitie
         </div>
       )}
       {editing && <LineDialog line={editing} canCost={t.canSeeCosts} onClose={() => setEditing(null)} />}
+      {counting?.materialId && <CountDialog businessId={businessId} material={{ id: counting.materialId, name: counting.name, unit: counting.unit, inStock: counting.onHand ?? 0 }} onClose={() => setCounting(null)} />}
     </section>
   );
 }
@@ -296,7 +304,7 @@ function LineDialog({ line, canCost, onClose }: { line: Line; canCost: boolean; 
   const [qty, setQty] = useState(line.qtyOverride === null ? "" : String(line.qtyOverride));
   const [supplier, setSupplier] = useState(line.supplier);
   const [lead, setLead] = useState(line.leadTimeDays === null ? "" : String(line.leadTimeDays));
-  const [stock, setStock] = useState(line.inStock === null ? "" : String(line.inStock));
+  const [useJob, setUseJob] = useState(false);
   const [cost, setCost] = useState(line.unitCostCents === null ? "" : (line.unitCostCents / 100).toFixed(2));
   const [notes, setNotes] = useState(line.notes);
   const [busy, setBusy] = useState(false);
@@ -309,7 +317,7 @@ function LineDialog({ line, canCost, onClose }: { line: Line; canCost: boolean; 
     setBusy(true);
     setError("");
     try {
-      await save({ lineId: line.id as Id<"takeoffLines">, qtyOverride: qty.trim() ? Number(qty) : null, supplier, leadTimeDays: lead.trim() ? Number(lead) : null, inStock: stock.trim() ? Number(stock) : null, unitCostCents: costCents, notes });
+      await save({ lineId: line.id as Id<"takeoffLines">, qtyOverride: qty.trim() ? Number(qty) : null, supplier, leadTimeDays: lead.trim() ? Number(lead) : null, unitCostCents: costCents, notes, ...(useJob ? { useJobMeasurements: true } : {}) });
       toast("Line saved.");
       close();
     } catch (err) {
@@ -325,10 +333,8 @@ function LineDialog({ line, canCost, onClose }: { line: Line; canCost: boolean; 
           <p className="muted">Worked out: {line.calcQty === null ? "not yet" : `${line.calcQty} ${line.unit}`}. Type your own quantity to use that instead; clear it to use the worked-out one.</p>
           <div className="field"><label htmlFor="tl-qty">Quantity to order ({line.unit})</label><input id="tl-qty" inputMode="decimal" placeholder={line.calcQty === null ? "" : String(line.calcQty)} value={qty} onChange={(e) => setQty(e.target.value.replace(/[^\d.]/g, ""))} /></div>
           <div className="field"><label htmlFor="tl-supplier">Supplier</label><input id="tl-supplier" maxLength={100} value={supplier} onChange={(e) => setSupplier(e.target.value)} /></div>
-          <div className="cat-money two">
-            <div className="field"><label htmlFor="tl-lead">Lead time (days)</label><input id="tl-lead" inputMode="numeric" value={lead} onChange={(e) => setLead(e.target.value.replace(/\D/g, ""))} /></div>
-            <div className="field"><label htmlFor="tl-stock">In stock ({line.unit})</label><input id="tl-stock" inputMode="decimal" value={stock} onChange={(e) => setStock(e.target.value.replace(/[^\d.]/g, ""))} /></div>
-          </div>
+          <div className="field"><label htmlFor="tl-lead">Lead time (days)</label><input id="tl-lead" inputMode="numeric" value={lead} onChange={(e) => setLead(e.target.value.replace(/\D/g, ""))} /></div>
+          {line.measures && <label className="sc-check"><input type="checkbox" checked={useJob} onChange={(e) => setUseJob(e.target.checked)} /> Work this out from the job&apos;s measurements, not the size from the quote</label>}
           {canCost && <div className="field"><label htmlFor="tl-cost">Cost per {line.unit} ($)</label><input id="tl-cost" inputMode="decimal" value={cost} onChange={(e) => setCost(e.target.value)} /></div>}
           <div className="field"><label htmlFor="tl-notes">Notes</label><textarea id="tl-notes" rows={3} maxLength={1000} value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
           {error && <p className="modal-error" role="alert">{error}</p>}
@@ -342,8 +348,10 @@ function LineDialog({ line, canCost, onClose }: { line: Line; canCost: boolean; 
   );
 }
 
-function Summary({ t, title, po }: { t: Takeoff; title: string; po: PurchaseData | null | undefined }) {
+function Summary({ id, t, title, po, canEdit }: { id: Id<"opportunities">; t: Takeoff; title: string; po: PurchaseData | null | undefined; canEdit: boolean }) {
   const s = t.summary;
+  const usage = useQuery(api.crm.stock.usage, { id });
+  const [using, setUsing] = useState(false);
   if (t.lines.length === 0) return null;
 
   function download() {
@@ -370,6 +378,7 @@ function Summary({ t, title, po }: { t: Takeoff; title: string; po: PurchaseData
       <div className="op-sechead">
         <h2>Summary</h2>
         <span className="job-rowbtns tk-noprint">
+          {canEdit && usage && usage.recordedAt === null && <button type="button" className={`btn${usage.finished ? " primary" : ""}`} onClick={() => setUsing(true)}>Record materials used</button>}
           <button type="button" className="btn" onClick={download}>Download CSV</button>
           <button type="button" className="btn" onClick={() => window.print()}>Print</button>
         </span>
@@ -382,7 +391,9 @@ function Summary({ t, title, po }: { t: Takeoff; title: string; po: PurchaseData
         {t.canSeeCosts && <div><dt>To order</dt><dd>{moneyCents(s.totalCents)}</dd></div>}
       </dl>
       {t.canSeeCosts && s.anyUnpriced && <p className="muted">Some materials have no cost yet, so the total is not complete.</p>}
-      {po && po.readiness.lines.length > 0 && (
+      {usage?.recordedAt ? <p className="muted">What this job used was recorded {quoteMonthDay(usage.recordedAt)} by {usage.recordedBy}.</p> : usage?.finished && <p className="au-warn" role="status">This job is finished. Record what it used so stock stays right.</p>}
+      {using && <UseDialog id={id} title={title} onClose={() => setUsing(false)} />}
+      {po && po.readiness.lines.length > 0 && t.stockUsedAt === null && (
         <p className={`po-ready${po.readiness.ready ? " ok" : ""}`}>
           {po.readiness.ready ? "Materials are ready: everything is in stock or delivered." : "Materials not ready."}
           {" "}

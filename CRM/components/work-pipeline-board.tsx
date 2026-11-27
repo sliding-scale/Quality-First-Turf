@@ -47,6 +47,7 @@ function MaterialsWarning({ held, onClose }: { held: Held; onClose: () => void }
           <p className="modal-lead">{card.title} · {card.code} would move to Construction before everything is here.</p>
           {list("Not ordered", short.notOrdered)}
           {list("Ordered, not delivered", short.onTheWay)}
+          {list("No quantity yet", short.noQuantity)}
           {short.latestExpected !== null && <p className="muted">Last delivery expected {utcDate(short.latestExpected)}.</p>}
           <div className="modal-foot">
             <button type="button" className="btn plain" onClick={close}>Cancel</button>

@@ -510,8 +510,11 @@ export default defineSchema({
     costCents: v.optional(v.number()),
     supplier: v.string(),
     leadTimeDays: v.optional(v.number()),
-    /** How much is on hand, in `unit`. Absent: not tracked. */
+    /** How much is in the yard, in `unit` (D-138). Absent: not tracked. Changed through crm/lib/stock.ts, which writes each change down. */
     inStock: v.optional(v.number()),
+    /** When the amount was last counted, and by whom. */
+    stockCountedAt: v.optional(v.number()),
+    stockCountedBy: v.optional(v.string()),
     sizeDetails: v.string(),
     /** See crm/lib/formula.ts: for example `ceil(area / 1500)`. */
     formula: v.string(),
@@ -520,6 +523,33 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_business_and_nameKey", ["businessId", "nameKey"]),
+
+  /** Every change to a material's stock (D-138): counted, delivered, bought, or used on a job. */
+  stockMovements: defineTable({
+    businessId: v.id("businesses"),
+    materialId: v.id("materials"),
+    change: v.number(),
+    /** The amount in stock after the change. */
+    after: v.number(),
+    reason: v.union(v.literal("count"), v.literal("delivery"), v.literal("used"), v.literal("bought")),
+    opportunityId: v.optional(v.id("opportunities")),
+    purchaseOrderId: v.optional(v.id("purchaseOrders")),
+    note: v.string(),
+    byName: v.string(),
+    at: v.number(),
+  }).index("by_material", ["materialId", "at"]),
+
+  /** Which material kits a quoted service needs, and which measurement its quoted quantity is (D-137). `key` is the service name in lower case
+   *  (crm/lib/takeoffLinks.ts). Made on the Takeoff tab and used for every later job. */
+  serviceKits: defineTable({
+    businessId: v.id("businesses"),
+    key: v.string(),
+    service: v.string(),
+    kitIds: v.array(v.id("materialKits")),
+    measure: v.union(v.literal("area"), v.literal("perimeter"), v.literal("length"), v.literal("quantity"), v.literal("none")),
+    updatedAt: v.number(),
+    updatedByName: v.string(),
+  }).index("by_business_and_key", ["businessId", "key"]),
 
   /** A named list of materials that go on a takeoff together (D-104): "Turf: Standard install", "Underground: 3 in. drain". Adding a kit to a project's
    *  takeoff adds each of its materials as a line (a snapshot, like any line). It holds no rates: each material has its own formula. */
@@ -566,11 +596,12 @@ export default defineSchema({
    *  takeoff line they came from (a labelled snapshot, so editing the takeoff later changes no order). Written only by crm/purchaseOrders.ts. */
   purchaseOrders: defineTable({
     businessId: v.id("businesses"),
-    opportunityId: v.id("opportunities"),
+    /** Absent: bought for the yard, not for one job (D-138). */
+    opportunityId: v.optional(v.id("opportunities")),
     number: v.string(),
     supplier: v.string(),
     status: v.union(v.literal("draft"), v.literal("ordered"), v.literal("delivered"), v.literal("cancelled")),
-    lines: v.array(v.object({ takeoffLineId: v.optional(v.id("takeoffLines")), name: v.string(), unit: v.string(), qty: v.number(), unitCostCents: v.optional(v.number()) })),
+    lines: v.array(v.object({ takeoffLineId: v.optional(v.id("takeoffLines")), materialId: v.optional(v.id("materials")), name: v.string(), unit: v.string(), qty: v.number(), unitCostCents: v.optional(v.number()) })),
     notes: v.string(),
     /** UTC midnight, or unset. */
     expectedDate: v.optional(v.number()),
@@ -578,13 +609,18 @@ export default defineSchema({
     deliveredAt: v.optional(v.number()),
     createdByName: v.string(),
     createdAt: v.number(),
-  }).index("by_opportunity", ["opportunityId", "createdAt"]),
+  })
+    .index("by_opportunity", ["opportunityId", "createdAt"])
+    .index("by_business", ["businessId", "createdAt"]),
 
   /** A project's measurements for the takeoff, by the names a formula uses. One row per project. Written only by crm/takeoff.ts. */
   takeoffs: defineTable({
     businessId: v.id("businesses"),
     opportunityId: v.id("opportunities"),
     inputs: v.record(v.string(), v.number()),
+    /** When what the job took from stock was recorded (D-138); from then the job claims nothing more. */
+    stockUsedAt: v.optional(v.number()),
+    stockUsedByName: v.optional(v.string()),
     updatedAt: v.number(),
     updatedByName: v.string(),
   }).index("by_opportunity", ["opportunityId"]),
@@ -611,9 +647,14 @@ export default defineSchema({
     unitCostCents: v.optional(v.number()),
     supplier: v.string(),
     leadTimeDays: v.optional(v.number()),
+    /** No longer written (D-138): stock is read from the material. */
     inStock: v.optional(v.number()),
+    /** Amounts of this line's own, used instead of the job's measurements: the quoted size of just the services that need this material (D-137). */
+    measures: v.optional(v.record(v.string(), v.number())),
     notes: v.string(),
-  }).index("by_opportunity", ["opportunityId", "position"]),
+  })
+    .index("by_opportunity", ["opportunityId", "position"])
+    .index("by_material", ["materialId"]),
 
   /** The next job number for a business. Written only by crm/lib/jobNumber.ts. */
   jobCounters: defineTable({

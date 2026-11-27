@@ -4,6 +4,7 @@ import { mutation, query } from "../_generated/server";
 import { requireModule } from "./lib/access";
 import { nameKeyOf } from "./lib/catalogue";
 import { formulaProblem } from "./lib/formula";
+import { setStock } from "./lib/stock";
 import { allows } from "./lib/permissions";
 import { ROUNDINGS } from "./lib/takeoff";
 
@@ -88,14 +89,19 @@ export const save = mutation({
     const costCents = costs ? args.costCents : existing?.costCents;
     const row = {
       name, nameKey, sku: args.sku.trim().slice(0, 60), category: args.category.trim().slice(0, 60), unit: args.unit.trim().slice(0, 30), costCents, supplier: args.supplier.trim().slice(0, 100),
-      leadTimeDays: args.leadTimeDays, inStock: args.inStock, sizeDetails: args.sizeDetails.trim().slice(0, 300), formula: args.formula.trim(), wastagePercent: args.wastagePercent,
+      leadTimeDays: args.leadTimeDays, sizeDetails: args.sizeDetails.trim().slice(0, 300), formula: args.formula.trim(), wastagePercent: args.wastagePercent,
       rounding: args.rounding, updatedAt: args.now,
     };
-    if (existing) {
-      await ctx.db.patch(existing._id, row);
-      return existing._id;
+    let id = existing?._id;
+    if (id) await ctx.db.patch(id, row);
+    else id = await ctx.db.insert("materials", { businessId: args.businessId, createdAt: args.now, ...row });
+    // An amount typed here is a count (D-138); an emptied one stops tracking.
+    if (args.inStock !== existing?.inStock) {
+      const m = (await ctx.db.get(id))!;
+      if (args.inStock === undefined) await ctx.db.patch(id, { inStock: undefined, stockCountedAt: undefined, stockCountedBy: undefined });
+      else await setStock(ctx, m, args.inStock, { reason: "count", byName: staff.name, now: args.now });
     }
-    return ctx.db.insert("materials", { businessId: args.businessId, createdAt: args.now, ...row });
+    return id;
   },
 });
 

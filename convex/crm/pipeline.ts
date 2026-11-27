@@ -15,6 +15,7 @@ import { notifyStage } from "./lib/mentionNotify";
 import { completionBlock, completionState } from "./lib/construction";
 import { clearInstallDays } from "./lib/installDays";
 import { materialsShortfall } from "./lib/readiness";
+import { fillTakeoff } from "./lib/takeoffFill";
 
 /** The pipeline boards (D-061, D-080). `moveStage` changes a stage inside the project's current pipeline.
  *  `startPreplanning`, `startConstruction`, `returnToSales` and `returnToPreplanning` are the only moves between pipelines. */
@@ -64,7 +65,7 @@ async function checkWon(ctx: MutationCtx, project: Doc<"opportunities">): Promis
 async function handoffNote(ctx: MutationCtx, id: Id<"opportunities">, note: string) {
   const short = await materialsShortfall(ctx, id);
   if (!short) return note;
-  const parts = [short.notOrdered.length && `${short.notOrdered.length} not ordered`, short.onTheWay.length && `${short.onTheWay.length} on the way`].filter(Boolean);
+  const parts = [short.notOrdered.length && `${short.notOrdered.length} not ordered`, short.onTheWay.length && `${short.onTheWay.length} on the way`, short.noQuantity.length && `${short.noQuantity.length} with no quantity`].filter(Boolean);
   return `${note}. Materials not ready: ${parts.join(", ")}`;
 }
 
@@ -144,6 +145,9 @@ export async function applyMove(ctx: MutationCtx, project: Doc<"opportunities">,
     if (won !== null) {
       await changePipeline(ctx, won, staff, { from: ["Sales", "Closed Won"], to: ["Preplanning", PREPLANNING_ENTRY], now, note: "Sent to Preplanning automatically", quiet: true });
       handedOff = true;
+      // The takeoff starts from the approved quote's linked services and the site visit (D-137).
+      const ready = await ctx.db.get(project._id);
+      if (ready !== null) await fillTakeoff(ctx, ready, staff.name, now);
     }
   }
   return { from, to, handedOff };

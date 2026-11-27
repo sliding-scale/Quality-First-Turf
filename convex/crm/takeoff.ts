@@ -4,7 +4,9 @@ import { mutation, query, type MutationCtx, type QueryCtx } from "../_generated/
 import { requireProject } from "./lib/access";
 import { allows } from "./lib/permissions";
 import { emptyInputs, lineQuantity, summarize, TAKEOFF_INPUTS } from "./lib/takeoff";
-import { workAreasOf } from "./lib/visitData";
+import { fillTakeoff, quoteServices, visitMeasurements } from "./lib/takeoffFill";
+import { LINK_MEASURES, serviceKey, serviceOf, sharedService } from "./lib/takeoffLinks";
+import { freeStockFor } from "./lib/stock";
 
 /** A project's material takeoff (PRD 4.2, plan 2026-11-19-takeoff): the measurements, the materials with the quantity each formula works out, and
  *  the requirements summary. It is Preplanning work, so it follows the Preplanning module whatever stage the project is at. A line is a labelled
@@ -29,21 +31,6 @@ function inputsOf(t: Doc<"takeoffs"> | null): Record<string, number> {
   return { ...emptyInputs(), ...(t?.inputs ?? {}) };
 }
 
-/** Measurements to start from when the project has a site visit (the CRM's, else the customer form's): its work areas added up. Null when there is nothing to read. */
-async function suggestion(ctx: QueryCtx, p: Doc<"opportunities">): Promise<{ area: number; perimeter: number } | null> {
-  const areas = await workAreasOf(ctx, p);
-  if (areas === null) return null;
-  let area = 0;
-  let perimeter = 0;
-  for (const a of areas) {
-    if (a.length === null || a.width === null) continue;
-    const n = a.quantity ?? 1;
-    area += a.length * a.width * n;
-    perimeter += 2 * (a.length + a.width) * n;
-  }
-  return area > 0 ? { area: Math.round(area * 100) / 100, perimeter: Math.round(perimeter * 100) / 100 } : null;
-}
-
 export const get = query({
   args: { id: v.id("opportunities") },
   handler: async (ctx, args) => {
@@ -53,14 +40,17 @@ export const get = query({
     const costs = allows(staff.levels.prices, "view");
     const t = await takeoffOf(ctx, p._id);
     const rows = await linesOf(ctx, p._id);
+    const stock = await freeStockFor(ctx, p._id, rows);
     const lines = await Promise.all(rows.map(async (l) => ({
       id: l._id, name: l.name, category: l.category ?? (l.materialId ? (await ctx.db.get(l.materialId))?.category ?? "" : ""), sku: l.sku, unit: l.unit, formula: l.formula, wastagePercent: l.wastagePercent, calcQty: l.calcQty ?? null, calcError: l.calcError ?? null,
       qtyOverride: l.qtyOverride ?? null, qty: l.qtyOverride ?? l.calcQty ?? 0, unitCostCents: costs ? l.unitCostCents ?? null : null, supplier: l.supplier,
-      leadTimeDays: l.leadTimeDays ?? null, inStock: l.inStock ?? null, notes: l.notes, materialId: l.materialId ?? null,
+      leadTimeDays: l.leadTimeDays ?? null, notes: l.notes, materialId: l.materialId ?? null, measures: l.measures ?? null,
+      // What is in the yard, and how much of it is free for this job after the jobs ahead of it (D-138). null: not tracked.
+      onHand: stock.get(l._id)!.onHand, inStock: stock.get(l._id)!.free,
     })));
     const summary = summarize(lines.map((l) => ({ name: l.name, unit: l.unit, qty: l.qty, unitCostCents: l.unitCostCents, supplier: l.supplier, leadTimeDays: l.leadTimeDays, inStock: l.inStock })));
     return {
-      inputs: inputsOf(t), saved: t !== null, updatedAt: t?.updatedAt ?? null, updatedByName: t?.updatedByName ?? null, suggested: await suggestion(ctx, p),
+      inputs: inputsOf(t), saved: t !== null, updatedAt: t?.updatedAt ?? null, updatedByName: t?.updatedByName ?? null, suggested: await visitMeasurements(ctx, p), stockUsedAt: t?.stockUsedAt ?? null,
       lines, summary, canSeeCosts: costs, inputList: TAKEOFF_INPUTS.map((i) => ({ key: i.key, label: i.label, unit: i.unit, group: i.group as string })),
     };
   },
@@ -69,7 +59,7 @@ export const get = query({
 /** Works every line out again from the measurements, unless the person typed their own quantity for it (that stays, and the worked-out one is still kept). */
 async function recalc(ctx: MutationCtx, id: Id<"opportunities">, inputs: Record<string, number>) {
   for (const l of await linesOf(ctx, id)) {
-    const r = lineQuantity({ formula: l.formula, wastagePercent: l.wastagePercent, rounding: l.rounding, inputs });
+    const r = lineQuantity({ formula: l.formula, wastagePercent: l.wastagePercent, rounding: l.rounding, inputs: { ...inputs, ...(l.measures ?? {}) } });
     await ctx.db.patch(l._id, r.ok ? { calcQty: r.qty, calcError: undefined } : { calcQty: undefined, calcError: r.error });
   }
 }
@@ -95,7 +85,7 @@ export const saveInputs = mutation({
 
 const snapshot = (m: Doc<"materials">) => ({
   materialId: m._id, name: m.name, category: m.category, sku: m.sku, unit: m.unit, formula: m.formula, wastagePercent: m.wastagePercent, rounding: m.rounding, unitCostCents: m.costCents,
-  supplier: m.supplier, leadTimeDays: m.leadTimeDays, inStock: m.inStock,
+  supplier: m.supplier, leadTimeDays: m.leadTimeDays,
 });
 
 export const addLine = mutation({
@@ -146,8 +136,10 @@ export const updateLine = mutation({
   args: {
     lineId: v.id("takeoffLines"),
     /** `null` clears the person's own quantity, so the worked-out one is used again. */
-    qtyOverride: v.union(v.number(), v.null()), supplier: v.string(), leadTimeDays: v.union(v.number(), v.null()), inStock: v.union(v.number(), v.null()),
+    qtyOverride: v.union(v.number(), v.null()), supplier: v.string(), leadTimeDays: v.union(v.number(), v.null()),
     unitCostCents: v.union(v.number(), v.null()), notes: v.string(),
+    /** Drops the line's own amounts, so it follows the job's measurements again (D-137). */
+    useJobMeasurements: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const l = await ctx.db.get(args.lineId);
@@ -155,17 +147,21 @@ export const updateLine = mutation({
     const { staff } = await projectOf(ctx, l.opportunityId, "edit");
     if (args.qtyOverride !== null && (!Number.isFinite(args.qtyOverride) || args.qtyOverride < 0 || args.qtyOverride > 10_000_000)) throw new ConvexError("Check the quantity.");
     if (args.leadTimeDays !== null && (!Number.isInteger(args.leadTimeDays) || args.leadTimeDays < 0 || args.leadTimeDays > 365)) throw new ConvexError("The lead time is between 0 and 365 days.");
-    if (args.inStock !== null && (!Number.isFinite(args.inStock) || args.inStock < 0)) throw new ConvexError("Check the amount in stock.");
     if (args.unitCostCents !== null && (!Number.isInteger(args.unitCostCents) || args.unitCostCents < 0)) throw new ConvexError("Check the cost.");
     const costs = allows(staff.levels.prices, "view");
+    let reset = {};
+    if (args.useJobMeasurements && l.measures) {
+      const r = lineQuantity({ formula: l.formula, wastagePercent: l.wastagePercent, rounding: l.rounding, inputs: inputsOf(await takeoffOf(ctx, l.opportunityId)) });
+      reset = { measures: undefined, ...(r.ok ? { calcQty: r.qty, calcError: undefined } : { calcQty: undefined, calcError: r.error }) };
+    }
     await ctx.db.patch(l._id, {
-      qtyOverride: args.qtyOverride ?? undefined, supplier: args.supplier.trim().slice(0, 100), leadTimeDays: args.leadTimeDays ?? undefined, inStock: args.inStock ?? undefined,
-      ...(costs ? { unitCostCents: args.unitCostCents ?? undefined } : {}), notes: args.notes.trim().slice(0, 1000),
+      qtyOverride: args.qtyOverride ?? undefined, supplier: args.supplier.trim().slice(0, 100), leadTimeDays: args.leadTimeDays ?? undefined,
+      ...(costs ? { unitCostCents: args.unitCostCents ?? undefined } : {}), notes: args.notes.trim().slice(0, 1000), ...reset,
     });
   },
 });
 
-/** Reads the material again (its formula, supplier, cost, lead time and stock) and works the line out from the project's measurements. The person's own quantity is cleared. */
+/** Reads the material again (its formula, supplier, cost and lead time) and works the line out from its measurements. The person's own quantity is cleared. */
 export const refreshLine = mutation({
   args: { lineId: v.id("takeoffLines") },
   handler: async (ctx, args) => {
@@ -174,8 +170,70 @@ export const refreshLine = mutation({
     const { p } = await projectOf(ctx, l.opportunityId, "edit");
     const m = l.materialId ? await ctx.db.get(l.materialId) : null;
     if (m === null) throw new ConvexError("This material is no longer in the list, so there is nothing to refresh from.");
-    const r = lineQuantity({ formula: m.formula, wastagePercent: m.wastagePercent, rounding: m.rounding, inputs: inputsOf(await takeoffOf(ctx, p._id)) });
+    const r = lineQuantity({ formula: m.formula, wastagePercent: m.wastagePercent, rounding: m.rounding, inputs: { ...inputsOf(await takeoffOf(ctx, p._id)), ...(l.measures ?? {}) } });
     await ctx.db.patch(l._id, { ...snapshot(m), qtyOverride: undefined, ...(r.ok ? { calcQty: r.qty, calcError: undefined } : { calcQty: undefined, calcError: r.error }) });
+  },
+});
+
+/** The approved quote's services and how each is linked to material kits (D-137), for the Takeoff tab's "From the quote" card. */
+export const fromQuote = query({
+  args: { id: v.id("opportunities") },
+  handler: async (ctx, args) => {
+    const p = await ctx.db.get(args.id);
+    if (p === null || p.outcome !== "won") return null;
+    await requireProject(ctx, p, "pipelinePreplanning", "view");
+    const { quote, lines } = await quoteServices(ctx, p);
+    return {
+      quote: quote ? { id: quote._id, number: quote.number, status: quote.status } : null,
+      lines: lines.map((l) => ({
+        name: l.name, service: l.service, quantity: l.quantity, suggested: l.suggested,
+        link: l.link ? { kitIds: l.link.row.kitIds, measure: l.link.row.measure, shared: l.link.shared } : null,
+      })),
+    };
+  },
+});
+
+/** Links a quoted service to the kits it needs, for this and every later job. A product of an installation group ("AG Standard Install -
+ *  Malibu") also becomes the group's link when the group has none, so the other products need no linking. No kits removes the link. */
+export const linkService = mutation({
+  args: {
+    id: v.id("opportunities"), name: v.string(), kitIds: v.array(v.id("materialKits")),
+    measure: v.union(v.literal("area"), v.literal("perimeter"), v.literal("length"), v.literal("quantity"), v.literal("none")), now: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const { p, staff } = await projectOf(ctx, args.id, "edit");
+    const service = serviceOf(args.name);
+    if (!service || service.length > 200) throw new ConvexError("That service has no name.");
+    if (!(LINK_MEASURES as readonly string[]).includes(args.measure)) throw new ConvexError("Pick what the quantity measures.");
+    const kitIds = [...new Set(args.kitIds)];
+    if (kitIds.length > 20) throw new ConvexError("A service can use up to 20 kits.");
+    for (const id of kitIds) if ((await ctx.db.get(id))?.businessId !== p.businessId) throw new ConvexError("That kit no longer exists.");
+    const find = (name: string) => ctx.db.query("serviceKits").withIndex("by_business_and_key", (q) => q.eq("businessId", p.businessId).eq("key", serviceKey(name))).first();
+    const write = async (name: string, existing: Doc<"serviceKits"> | null) => {
+      const row = { service: name, kitIds, measure: args.measure, updatedAt: args.now, updatedByName: staff.name };
+      if (existing) await ctx.db.patch(existing._id, row);
+      else await ctx.db.insert("serviceKits", { businessId: p.businessId, key: serviceKey(name), ...row });
+    };
+    const own = await find(service);
+    const group = sharedService(service);
+    if (kitIds.length === 0) {
+      if (own) await ctx.db.delete(own._id);
+      // With no link of its own it would take its group's again, so the group's goes too.
+      const shared = group ? await find(group) : null;
+      if (shared) await ctx.db.delete(shared._id);
+      return;
+    }
+    await write(service, own);
+    if (group && (await find(group)) === null) await write(group, null);
+  },
+});
+
+/** Adds the materials of the linked services and fills measurements nobody typed (D-137). */
+export const fill = mutation({
+  args: { id: v.id("opportunities"), now: v.number() },
+  handler: async (ctx, args) => {
+    const { p, staff } = await projectOf(ctx, args.id, "edit");
+    return fillTakeoff(ctx, p, staff.name, args.now);
   },
 });
 

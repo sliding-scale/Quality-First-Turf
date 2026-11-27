@@ -6,12 +6,14 @@
 
 import { useMutation, useQuery } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
-import { useState } from "react";
+import Link from "next/link";
+import { useState, type ReactNode } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { PO_LABEL } from "@/convex/crm/lib/purchaseOrders";
 import { moneyCents } from "@/lib/format";
 import { clock, failure } from "@/lib/pipeline";
+import { DeliverDialog } from "./stock-dialogs";
 import { useUI } from "./ui-provider";
 import { dayFromKey, dayKey, dayLabel } from "./work-package-tab";
 
@@ -43,7 +45,10 @@ export function PurchaseOrders({ id, canEdit }: { id: Id<"opportunities">; canEd
     <section className="card op-card op-wide po">
       <div className="op-sechead">
         <h2>Purchase orders</h2>
-        {canEdit && <button type="button" className="btn primary" disabled={busy || data.toOrderCount === 0} onClick={() => void make()} data-tip={data.toOrderCount === 0 ? "Everything is in stock or already on an order" : "One draft per supplier"}>Create from takeoff</button>}
+        <span className="job-rowbtns tk-noprint">
+          <Link className="btn" href="/stock?tab=orders">All orders</Link>
+          {canEdit && <button type="button" className="btn primary" disabled={busy || data.toOrderCount === 0} onClick={() => void make()} data-tip={data.toOrderCount === 0 ? "Everything is in stock or already on an order" : "One draft per supplier"}>Create from takeoff</button>}
+        </span>
       </div>
 
       <p className={`po-ready${r.ready ? " ok" : ""}`}>
@@ -63,7 +68,7 @@ export function PurchaseOrders({ id, canEdit }: { id: Id<"opportunities">; canEd
   );
 }
 
-function OrderCard({ o, canSeeCosts, canEdit }: { o: Order; canSeeCosts: boolean; canEdit: boolean }) {
+export function OrderCard({ o, canSeeCosts, canEdit, label }: { o: Order; canSeeCosts: boolean; canEdit: boolean; /** What the order is for, on the Orders tab. */ label?: ReactNode }) {
   const { toast } = useUI();
   const save = useMutation(api.crm.purchaseOrders.save);
   const setStatus = useMutation(api.crm.purchaseOrders.setStatus);
@@ -74,6 +79,7 @@ function OrderCard({ o, canSeeCosts, canEdit }: { o: Order; canSeeCosts: boolean
   const [qtys, setQtys] = useState(o.lines.map((l) => String(l.qty)));
   const [busy, setBusy] = useState(false);
   const [tried, setTried] = useState(false);
+  const [receiving, setReceiving] = useState(false);
   const editable = canEdit && (o.status === "draft" || o.status === "ordered");
   const draft = o.status === "draft";
   const qtyBad = (q: string) => !(Number(q) > 0);
@@ -100,6 +106,7 @@ function OrderCard({ o, canSeeCosts, canEdit }: { o: Order; canSeeCosts: boolean
       <header>
         <b>{o.number}</b>
         <span className={`po-chip ${o.status}`}>{PO_LABEL[o.status]}</span>
+        {label}
         {o.orderedAt && <span className="muted">ordered {dayLabel(o.orderedAt)}</span>}
         {o.deliveredAt && <span className="muted">delivered {dayLabel(o.deliveredAt)}</span>}
         {canSeeCosts && o.totalCents !== null && <span className="po-total">{moneyCents(o.totalCents)}</span>}
@@ -123,12 +130,13 @@ function OrderCard({ o, canSeeCosts, canEdit }: { o: Order; canSeeCosts: boolean
         <div className="cat-actions">
           <button type="button" className="btn" disabled={busy} onClick={() => void saveAll()}>Save</button>
           {draft && <button type="button" className="btn primary" disabled={busy} onClick={() => { setTried(true); if (qtys.some(qtyBad)) return; void run(async () => { await save({ id: o.id, supplier, expectedDate: dayFromKey(expected), notes, qtys: qtys.map(Number) }); await setStatus({ id: o.id, status: "ordered", now: clock() }); }, "Order placed.", "The order could not be placed."); }}>Place order</button>}
-          {o.status === "ordered" && <button type="button" className="btn primary" disabled={busy} onClick={() => void run(() => setStatus({ id: o.id, status: "delivered", now: clock() }), "Marked delivered.", "The order could not be marked delivered.")}>Mark delivered</button>}
+          {o.status === "ordered" && <button type="button" className="btn primary" disabled={busy} onClick={() => setReceiving(true)}>Mark delivered</button>}
           <button type="button" className="btn" disabled={busy} onClick={() => void run(() => setStatus({ id: o.id, status: "cancelled", now: clock() }), "Order cancelled.", "The order could not be cancelled.")}>Cancel order</button>
           {draft && <button type="button" className="btn" disabled={busy} onClick={() => void run(() => remove({ id: o.id }), "Order deleted.", "The order could not be deleted.")}>Delete</button>}
         </div>
       )}
       {canEdit && o.status === "cancelled" && <div className="cat-actions"><button type="button" className="btn" disabled={busy} onClick={() => void run(() => remove({ id: o.id }), "Order deleted.", "The order could not be deleted.")}>Delete</button></div>}
+      {receiving && <DeliverDialog order={o} onClose={() => setReceiving(false)} />}
     </article>
   );
 }

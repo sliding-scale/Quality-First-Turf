@@ -10,6 +10,7 @@ import "./schedule.css";
 import "./quote-builder.css";
 import "./client-quote.css";
 import "./construction.css";
+import "./stock.css";
 import "./invoices.css";
 
 // Headings: Figtree (open source), the closest match to Jobber's heading font.

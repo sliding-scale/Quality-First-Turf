@@ -62,10 +62,13 @@ const wonProject = (w: World, over: Record<string, unknown> = {}) =>
   w.base.run((ctx) =>
     ctx.db.insert("opportunities", { businessId: w.qft, clientId: w.clientId, code: "PO-1", title: "Yard", pipeline: "Preplanning", stage: "Material Takeoff & Availability", requestedAt: 1, owner: "x", searchText: "PO-1", outcome: "won", jobNumber: 1, closedAt: 1, ...over }),
   );
+/** A takeoff line with its material; `inStock` is what the material has in the yard (absent: not tracked). */
 const tline = (w: World, id: Id<"opportunities">, over: Record<string, unknown> = {}) =>
-  w.base.run((ctx) =>
-    ctx.db.insert("takeoffLines", { businessId: w.qft, opportunityId: id, position: 0, name: "Turf roll", sku: "", unit: "roll", formula: "1", wastagePercent: 0, rounding: "up", calcQty: 3, supplier: "TurfCo", notes: "", inStock: 1, unitCostCents: 120000, ...over }),
-  );
+  w.base.run(async (ctx) => {
+    const { inStock, ...line } = { inStock: 1 as number | undefined, name: "Turf roll", unit: "roll", supplier: "TurfCo", ...over } as { inStock?: number; name: string; unit: string; supplier: string };
+    const materialId = await ctx.db.insert("materials", { businessId: w.qft, name: line.name, nameKey: line.name.toLowerCase(), sku: "", category: "", unit: line.unit, supplier: line.supplier, sizeDetails: "", formula: "1", wastagePercent: 0, rounding: "up", createdAt: 1, updatedAt: 1, ...(inStock === undefined ? {} : { inStock }) });
+    return ctx.db.insert("takeoffLines", { businessId: w.qft, opportunityId: id, materialId, position: 0, sku: "", formula: "1", wastagePercent: 0, rounding: "up", calcQty: 3, notes: "", unitCostCents: 120000, ...line });
+  });
 async function blindPm(w: World) {
   const blind = await signedInAs(w.base, { key: "blind", roles: ["pm"], businessIds: [w.qft], name: "Blind" });
   await w.base.run(async (ctx) => {

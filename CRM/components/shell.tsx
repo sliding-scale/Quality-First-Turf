@@ -39,6 +39,7 @@ const NAV: NavItem[] = [
   { divider: true },
   { key: "pipeline", label: "Pipeline", icon: "kanban", href: "/pipeline" },
   { key: "tasks", label: "Tasks", icon: "tasks", href: "/tasks" },
+  { key: "stock", label: "Stock", icon: "package", href: "/stock" },
   { divider: true },
   { key: "messages", label: "Messages", icon: "message" }, // greyed out until SMS and WhatsApp are connected (user, 2026-11-23)
 ];
@@ -56,7 +57,7 @@ const PIPELINES: { label: string; href?: string }[] = [
 
 /** The permission module behind each sidebar item and each page (PRD 5.5). The backend refuses what a person may not do; this only keeps the
  *  menu and the page tidy. null: open to everyone signed in. */
-const NAV_MODULE: Record<string, Module | undefined> = { clients: "clients", requests: "requests", quotes: "quotes", schedule: "schedule", jobs: "jobs", messages: "messages", invoices: "invoices", payments: "payments", tasks: "tasks" };
+const NAV_MODULE: Record<string, Module | undefined> = { clients: "clients", requests: "requests", quotes: "quotes", schedule: "schedule", jobs: "jobs", messages: "messages", invoices: "invoices", payments: "payments", tasks: "tasks", stock: "pipelinePreplanning" };
 const PIPELINE_MODULE: Record<string, Module> = { Sales: "pipelineSales", Preplanning: "pipelinePreplanning", Construction: "pipelineConstruction", Backend: "pipelineFinance" };
 function moduleOfPath(pathname: string): Module | null {
   const first = NAV_MODULE[pathname.split("/")[1] ?? ""];
@@ -183,7 +184,7 @@ function ShellInner({ children }: { children: ReactNode }) {
   const searchRef = useRef<HTMLInputElement>(null);
   const mainRef = useRef<HTMLElement>(null);
 
-  const active = pathname === "/home" || pathname === "/" ? "home" : pathname.startsWith("/clients") ? "clients" : pathname.startsWith("/requests") ? "requests" : pathname.startsWith("/quotes") ? "quotes" : pathname.startsWith("/invoices") ? "invoices" : pathname.startsWith("/payments") ? "payments" : pathname.startsWith("/schedule") ? "schedule" : pathname.startsWith("/pipeline") ? "pipeline" : pathname.startsWith("/tasks") ? "tasks" : pathname.startsWith("/settings/users") ? "team" : "";
+  const active = pathname === "/home" || pathname === "/" ? "home" : pathname.startsWith("/clients") ? "clients" : pathname.startsWith("/requests") ? "requests" : pathname.startsWith("/quotes") ? "quotes" : pathname.startsWith("/invoices") ? "invoices" : pathname.startsWith("/payments") ? "payments" : pathname.startsWith("/schedule") ? "schedule" : pathname.startsWith("/pipeline") ? "pipeline" : pathname.startsWith("/tasks") ? "tasks" : pathname.startsWith("/stock") ? "stock" : pathname.startsWith("/settings/users") ? "team" : "";
 
   // The collapsed sidebar is a class on <html>, so a small script in layout.tsx can set it before first paint.
   useEffect(() => {

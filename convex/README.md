@@ -35,7 +35,7 @@ Every public CRM function starts with `requireModule(ctx, businessId, module, le
 | Schedule | `schedule.ts` (double-booking prevention), `calendarConnect.ts`, `calendarHttp.ts`, `calendarSync.ts` (Zoho Calendar, D-069) |
 | Quotes | `quotes.ts`, `quoteDraft.ts`, `quoteFlow.ts`, `quotePrices.ts`, `quoteImport.ts`, `disclaimers.ts`, `clientQuote.ts` (the customer's `/q/` page) |
 | Jobs | `jobs.ts`, `jobCosts.ts`, `checklists.ts`, `catalogue.ts` (Products & Services) |
-| Preplanning and construction | `materials.ts`, `materialKits.ts`, `takeoff.ts`, `purchaseOrders.ts`, `workPackages.ts`, `clientWorkPackage.ts` (the installer's `/w/` page), `construction.ts`, `clientSignoff.ts` (`/signoff/`) |
+| Preplanning and construction | `materials.ts`, `materialKits.ts`, `takeoff.ts`, `purchaseOrders.ts`, `stock.ts`, `workPackages.ts`, `clientWorkPackage.ts` (the installer's `/w/` page), `construction.ts`, `clientSignoff.ts` (`/signoff/`) |
 | Finance | `invoices.ts`, `payments.ts`, `billing.ts`, `invoiceSettings.ts`, `clientInvoice.ts` (`/i/`) |
 | Messages | `messages.ts`, `messageSend.ts`, `messagesHttp.ts` (Twilio inbound), `phoneNumbers.ts`, `calls.ts`, `whatsapp.ts` |
 | Data | `exports.ts` (D-101), `seed.ts`, `sampleData.ts`, `devBoardDemo.ts` (dev only, behind `CRM_ALLOW_SAMPLE_DATA`) |
