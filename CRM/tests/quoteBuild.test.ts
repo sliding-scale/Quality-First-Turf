@@ -121,11 +121,35 @@ describe("attachments, notes, duplicate and archive", () => {
     expect((await w.sales.query(api.crm.quotes.get, { id }))!.notes.map((n) => [n.text, n.author])).toEqual([["Call before delivery", "Sam Sales"]]);
   });
 
+  it("copies a quote's pictures, attachments and notes into files of the copy's own", async () => {
+    const w = await world();
+    const store = (bytes: number, type: string) => w.base.run((ctx) => ctx.storage.store(new Blob([new Uint8Array(bytes)], { type }))) as Promise<Id<"_storage">>;
+    const id = await w.sales.mutation(api.crm.quoteDraft.create, { businessId: w.qft, clientId: w.clientId, title: "T" });
+    const intro = await store(10, "image/png");
+    const picture = await store(11, "image/png");
+    const plan = await store(12, "application/pdf");
+    const noteFile = await store(13, "image/jpeg");
+    await w.sales.mutation(api.crm.quoteDraft.save, { id, ...content({ introImageId: intro, lines: [item("Turf", 2, 10000, { imageId: picture })] }) });
+    await w.sales.mutation(api.crm.quoteDraft.addAttachment, { quoteId: id, storageId: plan, name: "site-plan.pdf" });
+    await w.sales.mutation(api.crm.quoteDraft.addNote, { quoteId: id, text: "Call before delivery", files: [{ storageId: noteFile, name: "gate.jpg" }] });
+    const copy = await w.sales.action(api.crm.quoteDraft.duplicate, { id });
+    const b = (await w.sales.query(api.crm.quotes.get, { id: copy }))!;
+    expect(b.introImageUrl).toBeTruthy();
+    expect(b.lines[0].imageUrl).toBeTruthy();
+    expect(b.attachments.map((x) => x.name)).toEqual(["site-plan.pdf"]);
+    expect(b.notes.map((n) => [n.text, n.author, n.files.map((f) => f.name)])).toEqual([["Call before delivery", "Sam Sales", ["gate.jpg"]]]);
+    // The copy's files are its own, so deleting it leaves the original's where they were.
+    await w.base.run(async (ctx) => { const { deleteQuote } = await import("../../convex/crm/lib/quoteData"); await deleteQuote(ctx, (await ctx.db.get(copy))!); });
+    for (const f of [intro, picture, plan, noteFile]) expect(await w.base.run((ctx) => ctx.storage.getUrl(f))).not.toBeNull();
+    expect((await w.base.run((ctx) => ctx.db.query("quoteAttachments").collect())).map((x) => x.storageId)).toEqual([plan]);
+    await expect(w.outsider.action(api.crm.quoteDraft.duplicate, { id })).rejects.toThrow();
+  });
+
   it("duplicates a quote as a new Draft with the same lines, and archives one", async () => {
     const w = await world();
     const id = await w.sales.mutation(api.crm.quoteDraft.create, { businessId: w.qft, clientId: w.clientId, title: "T" });
     await w.sales.mutation(api.crm.quoteDraft.save, { id, ...content() });
-    const copy = await w.sales.mutation(api.crm.quoteDraft.duplicate, { id });
+    const copy = await w.sales.action(api.crm.quoteDraft.duplicate, { id });
     const a = await w.sales.query(api.crm.quotes.get, { id });
     const b = await w.sales.query(api.crm.quotes.get, { id: copy });
     expect(b!.number).toBeGreaterThan(a!.number);

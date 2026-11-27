@@ -324,6 +324,9 @@ export default defineSchema({
      *  board and the request list but stays searchable and can be restored; `archivedFromStage` is where Restore puts it back. */
     archivedAt: v.optional(v.number()),
     archivedReason: v.optional(v.string()),
+    /** A quoted or won request archived from its page (D-134): off the Requests list only. The project stays on its board, so `archivedAt`
+     *  (which takes a project off the boards) is not set. */
+    requestArchivedAt: v.optional(v.number()),
     archivedFromStage: v.optional(v.string()),
     /** Construction (PRD 4.6, D-081): the project manager (a CRM user) and the crews (records, not logins, D-010) on this project. */
     projectManagerId: v.optional(v.id("users")),
@@ -931,6 +934,27 @@ export default defineSchema({
 
   /** The site visit kept in the CRM (D-114): a project's work areas with photos, and the visit notes. One row per project; the customer form's own
    *  rows are never edited. `visitedAt` is set when someone completes the visit. */
+  /** One visit's own work areas (D-133): one row per consultation or follow-up visit that has been saved. */
+  visitSheets: defineTable({
+    businessId: v.id("businesses"),
+    opportunityId: v.id("opportunities"),
+    eventId: v.id("calendarEvents"),
+    areas: v.array(v.object({
+      id: v.string(),
+      label: v.string(),
+      service: v.string(),
+      installType: v.string(),
+      length: v.union(v.number(), v.null()),
+      width: v.union(v.number(), v.null()),
+      quantity: v.union(v.number(), v.null()),
+      notes: v.string(),
+      photoIds: v.array(v.id("_storage")),
+    })),
+    completedAt: v.optional(v.number()),
+    updatedAt: v.number(),
+    updatedByName: v.string(),
+  }).index("by_opportunity", ["opportunityId"]),
+
   opportunityVisits: defineTable({
     businessId: v.id("businesses"),
     opportunityId: v.id("opportunities"),
@@ -1100,6 +1124,12 @@ export default defineSchema({
     .index("by_zohoUid", ["zohoUid"])
     .index("by_event", ["eventId"])
     .index("by_task", ["taskId"]),
+
+  /** An item being sent to Zoho right now (D-135). A second send of the same item waits for it, so Zoho never gets the item twice. */
+  calendarPushes: defineTable({
+    itemKey: v.string(),
+    startedAt: v.number(),
+  }).index("by_itemKey", ["itemKey"]),
 
   /** A pending "Connect Zoho Calendar": the one-use code Zoho sends back with the person. */
   calendarOauthStates: defineTable({

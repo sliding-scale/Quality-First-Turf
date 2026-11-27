@@ -23,8 +23,10 @@ export default clerkMiddleware(async (auth, request) => {
 
 export const config = {
   matcher: [
-    // Skip Next.js internals and static files, unless they are in the search params.
-    "/((?!_next|[^?]*\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    // Skip Next.js internals and static files, unless they are in the search params. The dot before the extension needs two backslashes: with
+    // one it matched any character, so a page whose record id happened to contain "js", "ico" and so on skipped Clerk and showed "Something
+    // went wrong" on a reload (2026-11-26, D-132).
+    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
     "/(api|trpc)(.*)",
   ],
 };

@@ -41,6 +41,8 @@ function stateCode(value: string): string {
 }
 
 function titleFor(services: string[]): string {
+  // "Have a professional reach out" picks no services; the title said nothing ("· 5JCU4P"), so it reads as the customer form's does (D-131).
+  if (services.length === 0) return "Customer enquiry";
   return services.length <= 2 ? services.join(", ") : `${services[0]} + ${services.length - 1} more`;
 }
 

@@ -78,33 +78,6 @@ export const quotes = query({
 
 /** The visit behind the project: the customer form's services, measurements and work areas with their photos. Only a project that came from
  *  the customer form has one. */
-export const visit = query({
-  args: { id: v.id("opportunities") },
-  handler: async (ctx, a) => {
-    const o = await load(ctx, a.id);
-    if (!o) return null;
-    if (!o.sourceProjectId) return { available: false as const, reason: "This project was not made from the customer form, so there is no site visit to show." };
-    const project = await ctx.db.get(o.sourceProjectId);
-    if (project === null) return { available: false as const, reason: "The customer form behind this project is gone." };
-    const areas = await ctx.db.query("workAreas").withIndex("by_projectId", (q) => q.eq("projectId", project._id)).take(100);
-    const workAreas = [];
-    for (const w of areas) {
-      const photos: { url: string }[] = [];
-      for (const pid of w.photoIds.slice(0, 20)) {
-        const url = await ctx.storage.getUrl(pid);
-        if (url) photos.push({ url });
-      }
-      workAreas.push({ label: w.label, service: w.service ?? "", installType: w.installType ?? "", length: w.length, width: w.width, quantity: w.quantity, notes: w.notes, photos });
-    }
-    return {
-      available: true as const,
-      services: project.services, products: project.products, addOns: project.addOns, notes: project.notes, visitedAt: project.visitedAt ?? null,
-      measurements: project.measurements.map((m) => ({ label: m.label, squareFeet: m.squareFeet, linearFeet: m.linearFeet, unmeasured: m.unmeasured, service: m.service ?? "" })),
-      workAreas,
-    };
-  },
-});
-
 type FileItem = {
   key: string; source: "uploaded" | "contract" | "quote"; fileId: Id<"opportunityFiles"> | null; name: string; kind: "plan" | "photo" | "contract" | "other";
   contentType: string; size: number; url: string | null; by: string; at: number; from: string;

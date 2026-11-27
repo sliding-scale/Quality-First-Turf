@@ -244,9 +244,9 @@ function Schedule({ business }: { business: BusinessDoc }) {
               dropdown(
                 e.currentTarget,
                 [
-                  { label: "Reschedule and reassign", icon: "timeline", disabled: !staff.canEdit, onSelect: () => setDialog("reschedule") },
-                  { label: "Manage crews", icon: "crew", disabled: !staff.can("pipelineConstruction", "edit"), onSelect: () => setDialog("crews") },
-                  { label: "Schedule Settings", icon: "sliders", disabled: !staff.canEdit, onSelect: () => setDialog("settings") },
+                  { label: "Reschedule and reassign", icon: "timeline", reason: !staff.canEdit ? "Your role can look at this but not change it." : undefined, onSelect: () => setDialog("reschedule") },
+                  { label: "Manage crews", icon: "crew", reason: !staff.can("pipelineConstruction", "edit") ? "Your role cannot change crews." : undefined, onSelect: () => setDialog("crews") },
+                  { label: "Schedule Settings", icon: "sliders", reason: !staff.canEdit ? "Your role can look at this but not change it." : undefined, onSelect: () => setDialog("settings") },
                 ],
                 { alignRight: true },
               )

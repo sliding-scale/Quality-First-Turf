@@ -8,13 +8,14 @@ import { useMutation, useQuery } from "convex/react";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { ITEM_LABEL, REPEATS, REPEAT_LABEL, addMonths, fromInputs, inWorkingHours, inputParts, monthDays, monthTitle, parseKey, todayKey, BUSINESS_TZ, type ItemType, type Repeat, type ScheduleItem, type WorkingHours } from "@/lib/schedule";
+import { ITEM_LABEL, fromInputs, inWorkingHours, inputParts, BUSINESS_TZ, type ItemType, type Repeat, type ScheduleItem, type WorkingHours } from "@/lib/schedule";
 import { clock, failure } from "@/lib/pipeline";
 import { FilterMenu } from "./filter-menus";
 import { Icon } from "./icon";
 import { PipelineModal } from "./pipeline-dialogs";
 import type { Person } from "./schedule-grid";
-import { TimePicker, addMinutesTo } from "./time-picker";
+import { addMinutesTo } from "./time-picker";
+import { WhenField } from "./when-field";
 import { useUI } from "./ui-provider";
 
 type Kind = ItemType | "task";
@@ -41,14 +42,10 @@ function joinNotes(text: string, lines: Line[]): string {
   const block = kept.map((l) => `• ${l.name.trim()} × ${l.qty.trim() || "1"}`).join("\n");
   return body ? `${body}${LINE_MARK}${block}` : `Line items:\n${block}`;
 }
-function dateLabel(key: string): string {
-  const { y, m, d } = parseKey(key);
-  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }).format(new Date(Date.UTC(y, m - 1, d)));
-}
 
 export type FormStart = { start?: number; personId?: string; kind?: Kind; projectId?: Id<"opportunities">; title?: string; /** A visit for a job (the Job tab), not a follow-up visit on a sales project. */ job?: boolean };
 
-export function ScheduleForm({ businessId, people, hours, initial, editing, showAvailability, picked, onClose, onAvailability }: {
+export function ScheduleForm({ businessId, people, hours, initial, editing, picked, onClose, onAvailability }: {
   businessId: Id<"businesses">;
   people: Person[];
   hours: WorkingHours;
@@ -71,7 +68,7 @@ export function ScheduleForm({ businessId, people, hours, initial, editing, show
   const [kind, setKind] = useState<Kind>(editing?.kind ?? initial.kind ?? "consultation");
   const [forJob, setForJob] = useState(initial.job ?? false);
   const seeded = editing?.start ?? initial.start;
-  const startParts = seeded !== undefined ? inputParts(seeded) : { date: "", time: inputParts(defaultStart()).time };
+  const startParts = seeded !== undefined ? inputParts(seeded) : { date: "", time: "09:00" };
   const [date, setDate] = useState(startParts.date);
   const [time, setTime2] = useState(startParts.time);
   // Start and end times from the time picker (D-129); a new item starts as an hour long.
@@ -82,12 +79,12 @@ export function ScheduleForm({ businessId, people, hours, initial, editing, show
   const [notes, setNotes] = useState(parsedNotes.text);
   const [lines, setLines] = useState<Line[]>(parsedNotes.lines);
   const [showNotes, setShowNotes] = useState(parsedNotes.text.trim().length > 0);
-  const [more, setMore] = useState(!!editing);
-  const [repeat, setRepeat] = useState<Repeat>(editing?.repeat ?? "none");
+  // More Options, Repeat and Show availability were taken out (user, 2026-11-26, D-130); an item that already repeats keeps its repeat.
+  const repeat: Repeat = editing?.repeat ?? "none";
   const [assignees, setAssignees] = useState<string[]>(editing ? editing.assigneeIds : initial.personId ? [initial.personId] : []);
   const [projectId, setProjectId] = useState<Id<"opportunities"> | undefined>(editing?.opportunityId ?? initial.projectId);
   const [search, setSearch] = useState("");
-  const [avail, setAvail] = useState(showAvailability ?? true);
+
   const [bad, setBad] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -108,11 +105,11 @@ export function ScheduleForm({ businessId, people, hours, initial, editing, show
     if (picked.personId) setAssignees([picked.personId]);
   }
 
-  // Show the chosen people's busy times behind the form while the switch is on.
+  // The busy-times overlay was the "Show availability" switch, which is gone; nothing is shaded behind the form.
   useEffect(() => {
-    onAvailability(avail && assignees.length > 0 ? (assignees as Id<"users">[]) : null);
+    onAvailability(null);
     return () => onAvailability(null);
-  }, [avail, assignees, onAvailability]);
+  }, [onAvailability]);
 
   const start = date && time && !anytime ? fromInputs(date, time) : date ? fromInputs(date, "00:00") : NaN;
   const end = anytime ? start + 86_400_000 : date && endTime ? fromInputs(date, endTime) : NaN;
@@ -261,64 +258,28 @@ export function ScheduleForm({ businessId, people, hours, initial, editing, show
             )}
           </div>
 
-          <div className="sc-when">
-            <div className={`field${bad.date ? " bad" : ""}`}>
-              <button
-                type="button"
+          {/* One field for the day and the times (user, 2026-11-26, D-130). */}
+          {!(kind === "task" && anytime) && (
+            <div className={`field${bad.date || bad.time ? " bad" : ""}`}>
+              <label htmlFor="sc-date">Date and time</label>
+              <WhenField
                 id="sc-date"
-                className={`sc-date${date ? "" : " blank"}`}
-                aria-invalid={!!bad.date}
-                aria-haspopup="dialog"
-                onClick={(e) => popover(e.currentTarget, (closeMenu) => (
-                  <DayPicker selected={date} onPick={(d) => { setDate(d); setBad((b) => ({ ...b, date: false })); closeMenu(); }} />
-                ), { className: "sc-cal" })}
-              >
-                {date ? dateLabel(date) : "Unscheduled"}
-              </button>
-              <span className="err">Pick a date.</span>
-            </div>
-          </div>
-          {!anytime && (
-            <div className="tp-pair sc-times">
-              <TimePicker id="sc-time" label="Start time" value={time} bad={bad.time && !time} onChange={(v) => { setEndTime(addMinutesTo(v, Math.max(15, Math.round(hrs > 0 ? hrs * 60 : 60)))); setTime2(v); setBad((b) => ({ ...b, time: false })); }} />
-              <TimePicker id="sc-end" label="End time" value={endTime} bad={bad.time && !!time && !(hrs > 0)} onChange={(v) => { setEndTime(v); setBad((b) => ({ ...b, time: false })); }} />
+                value={{ date, start: time, end: endTime, anytime: kind !== "task" && anytime }}
+                bad={bad.date || bad.time}
+                allowAnytime={kind !== "task"}
+                onChange={(w) => { setDate(w.date); setTime2(w.start); setEndTime(w.end); if (kind !== "task") setAnytime(w.anytime); setBad((b) => ({ ...b, date: false, time: false })); }}
+              />
+              <span className="err">{!date ? "Pick a date." : "The end has to be after the start."}</span>
             </div>
           )}
-          {bad.time && <span className="sc-inline-err">{time ? "The end has to be after the start." : "Pick a start time."}</span>}
-
-          {more && (
-            <div className="sc-moreopts">
-              {kind !== "task" && (
-                <label className="sc-check"><input type="checkbox" checked={anytime} onChange={(e) => setAnytime(e.target.checked)} /> Anytime that day</label>
-              )}
-              {kind === "task" && !editing && (
-                <label className="sc-check"><input type="checkbox" checked={anytime} onChange={(e) => setAnytime(e.target.checked)} /> No time yet (leave it unscheduled)</label>
-              )}
-              {kind !== "task" && (
-                <div className="field">
-                  <label htmlFor="sc-repeat">Repeat</label>
-                  <select id="sc-repeat" value={repeat} onChange={(e) => setRepeat(e.target.value as Repeat)}>
-                    {REPEATS.map((r) => <option key={r} value={r}>{REPEAT_LABEL[r]}</option>)}
-                  </select>
-                </div>
-              )}
-            </div>
+          {kind === "task" && !editing && (
+            <label className="sc-check"><input type="checkbox" checked={anytime} onChange={(e) => setAnytime(e.target.checked)} /> No time yet (leave it unscheduled)</label>
           )}
-
-          <div className="sc-avail">
-            <span id="sc-avail-label">Show availability</span>
-            <label className="sc-switch">
-              <input type="checkbox" role="switch" aria-labelledby="sc-avail-label" checked={avail} onChange={(e) => setAvail(e.target.checked)} />
-              <span className="track" aria-hidden="true" />
-            </label>
-            <span className="sc-help" tabIndex={0} data-tip="Display your team's combined available time slots. Use the Team filter to narrow who is shown. Drive times are not connected yet, so only bookings made here show. Clearest in the Week and Day views.">?</span>
-          </div>
 
           {outside && <p className="sc-warn" role="status">This is outside working hours. You can still save it.</p>}
           {zohoClash && <p className="sc-warn" role="status">{nameOf(zohoClash.userId)} is busy in Zoho Calendar with &ldquo;{zohoClash.title}&rdquo; at that time. You can still save it.</p>}
           {error && <p className="modal-error" role="alert">{error}</p>}
           <div className="modal-foot">
-            <button type="button" className="btn sc-morebtn" aria-expanded={more} onClick={() => setMore((m) => !m)}>{more ? "Fewer options" : "More Options"}</button>
             <button type="submit" className="btn primary" disabled={busy}>{busy ? "Saving…" : "Save"}</button>
           </div>
         </form>
@@ -327,30 +288,4 @@ export function ScheduleForm({ businessId, people, hours, initial, editing, show
   );
 }
 
-function defaultStart(): number {
-  const d = new Date();
-  d.setMinutes(0, 0, 0);
-  return d.getTime() + 3_600_000;
-}
 
-function DayPicker({ selected, onPick }: { selected: string; onPick: (key: string) => void }) {
-  const [today] = useState(() => todayKey(Date.now()));
-  const [shown, setShown] = useState(selected || today);
-  const days = monthDays(shown);
-  const month = parseKey(shown).m;
-  return (
-    <div className="mini-cal">
-      <div className="mini-head">
-        <button type="button" aria-label="Previous month" onClick={() => setShown((k) => addMonths(k, -1))}><Icon name="chevleft" size={18} /></button>
-        <span>{monthTitle(shown)}</span>
-        <button type="button" aria-label="Next month" onClick={() => setShown((k) => addMonths(k, 1))}><Icon name="chevright" size={18} /></button>
-      </div>
-      <div className="mini-grid">
-        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => <span key={d} className="mini-dow">{d}</span>)}
-        {days.map((d) => (
-          <button key={d} type="button" className={`mini-day${parseKey(d).m !== month ? " out" : ""}${d === today ? " today" : ""}${d === selected ? " sel" : ""}`} onClick={() => onPick(d)}>{parseKey(d).d}</button>
-        ))}
-      </div>
-    </div>
-  );
-}

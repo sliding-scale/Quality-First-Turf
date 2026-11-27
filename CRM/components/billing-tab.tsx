@@ -123,7 +123,7 @@ export function BillingTab({ id }: { id: Id<"opportunities"> }) {
                       return (
                         <tr key={r.key}>
                           <td>
-                            {inv ? <Link href={`/invoices/${inv.id}`}>#{inv.number}</Link> : b.canBill && r.id && !draft && b.billingTotalCents > 0 ? <Link className="btn small" href={`${newInvoice}&scheduleItem=${r.id}`}>Create</Link> : <button type="button" className="btn small" disabled data-tip={draft ? "Save the schedule first" : "Nothing to invoice yet"}>Create</button>}
+                            {inv ? <Link href={`/invoices/${inv.id}`}>#{inv.number}</Link> : b.canBill && r.id && !draft && b.billingTotalCents > 0 ? <Link className="btn small" href={`${newInvoice}&scheduleItem=${r.id}`}>Create</Link> : <button type="button" className="btn small" aria-disabled="true" onClick={() => toast(draft ? "Save the payment schedule first, then make its invoice." : "There is nothing to invoice for this row yet.")}>Create</button>}
                           </td>
                           <td>{inv ? "" : "—"}</td>
                           <td>{inv ? <span className={`pill ${INVOICE_PILL[inv.status as InvoiceStatus]}`}><span className="dot" />{inv.status}</span> : <span className="pill draft"><span className="dot" />Upcoming</span>}</td>

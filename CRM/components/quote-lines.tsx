@@ -4,11 +4,12 @@
    price, total, description, picture, "Mark as optional"), reordering, "Add from price list" and "Fill from the site visit". Amounts
    are typed as dollars and kept as text while editing, so half-typed numbers never jump around. */
 
-import { useConvex } from "convex/react";
-import { useState } from "react";
+import { useConvex, useMutation } from "convex/react";
+import { useRef, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { centsToInput, dollarsToCents, lineTotalCents, usePriceSearch } from "@/lib/quotes";
+import { failure } from "@/lib/pipeline";
+import { centsToInput, dollarsToCents, lineTotalCents, uploadFile, usePriceSearch } from "@/lib/quotes";
 import { money } from "@/lib/format";
 import { Icon } from "./icon";
 import { useUI } from "./ui-provider";
@@ -59,6 +60,9 @@ export function QuoteLines({ businessId, clientId, projectId, lines, onChange, b
 }) {
   const convex = useConvex();
   const { popover, toast } = useUI();
+  const uploadUrl = useMutation(api.crm.quoteDraft.uploadUrl);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [pictureFor, setPictureFor] = useState<string | null>(null);
 
   const patch = (key: string, p: Partial<DraftLine>) => onChange(lines.map((l) => (l.key === key ? { ...l, ...p } : l)));
   const remove = (key: string) => onChange(lines.filter((l) => l.key !== key));
@@ -70,6 +74,20 @@ export function QuoteLines({ businessId, clientId, projectId, lines, onChange, b
     [next[i], next[j]] = [next[j], next[i]];
     onChange(next);
   };
+
+  /** A picture for a line (user, 2026-11-26, D-130). */
+  async function pickPicture(file: File | undefined) {
+    const key = pictureFor;
+    setPictureFor(null);
+    if (!file || !key) return;
+    if (!file.type.startsWith("image/")) return toast("A picture has to be an image.");
+    try {
+      const id = await uploadFile(await uploadUrl({ businessId }), file);
+      patch(key, { imageId: id, imageUrl: URL.createObjectURL(file) });
+    } catch (e) {
+      toast(failure(e, "The picture could not be uploaded."));
+    }
+  }
 
   async function fillFromVisit() {
     if (!projectId) return;
@@ -84,6 +102,7 @@ export function QuoteLines({ businessId, clientId, projectId, lines, onChange, b
   return (
     <section className="qb-card" aria-label="Product / Service">
       <h2 className="qb-h">Product / Service</h2>
+      <input ref={fileInput} type="file" accept="image/*" hidden onChange={(e) => { void pickPicture(e.target.files?.[0]); e.target.value = ""; }} />
       <div className="qb-lines">
         {lines.map((l, i) =>
           l.kind === "text" ? (
@@ -135,15 +154,17 @@ export function QuoteLines({ businessId, clientId, projectId, lines, onChange, b
                     ))}
                   </div>
                 )}
-                {l.imageUrl && (
-                  <div className="qb-pic">
+                <div className="qb-pic">
+                  {l.imageUrl ? (
                     <div className="qb-thumb">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={l.imageUrl} alt="" />
                       {!readOnly && <button type="button" className="icon-btn" aria-label="Remove the picture" onClick={() => patch(l.key, { imageId: undefined, imageUrl: null })}><Icon name="x" size={18} /></button>}
                     </div>
-                  </div>
-                )}
+                  ) : (
+                    !readOnly && <button type="button" className="qb-add-pic" onClick={() => { setPictureFor(l.key); fileInput.current?.click(); }}><Icon name="image" size={24} /><span>Add image</span></button>
+                  )}
+                </div>
               </div>
               <div className="qb-opt">
                 <label className="sc-check"><input type="checkbox" checked={l.optional} disabled={readOnly} onChange={(e) => patch(l.key, { optional: e.target.checked, selected: true })} /> Mark as optional</label>

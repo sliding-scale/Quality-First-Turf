@@ -14,20 +14,23 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { moneyCents, quoteDate, quoteDateTime } from "@/lib/format";
 import { clock, failure, timeLabel, useMinute } from "@/lib/pipeline";
+import { pipelineLabel } from "@/convex/crm/lib/stages";
 import { BillingTab } from "./billing-tab";
 import { ConstructionTab } from "./construction-tab";
-import { QUOTE_PILL } from "@/lib/quotes";
-import { AssessmentSection, hasConsultation } from "./assessment-section";
+import { AssessmentSection } from "./assessment-section";
 import { Icon } from "./icon";
+import { QuoteContent } from "./quote-content";
+import { StageSteps } from "./stage-steps";
 import { ProjectNotes } from "./project-notes";
 import { TakeoffTab } from "./takeoff-tab";
-import { VisitEditor } from "./visit-editor";
+import { VisitTab } from "./visit-tab";
 import { WorkPackageTab } from "./work-package-tab";
 import { OpportunitySkeleton } from "./skeletons";
 import { useStaff } from "./staff-context";
 import { useUI } from "./ui-provider";
 
-const TABS = ["overview", "takeoff", "package", "construction", "billing", "quotes", "visit", "files", "activity"] as const;
+// In the order the work happens: Sales (visit, quote), Preplanning (takeoff, work package), Construction, Backend (billing); then what spans them all.
+const TABS = ["overview", "visit", "quotes", "takeoff", "package", "construction", "billing", "files", "activity"] as const;
 type Tab = (typeof TABS)[number];
 const TAB_LABEL: Record<Tab, string> = { overview: "Overview", takeoff: "Takeoff", package: "Work package", construction: "Construction", billing: "Billing", quotes: "Quotes", visit: "Visit", files: "Files", activity: "Activity" };
 /** A project in Construction opens on its Construction tab and one in Finance on its Billing tab; the others have no such tab (D-081, PRD 5.1).
@@ -75,19 +78,17 @@ function OpportunityView({ o }: { o: Overview }) {
   const first: Tab = firstTab(o.pipeline);
   const go = (t: Tab) => router.replace(t === first ? `/opportunities/${o.id}` : `/opportunities/${o.id}?tab=${t}`, { scroll: false });
   const tabs = TABS.filter((t) => hasTab(t, o.pipeline) && (t !== "quotes" || seesQuotes) && (t !== "billing" || staff.can("invoices")) && (t !== "takeoff" || staff.can("pipelinePreplanning")) && (t !== "package" || staff.can("pipelinePreplanning")));
-  const at = o.stages.indexOf(o.stage);
   const lost = o.stage === "Closed Lost";
   const timeIn = Math.max(0, now - o.stageEnteredAt);
 
   return (
     <div className="fade-in op">
       <div className="op-top">
-        <Link className="rq-back" href={o.pipeline === "Preplanning" ? "/pipeline/preplanning" : o.pipeline === "Construction" ? "/pipeline/construction" : o.pipeline === "Finance" ? "/pipeline/finance" : "/pipeline"}><Icon name="chevleft" size={18} /> {o.pipeline}</Link>
+        <Link className="rq-back" href={o.pipeline === "Preplanning" ? "/pipeline/preplanning" : o.pipeline === "Construction" ? "/pipeline/construction" : o.pipeline === "Finance" ? "/pipeline/backend" : "/pipeline"}><Icon name="chevleft" size={18} /> {pipelineLabel(o.pipeline)}</Link>
         <div className="op-actions">
           {/* A won project keeps its request page after it moves on to Preplanning or Construction; a project that never was a request has none. */}
-          {staff.can("requests") && (o.pipeline === "Sales" || o.outcome === "won") && <Link className="btn" href={`/requests/${o.id}`}><Icon name="pencil" size={18} /> Edit request</Link>}
+          {staff.can("requests") && (o.pipeline === "Sales" || o.outcome === "won") && <Link className="btn" href={`/requests/${o.id}`}><Icon name="inbox" size={18} /> View request</Link>}
           {o.outcome === "won" && staff.can("jobs") && <Link className="btn" href={`/jobs/${o.id}`}><Icon name="hammer" size={18} /> View job</Link>}
-          {staff.can("quotes", "edit") && quotable(o) && <Link className="btn primary" href={`/quotes/new?clientId=${o.clientId}&projectId=${o.id}`}><Icon name="quote" size={18} /> New quote</Link>}
         </div>
       </div>
       <div className="op-title">
@@ -96,11 +97,7 @@ function OpportunityView({ o }: { o: Overview }) {
         <span className={`pill tag ${o.outcome === "won" ? "active" : lost ? "overdue" : "lead"}`}><span className="dot" />{o.stage}</span>
         {o.archivedAt !== null && <span className="pill tag draft"><span className="dot" />Archived</span>}
       </div>
-      <ol className="op-stages" aria-label={`${o.pipeline} pipeline`}>
-        {o.stages.map((s, i) => (
-          <li key={s} className={s === o.stage ? (lost ? "now lost" : "now") : i < at && !lost ? "done" : undefined} aria-current={s === o.stage ? "step" : undefined}>{s}</li>
-        ))}
-      </ol>
+      <StageSteps stages={o.stages} stage={o.stage} label={`${pipelineLabel(o.pipeline)} pipeline`} />
       <div className="tabs op-tabs" role="tablist" aria-label="Opportunity sections">
         {tabs.map((t) => (
           <button key={t} type="button" role="tab" aria-selected={tab === t} className={`tab${tab === t ? " active" : ""}`} onClick={() => go(t)}>
@@ -116,7 +113,7 @@ function OpportunityView({ o }: { o: Overview }) {
       {tab === "construction" && <ConstructionTab id={o.id} businessId={o.businessId} title={o.title} />}
       {tab === "billing" && staff.can("invoices") && <BillingTab id={o.id} />}
       {tab === "quotes" && seesQuotes && <QuotesTab o={o} />}
-      {tab === "visit" && <VisitTab o={o} />}
+      {tab === "visit" && <VisitTab project={{ id: o.id, businessId: o.businessId, clientId: o.clientId, title: o.title, salespersonId: o.salespersonId }} />}
       {tab === "files" && <FilesTab o={o} />}
       {tab === "activity" && <ActivityTab id={o.id} />}
     </div>
@@ -126,7 +123,7 @@ function OpportunityView({ o }: { o: Overview }) {
 /* ---- Overview ---- */
 
 const CONTRACT: Record<Overview["contract"]["state"], { label: string; cls: string }> = {
-  signed: { label: "Signed", cls: "active" }, uploaded: { label: "Signed contract uploaded", cls: "active" }, out: { label: "Out for signature", cls: "lead" },
+  signed: { label: "Signed", cls: "active" }, uploaded: { label: "Uploaded", cls: "active" }, out: { label: "Out for signature", cls: "lead" },
   none: { label: "No open quote", cls: "draft" }, noquote: { label: "No quote yet", cls: "draft" },
 };
 
@@ -241,66 +238,15 @@ function OverviewTab({ o, timeIn }: { o: Overview; timeIn: number }) {
 
 /* ---- Quotes ---- */
 
+/** Every quote of the project in full, newest first (user, 2026-11-26, D-130). Quotes are made from the request page or the Quotes list, not here. */
 function QuotesTab({ o }: { o: Overview }) {
   const quotes = useQuery(api.crm.opportunityPage.quotes, { id: o.id });
-  const { canEdit } = useStaff();
+  if (quotes === undefined) return <div className="op-body one"><div className="sk" style={{ height: 200 }} /></div>;
   return (
     <div className="op-body one">
-      <section className="card op-card">
-        <div className="op-sechead"><h2>Quotes for this project</h2>{canEdit && quotable(o) && <Link className="btn primary" href={`/quotes/new?clientId=${o.clientId}&projectId=${o.id}`}>New quote</Link>}</div>
-        {quotes === undefined ? <div className="sk" style={{ height: 80 }} /> : quotes.length === 0 ? <p className="muted">{quotable(o) ? "No quotes yet." : "No quotes yet. Book the on-site consultation first; a quote can be made once it is booked."}</p> : (
-          <div className="op-scroll">
-            <table className="table op-table">
-              <colgroup><col style={{ width: "8%" }} /><col style={{ width: "32%" }} /><col style={{ width: "20%" }} /><col style={{ width: "20%" }} /><col style={{ width: "20%" }} /></colgroup>
-              <thead><tr><th>#</th><th>Title</th><th>Status</th><th>Sent</th><th className="num">Total</th></tr></thead>
-              <tbody>
-                {quotes.map((q) => (
-                  <tr key={q.id}>
-                    <td><Link href={`/quotes/${q.id}`}>#{q.number}</Link></td>
-                    <td>{q.title}</td>
-                    <td><span className={`pill tag ${QUOTE_PILL[q.status]}`}><span className="dot" />{q.status}</span></td>
-                    <td>{q.sentAt ? quoteDate(q.sentAt) : "—"}</td>
-                    <td className="num">{moneyCents(q.totalCents)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-    </div>
-  );
-}
-
-/* ---- Visit ---- */
-
-function VisitTab({ o }: { o: Overview }) {
-  const { canEdit, can } = useStaff();
-  const visit = useQuery(api.crm.opportunityPage.visit, { id: o.id });
-  const isRequest = (o.pipeline === "Sales" || o.outcome === "won") && can("requests");
-  const r = useRequest(isRequest ? o.id : null);
-  const request = isRequest ? r : null;
-  const people = usePeople(o.businessId);
-  const [assessing, setAssessing] = useState(false);
-  if (visit === undefined || (isRequest && r === undefined)) return <div className="op-body one"><div className="sk" style={{ height: 160 }} /></div>;
-  // The worksheet needs a consultation first (user, 2026-11-25, D-129): until one is booked, the tab offers to book it.
-  if (request && !hasConsultation(request)) {
-    return (
-      <div className="op-body one">
-        <div className="op-span">
-        <section className="card op-card op-locked">
-          <h2>Schedule the consultation first</h2>
-          <p className="muted">The visit worksheet opens once the on-site consultation is booked. Book it here; the project moves to Onsite Consultation.</p>
-        </section>
-        <AssessmentSection r={request} people={people} canEdit={canEdit} editing={assessing} onEditing={setAssessing} />
-        </div>
-      </div>
-    );
-  }
-  const extras = visit && visit.available ? { products: visit.products, addOns: visit.addOns } : undefined;
-  return (
-    <div className="op-body one">
-      <VisitEditor id={o.id} extras={extras} />
+      {quotes.length === 0 ? (
+        <section className="card op-card op-wide"><h2>Quotes</h2><p className="muted">{quotable(o) ? "No quotes yet." : "No quotes yet. A quote can be made once the on-site consultation is booked."}</p></section>
+      ) : quotes.map((q) => <QuoteContent key={q.id} id={q.id} />)}
     </div>
   );
 }

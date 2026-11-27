@@ -44,7 +44,6 @@ type Draft = {
   discount: string;
   tax: string;
   clientView: View;
-  showMessage: boolean;
   clientMessage: string;
   contract: string;
   deposits: Applied[];
@@ -98,7 +97,7 @@ function Starter({ business, presetClient, presetProject, scheduleItemId }: { bu
 
   let draft: Draft = {
     subject: defaults.subject, clientName: name ?? "", ...(projectClient ? { clientId: projectClient } : {}), ...(presetProject ? { opportunityId: presetProject } : {}), termsKey: defaults.termsKey,
-    customDue: "", salesperson: defaults.salesperson, lines: [newLine()], discountKind: null, discount: "", tax: "", clientView: ALL_ON, showMessage: !!defaults.clientMessage,
+    customDue: "", salesperson: defaults.salesperson, lines: [newLine()], discountKind: null, discount: "", tax: "", clientView: ALL_ON,
     clientMessage: defaults.clientMessage, contract: defaults.contract, deposits: [],
   };
   if (scheduleItemId && billing) {
@@ -137,7 +136,7 @@ export function EditInvoicePage({ id }: { id: string }) {
     customDue: i.customDueAt !== undefined ? utcToInput(i.customDueAt) : "", salesperson: i.salesperson,
     lines: inv.lines.map((l) => newLine({ name: l.name, description: l.description, quantity: String(l.quantity), price: centsToInput(l.unitPriceCents), serviceDate: l.serviceDate !== undefined ? utcToInput(l.serviceDate) : "" })),
     discountKind: i.discountKind ?? null, discount: i.discountKind === "amount" ? centsToInput(i.discountValue ?? 0) : i.discountKind === "percent" ? String(i.discountValue ?? 0) : "",
-    tax: i.taxPercent ? String(i.taxPercent) : "", clientView: i.clientView, showMessage: !!i.clientMessage, clientMessage: i.clientMessage, contract: i.contract, deposits: [],
+    tax: i.taxPercent ? String(i.taxPercent) : "", clientView: i.clientView, clientMessage: i.clientMessage, contract: i.contract, deposits: [],
   };
   const schedule = inv.schedule ? { rowCents: inv.schedule.portionCents, description: inv.schedule.rows.find((r) => r.thisInvoice)?.description ?? "", index: inv.schedule.rows.findIndex((r) => r.thisInvoice), count: inv.schedule.rows.length, totalCents: inv.schedule.totalCents } : undefined;
   return <Builder key={i.id} business={business} initial={draft} invoice={{ id: i.id, number: i.number, paidCents: i.paidCents, status: i.storedStatus }} schedule={schedule} />;
@@ -215,7 +214,7 @@ function Builder({ business, initial, invoice, schedule }: { business: BusinessD
     setError("");
     const m = moneyOf(d);
     const body = {
-      subject: d.subject, termsKey: d.termsKey, ...(d.termsKey === "custom" ? { customDueAt: inputToUtc(d.customDue) } : {}), salesperson: d.salesperson, clientMessage: d.showMessage ? d.clientMessage : "",
+      subject: d.subject, termsKey: d.termsKey, ...(d.termsKey === "custom" ? { customDueAt: inputToUtc(d.customDue) } : {}), salesperson: d.salesperson, clientMessage: d.clientMessage,
       contract: d.contract, ...(m.discountKind ? { discountKind: m.discountKind, discountValue: m.discountValue } : {}), ...(m.taxPercent ? { taxPercent: m.taxPercent } : {}), clientView: d.clientView,
       lines: d.lines.map((l) => ({ name: l.name, description: l.description, quantity: Number(l.quantity), unitPriceCents: dollarsToCents(l.price), ...(l.serviceDate ? { serviceDate: inputToUtc(l.serviceDate) } : {}) })),
     };
@@ -343,11 +342,6 @@ function Builder({ business, initial, invoice, schedule }: { business: BusinessD
         </div>
       </section>
 
-      <div className="qb-sections" role="group" aria-label="Add section">
-        <span><Icon name="plus" size={16} /> Add section</span>
-        <button type="button" className={`chip outline${d.showMessage ? " on" : ""}`} aria-pressed={d.showMessage} onClick={() => set({ showMessage: !d.showMessage })}>Client Message</button>
-      </div>
-
       <section className="qb-card" aria-label="Product / Service">
         <h2 className="qb-h">Product / Service</h2>
         {locked ? (
@@ -473,12 +467,10 @@ function Builder({ business, initial, invoice, schedule }: { business: BusinessD
         {d.lines.some((l) => !Number.isFinite(lineCents(l))) && <p className="sc-warn">A quantity or a price is not a number, so the totals are not final.</p>}
       </section>
 
-      {d.showMessage && (
-        <section className="qb-card" aria-label="Client message">
-          <h2 className="qb-h">Client Message</h2>
-          <div className="field"><label htmlFor="iv-msg">Message shown on the invoice</label><textarea id="iv-msg" value={d.clientMessage} onChange={(e) => set({ clientMessage: e.target.value })} /></div>
-        </section>
-      )}
+      <section className="qb-card" aria-label="Client message">
+        <h2 className="qb-h">Client Message</h2>
+        <div className="field"><label htmlFor="iv-msg">Message shown on the invoice</label><textarea id="iv-msg" value={d.clientMessage} onChange={(e) => set({ clientMessage: e.target.value })} /></div>
+      </section>
 
       <section className="qb-card" aria-label="Contract / Disclaimer">
         <h2 className="qb-h">Contract / Disclaimer</h2>

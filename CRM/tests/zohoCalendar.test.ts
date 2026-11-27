@@ -92,6 +92,8 @@ function fakeZoho() {
       z.events.set(uid, e);
       return json({ events: [{ uid, etag: e.etag, estatus: "added" }] });
     }
+    // As the real server does (D-134): an event address with its "@" sent as %40 is not found, and the answer is a web page, not JSON.
+    if ((m[1] ?? "").includes("%40")) return new Response("<html><title>Error page</title></html>", { status: 404, headers: { "content-type": "text/html" } });
     const uid = decodeURIComponent(m[1] ?? "");
     const cur = z.events.get(uid);
     if (!cur) return json({ message: "gone" }, 404);
@@ -251,11 +253,31 @@ describe("the CRM to Zoho", () => {
     expect([...w.zoho.z.events.values()][0].title).toBe("Putting green consult (new time)");
     expect(w.zoho.z.events.size).toBe(1);
     await w.sales.mutation(api.crm.schedule.remove, { id });
-    // the delete was queued while timers are held: run it
+    // the delete was queued while timers are held. The link is kept, emptied, until Zoho has deleted its copy (D-130), so a read of Zoho in
+    // between does not bring the deleted item back.
     const links = await linksOf(w);
-    expect(links).toHaveLength(0);
-    await w.base.action(internal.crm.calendarSync.pushDelete, { links: [{ connectionId: w.conn._id, zohoUid: [...w.zoho.z.events.keys()][0], etag: String([...w.zoho.z.events.values()][0].etag) }] });
+    expect(links).toHaveLength(1);
+    expect(links[0].eventId).toBeUndefined();
+    await pull(w);
+    expect((await eventsOf(w)).filter((e) => e.title.startsWith("Putting green consult"))).toHaveLength(0);
+    await w.base.action(internal.crm.calendarSync.pushDelete, { links: [{ connectionId: w.conn._id, zohoUid: [...w.zoho.z.events.keys()][0], etag: String([...w.zoho.z.events.values()][0].etag), linkId: links[0]._id }] });
     expect(w.zoho.z.events.size).toBe(0);
+    expect(await linksOf(w)).toHaveLength(0);
+  });
+
+  it("deleting in the CRM an item that came from Zoho deletes it in Zoho too, and it does not come back", async () => {
+    const w = await world();
+    const at = Date.now() + 2 * DAY;
+    w.zoho.put("zev1@zoho.com", w.zoho.timed("Dentist", at, at + HOUR));
+    await pull(w);
+    const [e] = (await eventsOf(w)).filter((x) => x.source === "zoho");
+    await w.sales.mutation(api.crm.schedule.remove, { id: e._id });
+    const [link] = await linksOf(w);
+    await w.base.action(internal.crm.calendarSync.pushDelete, { links: [{ connectionId: w.conn._id, zohoUid: link.zohoUid, etag: link.etag, linkId: link._id }] });
+    expect(w.zoho.z.events.size).toBe(0);
+    await pull(w);
+    expect((await eventsOf(w)).filter((x) => x.title === "Dentist")).toHaveLength(0);
+    expect(await linksOf(w)).toHaveLength(0);
   });
 
   it("when both sides changed, the later change wins", async () => {
@@ -289,6 +311,56 @@ describe("the CRM to Zoho", () => {
     const t = await w.base.run((ctx) => ctx.db.get(taskId));
     expect(t?.title).toBe("Order sod");
     expect(t?.startAt).toBeUndefined();
+  });
+
+  /** Runs `during` once, after Zoho has made the new event and before the CRM hears back. */
+  const whileSending = (w: World, during: () => Promise<unknown>) => {
+    let done = false;
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+      const res = await w.zoho.impl(input, init);
+      if (!done && init?.method === "POST" && String(input).includes("/events")) { done = true; await during(); }
+      return res;
+    });
+  };
+  const bookOne = (w: World) => {
+    const at = Date.now() + 2 * DAY;
+    return w.sales.mutation(api.crm.schedule.book, { businessId: w.qft, type: "event", title: "Racing", start: at, end: at + HOUR, assigneeIds: [w.user._id], now: Date.now() });
+  };
+
+  it("does not make a second copy when Zoho is read while the item is still being sent (D-135)", async () => {
+    const w = await world();
+    const id = await bookOne(w);
+    whileSending(w, () => pull(w));
+    await push(w, "event", id);
+    await pull(w);
+    expect((await eventsOf(w)).filter((e) => e.title === "Racing").map((e) => e._id)).toEqual([id]);
+    expect(w.zoho.z.events.size).toBe(1);
+    expect((await linksOf(w)).map((l) => l.eventId)).toEqual([id]);
+  });
+
+  it("sends an item once when a second send starts before the first is done", async () => {
+    const w = await world();
+    const id = await bookOne(w);
+    whileSending(w, () => push(w, "event", id));
+    await push(w, "event", id);
+    expect(w.zoho.z.events.size).toBe(1);
+    expect(await linksOf(w)).toHaveLength(1);
+    // and the item is free again afterwards
+    expect(await w.base.run((ctx) => ctx.db.query("calendarPushes").collect())).toHaveLength(0);
+  });
+
+  it("deletes the new copy when the item is deleted while it is still being sent", async () => {
+    const w = await world();
+    const id = await bookOne(w);
+    whileSending(w, () => w.sales.mutation(api.crm.schedule.remove, { id }));
+    await push(w, "event", id);
+    const [link] = await linksOf(w);
+    expect(link.eventId).toBeUndefined();
+    await w.base.action(internal.crm.calendarSync.pushDelete, { links: [{ connectionId: w.conn._id, zohoUid: link.zohoUid, etag: link.etag, linkId: link._id }] });
+    await pull(w);
+    expect(w.zoho.z.events.size).toBe(0);
+    expect((await eventsOf(w)).filter((e) => e.title === "Racing")).toHaveLength(0);
+    expect(await linksOf(w)).toHaveLength(0);
   });
 
   it("only sends the kinds the person ticked", async () => {

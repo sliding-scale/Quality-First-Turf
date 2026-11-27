@@ -93,6 +93,7 @@ function InvoiceView({ d }: { d: Doc }) {
   const later = (label: string, icon: string): MenuItem => ({ label, icon, disabled: true });
   const rule: MenuItem = { divider: true };
   const moreItems: MenuItem[] = [
+    { label: "View activity", icon: "history", onSelect: () => setDialog("activity") },
     ...(canBill && i.storedStatus !== "Void" && i.storedStatus !== "Bad debt"
       ? [
           { heading: "Send as..." } as MenuItem,
@@ -126,7 +127,7 @@ function InvoiceView({ d }: { d: Doc }) {
               <Link href="/invoices" className="btn link plain" style={{ marginLeft: 8 }}><Icon name="chevleft" size={18} /> All invoices</Link>
             </div>
             <div className="qh-actions">
-              <button type="button" className="icon-btn" aria-label="View activity" title="View activity" onClick={() => setDialog("activity")}><Icon name="history" size={24} /></button>
+              {d.project && <Link className="btn" href={`/opportunities/${d.project.id}`}><Icon name="inbox" size={22} />View opportunity</Link>}
               {canBill && i.storedStatus === "Draft" && <button className="btn primary" type="button" onClick={() => void openEmail()}><Icon name="mail" size={22} />Send as Email</button>}
               {canBill && i.storedStatus === "Sent" && i.balanceCents > 0 && <Link className="btn primary" href={`/payments/new?invoice=${i.id}`}><Icon name="card" size={22} />Collect Payment</Link>}
               <button className="btn more-btn" type="button" aria-label="More" aria-haspopup="menu" onClick={(e) => dropdown(e.currentTarget, moreItems, { alignRight: true, variant: "actions" })}>

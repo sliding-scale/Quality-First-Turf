@@ -358,7 +358,7 @@ export function OpportunitySkeleton() {
     <Busy>
       <div className="op-top"><Sk w={90} h={20} /><Sk w={220} h={38} r={8} /></div>
       <div className="op-title"><h1><Sk w={300} h={36} /></h1><Sk w={90} h={24} r={999} /></div>
-      <div className="op-stages">{range(6).map((n) => <li key={n}><Sk w={90} h={16} /></li>)}</div>
+      <ol className="op-steps">{range(8).map((n) => <li key={n}><Sk w={28} h={28} r={999} /><Sk w={72} h={12} /></li>)}</ol>
       <div className="op-tabs tabs">{range(5).map((n) => <Sk key={n} w={80} h={20} style={{ margin: "12px 14px" }} />)}</div>
       <div className="op-body">
         <div className="op-col">{range(3).map((n) => <div key={n} className="card op-card"><Sk w={140} h={22} /><Sk w="90%" h={16} style={{ marginTop: 10 }} /><Sk w="60%" h={16} style={{ marginTop: 6 }} /></div>)}</div>

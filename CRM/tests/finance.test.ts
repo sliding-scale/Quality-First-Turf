@@ -43,7 +43,7 @@ describe("The Finance pipeline (PRD 5.1)", () => {
   it("is entered by sign-off, at Send Final Invoice, and every move is in the history", async () => {
     const w = await inFinance();
     expect(await w.stage()).toMatchObject({ pipeline: "Finance", stage: SEND });
-    expect((await w.history()).slice(0, 2)).toEqual([`${SEND}:Sent to Finance automatically`, `${FINAL}:Customer signed off`]);
+    expect((await w.history()).slice(0, 2)).toEqual([`${SEND}:Sent to Backend automatically`, `${FINAL}:Customer signed off`]);
   });
 
   it("moves to Pending Final Payment when the sent invoices cover the total, and to Final Payment Received when they are paid", async () => {
@@ -72,7 +72,7 @@ describe("The Finance pipeline (PRD 5.1)", () => {
       expect(await w.stage()).toMatchObject({ pipeline: "Finance", stage: to });
       expect((await w.stage()).archivedAt).toBeUndefined();
     }
-    await expect(w.office.mutation(api.crm.pipeline.moveStage, { id: w.project, to: "Not a stage", now: NOW })).rejects.toThrow(/not a Finance stage/);
+    await expect(w.office.mutation(api.crm.pipeline.moveStage, { id: w.project, to: "Not a stage", now: NOW })).rejects.toThrow(/not a Backend stage/);
   });
 
   it("still bills a project that has no quote and no schedule: any sent invoice covers it", async () => {
@@ -123,7 +123,7 @@ describe("The Finance pipeline (PRD 5.1)", () => {
     expect(board.columns.map((c) => c.name)).toEqual([...FINANCE_STAGES]);
     expect(board.columns.find((c) => c.name === SEND)?.cards[0]).toMatchObject({ code: "TST-001", balanceCents: 70_000 });
     const construction = await w.office.query(api.crm.pipeline.workBoard, { ...args, pipeline: "Construction" });
-    expect(construction.columns.find((c) => c.name === FINAL)?.cards[0]).toMatchObject({ code: "TST-001", movedTo: `Finance: ${SEND}` });
+    expect(construction.columns.find((c) => c.name === FINAL)?.cards[0]).toMatchObject({ code: "TST-001", movedTo: `Backend: ${SEND}` });
   });
 });
 

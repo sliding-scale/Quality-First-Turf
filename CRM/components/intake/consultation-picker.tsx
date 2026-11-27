@@ -9,13 +9,13 @@
    server checks the clash again. */
 
 import { useConvex } from "convex/react";
-import { CalendarCheck, CalendarPlus, X } from "lucide-react";
-import { type FormEvent, useRef, useState } from "react";
+import { CalendarCheck, CalendarPlus, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { useRef, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { clock as now } from "@/lib/pipeline";
 import { failure } from "@/lib/requests";
-import { BUSINESS_TZ, fromInputs, inWorkingHours, todayKey } from "@/lib/schedule";
+import { BUSINESS_TZ, addMonths, fromInputs, inWorkingHours, monthDays, monthTitle, parseKey, todayKey } from "@/lib/schedule";
 import { TimePicker, addMinutesTo } from "@/components/time-picker";
 
 export type ConsultationDraft = { date: string; time: string; minutes: number; instructions: string; start: number; end: number };
@@ -31,6 +31,9 @@ function day(date: string, long = false): string {
 }
 
 const timeOf = (ms: number) => new Intl.DateTimeFormat("en-US", { timeZone: BUSINESS_TZ, hour: "numeric", minute: "2-digit" }).format(ms);
+
+/** Quick lengths beside the times: each sets the end from the start. */
+const LENGTHS: [number, string][] = [[30, "30 min"], [60, "1 h"], [90, "1.5 h"], [120, "2 h"]];
 
 type Clash = { title: string; start: number; end: number };
 type Check = { kind: "busy"; clashes: Clash[] } | { kind: "warn"; lines: string[]; draft: ConsultationDraft };
@@ -52,8 +55,13 @@ export function ConsultationPicker({ businessId, assignee, value, onChange, disa
   const [error, setError] = useState<string | null>(null);
   const [check, setCheck] = useState<Check | null>(null);
   const [checking, setChecking] = useState(false);
+  const [today, setToday] = useState(() => todayKey(now()));
+  const [shown, setShown] = useState(today); // the month the calendar shows
 
   function open() {
+    const t = todayKey(now());
+    setToday(t);
+    setShown(value?.date ?? t);
     setDate(value?.date ?? "");
     setTime(value?.time ?? "09:00");
     setEndTime(addMinutesTo(value?.time ?? "09:00", value?.minutes ?? 60));
@@ -75,8 +83,7 @@ export function ConsultationPicker({ businessId, assignee, value, onChange, disa
     close();
   }
 
-  async function onSubmit(event: FormEvent) {
-    event.preventDefault();
+  async function onSubmit() {
     if (checking) return;
     if (date === "") return setError("Choose a date.");
     if (!(minutes > 0)) return setError("The end has to be after the start.");
@@ -136,35 +143,69 @@ export function ConsultationPicker({ businessId, assignee, value, onChange, disa
           : `Goes on ${assignee.name}'s calendar. Their availability is checked when you press Schedule.`}
       </p>
 
-      <dialog ref={dialog} className="consultation-dialog" aria-labelledby="nrf-consult-title" onClick={(e) => { if (e.target === dialog.current) close(); }}>
-        <form className="consultation-form" onSubmit={onSubmit} noValidate>
+      <dialog ref={dialog} className="consultation-dialog nrf-cd" aria-labelledby="nrf-consult-title" onClick={(e) => { if (e.target === dialog.current) close(); }}>
+        {/* Not a <form>: this dialog sits inside the flow's own form, and a form inside a form is dropped by the browser, so Schedule submitted
+            the whole flow and sent it back to its first step without saving (user, 2026-11-26, D-131). */}
+        <div className="consultation-form">
           <header className="consultation-form__head">
-            <h2 id="nrf-consult-title">{value ? "Reschedule consultation" : "Schedule consultation"}</h2>
+            <div>
+              <h2 id="nrf-consult-title">{value ? "Reschedule consultation" : "Schedule consultation"}</h2>
+              <p className="consultation-form__note">With {assignee.name} · Pacific time</p>
+            </div>
             <button type="button" className="visit-icon-btn" onClick={close} aria-label="Close"><X size={18} aria-hidden="true" /></button>
           </header>
 
-          {value ? <p className="consultation-form__current">Chosen for {day(value.date, true)} at {clock(value.time)} with {assignee.name}.</p> : null}
-
-          <div className="consultation-form__grid">
-            <label className="consultation-field">
-              <span>Date</span>
-              <input type="date" value={date} min={todayKey(now())} onChange={(e) => edited(setDate)(e.target.value)} required />
-            </label>
-            <div className="consultation-field">
-              <span>Start time</span>
-              <TimePicker label="Start time" value={time} onChange={(v) => { setEndTime(addMinutesTo(v, minutes > 0 ? minutes : 60)); edited(setTime)(v); }} />
+          <div className="nrf-cd__body">
+            <div className="nrf-cd__cal">
+              <div className="when-head">
+                <button type="button" aria-label="Previous month" disabled={shown.slice(0, 7) <= today.slice(0, 7)} onClick={() => setShown((k) => addMonths(k, -1))}><ChevronLeft size={18} aria-hidden="true" /></button>
+                <span>{monthTitle(shown)}</span>
+                <button type="button" aria-label="Next month" onClick={() => setShown((k) => addMonths(k, 1))}><ChevronRight size={18} aria-hidden="true" /></button>
+              </div>
+              <div className="when-grid" role="grid" aria-label={monthTitle(shown)}>
+                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => <span key={d} className="when-dow">{d}</span>)}
+                {monthDays(shown).map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    disabled={d < today}
+                    aria-pressed={d === date}
+                    className={`when-day${parseKey(d).m !== parseKey(shown).m ? " out" : ""}${d === today ? " today" : ""}${d === date ? " sel" : ""}`}
+                    onClick={() => edited(setDate)(d)}
+                  >
+                    {parseKey(d).d}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="consultation-field">
-              <span>End time</span>
-              <TimePicker label="End time" value={endTime} bad={!(minutes > 0)} onChange={(v) => edited(setEndTime)(v)} />
+            <div className="nrf-cd__side">
+              <div className="consultation-field">
+                <span>Start time</span>
+                <TimePicker label="Start time" value={time} onChange={(v) => { setEndTime(addMinutesTo(v, minutes > 0 ? minutes : 60)); edited(setTime)(v); }} />
+              </div>
+              <div className="consultation-field">
+                <span>End time</span>
+                <TimePicker label="End time" value={endTime} bad={!(minutes > 0)} onChange={(v) => edited(setEndTime)(v)} />
+              </div>
+              <div className="consultation-field">
+                <span>Length</span>
+                <div className="nrf-cd__lengths">
+                  {LENGTHS.map(([m, label]) => (
+                    <button key={m} type="button" aria-pressed={minutes === m} onClick={() => edited(setEndTime)(addMinutesTo(time, m))}>{label}</button>
+                  ))}
+                </div>
+              </div>
             </div>
-            <label className="consultation-field consultation-field--wide">
-              <span>Notes for the visit (optional)</span>
-              <textarea rows={3} maxLength={1000} placeholder="Gate code, parking, who to ask for" value={instructions} onChange={(e) => setInstructions(e.target.value)} />
-            </label>
           </div>
 
-          <p className="consultation-form__note">Booked on {assignee.name}&apos;s calendar, in Pacific time.</p>
+          <label className="consultation-field consultation-field--wide">
+            <span>Notes for the visit (optional)</span>
+            <textarea rows={2} maxLength={1000} placeholder="Gate code, parking, who to ask for" value={instructions} onChange={(e) => setInstructions(e.target.value)} />
+          </label>
+
+          <p className={`nrf-cd__summary${date ? "" : " blank"}`} aria-live="polite">
+            {date ? `${day(date, true)} · ${clock(time)} – ${clock(endTime)}` : "Pick a day on the calendar."}
+          </p>
 
           {check?.kind === "busy" && (
             <div className="consultation-busy" role="alert">
@@ -183,13 +224,14 @@ export function ConsultationPicker({ businessId, assignee, value, onChange, disa
           {error !== null ? <p className="visit-alert" role="alert">{error}</p> : null}
 
           <div className="consultation-form__actions">
+            <button type="button" className="nrf-cd__cancel" onClick={close}>Cancel</button>
             {check?.kind === "warn" ? (
               <button type="button" className="visit-primary" onClick={() => accept({ ...check.draft, instructions: instructions.trim() })}>Schedule anyway</button>
             ) : (
-              <button type="submit" className="visit-primary" disabled={checking}>{checking ? "Checking the calendar…" : value ? "Save new time" : "Schedule"}</button>
+              <button type="button" className="visit-primary" disabled={checking} onClick={() => void onSubmit()}>{checking ? "Checking the calendar…" : value ? "Save new time" : "Schedule"}</button>
             )}
           </div>
-        </form>
+        </div>
       </dialog>
     </>
   );

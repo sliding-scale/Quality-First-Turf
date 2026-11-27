@@ -4,7 +4,8 @@
    the user pointed to (12-hour, AM/PM, a "Now" button), built here in plain CSS because the CRM does not use Tailwind or shadcn (D-019, CLAUDE.md).
    The value is "HH:MM" in 24-hour time, the same as a native time input, so it drops in where one was. */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Icon } from "./icon";
 
 const HOURS = [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
@@ -48,6 +49,13 @@ export function TimePicker({ id, value, onChange, label, disabled, bad, placehol
   const [open, setOpen] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const box = useRef<HTMLDivElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
+  // Where the panel is drawn: the page, or the native <dialog> it sits in (the top layer would hide it otherwise). Read when it opens.
+  const [host, setHost] = useState<Element | null>(null);
+  const openPanel = () => {
+    setHost(box.current?.closest("dialog") ?? document.body);
+    setOpen(true);
+  };
   const current = parts(value);
 
   const close = () => {
@@ -61,16 +69,39 @@ export function TimePicker({ id, value, onChange, label, disabled, bad, placehol
   }, [leaving]);
   useEffect(() => {
     if (!open) return;
-    const down = (e: PointerEvent) => { if (box.current && !box.current.contains(e.target as Node)) setLeaving(true); };
-    const key = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); setLeaving(true); } };
+    const down = (e: PointerEvent) => {
+      const t = e.target as Node;
+      if (box.current?.contains(t) || panel.current?.contains(t)) return;
+      setLeaving(true);
+    };
+    const key = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); e.preventDefault(); /* closes the picker, not the dialog it is in */ setLeaving(true); } };
     document.addEventListener("pointerdown", down);
     document.addEventListener("keydown", key, true);
     return () => { document.removeEventListener("pointerdown", down); document.removeEventListener("keydown", key, true); };
   }, [open]);
-  // The chosen hour and minute scroll into view when the panel opens.
-  useEffect(() => {
-    if (!open || !box.current) return;
-    box.current.querySelectorAll<HTMLElement>(".tp-col .on").forEach((el) => el.scrollIntoView({ block: "center" }));
+  // The panel is drawn over the page, not inside the form, so it never makes a dialog scroll (user, 2026-11-26). It sits under the button,
+  // or above it when there is no room below, and follows it while the page scrolls.
+  useLayoutEffect(() => {
+    if (!open) return;
+    const place = () => {
+      const el = panel.current;
+      const trigger = box.current?.querySelector(".tp-trigger");
+      if (!el || !trigger) return;
+      const r = trigger.getBoundingClientRect();
+      const below = window.innerHeight - r.bottom;
+      const top = below < el.offsetHeight + 12 && r.top > below ? r.top - el.offsetHeight - 6 : r.bottom + 6;
+      el.style.top = `${Math.max(8, top)}px`;
+      el.style.left = `${Math.max(8, Math.min(r.left, window.innerWidth - el.offsetWidth - 8))}px`;
+    };
+    place();
+    // The chosen hour and minute show in their columns, by scrolling only the columns (scrollIntoView would scroll the dialog too).
+    panel.current?.querySelectorAll<HTMLElement>(".tp-col .on").forEach((on) => {
+      const col = on.parentElement;
+      if (col) col.scrollTop = on.offsetTop - col.clientHeight / 2 + on.offsetHeight / 2;
+    });
+    window.addEventListener("scroll", place, true);
+    window.addEventListener("resize", place);
+    return () => { window.removeEventListener("scroll", place, true); window.removeEventListener("resize", place); };
   }, [open]);
 
   const set = (patch: Partial<{ h12: number; m: number; pm: boolean }>) => {
@@ -95,13 +126,13 @@ export function TimePicker({ id, value, onChange, label, disabled, bad, placehol
         aria-haspopup="dialog"
         aria-expanded={open && !leaving}
         disabled={disabled}
-        onClick={() => (open ? close() : setOpen(true))}
+        onClick={() => (open ? close() : openPanel())}
       >
         <Icon name="timeline" size={18} />
         <span className={value ? "" : "tp-placeholder"}>{value ? timeText(value) : (placeholder ?? label)}</span>
       </button>
-      {open && (
-        <div className={`tp-panel${leaving ? " leaving" : ""}`} role="dialog" aria-label={label}>
+      {open && host && createPortal(
+        <div ref={panel} className={`tp-panel${leaving ? " leaving" : ""}`} role="dialog" aria-label={label}>
           <div className="tp-cols">
             <div className="tp-col" role="listbox" aria-label="Hour">
               {HOURS.map((h) => (
@@ -124,7 +155,8 @@ export function TimePicker({ id, value, onChange, label, disabled, bad, placehol
             <button type="button" className="linkbtn" onClick={now}>Now</button>
             <button type="button" className="btn small primary" onClick={close}>Done</button>
           </div>
-        </div>
+        </div>,
+        host,
       )}
     </div>
   );

@@ -18,6 +18,9 @@ const DAY = 86_400_000;
 const BACK = 7 * DAY;
 const AHEAD = 90 * DAY;
 const MAX_PENDING = 100;
+/** How long one send may hold an item before another may take it over (a send that died), and how soon a waiting one looks again. */
+const SEND_HOLD = 120_000;
+const SEND_RETRY = 5_000;
 
 type Kind = "event" | "task";
 const LOOKBACK = (now: number) => ({ from: now - BACK, to: now + AHEAD });
@@ -111,6 +114,28 @@ export const pushInfo = internalQuery({
   },
 });
 
+/** Holds an item for one send at a time. null: another send has it. */
+export const claimPush = internalMutation({
+  args: { itemKey: v.string() },
+  handler: async (ctx, a) => {
+    const now = Date.now();
+    const held = await ctx.db.query("calendarPushes").withIndex("by_itemKey", (q) => q.eq("itemKey", a.itemKey)).first();
+    if (held && now - held.startedAt < SEND_HOLD) return null;
+    if (held) await ctx.db.delete(held._id);
+    return ctx.db.insert("calendarPushes", { itemKey: a.itemKey, startedAt: now });
+  },
+});
+
+export const releasePush = internalMutation({
+  args: { claimId: v.id("calendarPushes") },
+  handler: async (ctx, a) => {
+    if (await ctx.db.get(a.claimId)) await ctx.db.delete(a.claimId);
+    return null;
+  },
+});
+
+/** Joins an item to the Zoho event just made or changed for it. Two things can have happened while Zoho was answering (D-135): a read of Zoho
+ *  imported the new event as a second, "Zoho" item, which is removed here; or the CRM item was deleted, and the new copy is deleted in Zoho. */
 export const recordLink = internalMutation({
   args: {
     connectionId: v.id("calendarConnections"), kind: v.union(v.literal("event"), v.literal("task")), id: v.string(), zohoUid: v.string(), etag: v.string(),
@@ -119,10 +144,27 @@ export const recordLink = internalMutation({
   handler: async (ctx, a) => {
     const conn = await ctx.db.get(a.connectionId);
     if (!conn) return null;
+    const event = a.kind === "event" ? await ctx.db.get(a.id as Id<"calendarEvents">) : null;
+    const task = a.kind === "task" ? await ctx.db.get(a.id as Id<"opportunityTasks">) : null;
+    const gone = a.kind === "event" ? event === null : task === null || task.startAt === undefined;
+    const target = gone ? { eventId: undefined, taskId: undefined } : event ? { eventId: event._id, taskId: undefined } : { eventId: undefined, taskId: task!._id };
+    const assignees = new Set(event?.assigneeIds ?? []);
+    for (const l of await ctx.db.query("calendarLinks").withIndex("by_zohoUid", (q) => q.eq("zohoUid", a.zohoUid)).take(20)) {
+      if (!l.eventId || l.eventId === a.id) continue;
+      const imported = await ctx.db.get(l.eventId);
+      if (imported !== null && imported.source !== "zoho") continue;
+      if (imported !== null) await ctx.db.delete(imported._id);
+      await ctx.db.patch(l._id, { kind: a.kind, ...target, origin: a.origin, lossy: undefined });
+      // Someone who shares the calendar and read it first stays on the item, as when the two are joined on a read.
+      if (event && !assignees.has(l.userId)) { assignees.add(l.userId); await ctx.db.patch(event._id, { assigneeIds: [...assignees] }); }
+    }
     const existing = await ctx.db.query("calendarLinks").withIndex("by_connection_and_zohoUid", (q) => q.eq("connectionId", a.connectionId).eq("zohoUid", a.zohoUid)).unique();
     const fields = { etag: a.etag, crmHash: a.hash, zohoHash: a.hash };
-    if (existing) await ctx.db.patch(existing._id, fields);
-    else await ctx.db.insert("calendarLinks", { connectionId: a.connectionId, userId: conn.userId, kind: a.kind, ...(a.kind === "event" ? { eventId: a.id as Id<"calendarEvents"> } : { taskId: a.id as Id<"opportunityTasks"> }), zohoUid: a.zohoUid, origin: a.origin, ...fields });
+    let linkId = existing?._id;
+    if (existing) await ctx.db.patch(existing._id, { ...fields, ...(gone ? target : {}) });
+    else linkId = await ctx.db.insert("calendarLinks", { connectionId: a.connectionId, userId: conn.userId, kind: a.kind, ...(gone ? {} : target), zohoUid: a.zohoUid, origin: a.origin, ...fields });
+    // The emptied link keeps a read from bringing the copy back until Zoho has deleted it.
+    if (gone) await ctx.scheduler.runAfter(0, internal.crm.calendarSync.pushDelete, { links: [{ connectionId: a.connectionId, zohoUid: a.zohoUid, etag: a.etag, linkId }] });
     return null;
   },
 });
@@ -139,38 +181,74 @@ export const dropLinks = internalMutation({
 export const pushItem = internalAction({
   args: { kind: v.union(v.literal("event"), v.literal("task")), id: v.string() },
   handler: async (ctx, a) => {
-    const info: PushInfo | null = await ctx.runQuery(internal.crm.calendarSync.pushInfo, a);
-    if (!info) return null;
-    const { mirrored, connections, links } = info;
-    const wanted = new Set<Id<"calendarConnections">>();
-    if (mirrored) {
-      const hash = fieldsHash(mirrored.m);
-      for (const c of connections) {
-        wanted.add(c._id);
-        const existing = links.find((l) => l.connectionId === c._id);
-        if (existing?.lossy) continue;
-        if (!existing && !syncsKind(c.syncTypes, mirrored.itemKind)) continue;
-        const data = toZohoEvent(mirrored.m, mirrored.link);
-        try {
-          const token = await tokenFor(ctx, c);
-          const ev = existing
-            ? await updateEvent(c.apiBase, token, c.calendarUid, existing.zohoUid, existing.etag, data)
-            : await createEvent(c.apiBase, token, c.calendarUid, data);
-          await ctx.runMutation(internal.crm.calendarSync.recordLink, { connectionId: c._id, kind: a.kind, id: a.id, zohoUid: ev.uid || existing!.zohoUid, etag: ev.etag || existing?.etag || "", hash, origin: existing?.origin ?? "crm" });
-        } catch (e) {
-          await ctx.runMutation(internal.crm.calendarSync.markState, { connectionId: c._id, error: message(e) });
-        }
+    const claimId: Id<"calendarPushes"> | null = await ctx.runMutation(internal.crm.calendarSync.claimPush, { itemKey: `${a.kind}:${a.id}` });
+    if (claimId === null) {
+      await ctx.scheduler.runAfter(SEND_RETRY, internal.crm.calendarSync.pushItem, a);
+      return null;
+    }
+    try {
+      await sendItem(ctx, a);
+    } finally {
+      await ctx.runMutation(internal.crm.calendarSync.releasePush, { claimId });
+    }
+    return null;
+  },
+});
+
+async function sendItem(ctx: ActionCtx, a: { kind: Kind; id: string }): Promise<void> {
+  const info: PushInfo | null = await ctx.runQuery(internal.crm.calendarSync.pushInfo, a);
+  if (!info) return;
+  const { mirrored, connections, links } = info;
+  const wanted = new Set<Id<"calendarConnections">>();
+  if (mirrored) {
+    const hash = fieldsHash(mirrored.m);
+    for (const c of connections) {
+      wanted.add(c._id);
+      const existing = links.find((l) => l.connectionId === c._id);
+      if (existing?.lossy) continue;
+      if (!existing && !syncsKind(c.syncTypes, mirrored.itemKind)) continue;
+      const data = toZohoEvent(mirrored.m, mirrored.link);
+      try {
+        const token = await tokenFor(ctx, c);
+        const ev = existing
+          ? await updateEvent(c.apiBase, token, c.calendarUid, existing.zohoUid, existing.etag, data)
+          : await createEvent(c.apiBase, token, c.calendarUid, data);
+        await ctx.runMutation(internal.crm.calendarSync.recordLink, { connectionId: c._id, kind: a.kind, id: a.id, zohoUid: ev.uid || existing!.zohoUid, etag: ev.etag || existing?.etag || "", hash, origin: existing?.origin ?? "crm" });
+      } catch (e) {
+        await ctx.runMutation(internal.crm.calendarSync.markState, { connectionId: c._id, error: message(e) });
       }
     }
-    // People who are no longer on the item: delete their Zoho event.
-    const stale = links.filter((l) => !wanted.has(l.connectionId));
-    for (const l of stale) {
+  }
+  // People who are no longer on the item: delete their Zoho event.
+  const stale = links.filter((l) => !wanted.has(l.connectionId));
+  for (const l of stale) {
+    const c: Doc<"calendarConnections"> | null = await ctx.runQuery(internal.crm.calendarConnect.connectionDoc, { connectionId: l.connectionId });
+    if (!c) continue;
+    try {
+      await deleteEvent(c.apiBase, await tokenFor(ctx, c), c.calendarUid, l.zohoUid, l.etag);
+      await ctx.runMutation(internal.crm.calendarSync.dropLinks, { ids: [l._id] });
+    } catch (e) {
+      await ctx.runMutation(internal.crm.calendarSync.markState, { connectionId: c._id, error: message(e) });
+    }
+  }
+}
+
+/** Deletes Zoho events whose CRM item is gone (the links are already forgotten). */
+export const pushDelete = internalAction({
+  args: { links: v.array(v.object({ connectionId: v.id("calendarConnections"), zohoUid: v.string(), etag: v.string(), linkId: v.optional(v.id("calendarLinks")) })) },
+  handler: async (ctx, a) => {
+    for (const l of a.links) {
       const c: Doc<"calendarConnections"> | null = await ctx.runQuery(internal.crm.calendarConnect.connectionDoc, { connectionId: l.connectionId });
-      if (!c) continue;
+      if (!c || c.status !== "connected") {
+        if (l.linkId) await ctx.runMutation(internal.crm.calendarSync.dropLink, { linkId: l.linkId });
+        continue;
+      }
       try {
         await deleteEvent(c.apiBase, await tokenFor(ctx, c), c.calendarUid, l.zohoUid, l.etag);
-        await ctx.runMutation(internal.crm.calendarSync.dropLinks, { ids: [l._id] });
+        // Gone from Zoho: the emptied link that kept the copy from coming back is no longer needed (D-130).
+        if (l.linkId) await ctx.runMutation(internal.crm.calendarSync.dropLink, { linkId: l.linkId });
       } catch (e) {
+        // Kept: the link stays emptied, so the next read of Zoho does not bring the copy back and tries the delete again.
         await ctx.runMutation(internal.crm.calendarSync.markState, { connectionId: c._id, error: message(e) });
       }
     }
@@ -178,20 +256,12 @@ export const pushItem = internalAction({
   },
 });
 
-/** Deletes Zoho events whose CRM item is gone (the links are already forgotten). */
-export const pushDelete = internalAction({
-  args: { links: v.array(v.object({ connectionId: v.id("calendarConnections"), zohoUid: v.string(), etag: v.string() })) },
+/** Forgets one emptied link once its Zoho copy is gone. */
+export const dropLink = internalMutation({
+  args: { linkId: v.id("calendarLinks") },
   handler: async (ctx, a) => {
-    for (const l of a.links) {
-      const c: Doc<"calendarConnections"> | null = await ctx.runQuery(internal.crm.calendarConnect.connectionDoc, { connectionId: l.connectionId });
-      if (!c || c.status !== "connected") continue;
-      try {
-        await deleteEvent(c.apiBase, await tokenFor(ctx, c), c.calendarUid, l.zohoUid, l.etag);
-      } catch (e) {
-        await ctx.runMutation(internal.crm.calendarSync.markState, { connectionId: c._id, error: message(e) });
-      }
-    }
-    return null;
+    const link = await ctx.db.get(a.linkId);
+    if (link && !link.eventId && !link.taskId) await ctx.db.delete(a.linkId);
   },
 });
 
@@ -237,6 +307,11 @@ export const applyZoho = internalMutation({
         continue;
       }
       const kind: Kind = link.kind;
+      // An emptied link: the CRM item was deleted and Zoho's copy is waiting to be deleted. Never import it again; ask Zoho to delete it again.
+      if (!link.eventId && !link.taskId) {
+        await ctx.scheduler.runAfter(0, internal.crm.calendarSync.pushDelete, { links: [{ connectionId: link.connectionId, zohoUid: link.zohoUid, etag: ev.etag || link.etag, linkId: link._id }] });
+        continue;
+      }
       const row = link.eventId ? await ctx.db.get(link.eventId) : link.taskId ? await ctx.db.get(link.taskId) : null;
       if (!row) {
         await ctx.db.delete(link._id);
@@ -266,6 +341,8 @@ export const applyZoho = internalMutation({
     if (a.complete) {
       for (const link of await ctx.db.query("calendarLinks").withIndex("by_connection", (q) => q.eq("connectionId", conn._id)).take(5000)) {
         if (seen.has(link.zohoUid)) continue;
+        // Emptied, and Zoho no longer has it: done.
+        if (!link.eventId && !link.taskId) { await ctx.db.delete(link._id); continue; }
         if (link.kind === "event" && link.eventId) {
           const e = await ctx.db.get(link.eventId);
           if (!e) { await ctx.db.delete(link._id); continue; }

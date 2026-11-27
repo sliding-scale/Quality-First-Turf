@@ -5,7 +5,7 @@ import type { Id } from "../../convex/_generated/dataModel";
 import { seeded } from "./pipelineSeed";
 
 type World = Awaited<ReturnType<typeof seeded>>;
-type Kind = "clients" | "projects" | "quotes" | "invoices" | "payments";
+type Kind = "clients" | "projects" | "quotes" | "invoices" | "payments" | "jobs";
 type Who = World["admin"];
 
 async function all(who: Who, businessId: Id<"businesses">, kind: Kind) {

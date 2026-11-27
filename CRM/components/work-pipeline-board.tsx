@@ -1,6 +1,6 @@
 "use client";
 
-/* The Preplanning, Construction and Finance boards (D-080, PRD 5.1). Cards move inside the pipeline through crm/pipeline:moveStage.
+/* The Preplanning, Construction and Backend (stored as Finance) boards (D-080, PRD 5.1). Cards move inside the pipeline through crm/pipeline:moveStage.
    Crossing into the next pipeline is a menu action, so a drag never leaves this board. */
 
 import { useConvex, useMutation } from "convex/react";
@@ -10,7 +10,7 @@ import { api } from "@/convex/_generated/api";
 import type { BusinessDoc } from "@/lib/clients";
 import { moneyCents } from "@/lib/format";
 import { clock, failure, timeLabel, useCoarsePointer, useMinute, usePeople, useWorkBoard, type WorkCard } from "@/lib/pipeline";
-import { COMPLETION_STAGE, CONSTRUCTION_STAGES, FINANCE_ENTRY, FINANCE_STAGES, PREPLANNING_STAGES, type WorkPipeline } from "@/convex/crm/lib/stages";
+import { COMPLETION_STAGE, CONSTRUCTION_STAGES, FINANCE_ENTRY, FINANCE_STAGES, pipelineLabel, PREPLANNING_STAGES, type WorkPipeline } from "@/convex/crm/lib/stages";
 import { FilterMenu } from "./filter-menus";
 import { Icon } from "./icon";
 import { PipelinePanel } from "./pipeline-panel";
@@ -73,7 +73,7 @@ export function WorkPipelineBoard({ pipeline, business }: { pipeline: WorkPipeli
         : pipeline === "Construction" && card.stage === FIRST_CONSTRUCTION
           ? { label: "Return to Preplanning", done: "was returned to Preplanning.", go: () => returnToPreplanning({ id: card.id, now: clock() }) }
           : pipeline === "Construction" && card.stage === COMPLETION_STAGE
-            ? { label: "Start Finance", done: "is now in Finance.", go: () => startFinance({ id: card.id, now: clock() }) }
+            ? { label: "Move to Backend", done: "is now in Backend.", go: () => startFinance({ id: card.id, now: clock() }) }
             : pipeline === "Finance" && card.stage === FINANCE_ENTRY
               ? { label: "Return to Construction", done: "was returned to Construction.", go: () => returnToConstruction({ id: card.id, now: clock() }) }
               : null;
@@ -88,7 +88,7 @@ export function WorkPipelineBoard({ pipeline, business }: { pipeline: WorkPipeli
       {
         label: "Salesperson",
         icon: "user",
-        disabled: !canEdit,
+        reason: !canEdit ? "Your role can look at this but not change it." : undefined,
         onSelect: () =>
           popover(
             anchor,
@@ -111,7 +111,7 @@ export function WorkPipelineBoard({ pipeline, business }: { pipeline: WorkPipeli
       ...(card.movedTo ? [] : [{
         label: "Move to…",
         icon: "stage",
-        disabled: !canMove,
+        reason: !canMove ? "Your role can look at this but not change it." : undefined,
         onSelect: () =>
           popover(
             anchor,
@@ -127,7 +127,7 @@ export function WorkPipelineBoard({ pipeline, business }: { pipeline: WorkPipeli
             { className: "filter" },
           ),
       }]),
-      ...(handoff && !card.movedTo ? [{ label: handoff.label, icon: "stage", disabled: !canEdit, onSelect: () => void act(card, handoff.done, handoff.go) }] : []),
+      ...(handoff && !card.movedTo ? [{ label: handoff.label, icon: "stage", reason: !canEdit ? "Your role can look at this but not change it." : undefined, onSelect: () => void act(card, handoff.done, handoff.go) }] : []),
     ]);
   }
 
@@ -163,10 +163,10 @@ export function WorkPipelineBoard({ pipeline, business }: { pipeline: WorkPipeli
       ) : (
       <div className="pl-boardwrap">
         <div className="pl-board work" onDragEnd={() => { setDragging(null); setOver(null); }}>
-          <section className="pl-group" aria-label={pipeline}>
+          <section className="pl-group" aria-label={pipelineLabel(pipeline)}>
             <div className="pl-rail">
-              <span className="pl-badge" data-tip={`${board.total} in ${pipeline}`}>{board.total}</span>
-              <span className="pl-vlabel">{pipeline}</span>
+              <span className="pl-badge" data-tip={`${board.total} in ${pipelineLabel(pipeline)}`}>{board.total}</span>
+              <span className="pl-vlabel">{pipelineLabel(pipeline)}</span>
             </div>
             <div className="pl-cols">
               {board.columns.map((col) => {

@@ -45,7 +45,7 @@ describe("Construction management (D-081)", () => {
     // Sign-off moves the project to the last Construction stage, then hands it to Finance by itself (PRD 5.1).
     expect(await w.doc()).toMatchObject({ pipeline: "Finance", stage: "Send Final Invoice" });
     const history = await w.admin.query(api.crm.pipeline.history, { id: w.project });
-    expect(history[0]).toMatchObject({ from: FINAL, to: "Send Final Invoice", note: "Sent to Finance automatically" });
+    expect(history[0]).toMatchObject({ from: FINAL, to: "Send Final Invoice", note: "Sent to Backend automatically" });
     expect(history[1]).toMatchObject({ from: "Ready to Start", to: FINAL, note: "Customer signed off", byName: "Pat PM" });
     const told = await w.office.query(api.crm.mentions.mine, {});
     expect(told.items.some((i) => i.excerpt.includes(FINAL))).toBe(true);

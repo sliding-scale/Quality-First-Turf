@@ -8,7 +8,7 @@ import { stageList } from "./lib/pipelineStages";
 import { checkFile } from "./quoteDraft";
 import { quoteTotals } from "./lib/quoteMath";
 import { quoteMoneyOptions } from "./lib/quoteOptions";
-import { checkMove, checkWorkMove, CLOSED_STAGES, COMPLETION_STAGE, CONSTRUCTION_STAGES, FINANCE_ENTRY, FINANCE_PAID_STAGE, LEAD_SOURCES, NO_SOURCE, PREPLANNING_STAGES, SALES_STAGES, stagesOf, timeInStage, type BoardGroup } from "./lib/stages";
+import { checkMove, checkWorkMove, CLOSED_STAGES, COMPLETION_STAGE, CONSTRUCTION_STAGES, FINANCE_ENTRY, FINANCE_PAID_STAGE, LEAD_SOURCES, NO_SOURCE, pipelineLabel, PREPLANNING_STAGES, SALES_STAGES, stagesOf, timeInStage, type BoardGroup } from "./lib/stages";
 import { assertPaidUp, projectMoney } from "./lib/billing";
 import { assignJobNumber } from "./lib/jobNumber";
 import { notifyStage } from "./lib/mentionNotify";
@@ -229,7 +229,7 @@ export const board = query({
       column.push({
         group: groupOf.get(movedOn ? "Closed Won" : p.stage) ?? "Requests",
         id: p._id, code: p.code, title: p.title, clientId: p.clientId, clientName: clients.get(p.clientId) ?? "", stage: movedOn ? "Closed Won" : p.stage,
-        movedTo: movedOn ? `${p.pipeline}: ${p.stage}` : undefined,
+        movedTo: movedOn ? `${pipelineLabel(p.pipeline)}: ${p.stage}` : undefined,
         consultationAt: consults.get(p._id),
         valueCents: allows(who.levels.prices, "view") ? (values.get(p._id)?.totalCents ?? 0) : 0, quoteId: values.get(p._id)?.quoteId, timeInStageMs: timeInStage(movedOn ? (p.closedAt ?? p.stageEnteredAt) : p.stageEnteredAt, p.requestedAt, a.now), requestedAt: p.requestedAt,
         salespersonId: p.salespersonId, salespersonName: p.salespersonId ? (people.get(p.salespersonId) ?? "") : "Unassigned", leadSource: p.leadSource ?? NO_SOURCE,
@@ -294,7 +294,7 @@ export const workBoard = query({
       if (!clients.has(p.clientId)) clients.set(p.clientId, (await ctx.db.get(p.clientId))?.name ?? "");
       column.push({
         id: p._id, code: p.code, title: p.title, clientId: p.clientId, clientName: clients.get(p.clientId) ?? "", stage: movedOn ? lastStage : p.stage,
-        movedTo: movedOn ? `${p.pipeline}: ${p.stage}` : undefined,
+        movedTo: movedOn ? `${pipelineLabel(p.pipeline)}: ${p.stage}` : undefined,
         balanceCents: a.pipeline === "Finance" ? (await projectMoney(ctx, p)).outstandingCents : undefined,
         valueCents: allows(who.levels.prices, "view") ? (values.get(p._id)?.totalCents ?? 0) : 0, quoteId: values.get(p._id)?.quoteId, timeInStageMs: timeInStage(p.stageEnteredAt, p.requestedAt, a.now), requestedAt: p.requestedAt,
         salespersonId: p.salespersonId, salespersonName: p.salespersonId ? (people.get(p.salespersonId) ?? "") : "Unassigned", leadSource: p.leadSource ?? NO_SOURCE,
@@ -435,7 +435,7 @@ export async function completeConstruction(ctx: MutationCtx, project: Doc<"oppor
   // Sign-off hands the same project to Finance at once (PRD 5.1, design 2026-11-18), as Closed Won hands it to Preplanning. The sign-off move
   // above stays in the history, and the Office team was already told by it, so the handoff sends nothing more.
   const signed = await ctx.db.get(project._id);
-  if (signed !== null) await changePipeline(ctx, signed, by, { from: ["Construction", COMPLETION_STAGE], to: ["Finance", FINANCE_ENTRY], now, note: "Sent to Finance automatically", quiet: true });
+  if (signed !== null) await changePipeline(ctx, signed, by, { from: ["Construction", COMPLETION_STAGE], to: ["Finance", FINANCE_ENTRY], now, note: "Sent to Backend automatically", quiet: true });
   return true;
 }
 
@@ -671,7 +671,7 @@ export const startFinance = mutation({
     if (project === null) throw new ConvexError("That project no longer exists.");
     const staff = await requireModule(ctx, project.businessId, "pipelineFinance", "edit");
     if (project.pipeline === "Construction" && !(await completionState(ctx, project._id)).ready) throw new ConvexError(completionBlock(await completionState(ctx, project._id)));
-    return changePipeline(ctx, project, staff, { from: ["Construction", COMPLETION_STAGE], to: ["Finance", FINANCE_ENTRY], now: args.now, note: "Sent to Finance", office: true, refuse: `Only a project at "${COMPLETION_STAGE}" can go to Finance.` });
+    return changePipeline(ctx, project, staff, { from: ["Construction", COMPLETION_STAGE], to: ["Finance", FINANCE_ENTRY], now: args.now, note: "Sent to Backend", office: true, refuse: `Only a project at "${COMPLETION_STAGE}" can go to Backend.` });
   },
 });
 

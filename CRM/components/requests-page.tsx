@@ -13,7 +13,7 @@ import { DAY_MS } from "@/convex/crm/lib/stages";
 import { daysAgoFrom, useWorkspace, type BusinessDoc } from "@/lib/clients";
 import { ALL_TIME, rangeBounds, rangeLabel, type DateRange } from "@/lib/dates";
 import { dayLabel } from "@/lib/format";
-import { REQUEST_STATUSES, useRequestList, useRequestStats, type RequestStatus } from "@/lib/requests";
+import { REQUEST_STATUSES, useRequestList, useRequestStats, type RequestListStatus, type RequestStatus } from "@/lib/requests";
 import { EmptyBackend } from "./empty-backend";
 import { DateRangeMenu, FilterMenu } from "./filter-menus";
 import { Icon } from "./icon";
@@ -22,7 +22,8 @@ import { useUI } from "./ui-provider";
 
 type SortKey = "client" | "title" | "requestedAt" | "status";
 
-const STATUS_CLASS: Record<RequestStatus, string> = {
+const STATUS_CLASS: Record<RequestListStatus, string> = {
+  Archived: "draft",
   New: "lead",
   Overdue: "overdue",
   Consultation: "consult",
@@ -30,7 +31,8 @@ const STATUS_CLASS: Record<RequestStatus, string> = {
   Lost: "draft",
 };
 
-const DOT: Record<RequestStatus, string> = {
+const DOT: Record<RequestListStatus, string> = {
+  Archived: "var(--muted)",
   New: "var(--blue)",
   Overdue: "var(--red)",
   Consultation: "var(--orange)",
@@ -57,7 +59,7 @@ function Requests({ business, initialQuery }: { business: BusinessDoc; initialQu
   const { dropdown, popover, toast } = useUI();
   const [q, setQ] = useState(initialQuery);
   const [search, setSearch] = useState(initialQuery); // what the server is asked, a moment after typing stops
-  const [status, setStatus] = useState<"All" | RequestStatus>("All");
+  const [status, setStatus] = useState<"All" | RequestListStatus>("All");
   const [range, setRange] = useState<DateRange>(ALL_TIME);
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "requestedAt", dir: "desc" });
   const [page, setPage] = useState(1);
@@ -191,9 +193,9 @@ function Requests({ business, initialQuery }: { business: BusinessDoc; initialQu
                 (close) => (
                   <FilterMenu
                     placeholder="Search statuses"
-                    options={[{ label: "All" }, ...[...REQUEST_STATUSES].sort().map((st) => ({ label: st, dot: DOT[st], count: stats.counts[st] }))]}
+                    options={[{ label: "All" }, ...[...REQUEST_STATUSES].sort().map((st) => ({ label: st, dot: DOT[st], count: stats.counts[st] })), { label: "Archived", dot: DOT.Archived }]}
                     selected={status}
-                    onSelect={(o) => { setStatus(o as "All" | RequestStatus); setPage(1); }}
+                    onSelect={(o) => { setStatus(o as "All" | RequestListStatus); setPage(1); }}
                     close={close}
                   />
                 ),

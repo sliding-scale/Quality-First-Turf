@@ -51,20 +51,20 @@ const PIPELINES: { label: string; href?: string }[] = [
   { label: "Sales", href: "/pipeline" },
   { label: "Preplanning", href: "/pipeline/preplanning" },
   { label: "Construction", href: "/pipeline/construction" },
-  { label: "Finance", href: "/pipeline/finance" },
+  { label: "Backend", href: "/pipeline/backend" },
 ];
 
 /** The permission module behind each sidebar item and each page (PRD 5.5). The backend refuses what a person may not do; this only keeps the
  *  menu and the page tidy. null: open to everyone signed in. */
 const NAV_MODULE: Record<string, Module | undefined> = { clients: "clients", requests: "requests", quotes: "quotes", schedule: "schedule", jobs: "jobs", messages: "messages", invoices: "invoices", payments: "payments", tasks: "tasks" };
-const PIPELINE_MODULE: Record<string, Module> = { Sales: "pipelineSales", Preplanning: "pipelinePreplanning", Construction: "pipelineConstruction", Finance: "pipelineFinance" };
+const PIPELINE_MODULE: Record<string, Module> = { Sales: "pipelineSales", Preplanning: "pipelinePreplanning", Construction: "pipelineConstruction", Backend: "pipelineFinance" };
 function moduleOfPath(pathname: string): Module | null {
   const first = NAV_MODULE[pathname.split("/")[1] ?? ""];
   if (first) return first;
   if (pathname === "/pipeline" || pathname.startsWith("/pipeline/edit")) return "pipelineSales";
   if (pathname.startsWith("/pipeline/preplanning")) return "pipelinePreplanning";
   if (pathname.startsWith("/pipeline/construction")) return "pipelineConstruction";
-  if (pathname.startsWith("/pipeline/finance")) return "pipelineFinance";
+  if (pathname.startsWith("/pipeline/backend")) return "pipelineFinance";
   if (pathname.startsWith("/settings/invoices") || pathname.startsWith("/settings/disclaimers")) return "templates";
   return null;
 }

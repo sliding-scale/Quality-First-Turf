@@ -9,7 +9,7 @@ import { useEffect, useLayoutEffect, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { failure } from "@/lib/pipeline";
-import { ITEM_LABEL, KIND_STYLE, REPEAT_LABEL, VISIT_LABEL, dateText, timeText, type ScheduleItem } from "@/lib/schedule";
+import { ITEM_LABEL, KIND_STYLE, REPEAT_LABEL, VISIT_LABEL, dateText, itemName, timeText, type ScheduleItem } from "@/lib/schedule";
 import { Icon } from "./icon";
 import type { Person } from "./schedule-grid";
 import { useUI } from "./ui-provider";
@@ -69,7 +69,7 @@ export function SchedulePopup({ item, anchor, people, canEdit, onClose, onEdit }
     <div ref={box} className={`sc-popup${leaving ? " leaving" : ""}`} role="dialog" aria-label={item.title} tabIndex={-1} style={{ borderTopColor: style.edge }}>
       <div className="sc-pophead">
         <div>
-          <h3>{item.title}</h3>
+          <h3>{itemName(item)}</h3>
           <div className="sc-poptype">{item.visitKind ? VISIT_LABEL[item.visitKind] : ITEM_LABEL[item.kind]}{item.repeat !== "none" ? ` · ${REPEAT_LABEL[item.repeat]}` : ""}</div>
         </div>
         <button type="button" className="icon-btn" aria-label="Close" onClick={() => setLeaving(true)}><Icon name="x" size={20} /></button>
@@ -113,7 +113,8 @@ export function SchedulePopup({ item, anchor, people, canEdit, onClose, onEdit }
 
       <div className="sc-popfoot">
         {canEdit && <button type="button" className="btn" onClick={onEdit}>Edit</button>}
-        {item.clientId && <Link className="btn primary" href={`/clients/${item.clientId}`}>Details</Link>}
+        {/* Details opens the project's own page (D-130); an item with no project opens its client. */}
+        {item.opportunityId ? <Link className="btn primary" href={`/opportunities/${item.opportunityId}`}>Details</Link> : item.clientId && <Link className="btn primary" href={`/clients/${item.clientId}`}>Details</Link>}
         {canEdit && !isTask && (
           <button type="button" className="sc-delete" onClick={() => void run(remove({ id: item.id as Id<"calendarEvents"> }).then(() => setLeaving(true)), "The item could not be deleted.")}>
             <Icon name="trash" size={16} /> Delete{item.repeat !== "none" ? " (all repeats)" : ""}

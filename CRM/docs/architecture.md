@@ -58,13 +58,13 @@ Forms app ──> projects.create ──scheduler──> crm/intake.ts (the cust
 |---|---|
 | People | `users` (invite-only, `roles` array, `businessIds`, status), `businesses` (name, slug, phone, email, website) |
 | Clients | `clients` (per business, homeowner or contractor), `clientNotes`, `activities` (append-only client history, D-113), `clientMailMessages`, `clientMailThreads`, `clientMailBodies`, `zohoMailSync`, `zohoWatchedAddresses` |
-| Projects | `opportunities`, `stageHistory`, `pipelineStages`, `opportunityTasks`, `opportunityNotes`, `opportunityFiles`, `opportunityVisits` (CRM work areas, D-114), `noteMentions` |
+| Projects | `opportunities`, `stageHistory`, `pipelineStages`, `opportunityTasks`, `opportunityNotes`, `opportunityFiles`, `opportunityVisits` (visit notes and the work areas a quote reads, D-114), `visitSheets` (each visit's own work areas, D-133), `noteMentions` |
 | Quotes | `quotes`, `quoteLineItems`, `quoteEvents`, `quoteRevisions`, `quoteAttachments`, `quoteDefaults`, `quoteNotes`, `disclaimers` |
 | Jobs and catalogue | `catalogueItems`, `catalogueSettings`, `jobCounters`, `jobTimeEntries`, `jobExpenses`, `jobSignatures`, `checklistTemplates`, `jobChecklistItems` |
 | Preplanning | `materials`, `materialKits`, `takeoffs`, `takeoffLines`, `purchaseOrders`, `workPackages`, `crews` |
 | Construction | `progressUpdates`, `punchItems`, `signoffs` |
 | Finance | `invoices`, `invoiceLines`, `invoiceEvents`, `invoiceSettings`, `billingPlans`, `paymentScheduleItems`, `payments`, `paymentAllocations` |
-| Schedule | `calendarEvents`, `calendarConnections`, `calendarLinks`, `calendarOauthStates`, `scheduleSettings` |
+| Schedule | `calendarEvents`, `calendarConnections`, `calendarLinks`, `calendarPushes`, `calendarOauthStates`, `scheduleSettings` |
 | Automations | `automations`, `automationSettings`, `automationRuns`, `customAutomations`, `customAutomationRuns` |
 | Messages | `phoneNumbers`, `messages`, `calls` |
 

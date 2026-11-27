@@ -6,13 +6,13 @@
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import type { RequestStatus } from "@/convex/crm/lib/stages";
+import type { RequestListStatus } from "@/convex/crm/lib/stages";
 import { startOfToday, useKept } from "./clients";
 
-export { OVERDUE_AFTER_DAYS, REQUEST_STATUSES, type RequestStatus } from "@/convex/crm/lib/stages";
+export { OVERDUE_AFTER_DAYS, REQUEST_STATUSES, type RequestListStatus, type RequestStatus } from "@/convex/crm/lib/stages";
 
 export type RequestFilters = {
-  status: "All" | RequestStatus;
+  status: "All" | RequestListStatus;
   /** Inclusive range of request dates, in ms. null is open-ended. */
   from: number | null;
   to: number | null;

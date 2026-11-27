@@ -132,3 +132,6 @@ export function useNarrow(): boolean {
     () => false,
   );
 }
+
+/** What a schedule item is called on screen: its title and its project's code (D-130), e.g. "Consultation: Artificial Grass · M27S6U". */
+export const itemName = (i: { title: string; code?: string }) => (i.code && !i.title.includes(i.code) ? `${i.title} · ${i.code}` : i.title);

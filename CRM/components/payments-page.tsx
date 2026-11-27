@@ -5,11 +5,14 @@
    filtering, sorting and paging; this file only asks and shows. A payment's amount is what was received; a deposit not yet applied to an
    invoice says so. */
 
+import { useConvex } from "convex/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { DAY_MS } from "@/convex/crm/lib/stages";
 import { useWorkspace, type BusinessDoc } from "@/lib/clients";
+import { downloadExport } from "@/lib/download-export";
+import { failure } from "@/lib/pipeline";
 import { ALL_TIME, rangeBounds, rangeLabel, type DateRange } from "@/lib/dates";
 import { moneyCents } from "@/lib/format";
 import { PAYMENT_METHODS, usePaymentList, usePaymentStats, utcDate } from "@/lib/invoices";
@@ -36,8 +39,18 @@ function bounds(range: DateRange): { from?: number; to?: number } {
 
 function Payments({ business }: { business: BusinessDoc }) {
   const router = useRouter();
-  const { popover, dropdown } = useUI();
+  const { popover, dropdown, toast } = useUI();
   const { can } = useStaff();
+  const convex = useConvex();
+  /** Every one of the business's payments, whatever the list is filtered to, as a spreadsheet file. */
+  async function exportCsv() {
+    try {
+      const count = await downloadExport(convex, business, "payments");
+      toast(`Exported ${count} ${count === 1 ? "payment" : "payments"}.`);
+    } catch (e) {
+      toast(failure(e, "The export did not finish. Nothing was downloaded."));
+    }
+  }
   const canBill = can("payments", "edit");
   const [q, setQ] = useState("");
   const [search, setSearch] = useState("");
@@ -75,12 +88,12 @@ function Payments({ business }: { business: BusinessDoc }) {
       <div className="page-head">
         <h1>Payments</h1>
         <div className="actions">
-          {canBill ? <Link className="btn primary" href="/payments/new">Collect Payment</Link> : <button className="btn primary" type="button" disabled data-tip="Your role can look at payments but not record them">Collect Payment</button>}
+          {canBill ? <Link className="btn primary" href="/payments/new">Collect Payment</Link> : <button className="btn primary" type="button" aria-disabled="true" onClick={() => toast("Your role can look at payments but not record them.")}>Collect Payment</button>}
           <button
             className="btn"
             type="button"
             aria-haspopup="menu"
-            onClick={(e) => dropdown(e.currentTarget, [{ label: "Export data", icon: "export", onSelect: () => router.push("/settings/export") }], { alignRight: true, variant: "actions" })}
+            onClick={(e) => dropdown(e.currentTarget, [{ label: "Export Payments", icon: "export", onSelect: () => void exportCsv() }], { alignRight: true, variant: "actions" })}
           >
             <Icon name="more" size={20} /> More Actions
           </button>

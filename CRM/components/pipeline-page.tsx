@@ -52,7 +52,7 @@ function Pipeline({ business }: { business: BusinessDoc }) {
             <button
               type="button"
               className="btn primary"
-              onClick={(e) => dropdown(e.currentTarget, [{ label: "Request", icon: "inbox", disabled: !canEdit, onSelect: () => router.push("/requests/new") }, { label: "Quote", icon: "quote", disabled: !canEdit, onSelect: () => router.push("/quotes/new") }], { alignRight: true })}
+              onClick={(e) => dropdown(e.currentTarget, [{ label: "Request", icon: "inbox", reason: !canEdit ? "Your role can look at this but not change it." : undefined, onSelect: () => router.push("/requests/new") }, { label: "Quote", icon: "quote", reason: !canEdit ? "Your role can look at this but not change it." : undefined, onSelect: () => router.push("/quotes/new") }], { alignRight: true })}
             >
               <Icon name="plus" size={18} /> Add New
             </button>
@@ -63,8 +63,8 @@ function Pipeline({ business }: { business: BusinessDoc }) {
                 dropdown(
                   e.currentTarget,
                   [
-                    { label: "Edit Stages", icon: "pencil", disabled: !canEdit, onSelect: () => router.push("/pipeline/edit") },
-                    { label: "Automations", icon: "calendar", disabled: !isAdmin, onSelect: () => router.push("/settings/automations") },
+                    { label: "Edit Stages", icon: "pencil", reason: !canEdit ? "Your role can look at this but not change it." : undefined, onSelect: () => router.push("/pipeline/edit") },
+                    { label: "Automations", icon: "calendar", reason: !isAdmin ? "Only an Admin can change the automations." : undefined, onSelect: () => router.push("/settings/automations") },
                   ],
                   { alignRight: true },
                 )

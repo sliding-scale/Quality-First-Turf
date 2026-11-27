@@ -18,6 +18,7 @@ import { todayKey } from "@/lib/schedule";
 import { startOfToday } from "@/lib/clients";
 import { BillingTab } from "./billing-tab";
 import { profitOf } from "@/convex/crm/lib/jobCosts";
+import { pipelineLabel } from "@/convex/crm/lib/stages";
 import { Icon } from "./icon";
 import { SendEmailDialog } from "./client-dialogs";
 import { bookingMessage, costsFileName, DeleteJobDialog, downloadText, followUpEmail, jobCostsCsv, openText, SignatureDialog } from "./job-actions";
@@ -74,12 +75,12 @@ function JobView({ job }: { job: Job }) {
 
   const moreItems = () => [
     closed
-      ? { label: "Reopen Job", icon: "hammer", iconColor: "var(--green)", disabled: !canEdit, onSelect: () => void reopen({ id: job.id, now: clock() }).then(() => toast("Job reopened")).catch((e) => fail(e, "The job could not be reopened.")) }
-      : { label: "Close Job", icon: "hammer", iconColor: "var(--green)", disabled: !canEdit, onSelect: () => void close({ id: job.id, now: clock() }).then(() => toast("Job closed")).catch((e) => fail(e, "The job could not be closed.")) },
-    { label: "Create Similar Job", icon: "duplicate", disabled: !staff.can("jobs", "edit"), onSelect: () => router.push(`/jobs/new?similar=${job.id}`) },
-    { label: "Send Job Follow-up Email", icon: "mail", disabled: !canEdit || !job.client.email, onSelect: () => setDialog("followup") },
+      ? { label: "Reopen Job", icon: "hammer", iconColor: "var(--green)", reason: !canEdit ? "Your role can look at this but not change it." : undefined, onSelect: () => void reopen({ id: job.id, now: clock() }).then(() => toast("Job reopened")).catch((e) => fail(e, "The job could not be reopened.")) }
+      : { label: "Close Job", icon: "hammer", iconColor: "var(--green)", reason: !canEdit ? "Your role can look at this but not change it." : undefined, onSelect: () => void close({ id: job.id, now: clock() }).then(() => toast("Job closed")).catch((e) => fail(e, "The job could not be closed.")) },
+    { label: "Create Similar Job", icon: "duplicate", reason: !staff.can("jobs", "edit") ? "Your role cannot make jobs." : undefined, onSelect: () => router.push(`/jobs/new?similar=${job.id}`) },
+    { label: "Send Job Follow-up Email", icon: "mail", reason: !canEdit ? "Your role can look at this but not change it." : !job.client.email ? "The client has no email address. Add one on the client first." : undefined, onSelect: () => setDialog("followup") },
     {
-      label: "Text Booking Confirmation", icon: "sms", disabled: !canEdit || !job.client.phone || !booking,
+      label: "Text Booking Confirmation", icon: "sms", reason: !canEdit ? "Your role can look at this but not change it." : !job.client.phone ? "The client has no phone number. Add one on the client first." : !booking ? "Nothing is booked for this job yet. Schedule a visit first." : undefined,
       onSelect: () => {
         if (!booking) return;
         // The text goes into the Messages log against this client and job. Until texting is connected it is logged as sent by hand and opened in the messaging app.
@@ -93,12 +94,12 @@ function JobView({ job }: { job: Job }) {
           .catch((e) => fail(e, "The text could not be sent."));
       },
     },
-    { label: "Email Booking Confirmation", icon: "mail", disabled: !canEdit || !job.client.email || !booking, onSelect: () => setDialog("booking") },
-    { label: "Create Invoice", icon: "receipt", disabled: !staff.can("invoices", "edit"), onSelect: () => router.push(`/invoices/new?clientId=${job.clientId}&projectId=${job.id}`) },
-    { label: "Collect Signature", icon: "signature", disabled: !canEdit, onSelect: () => setDialog("signature") },
-    { label: "Email Job Costs CSV", icon: "import", disabled: !costs, onSelect: () => costs && downloadText(costsFileName(job), jobCostsCsv(job, costs)) },
+    { label: "Email Booking Confirmation", icon: "mail", reason: !canEdit ? "Your role can look at this but not change it." : !job.client.email ? "The client has no email address. Add one on the client first." : !booking ? "Nothing is booked for this job yet. Schedule a visit first." : undefined, onSelect: () => setDialog("booking") },
+    { label: "Create Invoice", icon: "receipt", reason: !staff.can("invoices", "edit") ? "Your role cannot make invoices." : undefined, onSelect: () => router.push(`/invoices/new?clientId=${job.clientId}&projectId=${job.id}`) },
+    { label: "Collect Signature", icon: "signature", reason: !canEdit ? "Your role can look at this but not change it." : undefined, onSelect: () => setDialog("signature") },
+    { label: "Email Job Costs CSV", icon: "import", reason: !costs ? "The job costs are still loading. Try again in a moment." : undefined, onSelect: () => costs && downloadText(costsFileName(job), jobCostsCsv(job, costs)) },
     { label: "Print or Save PDF", icon: "pdf", onSelect: () => window.print() },
-    { label: "Delete", icon: "trash", danger: true, disabled: !staff.can("jobs", "full"), onSelect: () => setDialog("delete") },
+    { label: "Delete", icon: "trash", danger: true, reason: !staff.can("jobs", "full") ? "Only someone with Edit and delete on Jobs can delete a job." : undefined, onSelect: () => setDialog("delete") },
   ];
 
   return (
@@ -106,7 +107,7 @@ function JobView({ job }: { job: Job }) {
       <div className="op-top">
         <Link className="rq-back" href="/jobs"><Icon name="chevleft" size={18} /> Jobs</Link>
         <div className="op-actions">
-          <button type="button" className="btn" aria-label="Job history" data-tip="History is on the project's Activity tab" onClick={() => router.push(`/opportunities/${job.id}?tab=activity`)}><Icon name="history" size={18} /></button>
+          <Link className="btn" href={`/opportunities/${job.id}`}><Icon name="inbox" size={18} />View opportunity</Link>
           <button type="button" className="btn" onClick={(e) => dropdown(e.currentTarget, moreItems(), { alignRight: true })}><Icon name="more" size={18} /> More</button>
           {next && <Link className="btn primary" href={`/schedule?view=day&date=${todayKey(next.start)}`}>{late ? "Show Late Visit" : "Show Next Visit"}</Link>}
         </div>
@@ -118,7 +119,7 @@ function JobView({ job }: { job: Job }) {
         <span className="op-code">#{job.jobNumber}</span>
       </div>
       <p className="muted job-where">
-        <Link href={`/opportunities/${job.id}`}>{job.pipeline}: {job.stage}</Link>
+        <Link href={`/opportunities/${job.id}`}>{pipelineLabel(job.pipeline)}: {job.stage}</Link>
         {closed && <> · Closed {quoteDate(job.closedAt as number)}{job.closedByName ? ` by ${job.closedByName}` : ""}</>}
       </p>
 

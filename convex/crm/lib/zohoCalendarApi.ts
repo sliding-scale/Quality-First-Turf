@@ -25,7 +25,13 @@ async function call(method: string, url: string, token: string, extra: Record<st
   if (!url.startsWith("https://")) throw new ZohoCalError("Refusing a Zoho request that is not https.", 400);
   const res = await fetch(url, { method, headers: headers(token, extra) });
   const text = await res.text();
-  const body = text ? (parse(text) as Record<string, unknown>) : {};
+  let body: Record<string, unknown> = {};
+  try {
+    body = text ? (parse(text) as Record<string, unknown>) : {};
+  } catch (e) {
+    console.warn("Zoho Calendar answer that was not JSON", method, res.status, res.headers.get("content-type"), JSON.stringify(text.slice(0, 300)));
+    throw e;
+  }
   if (res.status === 401) throw new ZohoCalError("Zoho refused the token.", 401);
   if (res.status === 404 || res.status === 410) throw new ZohoCalError("Zoho does not have that event.", res.status, true);
   if (res.status === 429) throw new ZohoCalError("Zoho Calendar is limiting requests.", 429);
@@ -41,6 +47,10 @@ const eventsOf = (body: Record<string, unknown>): ZohoEvent[] =>
   Array.isArray(body.events)
     ? (body.events as ZohoEvent[]).filter((e) => e && e.uid !== undefined && e.uid !== null && String(e.uid) !== "").map((e) => ({ ...e, uid: String(e.uid), etag: String(e.etag ?? "") }))
     : [];
+
+/** An event's address. Zoho's event ids end in "@zoho.com" and its server answers 404 (an HTML page) when that "@" is sent as %40, so every
+ *  change and delete failed and deleted items stayed in Zoho (D-134). "@" is allowed in a path as it is. */
+const eventUrl = (apiBase: string, calendarUid: string, uid: string) => `${apiBase}/api/v1/calendars/${encodeURIComponent(calendarUid)}/events/${encodeURIComponent(uid).replace(/%40/g, "@")}`;
 
 export async function defaultCalendar(apiBase: string, token: string): Promise<{ uid: string; name: string; timezone: string }> {
   const body = await call("GET", `${apiBase}/api/v1/calendars`, token);
@@ -64,14 +74,14 @@ export async function createEvent(apiBase: string, token: string, calendarUid: s
 
 /** Zoho replaces the whole event, and wants the latest etag. */
 export async function updateEvent(apiBase: string, token: string, calendarUid: string, uid: string, etag: string, data: Record<string, unknown>): Promise<ZohoEvent> {
-  const url = `${apiBase}/api/v1/calendars/${encodeURIComponent(calendarUid)}/events/${encodeURIComponent(uid)}?eventdata=${encodeURIComponent(JSON.stringify({ ...data, uid }))}`;
+  const url = `${eventUrl(apiBase, calendarUid, uid)}?eventdata=${encodeURIComponent(JSON.stringify({ ...data, uid }))}`;
   const [event] = eventsOf(await call("PUT", url, token, { etag }));
   if (!event) throw new ZohoCalError("Zoho did not return the changed event.", 502);
   return event;
 }
 
 export async function deleteEvent(apiBase: string, token: string, calendarUid: string, uid: string, etag: string): Promise<void> {
-  const url = `${apiBase}/api/v1/calendars/${encodeURIComponent(calendarUid)}/events/${encodeURIComponent(uid)}`;
+  const url = eventUrl(apiBase, calendarUid, uid);
   try {
     await call("DELETE", url, token, { etag });
   } catch (e) {

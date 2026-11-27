@@ -83,7 +83,7 @@ export function PipelineBoard({ business }: { business: BusinessDoc }) {
       {
         label: "Salesperson",
         icon: "user",
-        disabled: !canEdit,
+        reason: !canEdit ? "Your role can look at this but not change it." : undefined,
         onSelect: () =>
           popover(
             anchor,
@@ -105,7 +105,7 @@ export function PipelineBoard({ business }: { business: BusinessDoc }) {
       ...(moved ? [] : [{
         label: "Move to…",
         icon: "stage",
-        disabled: !canEdit,
+        reason: !canEdit ? "Your role can look at this but not change it." : undefined,
         onSelect: () =>
           popover(
             anchor,
@@ -129,7 +129,7 @@ export function PipelineBoard({ business }: { business: BusinessDoc }) {
         ? [{
             label: "Start preplanning",
             icon: "stage",
-            disabled: !canEdit,
+            reason: !canEdit ? "Your role can look at this but not change it." : undefined,
             onSelect: () => {
               void startPreplanning({ id: card.id, now: clock() })
                 .then(() => toast(`${card.title} is now in Preplanning.`))
@@ -139,8 +139,8 @@ export function PipelineBoard({ business }: { business: BusinessDoc }) {
         : []),
       ...(moved ? [] : [
         { divider: true as const },
-        { label: "Mark as won", icon: "check", disabled: !canEdit || card.stage === "Closed Won", onSelect: () => void won(card) },
-        { label: "Mark as Lost", icon: "x", disabled: !canEdit || card.stage === "Closed Lost", onSelect: () => setLost(card) },
+        { label: "Mark as won", icon: "check", reason: !canEdit ? "Your role can look at this but not change it." : card.stage === "Closed Won" ? "This project is already won." : undefined, onSelect: () => void won(card) },
+        { label: "Mark as Lost", icon: "x", reason: !canEdit ? "Your role can look at this but not change it." : card.stage === "Closed Lost" ? "This project is already lost." : undefined, onSelect: () => setLost(card) },
       ]),
     ]);
   }

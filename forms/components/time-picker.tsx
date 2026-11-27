@@ -5,7 +5,8 @@
    user pointed to. The value is "HH:MM" in 24-hour time. */
 
 import { Clock } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 const HOURS = [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
 const MINUTES = Array.from({ length: 12 }, (_, i) => i * 5);
@@ -47,6 +48,13 @@ export function TimePicker({ value, onChange, label, bad }: { value: string; onC
   const [open, setOpen] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const box = useRef<HTMLDivElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
+  // Where the panel is drawn: the page, or the native <dialog> it sits in (the top layer would hide it otherwise). Read when it opens.
+  const [host, setHost] = useState<Element | null>(null);
+  const openPanel = () => {
+    setHost(box.current?.closest("dialog") ?? document.body);
+    setOpen(true);
+  };
   const current = parts(value);
 
   useEffect(() => {
@@ -60,7 +68,9 @@ export function TimePicker({ value, onChange, label, bad }: { value: string; onC
   useEffect(() => {
     if (!open) return;
     const down = (e: PointerEvent) => {
-      if (box.current && !box.current.contains(e.target as Node)) setLeaving(true);
+      const t = e.target as Node;
+      if (box.current?.contains(t) || panel.current?.contains(t)) return;
+      setLeaving(true);
     };
     const key = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -76,9 +86,30 @@ export function TimePicker({ value, onChange, label, bad }: { value: string; onC
       document.removeEventListener("keydown", key, true);
     };
   }, [open]);
-  useEffect(() => {
-    if (!open || !box.current) return;
-    box.current.querySelectorAll<HTMLElement>(".ftp-col .on").forEach((el) => el.scrollIntoView({ block: "center" }));
+  // The panel floats over the dialog instead of inside it, so the dialog never scrolls when it opens.
+  useLayoutEffect(() => {
+    if (!open) return;
+    const place = () => {
+      const el = panel.current;
+      const trigger = box.current?.querySelector(".ftp-trigger");
+      if (!el || !trigger) return;
+      const r = trigger.getBoundingClientRect();
+      const below = window.innerHeight - r.bottom;
+      const top = below < el.offsetHeight + 12 && r.top > below ? r.top - el.offsetHeight - 6 : r.bottom + 6;
+      el.style.top = `${Math.max(8, top)}px`;
+      el.style.left = `${Math.max(8, Math.min(r.left, window.innerWidth - el.offsetWidth - 8))}px`;
+    };
+    place();
+    panel.current?.querySelectorAll<HTMLElement>(".ftp-col .on").forEach((on) => {
+      const col = on.parentElement;
+      if (col) col.scrollTop = on.offsetTop - col.clientHeight / 2 + on.offsetHeight / 2;
+    });
+    window.addEventListener("scroll", place, true);
+    window.addEventListener("resize", place);
+    return () => {
+      window.removeEventListener("scroll", place, true);
+      window.removeEventListener("resize", place);
+    };
   }, [open]);
 
   const set = (patch: Partial<{ h12: number; m: number; pm: boolean }>) => {
@@ -94,12 +125,14 @@ export function TimePicker({ value, onChange, label, bad }: { value: string; onC
 
   return (
     <div className={`ftp${bad ? " bad" : ""}`} ref={box}>
-      <button type="button" className="ftp-trigger" aria-label={label} aria-haspopup="dialog" aria-expanded={open && !leaving} onClick={() => (open ? setLeaving(true) : setOpen(true))}>
+      <button type="button" className="ftp-trigger" aria-label={label} aria-haspopup="dialog" aria-expanded={open && !leaving} onClick={() => (open ? setLeaving(true) : openPanel())}>
         <Clock size={16} aria-hidden="true" />
         <span>{value ? timeText(value) : label}</span>
       </button>
-      {open && (
-        <div className={`ftp-panel${leaving ? " leaving" : ""}`} role="dialog" aria-label={label}>
+      {open &&
+        host &&
+        createPortal(
+        <div ref={panel} className={`ftp-panel${leaving ? " leaving" : ""}`} role="dialog" aria-label={label}>
           <div className="ftp-cols">
             <div className="ftp-col" role="listbox" aria-label="Hour">
               {HOURS.map((h) => (
@@ -122,8 +155,9 @@ export function TimePicker({ value, onChange, label, bad }: { value: string; onC
             <button type="button" className="ftp-now" onClick={now}>Now</button>
             <button type="button" className="ftp-done" onClick={() => setLeaving(true)}>Done</button>
           </div>
-        </div>
-      )}
+        </div>,
+          host,
+        )}
     </div>
   );
 }

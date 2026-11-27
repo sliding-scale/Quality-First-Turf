@@ -5,7 +5,7 @@
    apply. The pop-up collects the date, time, length, team and instructions; the caller books it (the New Request form after the request
    is saved, the request page straight away). The instructions are kept in the consultation's notes. */
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { fromInputs, inputParts, todayKey } from "@/lib/schedule";
 import { quoteDateTime } from "@/lib/format";
 import { clock, failure } from "@/lib/pipeline";
@@ -193,10 +193,9 @@ export function AssessmentInline({ people, initial, instructions, onSave, onDele
   onCancel: () => void;
 }) {
   const s = initial ? inputParts(initial.start) : { date: "", time: "" };
-  const e = initial && !initial.anytime ? inputParts(initial.end) : { date: s.date, time: "" };
+  const e = initial && !initial.anytime ? inputParts(initial.end) : { time: "" };
   const [text, setText] = useState(instructions);
   const [startDate, setStartDate] = useState(s.date);
-  const [endDate, setEndDate] = useState(e.date);
   const [startTime, setStartTime] = useState(s.time);
   const [endTime, setEndTime] = useState(e.time);
   const [later, setLater] = useState(initial === null);
@@ -207,6 +206,23 @@ export function AssessmentInline({ people, initial, instructions, onSave, onDele
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const names = team.map((id) => people?.find((p) => p.id === id)?.name).filter(Boolean).join(", ");
+
+  // The team list closes on a click anywhere else and on Escape (user, 2026-11-26, D-132); it stays open while people are ticked.
+  const teamBox = useRef<HTMLDivElement>(null);
+  const [teamLeaving, setTeamLeaving] = useState(false);
+  useEffect(() => {
+    if (!teamOpen || teamLeaving) return;
+    const down = (ev: PointerEvent) => { if (!teamBox.current?.contains(ev.target as Node)) setTeamLeaving(true); };
+    const key = (ev: KeyboardEvent) => { if (ev.key === "Escape") { ev.preventDefault(); setTeamLeaving(true); } };
+    document.addEventListener("pointerdown", down);
+    document.addEventListener("keydown", key);
+    return () => { document.removeEventListener("pointerdown", down); document.removeEventListener("keydown", key); };
+  }, [teamOpen, teamLeaving]);
+  useEffect(() => {
+    if (!teamLeaving) return;
+    const t = setTimeout(() => { setTeamOpen(false); setTeamLeaving(false); }, 120);
+    return () => clearTimeout(t);
+  }, [teamLeaving]);
 
   async function submit(ev: FormEvent) {
     ev.preventDefault();
@@ -219,7 +235,7 @@ export function AssessmentInline({ people, initial, instructions, onSave, onDele
       if (!next.startDate && !next.startTime) {
         start = fromInputs(startDate, anytime ? "00:00" : startTime);
         // No end time given: the visit is an hour long.
-        end = anytime ? start + 86_400_000 : endTime ? fromInputs(endDate || startDate, endTime) : start + 3_600_000;
+        end = anytime ? start + 86_400_000 : endTime ? fromInputs(startDate, endTime) : start + 3_600_000;
         if (!anytime && end <= start) next.endTime = true;
       }
     }
@@ -244,9 +260,8 @@ export function AssessmentInline({ people, initial, instructions, onSave, onDele
       <div className="ai-grid">
         <div className="ai-col">
           <h3>Schedule</h3>
-          <div className={`ai-group${later ? " off" : ""}${bad.startDate ? " bad" : ""}`}>
-            <Pick id="ai-start" kind="date" label="Start date" value={startDate} disabled={later || busy} bad={!!bad.startDate} onChange={(v) => { setStartDate(v); if (!endDate || endDate < v) setEndDate(v); }} />
-            <Pick id="ai-end" kind="date" label="End date" value={endDate} disabled={later || busy} onChange={setEndDate} />
+          <div className={`ai-group one${later ? " off" : ""}${bad.startDate ? " bad" : ""}`}>
+            <Pick id="ai-start" kind="date" label="Date" value={startDate} disabled={later || busy} bad={!!bad.startDate} onChange={setStartDate} />
           </div>
           <label className="ai-check"><Checkbox state={later} label="Schedule later" disabled={busy} onChange={() => setLater(!later)} /><span>Schedule later</span></label>
           <div className={`ai-group${later || anytime ? " off" : ""}${bad.startTime || bad.endTime ? " bad" : ""}`}>
@@ -258,16 +273,18 @@ export function AssessmentInline({ people, initial, instructions, onSave, onDele
         </div>
         <div className="ai-col">
           <h3>Team</h3>
-          <button type="button" className="ai-select" aria-expanded={teamOpen} disabled={busy} onClick={() => setTeamOpen(!teamOpen)}>
-            <span>{names || "Assign team members"}</span><Icon name="chevdown" size={18} />
-          </button>
-          {teamOpen && (
-            <div className="ai-team">
-              {people === undefined ? <div className="sk" style={{ height: 24 }} /> : people.map((p) => (
-                <label key={p.id} className="ai-check"><Checkbox state={team.includes(p.id)} label={p.name} onChange={() => setTeam(team.includes(p.id) ? team.filter((t) => t !== p.id) : [...team, p.id])} /><span>{p.name}</span></label>
-              ))}
-            </div>
-          )}
+          <div className="ai-teambox" ref={teamBox}>
+            <button type="button" className="ai-select" aria-expanded={teamOpen && !teamLeaving} disabled={busy} onClick={() => (teamOpen ? setTeamLeaving(true) : setTeamOpen(true))}>
+              <span>{names || "Assign team members"}</span><Icon name="chevdown" size={18} />
+            </button>
+            {teamOpen && (
+              <div className={`ai-team${teamLeaving ? " leaving" : ""}`}>
+                {people === undefined ? <div className="sk" style={{ height: 24 }} /> : people.map((p) => (
+                  <label key={p.id} className="ai-check"><Checkbox state={team.includes(p.id)} label={p.name} onChange={() => setTeam(team.includes(p.id) ? team.filter((t) => t !== p.id) : [...team, p.id])} /><span>{p.name}</span></label>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
         <div className="ai-col">
           <h3>Checklists</h3>

@@ -100,7 +100,7 @@ export function AssessmentSection({ r, people, canEdit, editing, onEditing, lock
     <section className={`card rq-overview${editing ? " rq-editing" : ""}`} aria-label="On-site assessment">
       <div className="rq-sechead">
         <h2>On-site assessment</h2>
-        {canEdit && !editing && <button type="button" className="icon-btn" aria-label="Edit the on-site assessment" disabled={locked} title={locked ? "Save or cancel the section you are editing first" : undefined} onClick={() => onEditing(true)}><Icon name="pencil" size={20} /></button>}
+        {canEdit && !editing && <button type="button" className="icon-btn" aria-label="Edit the on-site assessment" aria-disabled={locked || undefined} onClick={() => (locked ? toast("Save or cancel the section you are editing first") : onEditing(true))}><Icon name="pencil" size={20} /></button>}
       </div>
       {editing ? (
         <AssessmentInline people={people} initial={r.assessment} instructions={r.assessmentInstructions} onSave={save} onDelete={remove} onCancel={() => onEditing(false)} />
@@ -113,8 +113,8 @@ export function AssessmentSection({ r, people, canEdit, editing, onEditing, lock
               <dt>Schedule</dt>
               <dd>
                 {r.assessment ? whenLabel(r.assessment) : "Unscheduled"}
-                <label className={`ai-check as-done${r.assessment ? "" : " off"}`} title={r.assessment ? undefined : "Schedule the assessment first"}>
-                  <Checkbox state={r.assessment?.status === "completed"} label="Complete assessment" disabled={!canEdit || !r.assessment} onChange={() => void complete(r.assessment?.status !== "completed")} />
+                <label className="ai-check as-done">
+                  <Checkbox state={r.assessment?.status === "completed"} label="Complete assessment" onChange={() => (!canEdit ? toast("Your role can look at this but not change it.") : !r.assessment ? toast("Schedule the assessment first, then it can be marked complete.") : void complete(r.assessment.status !== "completed"))} />
                   <span>Complete assessment</span>
                 </label>
               </dd>
@@ -142,7 +142,7 @@ export function AssessmentSection({ r, people, canEdit, editing, onEditing, lock
             {booked && canEdit ? (
               <Link className="btn" href={`/opportunities/${r.id}?tab=visit`}><Icon name="pencil" size={16} /> Open worksheet</Link>
             ) : (
-              <button type="button" className="btn" disabled title={booked ? "You can look at this but not change it" : "Schedule the consultation first"}><Icon name="pencil" size={16} /> Open worksheet</button>
+              <button type="button" className="btn" aria-disabled="true" onClick={() => toast(booked ? "Your role can look at the worksheet but not change it." : "Schedule the consultation first. The worksheet opens once it is booked.")}><Icon name="pencil" size={16} /> Open worksheet</button>
             )}
           </div>
           <div className="as-reminder">

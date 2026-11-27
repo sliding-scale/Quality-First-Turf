@@ -10162,7 +10162,7 @@ video {
 .ftp-trigger:hover { border-color: #5b6f60; background: #16201a; }
 .ftp-trigger[aria-expanded="true"], .ftp-trigger:focus-visible { outline: 0; border-color: #d7f33c; }
 .ftp.bad .ftp-trigger { border-color: #f08a7b; }
-.ftp-panel { position: absolute; z-index: 60; top: calc(100% + 0.4rem); left: 0; width: 14.5rem; padding: 0.5rem; border: 1px solid #38483d; border-radius: 0.6rem; background: #171f19; box-shadow: 0 12px 28px rgb(0 0 0 / 45%); animation: ftp-in 0.14s ease-out both; }
+.ftp-panel { position: fixed; z-index: 1200; width: 14.5rem; padding: 0.5rem; border: 1px solid #38483d; border-radius: 0.6rem; background: #171f19; box-shadow: 0 12px 28px rgb(0 0 0 / 45%); animation: ftp-in 0.14s ease-out both; }
 .ftp-panel.leaving { animation: ftp-out 0.12s ease-in both; }
 @keyframes ftp-in { from { opacity: 0; transform: translateY(-4px) scale(0.98); } to { opacity: 1; transform: none; } }
 @keyframes ftp-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(-4px) scale(0.98); } }

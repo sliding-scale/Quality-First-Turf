@@ -203,6 +203,8 @@ export type ScheduleItem = {
   clientId: Id<"clients"> | undefined;
   clientName: string;
   opportunityId: Id<"opportunities"> | undefined;
+  /** The project's short code (D-130), shown after the title so two "Consultation: Artificial Grass" can be told apart. "" for none. */
+  code: string;
   /** Set on a construction visit: a job walk, an installation day or a reinspection (D-081). */
   visitKind: "jobWalk" | "install" | "reinspection" | undefined;
   notes: string;
@@ -243,6 +245,12 @@ export const range = query({
       return clients.get(id)!;
     };
     const items: ScheduleItem[] = [];
+    const codes = new Map<Id<"opportunities">, string>();
+    const codeOf = async (id: Id<"opportunities"> | undefined) => {
+      if (!id) return "";
+      if (!codes.has(id)) codes.set(id, (await ctx.db.get(id))?.code ?? "");
+      return codes.get(id)!;
+    };
     const tz = await businessZone(ctx);
     for (const e of events) {
       for (const raw of expandRepeats(e, a.from, a.to, tz)) {
@@ -252,7 +260,7 @@ export const range = query({
         items.push({
           key: `${e._id}:${o.occurrence}`, id: e._id, kind: e.type, title: e.title, start: o.start, end: o.end, anytime: e.anytime, assigneeIds: e.assigneeIds,
           status: e.status, overdue: e.status !== "completed" && e.status !== "lost" && o.end < a.now, repeat: e.repeat, clientId: e.clientId, clientName: await clientName(e.clientId),
-          opportunityId: e.opportunityId, visitKind: e.visitKind, notes: e.notes, occurrence: o.occurrence, seriesStart: e.start, seriesEnd: e.end, zoho: e.source === "zoho",
+          opportunityId: e.opportunityId, code: await codeOf(e.opportunityId), visitKind: e.visitKind, notes: e.notes, occurrence: o.occurrence, seriesStart: e.start, seriesEnd: e.end, zoho: e.source === "zoho",
         });
       }
     }
@@ -263,7 +271,7 @@ export const range = query({
       items.push({
         key: `task:${t._id}`, id: t._id, kind: "task", title: t.title, start: t.startAt, end: t.endAt, anytime: false, assigneeIds: t.assigneeId ? [t.assigneeId] : [],
         status: t.done ? "completed" : "upcoming", overdue: !t.done && t.endAt < a.now, repeat: "none", clientId: project?.clientId, clientName: await clientName(project?.clientId),
-        opportunityId: t.opportunityId, visitKind: undefined, notes: "", occurrence: 0, seriesStart: t.startAt, seriesEnd: t.endAt, zoho: false,
+        opportunityId: t.opportunityId, code: await codeOf(t.opportunityId), visitKind: undefined, notes: "", occurrence: 0, seriesStart: t.startAt, seriesEnd: t.endAt, zoho: false,
       });
     }
     const wantedStatus = new Set(a.statuses.filter((s) => (STATUS_KEYS as readonly string[]).includes(s)));
@@ -291,7 +299,7 @@ export const unscheduled = query({
     const projects = await ctx.db.query("opportunities").withIndex("by_business_and_requestedAt", (q) => q.eq("businessId", a.businessId)).order("desc").take(MAX_ROWS);
     const rows: { kind: "request" | "task"; id: string; title: string; clientName: string; createdAt: number; opportunityId: Id<"opportunities"> | undefined; clientId: Id<"clients"> | undefined }[] = [];
     for (const p of projects) {
-      if (p.pipeline !== "Sales" || p.stage !== "Schedule Onsite Consultation") continue;
+      if (p.pipeline !== "Sales" || p.stage !== "Schedule Onsite Consultation" || p.archivedAt !== undefined) continue;
       const booked = await ctx.db.query("calendarEvents").withIndex("by_opportunity", (q) => q.eq("opportunityId", p._id)).take(20);
       if (booked.some((e) => e.type === "consultation")) continue;
       rows.push({ kind: "request", id: p._id, title: p.title, clientName: (await ctx.db.get(p.clientId))?.name ?? "", createdAt: p.requestedAt, opportunityId: p._id, clientId: p.clientId });
@@ -382,7 +390,7 @@ export const projectOptions = query({
       : await ctx.db.query("opportunities").withIndex("by_business_and_requestedAt", (q) => q.eq("businessId", a.businessId)).order("desc").take(a.jobs ? 100 : 20);
     const out = [];
     for (const p of docs) {
-      if (a.jobs ? p.outcome !== "won" || p.jobNumber === undefined : p.pipeline !== "Sales" || p.outcome !== undefined) continue;
+      if (a.jobs ? p.outcome !== "won" || p.jobNumber === undefined : p.pipeline !== "Sales" || p.outcome !== undefined || p.archivedAt !== undefined) continue;
       out.push(await option(p));
     }
     return out;

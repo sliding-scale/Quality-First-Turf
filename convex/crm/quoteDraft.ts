@@ -1,6 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
-import { mutation, type MutationCtx } from "../_generated/server";
+import { action, internalMutation, internalQuery, mutation, type MutationCtx, type QueryCtx } from "../_generated/server";
+import { internal } from "../_generated/api";
 import { requireModule } from "./lib/access";
 import { quoteMoneyOptions } from "./lib/quoteOptions";
 import { quoteTotals } from "./lib/quoteMath";
@@ -273,25 +274,81 @@ export const addNote = mutation({
   },
 });
 
-export const duplicate = mutation({
+/** The quote, for someone who may make quotes in its business, with everything a copy takes along. */
+async function copySource(ctx: QueryCtx, id: Id<"quotes">) {
+  const quote = await ctx.db.get(id);
+  if (quote === null) throw new ConvexError("That quote no longer exists.");
+  const staff = await requireModule(ctx, quote.businessId, "quotes", "edit");
+  const lines = await ctx.db.query("quoteLineItems").withIndex("by_quoteId_and_position", (q) => q.eq("quoteId", id)).take(500);
+  const attachments = await ctx.db.query("quoteAttachments").withIndex("by_quoteId", (q) => q.eq("quoteId", id)).take(200);
+  const notes = await ctx.db.query("quoteNotes").withIndex("by_quoteId", (q) => q.eq("quoteId", id)).take(500);
+  return { quote, staff, lines, attachments, notes };
+}
+
+/** The stored files a copy needs its own of: pictures, attachments and the files on notes. The signature and the proof of a deposit belong to
+ *  the original only, and the site visit's photos on a line belong to the project, so the copy points at the same ones. */
+export const filesToCopy = internalQuery({
   args: { id: v.id("quotes") },
   handler: async (ctx, a) => {
-    const quote = await ctx.db.get(a.id);
-    if (quote === null) throw new ConvexError("That quote no longer exists.");
-    const staff = await requireModule(ctx, quote.businessId, "quotes", "edit");
+    const { quote, lines, attachments, notes } = await copySource(ctx, a.id);
+    const ids = [
+      quote.introImageId, ...lines.map((l) => l.imageId), ...attachments.map((x) => x.storageId),
+      ...notes.flatMap((n) => [n.attachmentId, ...(n.attachments ?? []).map((x) => x.storageId)]),
+    ];
+    return [...new Set(ids.filter((x): x is Id<"_storage"> => x !== undefined))];
+  },
+});
+
+/** A new Draft like this quote, with its lines, pictures, attachments and notes (D-134). Each quote keeps files of its own, so deleting one
+ *  never takes a picture from the other: they are copied here first (only an action may read and write stored files), then the rows made. */
+export const duplicate = action({
+  args: { id: v.id("quotes") },
+  handler: async (ctx, a): Promise<Id<"quotes">> => {
+    const files: Id<"_storage">[] = await ctx.runQuery(internal.crm.quoteDraft.filesToCopy, a);
+    const copies: { from: Id<"_storage">; to: Id<"_storage"> }[] = [];
+    try {
+      for (const from of files) {
+        const blob = await ctx.storage.get(from);
+        if (blob) copies.push({ from, to: await ctx.storage.store(blob) });
+      }
+      const id: Id<"quotes"> = await ctx.runMutation(internal.crm.quoteDraft.insertCopy, { id: a.id, copies });
+      return id;
+    } catch (e) {
+      for (const c of copies) await ctx.storage.delete(c.to);
+      throw e;
+    }
+  },
+});
+
+export const insertCopy = internalMutation({
+  args: { id: v.id("quotes"), copies: v.array(v.object({ from: v.id("_storage"), to: v.id("_storage") })) },
+  handler: async (ctx, a) => {
+    const { quote, staff, lines, attachments, notes } = await copySource(ctx, a.id);
+    const copied = new Map(a.copies.map((c) => [c.from, c.to]));
+    /** The copy's own file; none if the original's was already gone. */
+    const own = (file: Id<"_storage"> | undefined) => (file ? copied.get(file) : undefined);
     const number = await nextNumber(ctx, quote.businessId);
     const now = Date.now();
     const id = await ctx.db.insert("quotes", {
       businessId: quote.businessId, clientId: quote.clientId, opportunityId: quote.opportunityId, number, title: quote.title, status: "Draft", salesperson: staff.name, createdAt: now,
-      introHeading: quote.introHeading, introText: quote.introText, clientMessage: quote.clientMessage, contract: quote.contract, disclaimers: quote.disclaimers, depositPercent: quote.depositPercent,
+      introHeading: quote.introHeading, introText: quote.introText, introImageId: own(quote.introImageId), clientMessage: quote.clientMessage, contract: quote.contract, disclaimers: quote.disclaimers, depositPercent: quote.depositPercent,
       totalCents: quote.totalCents, discountKind: quote.discountKind, discountValue: quote.discountValue, taxPercent: quote.taxPercent, depositKind: quote.depositKind,
       depositValue: quote.depositValue, clientView: quote.clientView, searchText: quote.searchText.replace(String(quote.number), String(number)),
     });
-    const lines = await ctx.db.query("quoteLineItems").withIndex("by_quoteId_and_position", (q) => q.eq("quoteId", quote._id)).take(500);
     for (const l of lines) {
       const { _id, _creationTime, quoteId, imageId, ...rest } = l;
-      void _id; void _creationTime; void quoteId; void imageId; // pictures are not copied: a deleted copy must not delete the original's file
-      await ctx.db.insert("quoteLineItems", { quoteId: id, ...rest });
+      void _id; void _creationTime; void quoteId;
+      await ctx.db.insert("quoteLineItems", { ...rest, quoteId: id, imageId: own(imageId) });
+    }
+    for (const x of attachments) {
+      const storageId = own(x.storageId);
+      if (storageId) await ctx.db.insert("quoteAttachments", { quoteId: id, storageId, name: x.name, contentType: x.contentType, size: x.size, createdAt: x.createdAt });
+    }
+    // Notes keep who wrote them and when. Nobody is alerted again for a name mentioned in one.
+    for (const n of notes) {
+      const files = (n.attachments ?? []).flatMap((x) => { const storageId = own(x.storageId); return storageId ? [{ ...x, storageId }] : []; });
+      const attachmentId = own(n.attachmentId);
+      await ctx.db.insert("quoteNotes", { quoteId: id, text: n.text, author: n.author, createdAt: n.createdAt, ...(attachmentId ? { attachmentId, attachmentName: n.attachmentName } : {}), ...(files.length ? { attachments: files } : {}) });
     }
     await logEvent(ctx, id, "created", staff.name, `Copied from quote #${quote.number}`, now);
     return id;

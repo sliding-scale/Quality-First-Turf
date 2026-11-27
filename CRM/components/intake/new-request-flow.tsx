@@ -9,7 +9,7 @@ import { useAction, useMutation } from "convex/react";
 import { ArrowRight, Check, HardHat, House, ImagePlus, Search, X } from "lucide-react";
 import { DM_Sans, IBM_Plex_Sans } from "next/font/google";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { api } from "@/convex/_generated/api";
@@ -28,7 +28,7 @@ import {
   services,
 } from "@/convex/shared/discovery";
 import { US_STATES } from "@/convex/shared/usStates";
-import type { BusinessDoc } from "@/lib/clients";
+import { useClient, type BusinessDoc } from "@/lib/clients";
 import { useClientSearch } from "@/lib/quotes";
 import { clock } from "@/lib/pipeline";
 import { failure, usePeople } from "@/lib/requests";
@@ -99,6 +99,16 @@ export function NewRequestFlow({ business }: { business: BusinessDoc }) {
   const [error, setError] = useState<string | null>(null);
   const [picked, setPicked] = useState<Picked | null>(null);
   const [query, setQuery] = useState("");
+  // "/requests/new?clientId=...": Create > Request on a client's page starts with that client chosen.
+  const presetId = useSearchParams().get("clientId");
+  const preset = useClient(presetId ?? undefined);
+  const [presetDone, setPresetDone] = useState(false);
+  if (!presetDone && preset) {
+    setPresetDone(true);
+    setPicked({ id: preset._id, name: preset.name });
+    setForm((current) => ({ ...current, ...contactOf(preset as unknown as ClientRow) }));
+  }
+
   const [salesperson, setSalesperson] = useState<string | null>(null); // null until changed: then the signed-in person
   const [consultation, setConsultation] = useState<ConsultationDraft | null>(null);
   const [consultDropped, setConsultDropped] = useState(false);

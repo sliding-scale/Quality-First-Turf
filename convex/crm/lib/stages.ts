@@ -63,6 +63,9 @@ export const EDIT_ROLES: readonly Role[] = ["admin", "sales", "office"];
 
 export const PIPELINES = ["Sales", "Preplanning", "Construction", "Finance"] as const;
 export type Pipeline = (typeof PIPELINES)[number];
+/** The name a pipeline goes by on screen. The last one is stored as "Finance" and shown as "Backend" (user, 2026-11-27, D-134): only the
+ *  words changed, so no record has to be rewritten. */
+export const pipelineLabel = (pipeline: string): string => (pipeline === "Finance" ? "Backend" : pipeline);
 /** The pipelines after Sales. */
 export const WORK_PIPELINES = ["Preplanning", "Construction", "Finance"] as const;
 export type WorkPipeline = (typeof WORK_PIPELINES)[number];
@@ -103,6 +106,8 @@ export function matchesClientStatusFilter(status: ClientStatus, filter: ClientSt
 /** A request is a Sales project seen through its stage (D-039); its status is derived, never stored. */
 export const REQUEST_STATUSES = ["New", "Overdue", "Consultation", "Converted", "Lost"] as const;
 export type RequestStatus = (typeof REQUEST_STATUSES)[number];
+/** What the list and the request page show: a request that was archived says so, whatever its stage (D-134). */
+export type RequestListStatus = RequestStatus | "Archived";
 
 /** A New Request still untouched after this many days counts as Overdue. Our assumption; the PRD gives no number. */
 export const OVERDUE_AFTER_DAYS = 21;
@@ -165,8 +170,8 @@ export function checkMove(from: string, to: string, opts: { isAdmin: boolean; re
  *  and every required punch item is resolved; until that exists the server passes false and the last stage is refused. */
 export function checkWorkMove(pipeline: WorkPipeline, from: string, to: string, opts: { signOff?: boolean } = {}): MoveResult {
   const stages = stagesOf(pipeline);
-  if (!stages.includes(from)) return { ok: false, error: `"${from}" is not a ${pipeline} stage.` };
-  if (!stages.includes(to)) return { ok: false, error: `"${to}" is not a ${pipeline} stage.` };
+  if (!stages.includes(from)) return { ok: false, error: `"${from}" is not a ${pipelineLabel(pipeline)} stage.` };
+  if (!stages.includes(to)) return { ok: false, error: `"${to}" is not a ${pipelineLabel(pipeline)} stage.` };
   if (from === to) return { ok: false, error: `The project is already in "${to}".` };
   if (to === COMPLETION_STAGE && !opts.signOff) {
     return { ok: false, error: "100% Completed & Sign-off needs the customer's sign-off, and every required punch item resolved." };

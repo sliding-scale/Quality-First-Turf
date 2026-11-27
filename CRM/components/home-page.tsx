@@ -14,7 +14,7 @@ import { failure, todayBounds, useMinute, usePeople } from "@/lib/pipeline";impo
 import { useJobCounts } from "@/lib/jobs";
 import { useQuoteStats } from "@/lib/quotes";
 import { useRequestStats } from "@/lib/requests";
-import { BUSINESS_TZ, todayKey } from "@/lib/schedule";
+import { BUSINESS_TZ, itemName, todayKey } from "@/lib/schedule";
 import { useIsClient } from "@/lib/store";
 import { Icon } from "./icon";
 import { AddTaskDialog } from "./pipeline-dialogs";
@@ -86,7 +86,7 @@ function Row({ a, now }: { a: Item; now: number }) {
   return (
     <div className="appt">
       <div className="t">
-        <b>{a.title}{a.clientName && a.clientName !== a.title ? ` · ${a.clientName}` : ""}</b>
+        <b>{itemName(a)}{a.clientName && a.clientName !== a.title ? ` · ${a.clientName}` : ""}</b>
         <span className="when">{whenText(a)}</span>
       </div>
       <span className={`pill ${STATE_PILL[state]}`}>{state === "overdue" ? `Overdue by ${lateText(now - a.end)}` : STATE_LABEL[state]}</span>
@@ -316,7 +316,10 @@ function Consultations({ businessId, now }: { businessId: string; now: number })
           list.map((c) => (
             <div className="task" key={c.key}>
               <div>
-                <b style={{ color: "var(--ink)" }}>{c.clientName || c.title}</b>
+                {/* The name opens the project's Visit tab (D-130). */}
+                {c.opportunityId ? (
+                  <Link className="task-link" href={`/opportunities/${c.opportunityId}?tab=visit`}><b>{c.clientName || c.title}{c.code ? ` · ${c.code}` : ""}</b></Link>
+                ) : <b style={{ color: "var(--ink)" }}>{c.clientName || c.title}</b>}
                 <div className="d">{c.anytime ? `${dayTime(c.start).split(",")[0]} · Anytime` : dayTime(c.start)}{c.assigneeIds.length ? ` · ${c.assigneeIds.map(nameOf).filter(Boolean).join(", ")}` : ""}</div>
               </div>
             </div>

@@ -59,9 +59,4 @@ describe("the opportunity page", () => {
     expect(timeline.find((t) => t.kind === "stage")).toMatchObject({ title: "Moved to Schedule Onsite Consultation", who: "Sam Sales" });
     expect([...timeline].sort((a, b) => b.at - a.at)).toEqual(timeline);
   });
-
-  it("says when a project has no site visit behind it", async () => {
-    const w = await seeded();
-    expect(await w.sales.query(api.crm.opportunityPage.visit, { id: w.project })).toMatchObject({ available: false });
-  });
 });

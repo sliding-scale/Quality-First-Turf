@@ -1,6 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { internalMutation, mutation, query, type MutationCtx, type QueryCtx } from "../_generated/server";
+import { deleteVisitSheets } from "./lib/visitSheets";
 import { requireModule, requireProject } from "./lib/access";
 import { projectMoney, signedQuoteOf } from "./lib/billing";
 import { assignJobNumber } from "./lib/jobNumber";
@@ -315,6 +316,7 @@ export const remove = mutation({
       if (x.receiptId) await ctx.storage.delete(x.receiptId);
       await ctx.db.delete(x._id);
     }
+    await deleteVisitSheets(ctx, p._id);
     await ctx.db.delete(p._id);
   },
 });

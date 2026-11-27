@@ -5,7 +5,7 @@
    to another person), stretched by their bottom edge, and the unscheduled cards can be dropped on a column. */
 
 import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type PointerEvent as ReactPointerEvent } from "react";
-import {
+import { itemName,
   BUSINESS_TZ, DAY_PX, HOUR_PX, KIND_STYLE, addDays, dayLabel, dayStartMs, hourLabel, initials, localClock, minutesIn, monthDays, parseKey, timeText, todayKey, weekDays, weekday,
   type ScheduleItem, type View, type WorkingHours, useNarrow,
 } from "@/lib/schedule";
@@ -180,7 +180,7 @@ function TimeGrid(p: GridProps) {
           <div key={c.key} className="sc-anycell">
             {anytimeOf(c).map((i) => (
               <button key={i.key} data-item-key={i.key} type="button" className="sc-chip" style={{ background: KIND_STYLE[i.kind].bg, borderLeftColor: KIND_STYLE[i.kind].edge }} onClick={(e) => p.onOpenItem(i, e.currentTarget.getBoundingClientRect())}>
-                {i.title}
+                {itemName(i)}
               </button>
             ))}
           </div>
@@ -252,7 +252,7 @@ function TimeGrid(p: GridProps) {
                     >
                       <div className="sc-itemtop">
                         <span className="sc-ini">{names.length ? initials(p.people.find((x) => x.id === names[0])?.name ?? "") : <Icon name="userx" size={11} />}</span>
-                        <b>{s.item.title}</b>
+                        <b>{itemName(s.item)}</b>
                         {s.item.zoho && <span className="sc-zoho" title="From Zoho Calendar">Zoho</span>}
                       </div>
                       <div className="sc-itemtime">{timeText(s.item.start)} – {timeText(live)}</div>
@@ -338,7 +338,7 @@ function MonthGrid(p: GridProps) {
                   onClick={(e) => open(e, i)}
                   onKeyDown={(e) => { if (e.key === "Enter") p.onOpenItem(i, e.currentTarget.getBoundingClientRect()); }}
                 >
-                  {!i.anytime && <span className="sc-mtime">{timeText(i.start)}</span>} <span className="sc-mtitle">{i.title}</span>
+                  {!i.anytime && <span className="sc-mtime">{timeText(i.start)}</span>} <span className="sc-mtitle">{itemName(i)}</span>
                 </article>
               ))}
               {!narrow && list.length > 3 && (

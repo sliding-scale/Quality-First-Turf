@@ -73,7 +73,7 @@ describe("attaching disclaimers to a quote", () => {
     await w.sales.mutation(api.crm.quoteDraft.save, { id: w.quoteId, ...full(), disclaimers: [{ title: "Warranty", text: "One year." }] });
     await w.sales.mutation(api.crm.quoteDraft.save, { id: w.quoteId, ...full() });
     expect((await w.sales.query(api.crm.quotes.get, { id: w.quoteId }))?.disclaimers).toHaveLength(1);
-    const copy = await w.sales.mutation(api.crm.quoteDraft.duplicate, { id: w.quoteId });
+    const copy = await w.sales.action(api.crm.quoteDraft.duplicate, { id: w.quoteId });
     expect((await w.sales.query(api.crm.quotes.get, { id: copy }))?.disclaimers).toEqual([{ title: "Warranty", text: "One year." }]);
     await w.sales.mutation(api.crm.quoteDraft.save, { id: w.quoteId, ...full(), disclaimers: [] });
     expect((await w.sales.query(api.crm.quotes.get, { id: w.quoteId }))?.disclaimers).toEqual([]);

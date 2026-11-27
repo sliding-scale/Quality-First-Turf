@@ -130,6 +130,7 @@ function Builder({ business, quote, presetClient, presetProject, section }: { bu
   const [leaving, setLeaving] = useState(false);
   const [clientQuery, setClientQuery] = useState("");
   const [addingClient, setAddingClient] = useState(false);
+  const intro = useRef<HTMLInputElement>(null);
   const attach = useRef<HTMLInputElement>(null);
   const set = (p: Partial<Draft>) => setD((cur) => ({ ...cur, ...p }));
 
@@ -164,7 +165,12 @@ function Builder({ business, quote, presetClient, presetProject, section }: { bu
     if (f || !pid || !shouldPrefill(d.lines, true, true)) return;
     filled.current = { project: pid, lines: JSON.stringify(d.lines) };
     void convex.query(api.crm.quotePrices.fromVisit, { opportunityId: pid }).then((r) => {
-      if (filled.current?.project !== pid || r.lines.length === 0) return;
+      if (filled.current?.project !== pid) return;
+      if (r.lines.length === 0) {
+        // Say why the quote starts empty, rather than leaving a blank line with no explanation (D-133).
+        if (r.missing) toast(`No lines from the site visit: ${r.missing}`);
+        return;
+      }
       const lines = draftLinesFromVisit(r.lines);
       filled.current = { project: pid, lines: JSON.stringify(lines) };
       // The lines are the page's own start, not the person's typing, so leaving without saving does not ask "leave site?".
@@ -254,6 +260,18 @@ function Builder({ business, quote, presetClient, presetProject, section }: { bu
     } catch (e) {
       setError(failure(e, "The quote could not be saved. Try again."));
       setBusy(false);
+    }
+  }
+
+  /** A picture for the introduction (user, 2026-11-26, D-130; it had been taken out on 2026-11-24). */
+  async function pickIntro(file: File | undefined) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return toast("The picture has to be an image.");
+    try {
+      const id = await uploadFile(await uploadUrl({ businessId: business._id }), file);
+      set({ introImageId: id, introImageUrl: URL.createObjectURL(file) });
+    } catch (e) {
+      toast(failure(e, "The picture could not be uploaded."));
     }
   }
 
@@ -352,15 +370,18 @@ function Builder({ business, quote, presetClient, presetProject, section }: { bu
             <div className="field"><label htmlFor="qb-ih">Heading</label><input id="qb-ih" value={d.introHeading} maxLength={200} onChange={(e) => set({ introHeading: e.target.value })} /></div>
             <div className="field"><label htmlFor="qb-it">Message</label><textarea id="qb-it" value={d.introText} onChange={(e) => set({ introText: e.target.value })} /></div>
           </div>
-          {d.introImageUrl && (
-            <div className="qb-pic">
+          <div className="qb-pic">
+            <input ref={intro} type="file" accept="image/*" hidden onChange={(e) => { void pickIntro(e.target.files?.[0]); e.target.value = ""; }} />
+            {d.introImageUrl ? (
               <div className="qb-thumb">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={d.introImageUrl} alt="" />
                 <button type="button" className="icon-btn" aria-label="Remove the picture" onClick={() => set({ introImageId: undefined, introImageUrl: null })}><Icon name="x" size={18} /></button>
               </div>
-            </div>
-          )}
+            ) : (
+              <button type="button" className="qb-add-pic" onClick={() => intro.current?.click()}><Icon name="image" size={24} /><span>Add image</span></button>
+            )}
+          </div>
         </div>
       </section>
       )}

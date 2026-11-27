@@ -29,7 +29,7 @@ import { useUI } from "./ui-provider";
 
 type Tab = "info" | "communication" | "media" | "activity";
 const TAB_PARAM: Record<Tab, string> = { info: "", communication: "communication", media: "media", activity: "activity" };
-const requestDot = { New: "var(--blue)", Overdue: "var(--red)", Consultation: "var(--orange)", Converted: "var(--green)", Lost: "var(--muted)" } as const;
+const requestDot = { New: "var(--blue)", Overdue: "var(--red)", Consultation: "var(--orange)", Converted: "var(--green)", Lost: "var(--muted)", Archived: "var(--muted)" } as const;
 
 export function ClientPage({ id }: { id: string }) {
   const client = useClient(id);
@@ -98,6 +98,13 @@ function ClientView({ c }: { c: ClientDoc }) {
   const company = c.isCompany ?? c.type === "contractor";
   const statusClass = c.status === "lead" ? "lead" : c.status === "active" ? "active" : "draft";
   const tags = c.tags ?? [];
+  // The Create menu, also behind Work overview's plus. New Request starts with this client already chosen (it was greyed before, user 2026-11-26, D-130).
+  const createItems = [
+    { label: "Request", icon: "inbox", onSelect: () => router.push(`/requests/new?clientId=${c._id}`) },
+    { label: "Quote", icon: "quote", onSelect: () => router.push(`/quotes/new?clientId=${c._id}`) },
+    { label: "Job", icon: "hammer", onSelect: () => router.push(`/jobs/new?clientId=${c._id}`) },
+    { label: "Invoice", icon: "receipt", onSelect: () => router.push(`/invoices/new?clientId=${c._id}`) },
+  ];
 
   return (
     <div className={`fade-in cj cj-cols${sideOpen ? "" : " wide"}`}>
@@ -137,19 +144,7 @@ function ClientView({ c }: { c: ClientDoc }) {
           <button
             type="button"
             className="btn primary cj-create"
-            onClick={(e) =>
-              dropdown(
-                e.currentTarget,
-                [
-                  // New Request does not take a client yet, so it stays greyed.
-                  { label: "Request", icon: "inbox", disabled: true },
-                  { label: "Quote", icon: "quote", onSelect: () => router.push(`/quotes/new?clientId=${c._id}`) },
-                  { label: "Job", icon: "hammer", onSelect: () => router.push(`/jobs/new?clientId=${c._id}`) },
-                  { label: "Invoice", icon: "receipt", onSelect: () => router.push(`/invoices/new?clientId=${c._id}`) },
-                ],
-                { alignRight: true },
-              )
-            }
+            onClick={(e) => dropdown(e.currentTarget, createItems, { alignRight: true })}
           >
             <Icon name="plus" size={18} /> Create
           </button>
@@ -192,9 +187,9 @@ function ClientView({ c }: { c: ClientDoc }) {
           <div key={tab} className="fade-in cj-stack">
             {tab === "info" && (
               <>
-                <PropertiesCard properties={properties} canEdit={canEdit} />
+                <PropertiesCard properties={properties} canEdit={canEdit} clientId={c._id} />
                 <ContactsCard contacts={c.contacts ?? []} />
-                <WorkOverview clientId={c._id} />
+                <WorkOverview clientId={c._id} onCreate={(el) => dropdown(el, createItems, { alignRight: true })} />
                 <BillingCard billing={c.billing ?? []} balanceCents={c.balanceCents ?? 0} />
                 <div className="cj-strip">
                   <Icon name="card" size={22} />
@@ -276,13 +271,15 @@ function ClientView({ c }: { c: ClientDoc }) {
   );
 }
 
-function PropertiesCard({ properties, canEdit }: { properties: NonNullable<ClientDoc["properties"]>; canEdit: boolean }) {
+/** The client's main address is edited on the client form, so Add Property (with none yet) and the first property's pencil open it (D-130).
+ *  A second property cannot be added yet, so that plus stays greyed. */
+function PropertiesCard({ properties, canEdit, clientId }: { properties: NonNullable<ClientDoc["properties"]>; canEdit: boolean; clientId: Id<"clients"> }) {
   if (!properties.length) {
     return (
       <div className="cj-strip">
         <Icon name="pin" size={22} />
         <span><b>Properties</b> - Add properties so you can organize work by location</span>
-        <button type="button" className="cj-link" disabled>Add Property</button>
+        {canEdit ? <Link className="cj-link" href={`/clients/${clientId}/edit`}>Add Property</Link> : <button type="button" className="cj-link" disabled>Add Property</button>}
       </div>
     );
   }
@@ -298,7 +295,9 @@ function PropertiesCard({ properties, canEdit }: { properties: NonNullable<Clien
             <b>{propertyLine(p)}</b>
             <span>
               <a className="cj-iconbtn" aria-label="Open in maps" data-tip="View on map" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(propertyLine(p))}`} target="_blank" rel="noopener noreferrer"><Icon name="pin" size={22} /></a>
-              {canEdit && <button type="button" className="cj-iconbtn" aria-label="Edit property" data-tip="Edit property" disabled><Icon name="pencil" size={22} /></button>}
+              {canEdit && (i === 0
+                ? <Link className="cj-iconbtn" aria-label="Edit property" data-tip="Edit property" href={`/clients/${clientId}/edit`}><Icon name="pencil" size={22} /></Link>
+                : <button type="button" className="cj-iconbtn" aria-label="Edit property" data-tip="Only the main property can be edited for now" disabled><Icon name="pencil" size={22} /></button>)}
             </span>
           </div>
           <dl className="cj-fields2">
@@ -354,7 +353,7 @@ const KINDS: { key: Kind; label: string; icon: string; color: string }[] = [
 ];
 
 /** Requests and quotes of the client, as in Jobber: "Status | Active" until a type is picked, which shows all statuses of that type. */
-function WorkOverview({ clientId }: { clientId: Id<"clients"> }) {
+function WorkOverview({ clientId, onCreate }: { clientId: Id<"clients">; onCreate: (el: HTMLElement) => void }) {
   const projects = useClientProjects(clientId);
   const quotes = useQuery(api.crm.quotes.byClient, { clientId });
   const [kind, setKind] = useState<Kind | null>(null);
@@ -362,7 +361,7 @@ function WorkOverview({ clientId }: { clientId: Id<"clients"> }) {
 
   const rows = [
     ...(projects ?? []).map((p) => {
-      const status = requestStatus(p.stage, p.requestedAt, now);
+      const status = p.archivedAt === undefined && p.requestArchivedAt === undefined ? requestStatus(p.stage, p.requestedAt, now) : ("Archived" as const);
       return { key: p._id as string, kind: "requests" as Kind, icon: "inbox", color: "var(--orange)", title: `Request ${p.code}`, sub: p.title, date: `Created at ${quoteDate(p.requestedAt)}`, status: status as string, dot: requestDot[status] as string, active: status === "New" || status === "Overdue" || status === "Consultation", amount: "", href: "" };
     }),
     ...(quotes ?? []).map((q) => ({
@@ -376,7 +375,7 @@ function WorkOverview({ clientId }: { clientId: Id<"clients"> }) {
     <section className="cj-card">
       <div className="cj-card-head">
         <h3>Work overview</h3>
-        <button type="button" className="cj-plus" aria-label="Create work" data-tip="Create" disabled><Icon name="plus" size={22} /></button>
+        <button type="button" className="cj-plus" aria-label="Create work" data-tip="Create" aria-haspopup="menu" onClick={(e) => onCreate(e.currentTarget)}><Icon name="plus" size={22} /></button>
       </div>
       <div className="cj-chips">
         <span className="chip cj-status">Status<span className="sep" /><b>{kind ? "All" : "Active"}</b></span>

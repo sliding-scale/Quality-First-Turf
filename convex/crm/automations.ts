@@ -11,6 +11,7 @@ import {
 } from "./lib/automationRules";
 import { PIPELINE_GROUPS } from "./lib/stages";
 import { systemMove } from "./lib/systemMove";
+import { logActivity } from "./lib/activity";
 import { logEvent } from "./quoteDraft";
 
 /* Pipeline automations (D-065). The four are Jobber's and cannot be added to or deleted: an Admin changes days, wording, on/off and the
@@ -178,16 +179,28 @@ export const activity = query({
   },
 });
 
-/** Put an automatically archived request back on the board, in the stage it was in. */
+/** Put an archived request back on the board, in the stage it was in. */
 export const restoreRequest = mutation({
   args: { id: v.id("opportunities"), now: v.number() },
   handler: async (ctx, a) => {
     const project = await ctx.db.get(a.id);
     if (!project) throw new ConvexError("That request no longer exists.");
     const staff = await requireModule(ctx, project.businessId, "requests", "edit");
+    // Tidied off the Requests list only (a quoted or won one, D-134): nothing else ever changed.
+    if (project.archivedAt === undefined && project.requestArchivedAt !== undefined) {
+      await ctx.db.patch(project._id, { requestArchivedAt: undefined, archivedReason: undefined });
+      await logActivity(ctx, { businessId: project.businessId, clientId: project.clientId, opportunityId: project._id, title: `Request restored: ${project.title}`, detail: project.code ? `#${project.code}` : "", staff });
+      return null;
+    }
     if (project.archivedAt === undefined) throw new ConvexError("This request is not archived.");
     const back = project.archivedFromStage ?? "New Request";
     const wasClosed = project.stage;
+    // Archived by hand: the stage never changed, so only the archive marks come off (a lost request stays lost).
+    if (back === wasClosed) {
+      await ctx.db.patch(project._id, { archivedAt: undefined, archivedReason: undefined, archivedFromStage: undefined });
+      await logActivity(ctx, { businessId: project.businessId, clientId: project.clientId, opportunityId: project._id, title: `Request restored: ${project.title}`, detail: project.code ? `#${project.code}` : "", staff });
+      return null;
+    }
     await ctx.db.patch(project._id, {
       stage: back, stageEnteredAt: a.now, outcome: undefined, closedAt: undefined, lostReason: undefined,
       archivedAt: undefined, archivedReason: undefined, archivedFromStage: undefined,

@@ -25,7 +25,7 @@ import { useStaff } from "./staff-context";
 import { useConvertToJob } from "./use-convert-to-job";
 import { useUI, type MenuItem } from "./ui-provider";
 
-const PILL = { New: "lead", Overdue: "overdue", Consultation: "consult", Converted: "active", Lost: "draft" } as const;
+const PILL = { New: "lead", Overdue: "overdue", Consultation: "consult", Converted: "active", Lost: "draft", Archived: "draft" } as const;
 const UNASSIGNED = "";
 
 export function RequestPage({ id }: { id: string }) {
@@ -51,10 +51,12 @@ function RequestView({ r }: { r: Request }) {
   const convertToJob = useConvertToJob();
   const { canEdit, can } = useStaff();
   const removeRequest = useMutation(api.crm.requests.remove);
+  const resendConfirmation = useMutation(api.crm.bookingEmail.resend);
   const [deleting, setDeleting] = useState(false);
   const people = usePeople(r.businessId);
   const setSalesperson = useMutation(api.crm.pipeline.setSalesperson);
   const restore = useMutation(api.crm.automations.restoreRequest);
+  const archive = useMutation(api.crm.requests.archive);
   const [editing, setEditing] = useState(false);
   const [pick, setPick] = useState<string>(UNASSIGNED);
   const [titleDraft, setTitleDraft] = useState("");
@@ -144,6 +146,14 @@ function RequestView({ r }: { r: Request }) {
       toast(failure(e, "The request could not be restored."));
     }
   }
+  async function putAway() {
+    try {
+      await archive({ id: r.id as Id<"opportunities">, now: Date.now() });
+      toast("The request is archived. It is under Status: Archived on the Requests list.");
+    } catch (e) {
+      toast(failure(e, "The request could not be archived."));
+    }
+  }
   /** Saves what the title pencil edits, as in Jobber: the title and the salesperson. Each is only sent if it changed. */
   async function save() {
     if (!titleDraft.trim()) {
@@ -164,17 +174,25 @@ function RequestView({ r }: { r: Request }) {
     }
   }
 
-  // Jobber's More menu on a request. The booking email and archiving by hand are not built, so they are greyed.
+  // Jobber's More menu on a request. Anything that cannot be done says why (D-130).
+  const archived = r.archivedAt !== null;
+  const putBackFirst = archived ? "This request is archived. Restore it first." : undefined;
   const rule: MenuItem = { divider: true };
   const moreItems: MenuItem[] = [
-    { label: "Email Booking Confirmation", icon: "mail", disabled: true },
+    {
+      label: "Email Booking Confirmation", icon: "mail",
+      reason: !canEdit ? "Your role can look at this but not change it." : !r.assessment || r.assessment.offline || r.assessment.anytime ? "Book the on-site consultation with a time first. The confirmation says when it is." : !r.client.email ? "The client has no email address. Add one on the client first." : undefined,
+      onSelect: () => { if (r.assessment) void resendConfirmation({ id: r.assessment.id as Id<"calendarEvents"> }).then(() => toast("The booking confirmation is on its way.")).catch((e) => toast(failure(e, "The confirmation could not be sent."))); },
+    },
     rule,
-    { label: hasConsultation(r) ? "Convert to Quote" : "Convert to Quote (book the consultation first)", icon: "quote", iconColor: "var(--green)", disabled: !canEdit || !hasConsultation(r), onSelect: () => router.push(`/quotes/new?clientId=${r.clientId}&projectId=${r.id}`) },
-    { label: "Convert to Job", icon: "hammer", iconColor: "var(--green)", disabled: !canEdit, onSelect: () => void convertToJob(r.id as Id<"opportunities">) },
+    { label: "Convert to Quote", icon: "quote", iconColor: "var(--green)", reason: !canEdit ? "Your role can look at this but not change it." : putBackFirst ?? (!hasConsultation(r) ? "Book the on-site consultation first. A request is quoted once its consultation is booked." : undefined), onSelect: () => router.push(`/quotes/new?clientId=${r.clientId}&projectId=${r.id}`) },
+    { label: "Convert to Job", icon: "hammer", iconColor: "var(--green)", reason: !canEdit ? "Your role can look at this but not change it." : putBackFirst, onSelect: () => void convertToJob(r.id as Id<"opportunities">) },
     rule,
-    { label: "Archive", icon: "stage", disabled: true },
+    archived
+      ? { label: "Restore", icon: "stage", reason: !canEdit ? "Your role can look at this but not change it." : undefined, onSelect: () => void putBack() }
+      : { label: "Archive", icon: "stage", reason: !canEdit ? "Your role can look at this but not change it." : undefined, onSelect: () => void putAway() },
     { label: "Print", icon: "pdf", onSelect: () => window.print() },
-    { label: "Delete", icon: "trash", danger: true, disabled: !can("requests", "full"), onSelect: () => setDeleting(true) },
+    { label: "Delete", icon: "trash", danger: true, reason: !can("requests", "full") ? "Only someone with Edit and delete on Requests can delete a request." : r.status === "Converted" ? "This request has moved on to a quote or job, so it cannot be deleted. Only a request that has not been quoted, or one that was lost, can be." : undefined, onSelect: () => setDeleting(true) },
   ];
 
   return (
@@ -185,7 +203,7 @@ function RequestView({ r }: { r: Request }) {
           <span className={`pill ${PILL[r.status]}`}><span className="dot" />{r.status}</span>
         </div>
         <div className="rq-topr">
-          <Link className="icon-btn" aria-label="View activity" title="View activity" href={`/opportunities/${r.id}?tab=activity`}><Icon name="history" size={24} /></Link>
+          <Link className="btn" href={`/opportunities/${r.id}`}><Icon name="inbox" size={22} />View opportunity</Link>
           <button className="btn more-btn" type="button" aria-label="More" aria-haspopup="menu" onClick={(e) => dropdown(e.currentTarget, moreItems, { alignRight: true, variant: "actions" })}>
             <Icon name="more" size={24} /><span className="lbl">More</span>
           </button>
@@ -193,7 +211,7 @@ function RequestView({ r }: { r: Request }) {
       </div>
       {r.archivedAt !== null && (
         <div className="au-warn" role="status">
-          Archived. {r.archivedReason}.{" "}
+          {r.archivedReason.startsWith("Archived") ? r.archivedReason : `Archived. ${r.archivedReason}`}.{" "}
           {canEdit && <button type="button" className="btn link" onClick={() => void putBack()}>Restore</button>}
         </div>
       )}
@@ -208,7 +226,7 @@ function RequestView({ r }: { r: Request }) {
           <h1>{r.title} · {r.code}</h1>
         )}
         {canEdit && !editing && (
-          <button type="button" className="icon-btn" aria-label="Edit request details" disabled={anyEditing} title={anyEditing ? lockedTip : undefined} onClick={edit}><Icon name="pencil" size={20} /></button>
+          <button type="button" className="icon-btn" aria-label="Edit request details" aria-disabled={anyEditing || undefined} onClick={() => (anyEditing ? toast(lockedTip) : edit())}><Icon name="pencil" size={20} /></button>
         )}
       </div>
 
@@ -257,7 +275,7 @@ function RequestView({ r }: { r: Request }) {
       <section className={`card rq-overview${editingOverview ? " rq-editing" : ""}`} aria-label="Services and project details">
         <div className="rq-sechead">
           <h2>Services &amp; Project Details</h2>
-          {canEdit && !editingOverview && <button type="button" className="icon-btn" aria-label="Edit the overview" disabled={anyEditing} title={anyEditing ? lockedTip : undefined} onClick={editOverview}><Icon name="pencil" size={20} /></button>}
+          {canEdit && !editingOverview && <button type="button" className="icon-btn" aria-label="Edit the overview" aria-disabled={anyEditing || undefined} onClick={() => (anyEditing ? toast(lockedTip) : editOverview())}><Icon name="pencil" size={20} /></button>}
         </div>
         <div className="rq-qa-source">{r.overview.source}</div>
         {r.overview.heading && <h3 className="rq-qa-head">{r.overview.heading}</h3>}
@@ -294,7 +312,7 @@ function RequestView({ r }: { r: Request }) {
       <section className="card rq-overview" aria-label="Product / Service">
         <div className="rq-sechead">
           <h2>Product / Service</h2>
-          {canEdit && !editingLines && <button type="button" className="icon-btn" aria-label="Edit products and services" disabled={anyEditing} title={anyEditing ? lockedTip : undefined} onClick={startLines}><Icon name="pencil" size={20} /></button>}
+          {canEdit && !editingLines && <button type="button" className="icon-btn" aria-label="Edit products and services" aria-disabled={anyEditing || undefined} onClick={() => (anyEditing ? toast(lockedTip) : startLines())}><Icon name="pencil" size={20} /></button>}
         </div>
         {editingLines ? (
           <>
@@ -310,7 +328,7 @@ function RequestView({ r }: { r: Request }) {
         ) : (
           <>
             <p className="muted">Keep everything on track by adding products and services.</p>
-            {canEdit && <button type="button" className="btn primary" disabled={anyEditing} title={anyEditing ? lockedTip : undefined} onClick={startLines}>Add Line Item</button>}
+            {canEdit && <button type="button" className="btn primary" aria-disabled={anyEditing || undefined} onClick={() => (anyEditing ? toast(lockedTip) : startLines())}>Add Line Item</button>}
           </>
         )}
       </section>

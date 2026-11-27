@@ -76,7 +76,7 @@ export function PipelinePanel({ business, card, people, onClose }: {
   useEffect(() => {
     const onDown = (e: PointerEvent) => {
       const el = e.target instanceof Element ? e.target : null;
-      if (!el || !el.isConnected || el.closest(".pl-panel, .pl-card, .menu, .create-pop, .modal-back, .viewer-back, .toast")) return;
+      if (!el || !el.isConnected || el.closest(".pl-panel, .pl-card, .menu, .create-pop, .modal-back, .viewer-back, .toast, .tp-panel")) return;
       if (!adding && !consulting) setLeaving(true);
     };
     document.addEventListener("pointerdown", onDown);

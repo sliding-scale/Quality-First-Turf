@@ -412,7 +412,8 @@ input[type="checkbox"]:disabled { cursor: not-allowed; }
 .btn.dark:hover { background: #172f39; }
 .btn.link:hover { color: var(--green-dark); }
 .btn.link.plain:hover { color: var(--green); }
-.btn:disabled, .btn[aria-disabled="true"] { opacity: 0.5; cursor: default; pointer-events: none; }
+.btn:disabled { opacity: 0.5; cursor: default; pointer-events: none; }
+/* A button with aria-disabled looks normal and says why when clicked (D-130); only real `disabled` is greyed. */
 .client-head .name-row .btn:hover { background: rgba(0, 0, 0, 0.06); }
 .chip:hover { background: #d0cec9; }
 .chip.outline:hover { background: var(--hover); }
@@ -895,7 +896,9 @@ input[type="checkbox"]:disabled { cursor: not-allowed; }
 .qn-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
 .qn-head h3 { font-size: var(--fs-h3); }
 .qn-head .btn { width: 40px; height: var(--control); padding: 0; justify-content: center; color: var(--green); }
-.qn-item { padding: 14px 0 4px; }
+/* Each saved note in its own box, so one note ends where the next begins (D-134). */
+.qn-item { margin-top: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius-ctl); overflow-wrap: anywhere; animation: rise-in 0.22s ease-out both; }
+.qn-item > :last-child { margin-bottom: 0; }
 .qn-who { display: flex; align-items: center; gap: 10px; font-size: 13px; }
 .qn-who b { color: var(--ink); }
 .qn-avatar { width: 32px; height: 32px; flex: none; display: grid; place-items: center; border-radius: var(--radius-sm); background: var(--ink); color: var(--white); font-weight: 700; }
@@ -1229,12 +1232,6 @@ span.member-name { color: var(--muted); cursor: default; }
 @media (max-width: 700px) { .nc-grid { grid-template-columns: minmax(0, 1fr); } }
 
 /* Quote page: Jobber's "Add section" strip, and the multi-line text of Client Message and Contract / Disclaimer. */
-.qs-add { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 6px; margin: 16px 0; border-radius: var(--radius); background: var(--shell); }
-.qs-add-label { display: inline-flex; align-items: center; gap: 4px; padding: 0 8px; font-weight: 600; color: var(--ink); }
-.qs-chip { display: inline-block; padding: 6px 12px; border: 1px solid var(--line); border-radius: var(--radius-ctl); background: var(--white); color: var(--ink); font-weight: 600; font-size: 0.95em; text-decoration: none; transition: background-color 0.15s ease, border-color 0.15s ease; }
-a.qs-chip:hover { background: var(--shell-2); }
-a.qs-chip:active { background: var(--shell); }
-.qs-chip[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }
 .qs-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 
 /* Request page and New Request form: the Notes column, section headers, On-site assessment and Product / Service (like Jobber's). */
@@ -1321,12 +1318,20 @@ a.qs-chip:active { background: var(--shell); }
 .op-title { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 .op-title h1 { margin: 0; overflow-wrap: anywhere; }
 .op-code { color: var(--muted); font-weight: 600; font-size: 18px; }
-.op-stages { list-style: none; margin: 0; padding: 0; display: flex; gap: 4px; flex-wrap: wrap; font-size: 13px; }
-.op-stages li { padding: 5px 11px; border-radius: var(--radius-sm); background: var(--chip, var(--shell)); color: var(--muted); }
-.op-stages li.done { background: var(--green-soft); color: var(--green-dark); }
-.op-stages li.now { background: var(--green); color: var(--white); font-weight: 600; }
-.op-stages li.now.lost { background: var(--error); }
-.op-tabs { margin: 0; }
+/* The pipeline's stages as one line of numbered steps (D-135, components/stage-steps.tsx). */
+.op-steps { position: relative; list-style: none; margin: 0; padding: 16px 8px 12px; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(104px, 1fr); overflow-x: auto; overflow-y: hidden; border: 1px solid var(--line-soft); border-radius: var(--radius-lg); background: var(--white); scrollbar-width: thin; }
+.op-steps li { position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 0 6px; text-align: center; }
+.op-steps li + li::before { content: ""; position: absolute; top: 13px; right: calc(50% + 18px); width: calc(100% - 36px); height: 2px; border-radius: 2px; background: var(--line-soft); transition: background-color 0.2s ease; }
+.op-steps li.done + li.done::before, .op-steps li.done + li.now::before { background: var(--green); }
+.op-dot { width: 28px; height: 28px; flex: none; display: grid; place-items: center; border: 2px solid var(--line-soft); border-radius: 50%; background: var(--white); color: var(--muted); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease; }
+.op-steplabel { font-size: 12px; line-height: 1.35; color: var(--muted); text-wrap: balance; }
+.op-steps .done .op-dot { border-color: var(--green); background: var(--green-soft); color: var(--green-dark); }
+.op-steps .done .op-steplabel { color: var(--text); }
+.op-steps .now .op-dot { border-color: var(--green); background: var(--green); color: var(--white); box-shadow: 0 0 0 4px var(--green-soft); }
+.op-steps .now .op-steplabel { color: var(--ink); font-weight: 700; }
+.op-steps .now.lost .op-dot { border-color: var(--error); background: var(--error); box-shadow: 0 0 0 4px var(--error-soft); }
+.op-tabs { margin: 0; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; } /* on a phone the tabs slide sideways on their own, not the whole page */
+.op-tabs .tab { flex: none; }
 .op-tabs .tab small { background: var(--chip, var(--shell)); color: var(--ink); border-radius: 999px; padding: 1px 7px; margin-left: 6px; font-size: 12px; }
 .op-body { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; align-items: start; }
 /* The project's tabs use the whole width (client feedback, 2026-11-20): cards sit side by side where there is room, a card marked op-wide (or a tab with one card) spans the row. */
@@ -1355,6 +1360,8 @@ a.qs-chip:active { background: var(--shell); }
 .op-facts > div:last-child { border-bottom: 0; }
 .op-facts dt { color: var(--muted); }
 .op-facts dd { margin: 0; color: var(--ink); min-width: 0; }
+/* A long status wraps inside its pill instead of running past the edge of the card. */
+.op-facts dd .pill { max-width: 100%; height: auto; min-height: 22px; padding-block: 2px; white-space: normal; }
 .op-scroll { overflow-x: auto; }
 .op-table .num { text-align: right; font-variant-numeric: tabular-nums; }
 .op-table .op-sum td { font-weight: 700; border-top: 2px solid var(--line); }
@@ -1403,7 +1410,10 @@ a.qs-chip:active { background: var(--shell); }
 .ai-select { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: 44px; padding: 8px 12px; border: 1px solid var(--line-strong); border-radius: var(--radius-ctl); background: var(--white); color: var(--ink); font: inherit; text-align: left; cursor: pointer; transition: background-color 0.15s ease, border-color 0.15s ease; }
 .ai-select:hover { background: var(--hover); border-color: var(--ink); }
 .ai-select:active { background: var(--shell); }
-.ai-team { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-ctl); max-height: 200px; overflow-y: auto; animation: rise-in 0.14s ease-out both; }
+.ai-teambox { position: relative; }
+.ai-team { position: absolute; z-index: 30; left: 0; right: 0; top: calc(100% + 4px); display: grid; gap: 8px; padding: 10px 12px; background: var(--white); border: 1px solid var(--line); border-radius: var(--radius-ctl); box-shadow: 0 10px 28px rgba(3, 43, 58, 0.16); max-height: 220px; overflow-y: auto; animation: tp-in 0.14s ease-out both; }
+.ai-team.leaving { animation: tp-out 0.12s ease-in both; }
+@media (prefers-reduced-motion: reduce) { .ai-team, .ai-team.leaving { animation: none; } }
 @media (max-width: 900px) { .ai-grid, .as-three { grid-template-columns: minmax(0, 1fr); } }
 
 /* Quote notes, as in Jobber: a pencil on each note that turns it into a box with Cancel and Save. */
@@ -1857,7 +1867,9 @@ a.qs-chip:active { background: var(--shell); }
 /* Menus float clear of their button (Jobber): a gap, a soft two-layer shadow and no hard edge. */
 .menu { border-color: var(--line-soft); box-shadow: 0 2px 6px rgba(3, 43, 58, 0.08), 0 14px 36px rgba(3, 43, 58, 0.18); }
 .menu.actions, .menu.account, .menu.mentions { box-shadow: 0 2px 6px rgba(3, 43, 58, 0.08), 0 14px 36px rgba(3, 43, 58, 0.18); }
-[aria-haspopup="menu"][aria-expanded="true"]:not(.nav .item) { background-color: var(--hover); }
+[aria-haspopup="menu"][aria-expanded="true"]:not(.nav .item):not(.btn.primary) { background-color: var(--hover); }
+/* A green button whose menu is open stays green, just a shade darker (the Create button went white with white text, user 2026-11-26). */
+.btn.primary[aria-haspopup="menu"][aria-expanded="true"] { background-color: var(--green-dark); border-color: var(--green-dark); color: var(--white); }
 
 /* Settings pages fill the column beside the Settings links, like the Materials list does, instead of stopping at a fixed width and leaving
    the rest of the screen empty. Cards and lists stretch; the caps that kept them narrow come off. */
@@ -1905,7 +1917,7 @@ a.qs-chip:active { background: var(--shell); }
 .tp-trigger svg { flex: none; color: var(--muted); }
 .tp-placeholder { color: var(--muted); }
 .tp.bad .tp-trigger { border-color: var(--error); background: var(--error-soft); }
-.tp-panel { position: absolute; z-index: 60; top: calc(100% + 6px); left: 0; width: 232px; padding: 8px; border: 1px solid var(--line); border-radius: var(--radius-ctl); background: var(--white); box-shadow: 0 10px 28px rgba(3, 43, 58, 0.16); animation: tp-in 0.14s ease-out both; }
+.tp-panel { position: fixed; z-index: 1200; width: 232px; padding: 8px; border: 1px solid var(--line); border-radius: var(--radius-ctl); background: var(--white); box-shadow: 0 10px 28px rgba(3, 43, 58, 0.16); animation: tp-in 0.14s ease-out both; }
 .tp-panel.leaving { animation: tp-out 0.12s ease-in both; }
 @keyframes tp-in { from { opacity: 0; transform: translateY(-4px) scale(0.98); } to { opacity: 1; transform: none; } }
 @keyframes tp-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(-4px) scale(0.98); } }
@@ -1937,3 +1949,103 @@ a.qs-chip:active { background: var(--shell); }
 .op-locked { border-color: var(--line-strong); }
 .op-files-grid { gap: 16px; }
 .op-body.one > .op-span { grid-column: 1 / -1; display: grid; gap: 16px; align-content: start; max-width: 980px; }
+
+/* One field for the day and the time (components/when-field.tsx, D-130). */
+.when-btn { width: 100%; min-height: var(--control-lg); display: flex; align-items: center; gap: 10px; padding: 0 12px; border: 1px solid var(--line); border-radius: var(--radius-ctl); background: var(--white); color: var(--ink); font: inherit; text-align: left; cursor: pointer; transition: border-color 0.15s ease, background-color 0.15s ease; }
+.when-btn:hover { border-color: #b8c2c4; background: var(--hover); }
+.when-btn:active { background: var(--line-soft); }
+.when-btn svg { flex: none; color: var(--muted); }
+.when-btn.blank span { color: var(--muted); }
+.when-btn.bad { border-color: var(--error); background: var(--error-soft); }
+.menu.when-pop { padding: 0; }
+.when-panel { width: 300px; padding: 14px; display: grid; gap: 12px; }
+.when-head { display: grid; grid-template-columns: 32px 1fr 32px; align-items: center; justify-items: center; font-weight: 700; color: var(--ink); }
+.when-head button { width: 32px; height: 32px; border: 0; border-radius: var(--radius-sm); background: none; color: var(--ink); display: grid; place-items: center; cursor: pointer; transition: background-color 0.15s ease; }
+.when-head button:hover { background: var(--hover); }
+.when-head button:active { background: var(--line-soft); }
+.when-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-top: 8px; }
+.when-dow { text-align: center; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); padding: 4px 0; }
+.when-day { height: 34px; width: 34px; justify-self: center; border: 0; border-radius: 50%; background: none; color: var(--ink); font: inherit; font-size: 14px; cursor: pointer; transition: background-color 0.12s ease, color 0.12s ease; }
+.when-day:hover:not(:disabled) { background: var(--hover); }
+.when-day:active:not(:disabled) { background: var(--line-soft); }
+.when-day.out { color: #a7b1b5; }
+.when-day.today { box-shadow: inset 0 0 0 1px var(--green); font-weight: 700; }
+.when-day.sel { background: var(--green); color: var(--white); font-weight: 700; box-shadow: none; }
+.when-day:disabled { color: #c9cfd2; cursor: not-allowed; }
+.when-times .field label { font-size: 13px; color: var(--muted); }
+.when-err { margin: -4px 0 0; color: var(--error); font-size: 13px; }
+.when-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding-top: 10px; border-top: 1px solid var(--line-soft); }
+.when-any { display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; }
+/* A quote shown in full on the project's Quotes tab (D-130). */
+.op-quote .op-quote-meta { margin: -6px 0 6px; }
+.op-quote-part { padding-top: 16px; margin-top: 16px; border-top: 1px solid var(--line-soft); }
+.op-quote-part h3 { margin: 0 0 10px; font-size: var(--fs-h4, 16px); }
+.op-quote-part h4 { margin: 8px 0 4px; }
+.op-quote .qs-hero img { max-width: 100%; height: auto; border-radius: var(--radius-ctl); }
+.op-quote .quote-totals { margin-left: auto; max-width: 360px; }
+/* Inside the popover the general menu-button look (full width, padding, flex) must not apply (D-130). */
+.menu.when-pop button { width: auto; padding: 0; display: inline-grid; place-items: center; font-weight: inherit; }
+.menu.when-pop .when-day { width: 34px; height: 34px; }
+.menu.when-pop .when-head button { width: 32px; height: 32px; }
+.menu.when-pop .tp-trigger { width: 100%; display: flex; justify-content: flex-start; padding: 0 12px; }
+.menu.when-pop .btn { padding: 0 16px; display: inline-flex; }
+.menu.when-pop .when-any { white-space: nowrap; }
+.menu.when-pop .when-day.sel:hover { background: var(--green-dark); }
+
+/* A single date box in the assessment (D-132; it had a start and an end date). */
+.ai-group.one { grid-template-columns: minmax(0, 1fr); }
+/* The Visit tab (components/visit-tab.tsx and visit-card.tsx, D-133): full width like the Overview, one container per visit on the left with a
+   big + under them, the property and the visit notes on the right. */
+.op-body.vt { grid-template-columns: minmax(0, 1fr) 340px; }
+.vt-main, .vt-side { display: grid; gap: 16px; align-content: start; min-width: 0; }
+.vt-visit { padding: 0 20px; min-width: 0; }
+.vt-h { margin: 0; font: inherit; }
+.vt-visithead { display: flex; align-items: center; gap: 12px; width: calc(100% + 40px); margin: 0 -20px; padding: 16px 20px; border: 0; border-radius: var(--radius-lg); background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; transition: background-color 0.15s ease; }
+.vt-visithead:hover { background: var(--hover); }
+.vt-visithead:active { background: var(--line-soft); }
+.vt-visittitle { display: grid; gap: 3px; min-width: 0; flex: 1; }
+.vt-visittitle b { font-family: var(--font-heading), inherit; font-size: 19px; overflow-wrap: anywhere; }
+.vt-visittitle small { color: var(--muted); font-size: 13px; }
+.vt-visit.open > .vt-h .vt-chev { transform: rotate(180deg); }
+.vt-visitbody { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.22s ease-in; }
+.vt-visit.open > .vt-visitbody { grid-template-rows: 1fr; transition-timing-function: ease-out; }
+.vt-visitinner { display: grid; gap: 10px; align-content: start; min-height: 0; overflow: hidden; visibility: hidden; transition: visibility 0s 0.22s; padding: 0 2px; }
+.vt-visit.open > .vt-visitbody > .vt-visitinner { visibility: visible; transition: visibility 0s; padding-bottom: 18px; }
+.vt-meet { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; padding: 14px 0 6px; border-top: 1px solid var(--line-soft); }
+.vt-facts { display: flex; flex-wrap: wrap; gap: 12px 36px; margin: 0; }
+.vt-facts > div { display: grid; gap: 2px; min-width: 0; }
+.vt-facts > div.wide { flex-basis: 100%; }
+.vt-facts dt { color: var(--muted); font-size: 13px; }
+.vt-facts dd { margin: 0; overflow-wrap: anywhere; }
+.vt-visit .vz-area { border: 1px solid var(--line); border-radius: var(--radius-ctl); padding: 0 14px; }
+.vt-visit .vz-areahead { width: calc(100% + 28px); margin: 0 -14px; padding: 12px 14px; }
+.vt-visit .vz-area:not(.open) > .vz-areabody > .vz-areainner { visibility: hidden; }
+.vt-addarea { justify-self: start; display: inline-flex; align-items: center; gap: 6px; padding: 6px 0; }
+.vt-addarea:disabled { opacity: 0.5; cursor: default; }
+.vt-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; padding-top: 14px; border-top: 1px solid var(--line-soft); }
+.vt-actions .btn { min-height: 44px; }
+.vt-donenote { display: inline-flex; align-items: center; gap: 6px; margin-right: auto; color: var(--green-dark); font-weight: 600; }
+.vt-addrow { display: flex; justify-content: center; padding: 6px 0 12px; }
+.vt-plus { width: 60px; height: 60px; display: grid; place-items: center; border: 0; border-radius: 50%; background: var(--green); color: var(--white); box-shadow: 0 6px 16px rgba(3, 43, 58, 0.18); cursor: pointer; transition: background-color 0.15s ease, transform 0.12s ease, box-shadow 0.15s ease; }
+.vt-plus:hover { background: var(--green-dark); box-shadow: 0 8px 20px rgba(3, 43, 58, 0.24); }
+.vt-plus:active { transform: scale(0.95); }
+.vt-plus:focus-visible { outline: 2px solid var(--green-dark); outline-offset: 3px; }
+.vt-address { display: flex; gap: 8px; align-items: flex-start; color: var(--text); }
+.vt-address svg { flex: none; color: var(--muted); margin-top: 2px; }
+.vt-maps { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.vt-none { margin: 10px 0 0; }
+.vt-notesave { display: flex; justify-content: flex-end; margin-top: 10px; animation: rise-in 0.18s ease-out both; }
+.vt-state { flex: none; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--line-soft); color: var(--text); }
+.vt-state.done { background: #e3f0de; color: var(--green-dark); }
+.vt-state.late { background: var(--error-soft); color: var(--error); }
+.vt-state.off { color: var(--muted); }
+.vt-open { color: var(--green); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; transition: color 0.15s ease; }
+.vt-open:hover { color: var(--green-dark); }
+.vt-label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 14px; }
+.vt-who { display: grid; gap: 4px; max-height: 160px; overflow-y: auto; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--radius-ctl); }
+.field.bad .vt-label { color: var(--error); }
+.field.bad .vt-who { border-color: var(--error); background: var(--error-soft); }
+.vt-who label { display: flex; align-items: center; gap: 10px; padding: 4px; margin: 0; border-radius: var(--radius-sm); font-weight: 400; cursor: pointer; transition: background-color 0.12s ease; }
+.vt-who label:hover { background: var(--hover); }
+@media (max-width: 1000px) { .op-body.vt { grid-template-columns: minmax(0, 1fr); } .op-body.vt > .vt-side { order: -1; } }
+@media (prefers-reduced-motion: reduce) { .vt-visitbody, .vt-visitinner, .vt-chev, .vt-plus { transition: none; } .vt-notesave { animation: none; } }

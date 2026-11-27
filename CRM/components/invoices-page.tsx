@@ -4,11 +4,14 @@
    then the list with Status and Date filters, search, sorting and pagination. The backend (convex/crm/invoices.ts) does the filtering,
    sorting, counting and paging; this file only asks and shows. */
 
+import { useConvex } from "convex/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { DAY_MS } from "@/convex/crm/lib/stages";
 import { useWorkspace, type BusinessDoc } from "@/lib/clients";
+import { downloadExport } from "@/lib/download-export";
+import { failure } from "@/lib/pipeline";
 import { ALL_TIME, rangeBounds, rangeLabel, type DateRange } from "@/lib/dates";
 import { moneyCents } from "@/lib/format";
 import { INVOICE_DOT, INVOICE_PILL, INVOICE_STATUS_FILTERS, useInvoiceList, useInvoiceStats, usePaymentStats, utcDate, type InvoiceStatus } from "@/lib/invoices";
@@ -46,8 +49,18 @@ function Delta({ value }: { value: number | null }) {
 
 function Invoices({ business }: { business: BusinessDoc }) {
   const router = useRouter();
-  const { popover, dropdown } = useUI();
+  const { popover, dropdown, toast } = useUI();
   const { can } = useStaff();
+  const convex = useConvex();
+  /** Every one of the business's invoices, whatever the list is filtered to, as a spreadsheet file. */
+  async function exportCsv() {
+    try {
+      const count = await downloadExport(convex, business, "invoices");
+      toast(`Exported ${count} ${count === 1 ? "invoice" : "invoices"}.`);
+    } catch (e) {
+      toast(failure(e, "The export did not finish. Nothing was downloaded."));
+    }
+  }
   const canBill = can("invoices", "edit");
   const [q, setQ] = useState("");
   const [search, setSearch] = useState("");
@@ -99,12 +112,12 @@ function Invoices({ business }: { business: BusinessDoc }) {
       <div className="page-head">
         <h1>Invoices</h1>
         <div className="actions">
-          {canBill ? <Link className="btn primary" href="/invoices/new">New Invoice</Link> : <button className="btn primary" type="button" disabled data-tip="Your role can look at invoices but not make them">New Invoice</button>}
+          {canBill ? <Link className="btn primary" href="/invoices/new">New Invoice</Link> : <button className="btn primary" type="button" aria-disabled="true" onClick={() => toast("Your role can look at invoices but not make them.")}>New Invoice</button>}
           <button
             className="btn"
             type="button"
             aria-haspopup="menu"
-            onClick={(e) => dropdown(e.currentTarget, [{ label: "Export data", icon: "export", onSelect: () => router.push("/settings/export") }], { alignRight: true, variant: "actions" })}
+            onClick={(e) => dropdown(e.currentTarget, [{ label: "Export Invoices", icon: "export", onSelect: () => void exportCsv() }], { alignRight: true, variant: "actions" })}
           >
             <Icon name="more" size={20} /> More Actions
           </button>

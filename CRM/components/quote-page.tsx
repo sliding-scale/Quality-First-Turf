@@ -9,7 +9,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useMutation } from "convex/react";
+import { useAction, useMutation } from "convex/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api } from "@/convex/_generated/api";
@@ -83,7 +83,7 @@ function QuoteNote({ n, canEdit, editingId, setEditingId }: { n: Quote["notes"][
           <b>{n.author}</b>
           <div className="muted">{quoteDateTime(n.createdAt)}</div>
         </div>
-        {canEdit && !editing && <button type="button" className="icon-btn qn-pencil" aria-label="Edit note" disabled={editingId !== null} title={editingId !== null ? "Save or cancel the note you are editing first" : undefined} onClick={() => { setText(n.text); setEditing(true); }}><Icon name="pencil" size={20} /></button>}
+        {canEdit && !editing && <button type="button" className="icon-btn qn-pencil" aria-label="Edit note" aria-disabled={editingId !== null || undefined} onClick={() => { if (editingId !== null) { toast("Save or cancel the note you are editing first"); return; } setText(n.text); setEditing(true); }}><Icon name="pencil" size={20} /></button>}
       </div>
       {editing ? (
         <>
@@ -122,7 +122,15 @@ function QuoteView({ q }: { q: Quote }) {
   const params = useSearchParams();
   const [dialog, setDialog] = useState<null | "send" | "email" | "sign" | "deposit" | "activity" | "note">(() => (params.get("link") === "1" && q.shareToken ? "send" : null));
   const send = useMutation(api.crm.quoteFlow.send);
-  const duplicate = useMutation(api.crm.quoteDraft.duplicate);
+  // An action: it copies the quote's pictures and files too, which takes a moment.
+  const duplicate = useAction(api.crm.quoteDraft.duplicate);
+  const [copying, setCopying] = useState(false);
+  function createSimilar() {
+    setCopying(true);
+    duplicate({ id: q.id as Id<"quotes"> })
+      .then((id) => router.push(`/quotes/${id}/edit`))
+      .catch((e) => { toast(failure(e, "The quote could not be copied.")); setCopying(false); });
+  }
   const archive = useMutation(api.crm.quoteDraft.archive);
   // Every section has its pencil, as in Jobber. A quote that was approved asks first (its signature is removed to edit it); a declined or
   // archived one cannot be edited.
@@ -182,13 +190,16 @@ function QuoteView({ q }: { q: Quote }) {
   const rule: MenuItem = { divider: true };
   const canSign = canEdit && (q.status === "Draft" || q.status === "Awaiting response" || q.status === "Changes requested");
   const moreItems: MenuItem[] = [
+    { label: "View activity", icon: "history", onSelect: () => setDialog("activity") },
     ...(canEdit
       ? [
           { label: "Convert to Job", icon: "hammer", iconColor: "var(--green)", onSelect: () => { const why = convertBlockReason(q.status, !!q.request); if (why) toast(why); else void convertToJob(q.request?.id as Id<"opportunities"> | undefined); } } as MenuItem,
+          // The only way to the attachments now that the "Add section" strip is gone (D-134).
+          { label: "Attachments", icon: "file", reason: !pencils ? "A declined or archived quote cannot be edited." : undefined, onSelect: () => openEdit("attachments") } as MenuItem,
           rule,
           { heading: "Send as..." } as MenuItem,
-          { label: q.shareToken ? "Client link" : "Create the client link", icon: "newtab", onSelect: () => (q.shareToken ? setDialog("send") : void sendNow()), disabled: !(q.shareToken || q.status === "Draft") } as MenuItem,
-          { label: "Email", icon: "mail", disabled: !q.client.email || !(q.shareToken || q.status === "Draft"), onSelect: () => (q.shareToken ? setDialog("email") : void sendNow("email")) } as MenuItem,
+          { label: q.shareToken ? "Client link" : "Create the client link", icon: "newtab", onSelect: () => (q.shareToken ? setDialog("send") : void sendNow()), reason: !(q.shareToken || q.status === "Draft") ? "This quote has no client link: it was never sent from here." : undefined } as MenuItem,
+          { label: "Email", icon: "mail", reason: !q.client.email ? "The client has no email address. Add one on the client first." : !(q.shareToken || q.status === "Draft") ? "This quote has no client link to email: it was never sent from here." : undefined, onSelect: () => (q.shareToken ? setDialog("email") : void sendNow("email")) } as MenuItem,
           later("Send Text", "sms"),
           rule,
         ]
@@ -196,7 +207,7 @@ function QuoteView({ q }: { q: Quote }) {
     q.shareToken && q.status !== "Archived"
       ? ({ label: "Preview as Client", icon: "eye", onSelect: () => window.open(`/q/${q.shareToken}?preview=1`, "_blank", "noopener") } as MenuItem)
       : later("Preview as Client", "eye"),
-    ...(canEdit ? [{ label: "Collect Signature", icon: "signature", disabled: !canSign, onSelect: () => setDialog("sign") } as MenuItem] : []),
+    ...(canEdit ? [{ label: "Collect Signature", icon: "signature", reason: !canSign ? "A signature is collected once the quote has been sent and is waiting for an answer." : undefined, onSelect: () => setDialog("sign") } as MenuItem] : []),
     ...(canEdit && q.status === "Approved" && q.totals.depositOutstandingCents > 0 ? [{ label: "Record deposit", icon: "dollar", onSelect: () => setDialog("deposit") } as MenuItem] : []),
     { label: "Print or Save PDF", icon: "pdf", onSelect: () => window.print() },
     ...(canEdit && q.status !== "Archived" && q.status !== "Converted" ? [{ label: "Archive", icon: "stage", onSelect: () => void archive({ id: q.id }).then(() => toast("The quote is archived.")).catch((e) => fail(e, "The quote could not be archived.")) } as MenuItem] : []),
@@ -221,19 +232,17 @@ function QuoteView({ q }: { q: Quote }) {
               </Link>
             </div>
             <div className="qh-actions">
-              <button type="button" className="icon-btn" aria-label="View activity" title="View activity" onClick={() => setDialog("activity")}>
-                <Icon name="history" size={24} />
-              </button>
+              {/* View opportunity in place of the history icon, which looked like a retry button (user, 2026-11-26, D-130); history is under More. */}
+              {q.request && <Link className="btn" href={`/opportunities/${q.request.id}`}><Icon name="inbox" size={22} />View opportunity</Link>}
               {canEdit && q.status === "Draft" && <button className="btn primary" type="button" onClick={() => void sendNow()}><Icon name="newtab" size={22} />Send</button>}
               {canEdit && q.status === "Changes requested" && <Link className="btn primary" href={`/quotes/${q.id}/edit`}><Icon name="pencil" size={22} />Edit and resubmit</Link>}
-              {canEdit && q.status === "Awaiting response" && q.shareToken && <button className="btn primary" type="button" onClick={() => setDialog("send")}><Icon name="newtab" size={22} />Client link</button>}
               {canEdit && q.status === "Approved" && q.totals.depositOutstandingCents > 0 && <button className="btn primary" type="button" onClick={() => setDialog("deposit")}><Icon name="dollar" size={22} />Record deposit</button>}
               <button className="btn more-btn" type="button" aria-label="More" aria-haspopup="menu" onClick={(e) => dropdown(e.currentTarget, moreItems, { alignRight: true, variant: "actions" })}>
                 <Icon name="more" size={24} /><span className="lbl">More</span>
               </button>
               {canEdit && (
-                <button className="btn" type="button" onClick={() => void duplicate({ id: q.id }).then((id) => router.push(`/quotes/${id}/edit`)).catch((e) => fail(e, "The quote could not be copied."))}>
-                  <Icon name="duplicate" size={24} />Create Similar Quote
+                <button className="btn" type="button" disabled={copying} onClick={createSimilar}>
+                  <Icon name="duplicate" size={24} />{copying ? "Copying…" : "Create Similar Quote"}
                 </button>
               )}
             </div>
@@ -375,16 +384,6 @@ function QuoteView({ q }: { q: Quote }) {
               )}
             </div>
           </section>
-
-          {/* Jobber's "Add section" strip. Attachments are on the quote already and are edited in the builder; Images and Reviews are greyed until they are built. */}
-          {canEdit && (
-            <div className="qs-add" role="group" aria-label="Add section">
-              <span className="qs-add-label"><Icon name="plus" size={16} />Add section</span>
-              {pencils ? <button type="button" className="qs-chip" onClick={() => openEdit("attachments")}>Attachments</button> : <span className="qs-chip" aria-disabled="true">Attachments</span>}
-              <span className="qs-chip" aria-disabled="true" title="Not available yet">Images</span>
-              <span className="qs-chip" aria-disabled="true" title="Not available yet">Reviews</span>
-            </div>
-          )}
 
           {(q.clientMessage || pencils) && (
             <section className="card panel quote-section">

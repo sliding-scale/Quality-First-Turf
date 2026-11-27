@@ -1,14 +1,14 @@
 "use client";
 
-/* Settings → Export data (plan 2026-11-20-export): one CSV per kind of record, for the whole business. The backend gives the rows a page at a time
-   (convex/crm/exports.ts); this builds the file in the browser, with the spreadsheet-safe cell rules of lib/exportCsv.ts. */
+/* Settings → Export data (plan 2026-11-20-export): one CSV per kind of record, for the whole business. lib/download-export.ts asks the backend
+   page after page and builds the file. */
 
 import { useConvex, useQuery } from "convex/react";
 import Link from "next/link";
 import { useState } from "react";
 import { api } from "@/convex/_generated/api";
-import { csvFile } from "@/convex/crm/lib/exportCsv";
 import { useWorkspace } from "@/lib/clients";
+import { downloadExport } from "@/lib/download-export";
 import { failure } from "@/lib/pipeline";
 import { CatalogueSkeleton } from "./skeletons";
 import { useUI } from "./ui-provider";
@@ -37,23 +37,8 @@ export function ExportPage() {
     setBusy(kind);
     setProgress(0);
     try {
-      const rows: (string | number | null)[][] = [];
-      let headers: string[] = [];
-      let cursor: string | null = null;
-      do {
-        const r: { headers: string[]; rows: (string | number | null)[][]; next: string | null } = await convex.query(api.crm.exports.page, { businessId: business._id, kind, cursor });
-        headers = r.headers;
-        rows.push(...r.rows);
-        cursor = r.next;
-        setProgress(rows.length);
-      } while (cursor !== null);
-      const url = URL.createObjectURL(new Blob([csvFile(headers, rows)], { type: "text/csv;charset=utf-8" }));
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${kind}-${business.slug}-${new Date().toISOString().slice(0, 10)}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-      toast(`Exported ${rows.length} ${rows.length === 1 ? "row" : "rows"}.`);
+      const count = await downloadExport(convex, business, kind, setProgress);
+      toast(`Exported ${count} ${count === 1 ? "row" : "rows"}.`);
     } catch (e) {
       toast(failure(e, "The export did not finish. Nothing was downloaded."));
     } finally {

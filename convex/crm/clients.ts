@@ -7,6 +7,8 @@ import { changedClientFields, logActivity } from "./lib/activity";
 import { deleteQuote } from "./lib/quoteData";
 import { attachmentLinks, checkNoteFiles, deleteNoteFiles, noteFilesArg } from "./lib/noteFiles";
 import { deleteConstruction } from "./lib/construction";
+import { mirrorRemoved } from "./lib/mirror";
+import { deleteVisitSheets } from "./lib/visitSheets";
 import { toggleCheckbox } from "./lib/noteText";
 import { clientInputFields, clientSearchText, normalizeClientInput, opportunitySearchText } from "./lib/clientInput";
 import { CLIENT_TAGS, DAY_MS, matchesClientStatusFilter, type ClientStatusFilter } from "./lib/stages";
@@ -300,6 +302,16 @@ export const remove = mutation({
       }
       for (const p of r.projects) {
         await deleteConstruction(ctx, p._id); // progress, punch list and sign-offs, with their photos (D-081)
+        // Its consultations, visits and tasks leave the Schedule (and Zoho) with it, or they stay there pointing at nothing (D-130).
+        for (const e of await ctx.db.query("calendarEvents").withIndex("by_opportunity", (q) => q.eq("opportunityId", p._id)).take(500)) {
+          await mirrorRemoved(ctx, "event", e._id);
+          await ctx.db.delete(e._id);
+        }
+        for (const t of await ctx.db.query("opportunityTasks").withIndex("by_opportunity", (q) => q.eq("opportunityId", p._id)).take(500)) {
+          if (t.startAt !== undefined) await mirrorRemoved(ctx, "task", t._id);
+          await ctx.db.delete(t._id);
+        }
+        await deleteVisitSheets(ctx, p._id);
         await ctx.db.delete(p._id);
       }
       for (const n of r.notes) {

@@ -13,7 +13,7 @@ export type Module = (typeof MODULES)[number];
 
 export const MODULE_LABEL: Record<Module, string> = {
   clients: "Clients", requests: "Requests", quotes: "Quotes", schedule: "Schedule", jobs: "Jobs", messages: "Messages", tasks: "Tasks",
-  pipelineSales: "Pipeline: Sales", pipelinePreplanning: "Pipeline: Preplanning", pipelineConstruction: "Pipeline: Construction", pipelineFinance: "Pipeline: Finance",
+  pipelineSales: "Pipeline: Sales", pipelinePreplanning: "Pipeline: Preplanning", pipelineConstruction: "Pipeline: Construction", pipelineFinance: "Pipeline: Backend",
   invoices: "Invoices", payments: "Payments", prices: "Show pricing", templates: "Disclaimers and invoice settings", settings: "Team and settings",
 };
 

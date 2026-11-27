@@ -7,11 +7,11 @@
 
 import Link from "next/link";
 import { useMutation } from "convex/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { useWorkspace, type BusinessDoc } from "@/lib/clients";
+import { useClient, useWorkspace, type BusinessDoc } from "@/lib/clients";
 import { quoteDate } from "@/lib/format";
 import { useClientSearch } from "@/lib/quotes";
 import { clock } from "@/lib/pipeline";
@@ -50,6 +50,13 @@ function Form({ business }: { business: BusinessDoc }) {
 
   const [title, setTitle] = useState("");
   const [client, setClient] = useState<{ id: Id<"clients">; name: string } | null>(null);
+  // "/requests/new?clientId=...": Create > Request on a client's page starts with that client chosen.
+  const preset = useClient(useSearchParams().get("clientId") ?? undefined);
+  const [presetDone, setPresetDone] = useState(false);
+  if (!presetDone && preset) {
+    setPresetDone(true);
+    setClient({ id: preset._id, name: preset.name });
+  }
   const [clientQuery, setClientQuery] = useState("");
   const [salesperson, setSalesperson] = useState<string | null>(null); // null until the person changes it: then the signed-in user
   const [details, setDetails] = useState("");

@@ -28,6 +28,8 @@ export async function mirrorRemoved(ctx: MutationCtx, kind: Kind, id: Id<"calend
     ? await ctx.db.query("calendarLinks").withIndex("by_event", (q) => q.eq("eventId", id as Id<"calendarEvents">)).take(50)
     : await ctx.db.query("calendarLinks").withIndex("by_task", (q) => q.eq("taskId", id as Id<"opportunityTasks">)).take(50);
   if (links.length === 0) return;
-  await ctx.scheduler.runAfter(0, internal.crm.calendarSync.pushDelete, { links: links.map((l) => ({ connectionId: l.connectionId, zohoUid: l.zohoUid, etag: l.etag })) });
-  for (const l of links) await ctx.db.delete(l._id);
+  // The links are kept, emptied, until Zoho has deleted its copies (D-130): deleting them at once let the next read of Zoho bring the copy back
+  // as a new Zoho item (a deleted request's consultation came back on the Schedule). pushDelete removes them once Zoho has.
+  for (const l of links) await ctx.db.patch(l._id, { eventId: undefined, taskId: undefined });
+  await ctx.scheduler.runAfter(0, internal.crm.calendarSync.pushDelete, { links: links.map((l) => ({ connectionId: l.connectionId, zohoUid: l.zohoUid, etag: l.etag, linkId: l._id })) });
 }

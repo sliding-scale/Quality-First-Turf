@@ -91,6 +91,7 @@ import type * as crm_lib_svix from "../crm/lib/svix.js";
 import type * as crm_lib_systemMove from "../crm/lib/systemMove.js";
 import type * as crm_lib_takeoff from "../crm/lib/takeoff.js";
 import type * as crm_lib_visitData from "../crm/lib/visitData.js";
+import type * as crm_lib_visitSheets from "../crm/lib/visitSheets.js";
 import type * as crm_lib_workPackage from "../crm/lib/workPackage.js";
 import type * as crm_lib_zohoCalendarApi from "../crm/lib/zohoCalendarApi.js";
 import type * as crm_lib_zohoMail from "../crm/lib/zohoMail.js";
@@ -246,6 +247,7 @@ declare const fullApi: ApiFromModules<{
   "crm/lib/systemMove": typeof crm_lib_systemMove;
   "crm/lib/takeoff": typeof crm_lib_takeoff;
   "crm/lib/visitData": typeof crm_lib_visitData;
+  "crm/lib/visitSheets": typeof crm_lib_visitSheets;
   "crm/lib/workPackage": typeof crm_lib_workPackage;
   "crm/lib/zohoCalendarApi": typeof crm_lib_zohoCalendarApi;
   "crm/lib/zohoMail": typeof crm_lib_zohoMail;

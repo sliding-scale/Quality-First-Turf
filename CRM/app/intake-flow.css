@@ -149,6 +149,53 @@
 .nrf-done > span { display: grid; gap: 0.1rem; line-height: 1.35; }
 .nrf-done small { color: #b4bfb4; font-size: 0.86rem; }
 
+/* Schedule consultation in New Request (user, 2026-11-26, D-131): a month calendar beside the start and end times and quick lengths, the
+   chosen time spelled out above Cancel and Schedule. The calendar and time picker are the CRM's (when-*, tp-*) in the flow's dark colours. */
+.nrf .consultation-dialog.nrf-cd { width: min(44rem, calc(100vw - 2rem)); }
+.nrf .nrf-cd .consultation-form__head { align-items: flex-start; }
+.nrf .nrf-cd .consultation-form__head .consultation-form__note { margin-top: 0.2rem; }
+.nrf-cd__body { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 1.25rem; align-items: start; }
+.nrf-cd__cal { padding: 0.75rem; border: 1px solid #38483d; border-radius: 0.8rem; background: #101612; }
+.nrf-cd__side { display: grid; gap: 0.85rem; }
+.nrf .nrf-cd label.consultation-field { display: grid; grid-template-columns: 1fr; align-items: start; }
+.nrf .nrf-cd textarea { min-height: 4.5rem; resize: vertical; }
+.nrf .nrf-cd .when-head { color: #f4f6f1; }
+.nrf .nrf-cd .when-head button { color: #f4f6f1; }
+.nrf .nrf-cd .when-head button:hover:not(:disabled) { background: rgb(255 255 255 / 8%); }
+.nrf .nrf-cd .when-head button:disabled { opacity: 0.35; cursor: default; }
+.nrf .nrf-cd .when-dow { color: #8e9a90; }
+.nrf .nrf-cd .when-day { color: #f4f6f1; }
+.nrf .nrf-cd .when-day:hover:not(:disabled) { background: rgb(255 255 255 / 10%); }
+.nrf .nrf-cd .when-day:active:not(:disabled) { background: rgb(255 255 255 / 16%); }
+.nrf .nrf-cd .when-day.out { color: #6d786f; }
+.nrf .nrf-cd .when-day.today { box-shadow: inset 0 0 0 1px #d7f33c; }
+.nrf .nrf-cd .when-day.sel { background: #d7f33c; color: #101612; }
+.nrf .nrf-cd .when-day:disabled { color: #3f4a42; }
+.nrf .nrf-cd .tp-trigger { height: 2.75rem; border-color: #38483d; border-radius: 0.6rem; background: #101612; color: #f4f6f1; font-weight: 400; }
+.nrf .nrf-cd .tp-trigger svg { color: #b4bfb4; }
+.nrf .nrf-cd .tp-trigger:hover:not(:disabled) { border-color: #7d8a80; background: #151d17; }
+.nrf .nrf-cd .tp-trigger:focus-visible, .nrf .nrf-cd .tp-trigger[aria-expanded="true"] { border-color: #d7f33c; box-shadow: 0 0 0 2px rgb(215 243 60 / 20%); }
+.nrf .nrf-cd .tp.bad .tp-trigger { border-color: #e5484d; background: rgb(229 72 77 / 12%); }
+.nrf .nrf-cd .tp-panel { border-color: #38483d; background: #18201b; box-shadow: 0 14px 34px rgb(0 0 0 / 45%); }
+.nrf .nrf-cd .tp-col button { color: #f4f6f1; }
+.nrf .nrf-cd .tp-col button:hover { background: rgb(255 255 255 / 8%); }
+.nrf .nrf-cd .tp-col button.on { background: #d7f33c; color: #101612; }
+.nrf .nrf-cd .tp-foot { border-top-color: #2b372f; }
+.nrf .nrf-cd .tp-foot .linkbtn { color: #d7f33c; }
+.nrf .nrf-cd .tp-foot .btn.primary { border-color: #d7f33c; background: #d7f33c; color: #101612; }
+.nrf-cd__lengths { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.nrf-cd__lengths button {
+  min-height: 2.25rem; padding: 0 0.8rem; border: 1px solid #38483d; border-radius: 999px; background: transparent; color: #f4f6f1;
+  font: inherit; font-weight: 500; font-size: 0.85rem; cursor: pointer; transition: border-color 120ms ease-out, background 120ms ease-out, color 120ms ease-out;
+}
+.nrf-cd__lengths button:hover { border-color: #7d8a80; background: rgb(255 255 255 / 6%); }
+.nrf-cd__lengths button[aria-pressed="true"] { border-color: #d7f33c; background: rgb(215 243 60 / 12%); color: #d7f33c; }
+.nrf .nrf-cd__summary { margin: 0; padding: 0.7rem 0.9rem; border-radius: 0.6rem; background: rgb(215 243 60 / 8%); color: #f4f6f1; font-weight: 600; }
+.nrf .nrf-cd__summary.blank { background: rgb(255 255 255 / 4%); color: #b4bfb4; font-weight: 400; }
+.nrf .nrf-cd__cancel { border: 1px solid #39493d; background: transparent; color: #f4f6f1; transition: border-color 120ms ease-out, background 120ms ease-out; }
+.nrf .nrf-cd__cancel:hover { border-color: #7d8a80; background: rgb(255 255 255 / 6%); }
+@media (max-width: 640px) { .nrf-cd__body { grid-template-columns: 1fr; } }
+
 /* The CRM's own sidebar button is also called .collapse (globals.css: margin, padding, a hover background). Inside the flow the class means the
    forms' sliding section (intake.css), which must not inherit any of that: it added a band of empty space under every closed card. */
 .nrf .collapse, .nrf .collapse:hover { margin-top: 0; margin-inline: 0; padding: 0; gap: 0; align-items: stretch; border-radius: 0; background: none; color: inherit; }

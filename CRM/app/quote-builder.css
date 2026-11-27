@@ -15,8 +15,6 @@
 .qb-meta dd { margin: 0; }
 .qb-meta select { height: var(--control); border: 1px solid var(--line-soft); border-radius: var(--radius-ctl); padding: 0 10px; background: var(--white); max-width: 100%; }
 
-.qb-sections { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 8px 10px; border-radius: var(--radius); background: var(--shell); width: fit-content; max-width: 100%; }
-.qb-sections > span { display: inline-flex; align-items: center; gap: 4px; padding: 0 6px; color: var(--muted); font-size: 14px; }
 .chip.outline.on { background: var(--white); border-color: var(--green); color: var(--green); font-weight: 600; }
 
 .qb-intro { display: grid; grid-template-columns: minmax(0, 1fr) 190px; gap: 16px; align-items: start; }
@@ -92,7 +90,6 @@
   .qb-inline input { width: 84px; }
   .qb-bar { margin-left: -16px; margin-right: -16px; padding: 10px 16px; }
   .qb-bar .btn { min-height: 44px; }
-  .qb-sections { width: 100%; }
   .qb .icon-btn { min-width: 40px; min-height: 40px; }
 }
 @media (prefers-reduced-motion: reduce) { .qb-error { animation: none; } }
@@ -100,6 +97,7 @@
 /* The quote page's new pieces, the staff pop-ups, and the signature box (D-063). */
 .qp-banner { margin-top: 14px; padding: 12px 14px; border-radius: var(--radius-ctl); background: #eef5fb; border: 1px solid #c9ddf0; display: grid; gap: 4px; font-size: 14px; color: var(--text); }
 .qp-banner p { margin: 0; overflow-wrap: anywhere; }
+.quote-head .qp-banner { margin-bottom: 20px; }
 .qp-banner.warn { background: #fff4d6; border-color: #f1d98a; }
 .qp-banner.bad { background: var(--error-soft); border-color: var(--error-edge); }
 .qp-files { list-style: none; margin: 14px 0 0; padding: 12px 0 0; border-top: 1px solid var(--line); display: grid; gap: 6px; }

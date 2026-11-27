@@ -2,14 +2,15 @@ import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { mutation, query, type QueryCtx } from "../_generated/server";
 import { newShortCode } from "../projects/shortCode";
-import { requireModule } from "./lib/access";
+import { requireModule, requireProject } from "./lib/access";
 import { checkAssignee } from "./lib/assignees";
 import { checkNoteFiles, noteFilesArg } from "./lib/noteFiles";
 import { opportunitySearchText } from "./lib/clientInput";
 import { linesFromForm } from "./lib/formLines";
-import { DAY_MS, PIPELINE_GROUPS, REQUEST_STATUSES, SALES_STAGES, isRequest, requestStatus, type RequestStatus } from "./lib/stages";
+import { DAY_MS, PIPELINE_GROUPS, REQUEST_STATUSES, SALES_STAGES, isRequest, requestStatus, type RequestListStatus, type RequestStatus } from "./lib/stages";
 import { logActivity } from "./lib/activity";
 import { mirrorRemoved } from "./lib/mirror";
+import { deleteVisitSheets } from "./lib/visitSheets";
 import { notifyMentions } from "./lib/mentionNotify";
 
 /* Requests (D-039): not a table. A request is a project (`opportunities`) seen through its stage, and its status is worked out from the stage
@@ -24,6 +25,7 @@ const statusFilter = v.union(
   v.literal("Consultation"),
   v.literal("Converted"),
   v.literal("Lost"),
+  v.literal("Archived"),
 );
 const sortKey = v.union(v.literal("client"), v.literal("title"), v.literal("requestedAt"), v.literal("status"));
 const direction = v.union(v.literal("asc"), v.literal("desc"));
@@ -43,7 +45,7 @@ const filterArgs = {
 
 type FilterArgs = {
   businessId: Id<"businesses">;
-  status: "All" | RequestStatus;
+  status: "All" | RequestListStatus;
   from: number | null;
   to: number | null;
   search: string;
@@ -52,14 +54,18 @@ type FilterArgs = {
   today: number;
 };
 
-async function loadSales(ctx: QueryCtx, a: Pick<FilterArgs, "businessId" | "from" | "to" | "search">): Promise<Doc<"opportunities">[]> {
+/** Archived either way: off the boards too (`archivedAt`), or off this list only (`requestArchivedAt`, a quoted or won one). */
+const isArchived = (o: Doc<"opportunities">) => o.archivedAt !== undefined || o.requestArchivedAt !== undefined;
+
+/** The business's requests that are live, or (with `archived`) the ones that were archived. */
+async function loadSales(ctx: QueryCtx, a: Pick<FilterArgs, "businessId" | "from" | "to" | "search">, archived = false): Promise<Doc<"opportunities">[]> {
   const text = a.search.trim();
   if (text) {
     const found = await ctx.db
       .query("opportunities")
       .withSearchIndex("search_text", (q) => q.search("searchText", text).eq("businessId", a.businessId))
       .take(MAX_REQUESTS);
-    return found.filter((o) => isRequest(o) && o.archivedAt === undefined && (a.from === null || o.requestedAt >= a.from) && (a.to === null || o.requestedAt <= a.to));
+    return found.filter((o) => isRequest(o) && isArchived(o) === archived && (a.from === null || o.requestedAt >= a.from) && (a.to === null || o.requestedAt <= a.to));
   }
   return await ctx.db
     .query("opportunities")
@@ -70,7 +76,10 @@ async function loadSales(ctx: QueryCtx, a: Pick<FilterArgs, "businessId" | "from
       if (a.to !== null) return base.lte("requestedAt", a.to);
       return base;
     })
-    .filter((q) => q.and(q.or(q.eq(q.field("pipeline"), "Sales"), q.eq(q.field("outcome"), "won")), q.eq(q.field("archivedAt"), undefined)))
+    .filter((q) => {
+      const live = q.and(q.eq(q.field("archivedAt"), undefined), q.eq(q.field("requestArchivedAt"), undefined));
+      return q.and(q.or(q.eq(q.field("pipeline"), "Sales"), q.eq(q.field("outcome"), "won")), archived ? q.not(live) : live);
+    })
     .order("desc")
     .take(MAX_REQUESTS);
 }
@@ -81,7 +90,7 @@ type RequestRow = {
   code: string;
   title: string;
   stage: string;
-  status: RequestStatus;
+  status: RequestListStatus;
   requestedAt: number;
   property: string;
   salespersonId: Id<"users"> | undefined;
@@ -90,11 +99,12 @@ type RequestRow = {
 };
 
 async function matching(ctx: QueryCtx, a: FilterArgs) {
-  const docs = await loadSales(ctx, a);
+  const archived = a.status === "Archived";
+  const docs = await loadSales(ctx, a, archived);
   const rows: RequestRow[] = [];
   const people = new Map((await ctx.db.query("users").take(500)).map((u) => [u._id, u.name]));
   for (const o of docs) {
-    const status = requestStatus(o.stage, o.requestedAt, a.today);
+    const status: RequestListStatus = archived ? "Archived" : requestStatus(o.stage, o.requestedAt, a.today);
     if (a.status !== "All" && status !== a.status) continue;
     const client = await ctx.db.get(o.clientId);
     if (client === null) continue;
@@ -216,12 +226,12 @@ export const get = query({
       code: o.code,
       title: o.title,
       stage: o.stage,
-      status: requestStatus(o.stage, o.requestedAt, args.today),
+      status: (isArchived(o) ? "Archived" : requestStatus(o.stage, o.requestedAt, args.today)) as RequestListStatus,
       requestedAt: o.requestedAt,
       leadSource: o.leadSource ?? "",
       details: o.details ?? "",
       overview: await overviewOf(ctx, o, client),
-      archivedAt: o.archivedAt ?? null,
+      archivedAt: o.archivedAt ?? o.requestArchivedAt ?? null,
       archivedReason: o.archivedReason ?? "",
       salespersonId: o.salespersonId,
       salespersonName: person ? person.name : "Unassigned",
@@ -265,6 +275,12 @@ export const stats = query({
         w.total += 1;
         if (status === "Converted") w.converted += 1;
       }
+    }
+    // A converted request that was only tidied off the list still counts toward the past 30 days.
+    for (const o of await loadSales(ctx, { businessId: args.businessId, from: since - 30 * DAY_MS, to: null, search: "" }, true)) {
+      if (o.requestArchivedAt === undefined) continue;
+      const w = o.requestedAt >= since ? windows.now : o.requestedAt >= before ? windows.earlier : null;
+      if (w) { w.total += 1; w.converted += 1; }
     }
     const rate = (w: { total: number; converted: number }) => (w.total ? Math.round((w.converted / w.total) * 100) : 0);
     return {
@@ -421,6 +437,24 @@ export const create = mutation({
  *  or was lost, and only when no quote, invoice or payment was made for it, so no money or signed paperwork is ever lost. Its own
  *  tasks, notes, files, schedule items (and their Zoho copies), visit and history go with it. The customer form's own record, if any, is
  *  left alone (the forms' tables are never changed by the CRM). Needs "Edit and delete" on Requests. */
+/** The request page's Archive (D-134). Nothing is deleted and no stage changes, so Restore (crm/automations:restoreRequest) brings it back
+ *  exactly. A request not yet quoted, or a lost one, leaves the Requests list and the boards. One that has moved on to a quote or job leaves
+ *  the Requests list only: its project is live work and stays on its board. */
+export const archive = mutation({
+  args: { id: v.id("opportunities"), now: v.number() },
+  handler: async (ctx, args) => {
+    const o = await ctx.db.get(args.id);
+    if (o === null || !isRequest(o)) throw new ConvexError("That request no longer exists.");
+    const staff = await requireProject(ctx, o, "requests", "edit");
+    if (isArchived(o)) return null;
+    const archivedReason = `Archived by ${staff.name}`;
+    const moved = requestStatus(o.stage, o.requestedAt, args.now) === "Converted";
+    await ctx.db.patch(o._id, moved ? { requestArchivedAt: args.now, archivedReason } : { archivedAt: args.now, archivedReason, archivedFromStage: o.stage });
+    await logActivity(ctx, { businessId: o.businessId, clientId: o.clientId, opportunityId: o._id, title: `Request archived: ${o.title}`, detail: o.code ? `#${o.code}` : "", staff });
+    return null;
+  },
+});
+
 export const remove = mutation({
   args: { id: v.id("opportunities") },
   handler: async (ctx, args) => {
@@ -449,6 +483,7 @@ export const remove = mutation({
     }
     for (const h of await ctx.db.query("stageHistory").withIndex("by_opportunity", (q) => q.eq("opportunityId", o._id)).take(1000)) await ctx.db.delete(h._id);
     for (const r of await ctx.db.query("opportunityVisits").withIndex("by_opportunity", (q) => q.eq("opportunityId", o._id)).take(10)) await ctx.db.delete(r._id);
+    await deleteVisitSheets(ctx, o._id);
     for (const r of await ctx.db.query("automationRuns").withIndex("by_opportunity_and_key", (q) => q.eq("opportunityId", o._id)).take(500)) await ctx.db.delete(r._id);
     for (const r of await ctx.db.query("activities").withIndex("by_opportunityId", (q) => q.eq("opportunityId", o._id)).take(1000)) await ctx.db.delete(r._id);
     await ctx.db.delete(o._id);

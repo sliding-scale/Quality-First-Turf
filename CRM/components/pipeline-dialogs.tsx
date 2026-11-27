@@ -11,10 +11,7 @@ import { zonedToInstant, zonedWallClock } from "@/convex/shared/zonedTime";
 import { BUSINESS_TIME_ZONE } from "@/lib/format";
 import { clock, failure } from "@/lib/pipeline";
 import { fromInputs, todayKey } from "@/lib/schedule";
-import { TimePicker, addMinutesTo } from "./time-picker";
-
-/** Minutes from one "HH:MM" to a later one. */
-const minutesBetween = (a: string, b: string) => { const [ah, am] = a.split(":").map(Number); const [bh, bm] = b.split(":").map(Number); return bh * 60 + bm - (ah * 60 + am); };
+import { WhenField } from "./when-field";
 import { Icon } from "./icon";
 import { useDialogFocus } from "./use-dialog-focus";
 
@@ -251,7 +248,7 @@ export function ScheduleConsultationDialog({ businessId, project, people, defaul
             if (date && !(end > start)) next.end = true;
             setBad(next);
             if (next.assignee || next.date || next.end) {
-              document.getElementById(next.assignee ? "sc-cons-who" : next.date ? "sc-cons-date" : "sc-cons-end")?.focus();
+              document.getElementById(next.assignee ? "sc-cons-who" : "sc-cons-date")?.focus();
               return;
             }
             setBusy(true);
@@ -278,21 +275,16 @@ export function ScheduleConsultationDialog({ businessId, project, people, defaul
             </select>
             <span className="err">Choose who is going.</span>
           </div>
-          <div className={`field${bad.date ? " bad" : ""}`} style={{ marginTop: 14 }}>
-            <label htmlFor="sc-cons-date">Date</label>
-            <input id="sc-cons-date" type="date" min={today} aria-invalid={!!bad.date} value={date} onChange={(e) => { setDate(e.target.value); setBad((b) => ({ ...b, date: undefined })); }} />
-            <span className="err">{bad.date ?? "Choose a date."}</span>
-          </div>
-          <div className="tp-pair" style={{ marginTop: 14 }}>
-            <div className="field">
-              <label htmlFor="sc-cons-start">Start time</label>
-              <TimePicker id="sc-cons-start" label="Start time" value={time} onChange={(v) => { setEndTime((e) => (e && e > time ? addMinutesTo(v, minutesBetween(time, e)) : addMinutesTo(v, 60))); setTime(v); setBad((b) => ({ ...b, date: undefined, end: false })); }} />
-            </div>
-            <div className={`field${bad.end ? " bad" : ""}`}>
-              <label htmlFor="sc-cons-end">End time</label>
-              <TimePicker id="sc-cons-end" label="End time" value={endTime} bad={bad.end} onChange={(v) => { setEndTime(v); setBad((b) => ({ ...b, end: false })); }} />
-              <span className="err">The end has to be after the start.</span>
-            </div>
+          <div className={`field${bad.date || bad.end ? " bad" : ""}`} style={{ marginTop: 14 }}>
+            <label htmlFor="sc-cons-date">Date and time</label>
+            <WhenField
+              id="sc-cons-date"
+              value={{ date, start: time, end: endTime, anytime: false }}
+              minDate={today}
+              bad={!!bad.date || bad.end}
+              onChange={(w) => { setDate(w.date); setTime(w.start); setEndTime(w.end); setBad((b) => ({ ...b, date: undefined, end: false })); }}
+            />
+            <span className="err">{bad.date ?? "The end has to be after the start."}</span>
           </div>
           <div className="field" style={{ marginTop: 14 }}>
             <label htmlFor="sc-cons-notes">Notes for the visit</label>

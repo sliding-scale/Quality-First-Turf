@@ -3,10 +3,13 @@
 /* Jobs list (design 2026-11-19-jobs): Jobber's Jobs page. Overview, past and coming visits, then the list with a Status filter and search.
    A job is a Closed Won project; the backend (convex/crm/jobs.ts) works out each status and total, filters, counts and pages. */
 
+import { useConvex } from "convex/react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useWorkspace, type BusinessDoc } from "@/lib/clients";
+import { downloadExport } from "@/lib/download-export";
+import { failure } from "@/lib/pipeline";
 import { moneyCents, quoteDate } from "@/lib/format";
 import { ENDING_SOON, JOB_DOT, JOB_FILTERS, JOB_PILL, useJobCounts, useJobs } from "@/lib/jobs";
 import { EmptyBackend } from "./empty-backend";
@@ -26,8 +29,18 @@ export function JobsPage() {
 function Jobs({ business }: { business: BusinessDoc }) {
   const router = useRouter();
   const params = useSearchParams();
-  const { popover, dropdown } = useUI();
+  const { popover, dropdown, toast } = useUI();
   const { can } = useStaff();
+  const convex = useConvex();
+  /** Every one of the business's jobs, whatever the list is filtered to, as a spreadsheet file. */
+  async function exportCsv() {
+    try {
+      const count = await downloadExport(convex, business, "jobs");
+      toast(`Exported ${count} ${count === 1 ? "job" : "jobs"}.`);
+    } catch (e) {
+      toast(failure(e, "The export did not finish. Nothing was downloaded."));
+    }
+  }
   const canMake = can("jobs", "edit");
   const [q, setQ] = useState("");
   const [search, setSearch] = useState("");
@@ -75,12 +88,12 @@ function Jobs({ business }: { business: BusinessDoc }) {
       <div className="page-head">
         <h1>Jobs</h1>
         <div className="actions">
-          {canMake ? <Link className="btn primary" href="/jobs/new">New Job</Link> : <button className="btn primary" type="button" disabled data-tip="Your role can look at jobs but not make them">New Job</button>}
+          {canMake ? <Link className="btn primary" href="/jobs/new">New Job</Link> : <button className="btn primary" type="button" aria-disabled="true" onClick={() => toast("Your role can look at jobs but not make them.")}>New Job</button>}
           <button
             className="btn"
             type="button"
             aria-haspopup="menu"
-            onClick={(e) => dropdown(e.currentTarget, [{ label: "Export data", icon: "export", onSelect: () => router.push("/settings/export") }], { alignRight: true, variant: "actions" })}
+            onClick={(e) => dropdown(e.currentTarget, [{ label: "Export Jobs", icon: "export", onSelect: () => void exportCsv() }], { alignRight: true, variant: "actions" })}
           >
             <Icon name="more" size={20} /> More Actions
           </button>

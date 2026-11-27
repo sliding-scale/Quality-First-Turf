@@ -11,7 +11,8 @@ import { TooltipLayer } from "./tooltip-layer";
 
 /** One row in a dropdown, or a line between groups, or a small heading over a group (as in Jobber's quote menu). */
 export type MenuItem =
-  | { label: string; icon?: string; /** A colour for the icon (a green hammer, say). */ iconColor?: string; /** Red text and icon, for deleting. */ danger?: boolean; checked?: boolean; /** Not available yet: shown greyed and cannot be chosen. */ disabled?: boolean; onSelect?: () => void }
+  | { label: string; icon?: string; /** A colour for the icon (a green hammer, say). */ iconColor?: string; /** Red text and icon, for deleting. */ danger?: boolean; checked?: boolean; /** Not available yet (not built): shown greyed and cannot be chosen. */ disabled?: boolean;
+      /** Cannot be done right now, and why: the item looks normal and choosing it says the reason instead (user, 2026-11-26, D-130). */ reason?: string; onSelect?: () => void }
   | { divider: true }
   | { heading: string };
 
@@ -89,12 +90,20 @@ export function UIProvider({ children }: { children: ReactNode }) {
     const anchor = menu.anchor;
     const onClick = (e: MouseEvent) => {
       const t = e.target as Node;
-      if (menuRef.current?.contains(t) || anchor.contains(t)) return;
+      // A time picker opened from inside a popover draws its panel over the page; a click in it is still inside (D-129).
+      if (menuRef.current?.contains(t) || anchor.contains(t) || (t instanceof Element && t.closest(".tp-panel"))) return;
       setClosing(true);
     };
     const items = () => [...(menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]:not(:disabled)') ?? [])];
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { setClosing(true); return; }
+      if (e.key === "Escape") {
+        if (document.querySelector(".tp-panel:not(.leaving)")) return; // a time picker opened from here closes first
+        // Only the menu or popover closes, not the dialog under it (D-132): this listener runs before the dialog's.
+        e.preventDefault();
+        e.stopPropagation();
+        setClosing(true);
+        return;
+      }
       // A menu is walked with the arrow keys, Home and End, like any native menu.
       if (menu.kind === "popover" || !["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) return;
       const list = items();
@@ -105,7 +114,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
       list[next].focus();
     };
     document.addEventListener("click", onClick);
-    document.addEventListener("keydown", onKey);
+    document.addEventListener("keydown", onKey, true);
     // The button that opened it says so, and focus moves into the menu (and back to the button when it closes) so a keyboard or screen reader follows.
     if (menu.kind !== "popover") anchor.setAttribute("aria-haspopup", "menu");
     anchor.setAttribute("aria-expanded", "true");
@@ -118,7 +127,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelAnimationFrame(raf);
       document.removeEventListener("click", onClick);
-      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("keydown", onKey, true);
       anchor.setAttribute("aria-expanded", "false");
       const a = document.activeElement;
       // eslint-disable-next-line react-hooks/exhaustive-deps -- read at close time on purpose: the node may already be gone, and then the focus is on the body
@@ -165,7 +174,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
   return (
     <Ctx.Provider value={ui}>
       {children}
-      {menu?.kind === "dropdown" && createPortal(<Dropdown ref={menuRef} state={menu} closing={closing} onClose={closeMenu} />, document.body)}
+      {menu?.kind === "dropdown" && createPortal(<Dropdown ref={menuRef} state={menu} closing={closing} onClose={closeMenu} onReason={toast} />, document.body)}
       {menu?.kind === "popover" && createPortal(<Popover ref={menuRef} state={menu} closing={closing} onClose={closeMenu} />, document.body)}
       {menu?.kind === "create" && createPortal(<CreatePopover ref={menuRef} anchor={menu.anchor} closing={closing} onClose={closeMenu} />, document.body)}
       <TooltipLayer />
@@ -256,7 +265,7 @@ function Popover({ state, closing, onClose, ref }: { state: PopoverState; closin
   );
 }
 
-function Dropdown({ state, closing, onClose, ref }: { state: DropdownState; closing: boolean; onClose: () => void; ref: Ref<HTMLDivElement> }) {
+function Dropdown({ state, closing, onClose, onReason, ref }: { state: DropdownState; closing: boolean; onClose: () => void; onReason: (msg: string) => void; ref: Ref<HTMLDivElement> }) {
   const node = usePlacement(state.anchor, state.alignRight, state, onClose);
 
   const actions = state.variant === "actions";
@@ -273,9 +282,11 @@ function Dropdown({ state, closing, onClose, ref }: { state: DropdownState; clos
             className={it.danger ? "danger" : undefined}
             disabled={it.disabled}
             {...(it.checked !== undefined ? { "aria-checked": it.checked } : {})}
+            aria-disabled={it.reason ? true : undefined}
             onClick={() => {
               onClose();
-              it.onSelect?.();
+              if (it.reason) onReason(it.reason);
+              else it.onSelect?.();
             }}
           >
             {it.checked !== undefined && <span className="check">{it.checked && <Icon name="check" size={16} />}</span>}
